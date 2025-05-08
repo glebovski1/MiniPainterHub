@@ -1,0 +1,6 @@
+@MiniPainterHub_HostAddress = http://localhost:5176
+
+GET {{MiniPainterHub_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
