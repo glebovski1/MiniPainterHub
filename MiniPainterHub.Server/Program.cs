@@ -100,15 +100,36 @@ namespace MiniPainterHub
                 });
             });
 
+            if (builder.Environment.IsDevelopment())
+            {
+                // Use the local disk implementation when developing
+                builder.Services.AddSingleton<IImageService, LocalImageService>();
+            }
+            else
+            {
+                // Use Azure Blob Storage in staging/production
+                builder.Services.AddSingleton<IImageService, AzureBlobImageService>();
+            }
+
+
+
             builder.Services.AddScoped<IProfileService, ProfileService>();
+            builder.Services.AddScoped<IPostService, PostService>();
+            builder.Services.AddScoped<ICommentService, CommentService>();
+            builder.Services.AddScoped<ILikeService, LikeService>();
+            builder.Services.AddAuthorization();
 
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
+                app.UseDeveloperExceptionPage();
                 app.UseSwagger();
-                app.UseSwaggerUI();
+                app.UseSwaggerUI(c =>
+                {
+                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "MiniPainterHub API v1");
+                });
             }
 
             app.UseHttpsRedirection();

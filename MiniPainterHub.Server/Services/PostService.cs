@@ -23,7 +23,7 @@ namespace MiniPainterHub.Server.Services
             // 1️⃣ Create the entity and set the FK
             var newPost = new Post
             {
-                CreatedBy = user,
+                CreatedById = userId,
                 Title = dto.Title,
                 Content = dto.Content,
                 CreatedAt = DateTime.UtcNow
@@ -40,7 +40,8 @@ namespace MiniPainterHub.Server.Services
                 CreatedById = userId,
                 Title = newPost.Title,
                 Content = newPost.Content,
-                CreatedAt = newPost.CreatedAt
+                CreatedAt = newPost.CreatedAt,
+                ImageUrl = newPost.ImageUrl
             };
         }
 
@@ -74,7 +75,8 @@ namespace MiniPainterHub.Server.Services
                     CreatedById = p.CreatedById,
                     Title = p.Title,
                     Content = p.Content,
-                    CreatedAt = p.CreatedAt
+                    CreatedAt = p.CreatedAt,
+                    ImageUrl = p.ImageUrl
                 })
                 .ToListAsync();
 
@@ -104,7 +106,8 @@ namespace MiniPainterHub.Server.Services
                 CreatedById = p.CreatedById,
                 Title = p.Title,
                 Content = p.Content,
-                CreatedAt = p.CreatedAt
+                CreatedAt = p.CreatedAt,
+                ImageUrl = p.ImageUrl
             };
         }
 

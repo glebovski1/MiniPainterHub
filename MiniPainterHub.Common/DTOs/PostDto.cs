@@ -13,5 +13,7 @@ namespace MiniPainterHub.Common.DTOs
         public string Content { get; set; } = default!;
         public string CreatedById { get; set; } = default!;
         public DateTime CreatedAt { get; set; }
+
+        public string? ImageUrl { get; set; }
     }
 }

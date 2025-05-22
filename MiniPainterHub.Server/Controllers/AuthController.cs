@@ -61,6 +61,10 @@ namespace MiniPainterHub.Server.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
+            var user = await _userManager.FindByNameAsync(dto.UserName);
+            if (user == null)
+                return Unauthorized("Invalid login.");
+
             var result = await _signInManager.PasswordSignInAsync(dto.UserName, dto.Password,
                                                                  isPersistent: false,
                                                                  lockoutOnFailure: false);
@@ -82,7 +86,8 @@ namespace MiniPainterHub.Server.Controllers
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var claims = new[] {
-                new Claim(JwtRegisteredClaimNames.Sub, dto.UserName),
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+                new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 

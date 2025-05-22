@@ -1,7 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -13,10 +16,12 @@ namespace MiniPainterHub.Server.Controllers
     public class PostsController : Controller
     {
         private readonly IPostService _postService;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public PostsController(IPostService postService)
+        public PostsController(IPostService postService, UserManager<ApplicationUser> userManager)
         {
             _postService = postService;
+            _userManager = userManager;
         }
 
         // GET: api/posts?page=1&pageSize=10
@@ -43,7 +48,7 @@ namespace MiniPainterHub.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<PostDto>> Create([FromBody] CreatePostDto dto)
         {
-            var userId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
             var created = await _postService.CreateAsync(userId, dto);
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
@@ -71,4 +76,4 @@ namespace MiniPainterHub.Server.Controllers
         }
     }
 }
-}
+

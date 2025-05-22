@@ -13,9 +13,6 @@ using System.Threading.Tasks;
 
 namespace MiniPainterHub.Server.Services
 {
-    [Route("api/posts/{postId}/comments")]
-    [ApiController]
-    [Authorize]
     public class CommentService : ICommentService
     {
         private AppDbContext _appDbContext;
@@ -99,9 +96,16 @@ namespace MiniPainterHub.Server.Services
             };
         }
 
-        public Task<bool> UpdateAsync(int commentId, string userId, UpdateCommentDto dto)
+        public async Task<bool> UpdateAsync(int commentId, string userId, UpdateCommentDto dto)
         {
-            throw new System.NotImplementedException();
+            var comment = await _appDbContext.Comments
+                .FirstOrDefaultAsync(c => c.Id == commentId && c.AuthorId == userId);
+            if (comment == null)
+                return false;
+
+            comment.Text = dto.Content;
+            await _appDbContext.SaveChangesAsync();
+            return true;
         }
     }
 }

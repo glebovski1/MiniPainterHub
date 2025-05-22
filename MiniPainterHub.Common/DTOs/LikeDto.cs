@@ -8,9 +8,8 @@ namespace MiniPainterHub.Common.DTOs
 {
     public class LikeDto
     {
-        public int Id { get; set; }
         public int PostId { get; set; }
-        public string UserId { get; set; } = default!;
-        public DateTime CreatedAt { get; set; }
+        public int Count { get; set; }
+        public bool IsLiked { get; set; }
     }
 }
