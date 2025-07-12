@@ -26,6 +26,7 @@ namespace MiniPainterHub.WebApp
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<AuthenticationStateProvider, JwtAuthenticationStateProvider>();
             builder.Services.AddAuthorizationCore();
+            builder.Services.AddScoped<IPostService, PostService>();
 
             await builder.Build().RunAsync();
         }
