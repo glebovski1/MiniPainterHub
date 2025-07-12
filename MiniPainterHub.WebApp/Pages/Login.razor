@@ -1,0 +1,35 @@
+﻿@page "/login"
+@inject IAuthService AuthService
+@inject NavigationManager Nav
+
+<EditForm Model="@credentials" OnValidSubmit="HandleLogin">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <InputText @bind-Value="credentials.UserName" placeholder="Username or Email" />
+    <InputText @bind-Value="credentials.Password" type="password" placeholder="Password" />
+    <button type="submit">Login</button>
+</EditForm>
+
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="text-danger">@error</div>
+}
+
+@code {
+    private LoginDto credentials = new();
+    private string error;
+
+    private async Task HandleLogin()
+    {
+        var success = await AuthService.LoginAsync(credentials);
+        if (success)
+        {
+            Nav.NavigateTo("/");
+        }
+        else
+        {
+            error = "Invalid email or password.";
+        }
+    }
+}

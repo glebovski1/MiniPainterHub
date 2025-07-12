@@ -14,6 +14,8 @@ using System.Text;
 using Microsoft.OpenApi.Models;
 using MiniPainterHub.Server.Services.Interfaces;
 using MiniPainterHub.Server.Services;
+using MiniPainterHub.Server.OpenAPIOperationFilter;
+using System.Threading.Tasks;
 
 
 namespace MiniPainterHub
@@ -21,7 +23,7 @@ namespace MiniPainterHub
 
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
@@ -71,6 +73,7 @@ namespace MiniPainterHub
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
+
             builder.Services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "MiniPainterHub API", Version = "v1" });
@@ -98,6 +101,8 @@ namespace MiniPainterHub
                         }
                     }] = new string[] { }
                 });
+
+                c.OperationFilter<FileUploadOperationFilter>();
             });
 
             if (builder.Environment.IsDevelopment())
@@ -120,6 +125,13 @@ namespace MiniPainterHub
             builder.Services.AddAuthorization();
 
             var app = builder.Build();
+
+            //Seed test data to DB 
+
+            if(app.Environment.IsDevelopment())
+            {
+                 await DataSeeder.SeedAsync(app.Services);
+            }
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())

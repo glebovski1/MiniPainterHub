@@ -10,5 +10,6 @@ namespace MiniPainterHub.Server.Services.Interfaces
         Task<PostDto> GetByIdAsync(int postId);
         Task<bool> UpdateAsync(int postId, string userId, UpdatePostDto dto);
         Task<bool> DeleteAsync(int postId, string userId);
+        Task SetImageUrlAsync(int postId, string imageUrl);
     }
 }

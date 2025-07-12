@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MiniPainterHub.Server", "Mi
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MiniPainterHub.Common", "MiniPainterHub.Common\MiniPainterHub.Common.csproj", "{BAD5B6E8-FC4F-4D58-9473-97B5C47AA203}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiniPainterHub.WebApp", "MiniPainterHub.WebApp\MiniPainterHub.WebApp.csproj", "{B2163EF5-DDDF-4EA7-A022-5FBE186A0F90}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MiniPainterHub.WebApp", "MiniPainterHub.WebApp\MiniPainterHub.WebApp.csproj", "{B2163EF5-DDDF-4EA7-A022-5FBE186A0F90}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

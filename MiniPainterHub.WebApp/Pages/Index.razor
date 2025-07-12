@@ -1,0 +1,78 @@
+﻿@* @page "/"
+@inject IPostService PostService
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthProvider
+
+<h1 class="mb-4">Latest Posts</h1>
+
+<AuthorizeView>
+    <Authorized>
+        <button class="btn btn-primary mb-3"
+                @onclick="() => NavigateToNewPost()">
+            + New Post
+        </button>
+    </Authorized>
+</AuthorizeView>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border text-primary" role="status"></div>
+    </div>
+}
+else if (posts?.Count == 0)
+{
+    <p class="text-muted">No posts yet. Be the first to create one!</p>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        @foreach (var post in posts)
+        {
+            <div class="col">
+                <PostCard Post="post" />
+            </div>
+        }
+    </div>
+
+    <!-- Simple Load More or Pagination -->
+    @if (hasMore)
+    {
+        <div class="d-grid mt-4">
+            <button class="btn btn-outline-secondary" @onclick="LoadMore">Load More</button>
+        </div>
+    }
+}
+
+@code {
+    private bool isLoading = true;
+    private List<PostDto> posts = new();
+    private int page = 1, pageSize = 9;
+    private bool hasMore = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPosts();
+    }
+
+    void NavigateToNewPost() => Nav.NavigateTo("posts/new");
+
+    private async Task LoadPosts()
+    {
+        isLoading = true;
+        var result = await PostService.GetAllAsync(page, pageSize);
+        if (result != null)
+        {
+            posts.AddRange(result.Items);
+            hasMore = result.Page < result.TotalPages;
+            page++;
+        }
+        isLoading = false;
+    }
+
+    private async Task LoadMore()
+    {
+        await LoadPosts();
+    }
+}
+ *@

@@ -13,15 +13,17 @@ namespace MiniPainterHub.Server.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    public class PostsController : Controller
+    public class PostsController : ControllerBase
     {
         private readonly IPostService _postService;
-        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IImageService _imageService;
 
-        public PostsController(IPostService postService, UserManager<ApplicationUser> userManager)
+        public PostsController(
+            IPostService postService,
+            IImageService imageService)
         {
             _postService = postService;
-            _userManager = userManager;
+            _imageService = imageService;
         }
 
         // GET: api/posts?page=1&pageSize=10
@@ -45,6 +47,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         // POST: api/posts
+        // JSON-only create
         [HttpPost]
         public async Task<ActionResult<PostDto>> Create([FromBody] CreatePostDto dto)
         {
@@ -53,11 +56,39 @@ namespace MiniPainterHub.Server.Controllers
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
 
+        // POST: api/posts/with-image
+        // Multipart/form-data create with image
+        [HttpPost("with-image")]
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<PostDto>> CreateWithImage(
+            [FromForm] CreateImagePostDto dto)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            // 1️⃣ create post without imageUrl
+            var created = await _postService.CreateAsync(userId, new CreatePostDto
+            {
+                Title = dto.Title,
+                Content = dto.Content
+            });
+
+            // 2️⃣ handle image upload
+            if (dto.Image is { Length: > 0 })
+            {
+                using var stream = dto.Image.OpenReadStream();
+                var fileName = $"{created.Id}_{dto.Image.FileName}";
+                var url = await _imageService.UploadAsync(stream, fileName);
+                await _postService.SetImageUrlAsync(created.Id, url);
+                created.ImageUrl = url;
+            }
+
+            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        }
+
         // PUT: api/posts/5
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdatePostDto dto)
         {
-            var userId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var updated = await _postService.UpdateAsync(id, userId, dto);
             if (!updated)
                 return NotFound();
@@ -68,7 +99,7 @@ namespace MiniPainterHub.Server.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var userId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var deleted = await _postService.DeleteAsync(id, userId);
             if (!deleted)
                 return NotFound();

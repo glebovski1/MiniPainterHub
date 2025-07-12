@@ -1,0 +1,36 @@
+﻿@page "/register"
+@inject IAuthService AuthService
+@inject NavigationManager Nav
+
+<EditForm Model="@registration" OnValidSubmit="HandleRegister">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <InputText @bind-Value="registration.UserName" placeholder="Username" />
+    <InputText @bind-Value="registration.Password" type="password" placeholder="Password" />
+    <button type="submit">Register</button>
+</EditForm>
+
+@if (!string.IsNullOrEmpty(msg))
+{
+    <div>@msg</div>
+}
+
+@code {
+    private RegisterDto registration = new();
+    private string msg;
+
+    private async Task HandleRegister()
+    {
+        var success = await AuthService.RegisterAsync(registration);
+        if (success)
+        {
+            msg = "Registration successful! Please login.";
+            Nav.NavigateTo("/login");
+        }
+        else
+        {
+            msg = "Registration failed.";
+        }
+    }
+}

@@ -4,6 +4,7 @@ using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -124,6 +125,14 @@ namespace MiniPainterHub.Server.Services
 
             await _appDbContext.SaveChangesAsync();
             return true;
+        }
+
+        public async Task SetImageUrlAsync(int postId, string imageUrl)
+        {
+            var post = await _appDbContext.Posts.FindAsync(postId)
+                        ?? throw new KeyNotFoundException("Post not found");
+            post.ImageUrl = imageUrl;
+            await _appDbContext.SaveChangesAsync();
         }
 
     }
