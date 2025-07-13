@@ -1,0 +1,86 @@
+﻿@page "/posts/new-with-image"
+@attribute [Authorize]
+@using MiniPainterHub.Common.DTOs
+@inject IPostService PostService
+@inject NavigationManager Nav
+
+<h2 class="mb-4">Create Post with Image</h2>
+
+<EditForm Model="@model" OnValidSubmit="HandleSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label class="form-label">Title</label>
+        <InputText class="form-control" @bind-Value="model.Title" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Content</label>
+        <InputTextArea class="form-control" rows="5" @bind-Value="model.Content" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Image</label>
+        <InputFile OnChange="OnFileSelected" />
+        @if (previewUrl != null)
+        {
+            <img src="@previewUrl" class="img-fluid rounded mt-2" style="max-height:200px;" />
+        }
+    </div>
+
+    <button type="submit" class="btn btn-primary">Create with Image</button>
+    <button type="button" class="btn btn-secondary ms-2" @onclick="Cancel">Cancel</button>
+</EditForm>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger mt-3">@errorMessage</div>
+}
+
+@code {
+    private CreatePostDto model = new();
+    private IBrowserFile? selectedFile;
+    private string? previewUrl;
+    private string errorMessage = "";
+
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        using var stream = selectedFile.OpenReadStream(5 * 1024 * 1024);
+        var buffer = new byte[selectedFile.Size];
+        stream.Read(buffer, 0, (int)selectedFile.Size);
+        previewUrl = $"data:{selectedFile.ContentType};base64,{Convert.ToBase64String(buffer)}";
+    }
+
+    private async Task HandleSubmit()
+    {
+        errorMessage = "";
+
+        if (selectedFile is null)
+        {
+            errorMessage = "Please select an image.";
+            return;
+        }
+
+        var content = new MultipartFormDataContent
+    {
+      { new StringContent(model.Title ?? ""),   nameof(model.Title) },
+      { new StringContent(model.Content ?? ""), nameof(model.Content) }
+    };
+        content.Add(new StreamContent(selectedFile.OpenReadStream(5 * 1024 * 1024)),
+                    "Image", selectedFile.Name);
+
+        try
+        {
+            var created = await PostService.CreateWithImageAsync(content);
+            Nav.NavigateTo($"/posts/{created.Id}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private void Cancel() => Nav.NavigateTo("/");
+}

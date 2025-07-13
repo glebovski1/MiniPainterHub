@@ -9,16 +9,18 @@ namespace MiniPainterHub.WebApp.Services
         private readonly HttpClient _http;
         public PostService(HttpClient http) => _http = http;
 
-        public async Task<PagedResult<PostDto>> GetAllAsync(int page, int pageSize)
+        public async Task<PagedResult<PostSummaryDto>> GetAllAsync(int page, int pageSize)
         {
-            var result = await _http
-              .GetFromJsonAsync<PagedResult<PostDto>>($"api/posts?page={page}&pageSize={pageSize}");
-            return result ?? new PagedResult<PostDto>();
+            var result = await _http.GetFromJsonAsync<PagedResult<PostSummaryDto>>(
+                $"/api/posts?page={page}&pageSize={pageSize}");
+            return result ?? new PagedResult<PostSummaryDto>();
         }
 
         public async Task<PostDto> GetByIdAsync(int id)
         {
-            var dto = await _http.GetFromJsonAsync<PostDto>($"api/posts/{id}");
+            var resp = await _http.GetAsync($"/api/posts/{id}");
+            resp.EnsureSuccessStatusCode();
+            var dto = await resp.Content.ReadFromJsonAsync<PostDto>();
             if (dto is null)
                 throw new InvalidOperationException($"No post returned from API for ID {id}.");
             return dto;

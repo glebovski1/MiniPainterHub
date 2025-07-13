@@ -28,6 +28,7 @@ namespace MiniPainterHub.Server.Controllers
 
         // GET: api/posts?page=1&pageSize=10
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<PagedResult<PostDto>>> GetAll(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10)
@@ -38,6 +39,7 @@ namespace MiniPainterHub.Server.Controllers
 
         // GET: api/posts/5
         [HttpGet("{id}")]
+        [AllowAnonymous]
         public async Task<ActionResult<PostDto>> GetById(int id)
         {
             var dto = await _postService.GetByIdAsync(id);
@@ -51,7 +53,8 @@ namespace MiniPainterHub.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<PostDto>> Create([FromBody] CreatePostDto dto)
         {
-            var userId = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+            //var userId = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var created = await _postService.CreateAsync(userId, dto);
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }

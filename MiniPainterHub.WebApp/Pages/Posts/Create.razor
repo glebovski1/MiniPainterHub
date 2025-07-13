@@ -1,0 +1,53 @@
+﻿@page "/posts/new"
+@attribute [Authorize]
+@using MiniPainterHub.Common.DTOs
+@inject IPostService PostService
+@inject NavigationManager Nav
+
+<h2 class="mb-4">Create New Post</h2>
+
+<EditForm Model="@newPost" OnValidSubmit="HandleSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label class="form-label">Title</label>
+        <InputText class="form-control" @bind-Value="newPost.Title" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Content</label>
+        <InputTextArea class="form-control" rows="6" @bind-Value="newPost.Content" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Create</button>
+    <button type="button" class="btn btn-secondary ms-2" @onclick="Cancel">Cancel</button>
+</EditForm>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger mt-3">@errorMessage</div>
+}
+
+@code {
+    private CreatePostDto newPost = new();
+    private string errorMessage = string.Empty;
+
+    private async Task HandleSubmit()
+    {
+        errorMessage = "";
+        try
+        {
+            // Adjust signature if your CreateAsync requires userId:
+            //var created = await PostService.CreateAsync(userId, newPost);
+            var created = await PostService.CreateAsync(newPost);
+            Nav.NavigateTo($"/posts/{created.Id}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private void Cancel() => Nav.NavigateTo("/");
+}

@@ -144,6 +144,11 @@ namespace MiniPainterHub
                 });
             }
 
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseDeveloperExceptionPage();
+            }
+
             app.UseHttpsRedirection();
 
 

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Services.Interfaces;
+using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -35,7 +36,10 @@ namespace MiniPainterHub.Server.Controllers
             int postId,
             [FromBody] CreateCommentDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            //var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                     ?? throw new InvalidOperationException("No user ID in token");
             var created = await _commentService.CreateAsync(userId, postId, dto);
             if (created == null)
                 return NotFound();

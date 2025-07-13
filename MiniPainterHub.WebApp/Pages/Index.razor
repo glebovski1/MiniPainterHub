@@ -1,28 +1,19 @@
-﻿@* @page "/"
+﻿@page "/"
+@using MiniPainterHub.Common.DTOs
 @inject IPostService PostService
 @inject NavigationManager Nav
-@inject AuthenticationStateProvider AuthProvider
 
 <h1 class="mb-4">Latest Posts</h1>
-
-<AuthorizeView>
-    <Authorized>
-        <button class="btn btn-primary mb-3"
-                @onclick="() => NavigateToNewPost()">
-            + New Post
-        </button>
-    </Authorized>
-</AuthorizeView>
 
 @if (isLoading)
 {
     <div class="text-center">
-        <div class="spinner-border text-primary" role="status"></div>
+        <div class="spinner-border" role="status"></div>
     </div>
 }
-else if (posts?.Count == 0)
+else if (!posts.Any())
 {
-    <p class="text-muted">No posts yet. Be the first to create one!</p>
+    <p class="text-muted">No posts yet.</p>
 }
 else
 {
@@ -34,45 +25,33 @@ else
             </div>
         }
     </div>
-
-    <!-- Simple Load More or Pagination -->
-    @if (hasMore)
-    {
-        <div class="d-grid mt-4">
-            <button class="btn btn-outline-secondary" @onclick="LoadMore">Load More</button>
-        </div>
-    }
 }
 
 @code {
+    // The flat list your foreach iterates over
+    private List<PostSummaryDto> posts = new();
+
+    // Simple loading flag for the spinner
     private bool isLoading = true;
-    private List<PostDto> posts = new();
-    private int page = 1, pageSize = 9;
-    private bool hasMore = false;
+
+    // Page size (you can make this a variable or parameter)
+    private const int PageSize = 9;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadPosts();
     }
 
-    void NavigateToNewPost() => Nav.NavigateTo("posts/new");
-
-    private async Task LoadPosts()
+    private async Task LoadPosts(int page = 1)
     {
         isLoading = true;
-        var result = await PostService.GetAllAsync(page, pageSize);
-        if (result != null)
-        {
-            posts.AddRange(result.Items);
-            hasMore = result.Page < result.TotalPages;
-            page++;
-        }
+
+        // Call your service to fetch a PagedResult<PostSummaryDto>
+        var result = await PostService.GetAllAsync(page, PageSize);
+
+        // Extract the items into your flat list
+        posts = result.Items.ToList();
+
         isLoading = false;
     }
-
-    private async Task LoadMore()
-    {
-        await LoadPosts();
-    }
 }
- *@

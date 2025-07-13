@@ -4,60 +4,66 @@
 @inject AuthenticationStateProvider AuthProvider
 
 <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm">
-        <div class="container-fluid">
-            <!-- Brand -->
-            <a class="navbar-brand fw-bold" href="">MiniPainterHub</a>
+    <div class="container-fluid">
+        <!-- Brand -->
+        <a class="navbar-brand fw-bold" href="">MiniPainterHub</a>
 
-            <!-- Toggler for mobile -->
-            <button class="navbar-toggler" type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#navbarNav"
-                    aria-controls="navbarNav"
-                    aria-expanded="false"
-                    aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
+        <!-- Toggler for mobile -->
+        <button class="navbar-toggler" type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#navbarNav"
+                aria-controls="navbarNav"
+                aria-expanded="false"
+                aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
 
-            <!-- Collapsible menu items -->
-            <div class="collapse navbar-collapse align-items-center" id="navbarNav">
-                <!-- Left-side nav links -->
-                <ul class="navbar-nav mb-2 mb-lg-0">
-                    <li >
-                        <NavLink class="nav-link" href="/">Home</NavLink>
-                    </li>
-                    <li >
-                        <NavLink class="nav-link" href="gallery">Gallery</NavLink>
-                    </li>
-                    <li>
-                        <NavLink class="nav-link" href="profile">Profile</NavLink>
-                    </li>
-                    <li >
-                        <NavLink class="nav-link" href="about">About</NavLink>
-                    </li>
-                </ul>
+        <!-- Collapsible menu items -->
+        <div class="collapse navbar-collapse align-items-center" id="navbarNav">
+            <!-- Left-side nav links -->
+            <ul class="navbar-nav mb-2 mb-lg-0">
+                <li>
+                    <NavLink class="nav-link" href="/">Home</NavLink>
+                </li>
+                <li>
+                    <NavLink class="nav-link" href="gallery">Gallery</NavLink>
+                </li>
+                <li>
+                    <NavLink class="nav-link" href="profile">Profile</NavLink>
+                </li>
+                <li>
+                    <NavLink class="nav-link" href="about">About</NavLink>
+                </li>
+                <li>
+                    <NavLink class="nav-link" href="posts/new">New Post</NavLink>
+                </li>
+                <li>
+                    <NavLink class="nav-link" href="/posts/new-with-image">New Image</NavLink>
+                </li>
+            </ul>
 
-                <!-- Right-side auth links (push with ms-auto) -->
-                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-                    <AuthorizeView>
-                        <Authorized>
-                            <li>
-                                <button class="btn btn-link nav-link p-0" @onclick="Logout">
-                                    Logout
-                                </button>
-                            </li>
-                        </Authorized>
-                        <NotAuthorized>
-                            <li >
-                                <NavLink class="nav-link" href="login">Login</NavLink>
-                            </li>
-                            <li >
-                                <NavLink class="nav-link" href="register">Register</NavLink>
-                            </li>
-                        </NotAuthorized>
-                    </AuthorizeView>
-                </ul>
-            </div>
+            <!-- Right-side auth links (push with ms-auto) -->
+            <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                <AuthorizeView>
+                    <Authorized>
+                        <li>
+                            <button class="btn btn-link nav-link p-0" @onclick="Logout">
+                                Logout
+                            </button>
+                        </li>
+                    </Authorized>
+                    <NotAuthorized>
+                        <li>
+                            <NavLink class="nav-link" href="login">Login</NavLink>
+                        </li>
+                        <li>
+                            <NavLink class="nav-link" href="register">Register</NavLink>
+                        </li>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </ul>
         </div>
+    </div>
 </nav>
 
 @code {

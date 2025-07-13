@@ -60,7 +60,7 @@ namespace MiniPainterHub.Server.Services
             return true;
         }
 
-        public async Task<PagedResult<PostDto>> GetAllAsync(int page, int pageSize)
+        public async Task<PagedResult<PostSummaryDto>> GetAllAsync(int page, int pageSize)
         {
             var query = _appDbContext.Posts
                 .AsNoTracking()
@@ -70,18 +70,22 @@ namespace MiniPainterHub.Server.Services
             var items = await query
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(p => new PostDto
+                .Select(p => new PostSummaryDto
                 {
                     Id = p.Id,
-                    CreatedById = p.CreatedById,
                     Title = p.Title,
-                    Content = p.Content,
+                    Snippet = p.Content.Length > 100
+                                     ? p.Content.Substring(0, 100) + "…"
+                                     : p.Content,
+                    ImageUrl = p.ImageUrl,
+                    AuthorName = p.CreatedBy.UserName,     // or p.CreatedBy.Profile.DisplayName
                     CreatedAt = p.CreatedAt,
-                    ImageUrl = p.ImageUrl
+                    CommentCount = p.Comments.Count,
+                    LikeCount = p.Likes.Count
                 })
                 .ToListAsync();
 
-            return new PagedResult<PostDto>
+            return new PagedResult<PostSummaryDto>
             {
                 Items = items,
                 TotalCount = totalCount,
