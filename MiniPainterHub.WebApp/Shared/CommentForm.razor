@@ -1,0 +1,42 @@
+﻿@using MiniPainterHub.Common.DTOs
+@using MiniPainterHub.WebApp.Services
+@inject ICommentService CommentService
+
+<EditForm Model="_model" OnValidSubmit="HandleSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <InputTextArea @bind-Value="_model.Text"
+                   class="form-control"
+                   placeholder="Write your comment…"
+                   rows="3" />
+
+    <button type="submit"
+            class="btn btn-primary mt-2"
+            disabled="@_isSubmitting">
+        @(_isSubmitting ? "Posting…" : "Post Comment")
+    </button>
+</EditForm>
+
+@code {
+    [Parameter]
+    public int PostId { get; set; }
+
+    [Parameter]
+    public EventCallback OnCommentAdded { get; set; }
+
+    private CreateCommentDto _model = new();
+    private bool _isSubmitting;
+
+    private async Task HandleSubmit()
+    {
+        _isSubmitting = true;
+        // this line should POST to your API and return the created CommentDto
+        await CommentService.CreateAsync(PostId, _model);
+        _model.Text = string.Empty;
+        _isSubmitting = false;
+
+        if (OnCommentAdded.HasDelegate)
+            await OnCommentAdded.InvokeAsync();
+    }
+}

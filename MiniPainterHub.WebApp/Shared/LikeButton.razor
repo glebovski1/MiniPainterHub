@@ -1,0 +1,35 @@
+﻿@using MiniPainterHub.Common.DTOs
+@using MiniPainterHub.WebApp.Services.Interfaces
+@inject ILikeService LikeService
+
+
+<button class="btn btn-sm"
+        @onclick="ToggleLike"
+        disabled="@_isLoading">
+    @if (_state.UserHasLiked)
+    {
+        <i class="bi bi-heart-fill text-danger"></i>
+    }
+    else
+    {
+        <i class="bi bi-heart"></i>
+    }
+    <span class="ms-1">@_state.Count</span>
+</button>
+
+@code {
+    [Parameter] public int PostId { get; set; }
+
+    private LikeDto _state = new();
+    private bool _isLoading;
+
+    protected override async Task OnParametersSetAsync()
+        => _state = await LikeService.GetLikesAsync(PostId);
+
+    private async Task ToggleLike()
+    {
+        _isLoading = true;
+        _state = await LikeService.ToggleLikeAsync(PostId);
+        _isLoading = false;
+    }
+}

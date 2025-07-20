@@ -10,6 +10,6 @@ namespace MiniPainterHub.Common.DTOs
     {
         public int PostId { get; set; }
         public int Count { get; set; }
-        public bool IsLiked { get; set; }
+        public bool UserHasLiked { get; set; }
     }
 }

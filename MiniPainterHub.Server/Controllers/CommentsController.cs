@@ -13,19 +13,23 @@ namespace MiniPainterHub.Server.Controllers
     public class CommentsController : Controller
     {
         private readonly ICommentService _commentService;
+        private readonly IPostService _postService;
 
-        public CommentsController(ICommentService commentService)
+        public CommentsController(ICommentService commentService, IPostService postService)
         {
             _commentService = commentService;
+            _postService = postService; 
         }
 
         // GET: api/posts/{postId}/comments?page=1&pageSize=10
-        [HttpGet("api/posts/{postId}/comments")]
+        [HttpGet("api/posts/{postId}/comments"), AllowAnonymous]
         public async Task<ActionResult<PagedResult<CommentDto>>> GetByPost(
             int postId,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10)
         {
+            if (!await _postService.ExistsAsync(postId))
+                return NotFound();
             var result = await _commentService.GetByPostIdAsync(postId, page, pageSize);
             return Ok(result);
         }
@@ -53,6 +57,7 @@ namespace MiniPainterHub.Server.Controllers
             // reuse service by fetching all for parent, then find? Or add a GetById in service?
             // For now, fetch via GetByPost then filter:
             // Alternatively, implement GetByIdAsync in service.
+        
             return NotFound();
         }
 
@@ -73,9 +78,7 @@ namespace MiniPainterHub.Server.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var isAdmin = User.IsInRole("Admin");
-            var deleted = await _commentService.DeleteAsync(id, userId, isAdmin);
-            if (!deleted)
-                return NotFound();
+            await _commentService.DeleteAsync(id, userId, isAdmin);
             return NoContent();
         }
     }

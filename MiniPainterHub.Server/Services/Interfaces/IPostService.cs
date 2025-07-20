@@ -5,6 +5,7 @@ namespace MiniPainterHub.Server.Services.Interfaces
 {
     public interface IPostService
     {
+        Task<bool> ExistsAsync(int postId);
         Task<PostDto> CreateAsync(string userId, CreatePostDto dto);
         Task<PagedResult<PostSummaryDto>> GetAllAsync(int page, int pageSize);
         Task<PostDto> GetByIdAsync(int postId);

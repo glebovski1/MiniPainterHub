@@ -14,21 +14,25 @@ namespace MiniPainterHub.Server.Controllers
         public class LikesController : ControllerBase
         {
             private readonly ILikeService _likeService;
+            private readonly IPostService _postService;
 
-            public LikesController(ILikeService likeService)
+            public LikesController(ILikeService likeService, IPostService postService)
             {
                 _likeService = likeService;
+                _postService = postService;
             }
 
             // GET: api/posts/{postId}/likes
             // Returns total count and whether current user has liked
-            [HttpGet]
+            [HttpGet, AllowAnonymous]
             public async Task<ActionResult<LikeDto>> GetLikes(int postId)
             {
+                if (!await _postService.ExistsAsync(postId))
+                    return NotFound();
+
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                var count = await _likeService.GetCountAsync(postId);
-                var isLiked = await _likeService.IsLikedAsync(postId, userId);
-                return Ok(new LikeDto { PostId = postId, Count = count, IsLiked = isLiked });
+                    var likeDto = await _likeService.GetLikesAsync(postId, userId);
+                    return Ok(likeDto);
             }
 
             // POST: api/posts/{postId}/likes

@@ -42,7 +42,9 @@ namespace MiniPainterHub.Server.Services
                 Title = newPost.Title,
                 Content = newPost.Content,
                 CreatedAt = newPost.CreatedAt,
-                ImageUrl = newPost.ImageUrl
+                ImageUrl = newPost.ImageUrl,
+                AuthorName = user.UserName
+
             };
         }
 
@@ -96,24 +98,22 @@ namespace MiniPainterHub.Server.Services
 
         public async Task<PostDto> GetByIdAsync(int postId)
         {
-            var p = await _appDbContext.Posts
-               .AsNoTracking()
-               .Include(p => p.Likes)
-               .Include(p => p.Comments)
-               .FirstOrDefaultAsync(p => p.Id == postId);
-
-            if (p == null)
-                return null;
-
-            return new PostDto
-            {
-                Id = p.Id,
-                CreatedById = p.CreatedById,
-                Title = p.Title,
-                Content = p.Content,
-                CreatedAt = p.CreatedAt,
-                ImageUrl = p.ImageUrl
-            };
+              var dto = await _appDbContext.Posts
+                     .AsNoTracking()
+                     .Where(p => p.Id == postId)
+                     .Select(p => new PostDto
+                     {
+                         Id = p.Id,
+                         CreatedById = p.CreatedById,
+                         Title = p.Title,
+                         Content = p.Content,
+                         CreatedAt = p.CreatedAt,
+                         ImageUrl = p.ImageUrl,
+                         AuthorName = p.CreatedBy.UserName,  // EF will JOIN Users for you
+                                                             // …add CommentCount, LikeCount if you want…
+                     })
+                     .FirstOrDefaultAsync();
+            return dto;
         }
 
         public async Task<bool> UpdateAsync(int postId, string userId, UpdatePostDto dto)
@@ -139,5 +139,9 @@ namespace MiniPainterHub.Server.Services
             await _appDbContext.SaveChangesAsync();
         }
 
+        public async Task<bool> ExistsAsync(int postId)
+        {
+            return await _appDbContext.Posts.AnyAsync(post => post.Id == postId);
+        }
     }
 }

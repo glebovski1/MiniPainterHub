@@ -15,30 +15,52 @@ namespace MiniPainterHub.WebApp
             builder.RootComponents.Add<App>("#app");
             builder.RootComponents.Add<HeadOutlet>("head::after");
 
-            // 1) Register the custom handler
-            builder.Services.AddTransient<JwtAuthorizationMessageHandler>();
-
-            // 2) Register the "Api" client once, using your handler
-            builder.Services
-                .AddHttpClient("Api", client =>
-                {
-                    client.BaseAddress = new Uri("https://localhost:7295");
-                })
-                .AddHttpMessageHandler<JwtAuthorizationMessageHandler>();
-
-            // 3) Make "Api" the default HttpClient for injection
-            builder.Services.AddScoped(sp =>
-                sp.GetRequiredService<IHttpClientFactory>()
-                  .CreateClient("Api"));
-
-            // 4) Auth wiring
-            builder.Services.AddScoped<IAuthService, AuthService>();
-            builder.Services.AddScoped<AuthenticationStateProvider, JwtAuthenticationStateProvider>();
+            //------------------------------------------------------------
+            // 1)  Blazor-WASM authorization core  (<AuthorizeView>, etc.)
+            //------------------------------------------------------------
             builder.Services.AddAuthorizationCore();
 
-            // 5) Your application services
-            builder.Services.AddScoped<IPostService, PostService>();
+            //------------------------------------------------------------
+            // 2)  JWT-based authentication state provider
+            //------------------------------------------------------------
+            builder.Services
+                .AddScoped<JwtAuthenticationStateProvider>()
+                .AddScoped<AuthenticationStateProvider>(sp =>
+                    sp.GetRequiredService<JwtAuthenticationStateProvider>());
 
+            //------------------------------------------------------------
+            // 3)  Message handler that adds  Authorization: Bearer <token>
+            //------------------------------------------------------------
+            builder.Services.AddTransient<JwtAuthorizationMessageHandler>();
+
+            //------------------------------------------------------------
+            // 4)  Base API address (same origin for dev)
+            //------------------------------------------------------------
+            var apiBase = new Uri(builder.HostEnvironment.BaseAddress);
+
+            //------------------------------------------------------------
+            // 5)  Typed HTTP clients
+            //     • AuthService  – NO auth header required for login/register
+            //     • Post/Comment/Like services – SEND auth header when token present
+            //------------------------------------------------------------
+            builder.Services
+                .AddHttpClient<IAuthService, AuthService>(c => c.BaseAddress = apiBase);
+
+            builder.Services
+                .AddHttpClient<IPostService, PostService>(c => c.BaseAddress = apiBase)
+                .AddHttpMessageHandler<JwtAuthorizationMessageHandler>();
+
+            builder.Services
+                .AddHttpClient<ICommentService, CommentService>(c => c.BaseAddress = apiBase)
+                .AddHttpMessageHandler<JwtAuthorizationMessageHandler>();
+
+            builder.Services
+                .AddHttpClient<ILikeService, LikeService>(c => c.BaseAddress = apiBase)
+                .AddHttpMessageHandler<JwtAuthorizationMessageHandler>();
+
+            //------------------------------------------------------------
+            // 6)  Run!
+            //------------------------------------------------------------
             await builder.Build().RunAsync();
         }
     }

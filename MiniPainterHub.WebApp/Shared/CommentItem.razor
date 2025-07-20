@@ -1,0 +1,15 @@
+﻿@using MiniPainterHub.Common.DTOs
+
+<div class="border rounded p-3 mb-2">
+    <div class="d-flex justify-content-between align-items-center">
+        <strong>@Comment.AuthorName</strong>
+        <small class="text-muted">
+            @Comment.CreatedAt.ToLocalTime().ToString("g")
+        </small>
+    </div>
+    <p class="mt-1">@Comment.Content</p>
+</div>
+
+@code {
+    [Parameter] public CommentDto Comment { get; set; } = default!;
+}

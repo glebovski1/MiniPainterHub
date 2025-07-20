@@ -1,0 +1,110 @@
+﻿@page "/posts/{PostId:int}"
+@using MiniPainterHub.Common.DTOs
+@inject IPostService PostService
+@inject NavigationManager Nav
+
+<div class="container mt-4">
+    @if (isLoading)
+    {
+        <div class="d-flex justify-content-center align-items-center" style="min-height: 200px;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else if (post is null)
+    {
+        <div class="alert alert-warning text-center">
+            <strong>Oops!</strong> Post not found.
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-lg p-4">
+
+            @* 🔳 Image Section *@
+            @if (!string.IsNullOrEmpty(post.ImageUrl))
+            {
+                <div class="bg-light border rounded p-3 mb-4">
+                    <div class="text-center">
+                        <img src="@FullImageUrl"
+                             class="img-fluid rounded shadow-sm zoomable"
+                             alt="Post image"
+                             style="max-width: 600px; cursor: zoom-in;"
+                             @onclick="ShowZoomModal" />
+                    </div>
+                </div>
+            }
+
+            @* 📝 Post Content *@
+            <div class="card-body p-0">
+                <h2 class="card-title mb-3">@post.Title</h2>
+
+                <p class="card-subtitle text-muted small mb-3">
+                    By <strong>@post.AuthorName</strong> • @post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
+                </p>
+
+                <p class="card-text lead mb-4">
+                    @post.Content
+                </p>
+
+                <button class="btn btn-outline-secondary" @onclick='() => Nav.NavigateTo("/")'>
+                    ← Back to feed
+                </button>
+                <CommentForm PostId="PostId" OnCommentAdded="ReloadComments" />
+                <CommentList @ref="_commentList" PostId="PostId" />
+            </div>
+        </div>
+    }
+</div>
+
+@* 🔍 Zoom Modal *@
+@if (showModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content bg-transparent border-0">
+                <img src="@FullImageUrl" class="img-fluid rounded zoomed-image" alt="Zoomed image" />
+                <button type="button" class="btn-close position-absolute top-0 end-0 m-3 bg-white rounded-circle"
+                        aria-label="Close"
+                        @onclick="CloseZoomModal"></button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int PostId { get; set; }
+    private CommentList? _commentList;
+    private PostDto? post;
+    private bool isLoading;
+    private bool showModal = false;
+
+    private string FullImageUrl =>
+        post!.ImageUrl!.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            ? post.ImageUrl
+            : $"{Nav.BaseUri.TrimEnd('/')}{post.ImageUrl}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        try
+        {
+            post = await PostService.GetByIdAsync(PostId);
+        }
+        catch
+        {
+            post = null;
+        }
+        isLoading = false;
+    }
+
+    private async Task ReloadComments()
+    {
+        if (_commentList != null)
+            await _commentList.ReloadAsync();
+    }
+
+    private void ShowZoomModal() => showModal = true;
+    private void CloseZoomModal() => showModal = false;
+}

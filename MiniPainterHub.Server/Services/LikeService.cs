@@ -1,6 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Services.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace MiniPainterHub.Server.Services
@@ -13,13 +17,18 @@ namespace MiniPainterHub.Server.Services
         {
             _appDbContext = appDbContext;
         }
-
-        // Returns total likes for a post
-        public async Task<int> GetCountAsync(int postId)
+        // Returns total count and whether specified user has liked
+        public async Task<LikeDto> GetLikesAsync(int postId, string? userId)
         {
-            return await _appDbContext.Likes
-                .AsNoTracking()
-                .CountAsync(l => l.PostId == postId);
+            var exists = await _appDbContext.Posts.AsNoTracking().AnyAsync(p => p.Id == postId);
+            if (!exists)
+                throw new KeyNotFoundException($"Post {postId} not found");
+
+            var query = _appDbContext.Likes.AsNoTracking().Where(l => l.PostId == postId);
+            var count = await query.CountAsync();
+            var isLiked = !string.IsNullOrEmpty(userId) && await query.AnyAsync(l => l.UserId == userId);
+
+            return new LikeDto { PostId = postId, Count = count, UserHasLiked = isLiked };
         }
 
         // Checks if a specific user has liked the post
@@ -30,11 +39,11 @@ namespace MiniPainterHub.Server.Services
                 .AnyAsync(l => l.PostId == postId && l.UserId == userId);
         }
 
-        // Toggles a like: adds if not present, removes if already liked
+
+        // Toggles like: adds if not present, removes if already liked
         public async Task<bool> ToggleAsync(int postId, string userId)
         {
-            var existing = await _appDbContext.Likes
-                .FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
+            var existing = await _appDbContext.Likes.FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
 
             if (existing != null)
             {
@@ -42,16 +51,14 @@ namespace MiniPainterHub.Server.Services
             }
             else
             {
-                // Ensure post exists before adding
                 var exists = await _appDbContext.Posts.AnyAsync(p => p.Id == postId);
                 if (!exists)
                     return false;
-
                 _appDbContext.Likes.Add(new Entities.Like
                 {
                     PostId = postId,
                     UserId = userId,
-                    CreatedAt = System.DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow
                 });
             }
 
@@ -59,16 +66,16 @@ namespace MiniPainterHub.Server.Services
             return true;
         }
 
-        // Explicit remove (unlike)
+
+        // Removes like (idempotent)
         public async Task<bool> RemoveAsync(int postId, string userId)
         {
-            var like = await _appDbContext.Likes
-                .FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
-            if (like == null)
-                return false;
-
-            _appDbContext.Likes.Remove(like);
-            await _appDbContext.SaveChangesAsync();
+            var like = await _appDbContext.Likes.FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
+            if (like != null)
+            {
+                _appDbContext.Likes.Remove(like);
+                await _appDbContext.SaveChangesAsync();
+            }
             return true;
         }
     }

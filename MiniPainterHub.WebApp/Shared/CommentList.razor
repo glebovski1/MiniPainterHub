@@ -1,0 +1,64 @@
+﻿@using MiniPainterHub.Common.DTOs
+@using MiniPainterHub.WebApp.Services
+@inject ICommentService CommentService
+
+<div>
+    @if (_comments == null)
+    {
+        <p class="text-muted"><em>Loading comments…</em></p>
+    }
+    else if (_comments.Items.Count() == 0)
+    {
+        <p class="text-muted"><em>No comments yet.</em></p>
+    }
+    else
+    {
+        @foreach (var c in _comments.Items)
+        {
+            <CommentItem Comment="c" />
+        }
+
+        <nav aria-label="Comment pagination">
+            <ul class="pagination">
+                <li class="page-item @( _page == 1 ? "disabled" : "" )">
+                    <button class="page-link" @onclick="() => ChangePage(_page - 1)">«</button>
+                </li>
+                @for (int i = 1; i <= _comments.TotalPages; i++)
+                {
+                    <li class="page-item @( i == _page ? "active" : "" )">
+                        <button class="page-link" @onclick="() => ChangePage(i)">@i</button>
+                    </li>
+                }
+                <li class="page-item @( _page == _comments.TotalPages ? "disabled" : "" )">
+                    <button class="page-link" @onclick="() => ChangePage(_page + 1)">»</button>
+                </li>
+            </ul>
+        </nav>
+    }
+</div>
+
+@code {
+    [Parameter] public int PostId { get; set; }
+
+    private PagedResult<CommentDto>? _comments;
+    private int _page = 1;
+    private const int PageSize = 10;
+
+    protected override async Task OnParametersSetAsync()
+        => await LoadPageAsync();
+
+    public async Task ReloadAsync()
+        => await LoadPageAsync();
+
+    private async Task LoadPageAsync()
+        => _comments = await CommentService.GetByPostAsync(PostId, _page, PageSize);
+
+    private async Task ChangePage(int newPage)
+    {
+        if (newPage < 1 || newPage > (_comments?.TotalPages ?? 1))
+            return;
+
+        _page = newPage;
+        await LoadPageAsync();
+    }
+}

@@ -44,7 +44,7 @@ namespace MiniPainterHub.Server.Services
                 Id = comment.Id,
                 AuthorId = comment.AuthorId,
                 PostId = comment.PostId,
-                Text = comment.Text,
+                Content = comment.Text,
                 CreatedAt = comment.CreatedAt
             };
 
@@ -82,7 +82,7 @@ namespace MiniPainterHub.Server.Services
                     Id = c.Id,
                     AuthorId = c.AuthorId,
                     PostId = c.PostId,
-                    Text = c.Text,
+                    Content = c.Text,
                     CreatedAt = c.CreatedAt
                 })
                 .ToListAsync();

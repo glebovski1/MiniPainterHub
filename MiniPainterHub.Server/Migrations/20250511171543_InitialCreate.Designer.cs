@@ -180,7 +180,7 @@ namespace MiniPainterHub.Server.Migrations
                     b.Property<int>("PostId")
                         .HasColumnType("int");
 
-                    b.Property<string>("Text")
+                    b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
