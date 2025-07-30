@@ -5,6 +5,7 @@
         <strong>@Comment.AuthorName</strong>
         <small class="text-muted">
             @Comment.CreatedAt.ToLocalTime().ToString("g")
+            @Comment.AuthorName
         </small>
     </div>
     <p class="mt-1">@Comment.Content</p>

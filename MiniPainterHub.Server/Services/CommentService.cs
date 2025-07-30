@@ -83,7 +83,8 @@ namespace MiniPainterHub.Server.Services
                     AuthorId = c.AuthorId,
                     PostId = c.PostId,
                     Content = c.Text,
-                    CreatedAt = c.CreatedAt
+                    CreatedAt = c.CreatedAt,
+                    AuthorName = c.Author.UserName ?? "No name"
                 })
                 .ToListAsync();
 
@@ -93,6 +94,8 @@ namespace MiniPainterHub.Server.Services
                 TotalCount = totalCount,
                 PageNumber = page,
                 PageSize = pageSize
+                
+
             };
         }
 
