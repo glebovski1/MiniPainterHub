@@ -48,10 +48,18 @@
         => await LoadPageAsync();
 
     public async Task ReloadAsync()
-        => await LoadPageAsync();
+    {
+        Console.WriteLine($"ReloadAsync called at {DateTime.Now:hh:mm:ss}");
+        await LoadPageAsync();
+    }
 
     private async Task LoadPageAsync()
-        => _comments = await CommentService.GetByPostAsync(PostId, _page, PageSize);
+    {
+        Console.WriteLine($"LoadPageAsync hit for PostId={PostId} at {DateTime.Now:hh:mm:ss}");
+        System.Diagnostics.Debugger.Break();
+        _comments = await CommentService.GetByPostAsync(PostId, _page, PageSize);
+        StateHasChanged();
+    }
 
     private async Task ChangePage(int newPage)
     {
@@ -60,5 +68,6 @@
 
         _page = newPage;
         await LoadPageAsync();
+        StateHasChanged();
     }
 }

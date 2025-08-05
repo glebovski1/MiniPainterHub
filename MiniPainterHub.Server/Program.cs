@@ -138,6 +138,7 @@ namespace MiniPainterHub
             {
                 app.UseDeveloperExceptionPage();
                 app.UseSwagger();
+                app.UseWebAssemblyDebugging();
                 app.UseSwaggerUI(c =>
                 {
                     c.SwaggerEndpoint("/swagger/v1/swagger.json", "MiniPainterHub API v1");

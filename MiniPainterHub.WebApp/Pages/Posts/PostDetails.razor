@@ -51,8 +51,8 @@
                 <button class="btn btn-outline-secondary" @onclick='() => Nav.NavigateTo("/")'>
                     ← Back to feed
                 </button>
-                <CommentForm PostId="PostId" OnCommentAdded="ReloadComments" />
-                <CommentList @ref="_commentList" PostId="PostId" />
+                <CommentForm PostId="@PostId" OnCommentAdded="ReloadComments" />
+                <CommentList @ref="_commentList" PostId="@PostId" />
             </div>
         </div>
     }

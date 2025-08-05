@@ -30,6 +30,7 @@
 
     private async Task HandleSubmit()
     {
+        Console.WriteLine($"[CommentForm] HandleSubmit firing at {DateTime.Now:T}");
         _isSubmitting = true;
         // this line should POST to your API and return the created CommentDto
         await CommentService.CreateAsync(PostId, _model);
