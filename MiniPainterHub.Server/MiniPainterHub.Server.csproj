@@ -4,6 +4,9 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
+	  <BlazorWebAssemblyEnableDebugging>true</BlazorWebAssemblyEnableDebugging>
+	  <DebugType>full</DebugType>
+	  <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>

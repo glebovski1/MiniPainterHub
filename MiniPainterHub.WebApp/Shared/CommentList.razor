@@ -25,8 +25,12 @@
                 </li>
                 @for (int i = 1; i <= _comments.TotalPages; i++)
                 {
+                    
+                    int referenceToPageNumber = i;
+                    
                     <li class="page-item @( i == _page ? "active" : "" )">
-                        <button class="page-link" @onclick="() => ChangePage(i)">@i</button>
+
+                        <button class="page-link" @onclick="() => ChangePage(referenceToPageNumber)">@i</button>
                     </li>
                 }
                 <li class="page-item @( _page == _comments.TotalPages ? "disabled" : "" )">
@@ -56,7 +60,7 @@
     private async Task LoadPageAsync()
     {
         Console.WriteLine($"LoadPageAsync hit for PostId={PostId} at {DateTime.Now:hh:mm:ss}");
-        System.Diagnostics.Debugger.Break();
+
         _comments = await CommentService.GetByPostAsync(PostId, _page, PageSize);
         StateHasChanged();
     }
