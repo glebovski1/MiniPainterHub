@@ -1,14 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
 
 namespace MiniPainterHub.Common.DTOs
 {
     public class CreateProfileDto
     {
+        [Required]
+        [StringLength(100)]
         public string DisplayName { get; set; }
+
+        [Required]
+        [StringLength(500)]
         public string Bio { get; set; }
     }
 }

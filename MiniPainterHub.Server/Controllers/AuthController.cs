@@ -37,6 +37,9 @@ namespace MiniPainterHub.Server.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var user = new ApplicationUser { UserName = dto.UserName, Email = dto.Email };
             var result = await _userManager.CreateAsync(user, dto.Password);
 
@@ -61,6 +64,9 @@ namespace MiniPainterHub.Server.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var user = await _userManager.FindByNameAsync(dto.UserName);
             if (user == null)
                 return Unauthorized("Invalid login.");

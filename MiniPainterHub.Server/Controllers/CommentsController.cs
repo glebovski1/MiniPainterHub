@@ -40,7 +40,8 @@ namespace MiniPainterHub.Server.Controllers
             int postId,
             [FromBody] CreateCommentDto dto)
         {
-            //var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
                      ?? throw new InvalidOperationException("No user ID in token");
@@ -65,6 +66,9 @@ namespace MiniPainterHub.Server.Controllers
         [HttpPut("api/comments/{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateCommentDto dto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var updated = await _commentService.UpdateAsync(id, userId, dto);
             if (!updated)
