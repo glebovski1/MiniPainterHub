@@ -53,7 +53,9 @@ namespace MiniPainterHub.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<PostDto>> Create([FromBody] CreatePostDto dto)
         {
-            //var userId = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var created = await _postService.CreateAsync(userId, dto);
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
@@ -66,6 +68,9 @@ namespace MiniPainterHub.Server.Controllers
         public async Task<ActionResult<PostDto>> CreateWithImage(
             [FromForm] CreateImagePostDto dto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             // 1️⃣ create post without imageUrl
             var created = await _postService.CreateAsync(userId, new CreatePostDto
@@ -91,6 +96,9 @@ namespace MiniPainterHub.Server.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdatePostDto dto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var updated = await _postService.UpdateAsync(id, userId, dto);
             if (!updated)
