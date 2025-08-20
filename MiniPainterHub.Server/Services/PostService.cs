@@ -27,7 +27,8 @@ namespace MiniPainterHub.Server.Services
                 CreatedById = userId,
                 Title = dto.Title,
                 Content = dto.Content,
-                CreatedAt = DateTime.UtcNow
+                CreatedUtc = DateTime.UtcNow,
+                UpdatedUtc = DateTime.UtcNow
             };
 
             // 2️⃣ Add and save
@@ -41,7 +42,7 @@ namespace MiniPainterHub.Server.Services
                 CreatedById = userId,
                 Title = newPost.Title,
                 Content = newPost.Content,
-                CreatedAt = newPost.CreatedAt,
+                CreatedAt = newPost.CreatedUtc,
                 ImageUrl = newPost.ImageUrl,
                 AuthorName = user.UserName
 
@@ -52,12 +53,13 @@ namespace MiniPainterHub.Server.Services
         {
             // find the post only if it belongs to this user
             var post = await _appDbContext.Posts
-                .FirstOrDefaultAsync(p => p.Id == postId && p.CreatedById == userId);
+                .FirstOrDefaultAsync(p => p.Id == postId && p.CreatedById == userId && !p.IsDeleted);
 
             if (post == null)
                 return false;
 
-            _appDbContext.Posts.Remove(post);
+            post.IsDeleted = true;
+            post.UpdatedUtc = DateTime.UtcNow;
             await _appDbContext.SaveChangesAsync();
             return true;
         }
@@ -66,7 +68,8 @@ namespace MiniPainterHub.Server.Services
         {
             var query = _appDbContext.Posts
                 .AsNoTracking()
-                .OrderByDescending(p => p.CreatedAt);
+                .Where(p => !p.IsDeleted)
+                .OrderByDescending(p => p.CreatedUtc);
 
             var totalCount = await query.CountAsync();
             var items = await query
@@ -81,7 +84,7 @@ namespace MiniPainterHub.Server.Services
                                      : p.Content,
                     ImageUrl = p.ImageUrl,
                     AuthorName = p.CreatedBy.UserName,     // or p.CreatedBy.Profile.DisplayName
-                    CreatedAt = p.CreatedAt,
+                    CreatedAt = p.CreatedUtc,
                     CommentCount = p.Comments.Count,
                     LikeCount = p.Likes.Count
                 })
@@ -100,14 +103,14 @@ namespace MiniPainterHub.Server.Services
         {
               var dto = await _appDbContext.Posts
                      .AsNoTracking()
-                     .Where(p => p.Id == postId)
+                     .Where(p => p.Id == postId && !p.IsDeleted)
                      .Select(p => new PostDto
                      {
                          Id = p.Id,
                          CreatedById = p.CreatedById,
                          Title = p.Title,
                          Content = p.Content,
-                         CreatedAt = p.CreatedAt,
+                         CreatedAt = p.CreatedUtc,
                          ImageUrl = p.ImageUrl,
                          AuthorName = p.CreatedBy.UserName,  // EF will JOIN Users for you
                                                              // …add CommentCount, LikeCount if you want…
@@ -119,13 +122,14 @@ namespace MiniPainterHub.Server.Services
         public async Task<bool> UpdateAsync(int postId, string userId, UpdatePostDto dto)
         {
             var post = await _appDbContext.Posts
-               .FirstOrDefaultAsync(p => p.Id == postId && p.CreatedById == userId);
+               .FirstOrDefaultAsync(p => p.Id == postId && p.CreatedById == userId && !p.IsDeleted);
 
             if (post == null)
                 return false;
 
             post.Title = dto.Title;
             post.Content = dto.Content;
+            post.UpdatedUtc = DateTime.UtcNow;
 
             await _appDbContext.SaveChangesAsync();
             return true;
@@ -133,15 +137,17 @@ namespace MiniPainterHub.Server.Services
 
         public async Task SetImageUrlAsync(int postId, string imageUrl)
         {
-            var post = await _appDbContext.Posts.FindAsync(postId)
+            var post = await _appDbContext.Posts
+                        .FirstOrDefaultAsync(p => p.Id == postId && !p.IsDeleted)
                         ?? throw new KeyNotFoundException("Post not found");
             post.ImageUrl = imageUrl;
+            post.UpdatedUtc = DateTime.UtcNow;
             await _appDbContext.SaveChangesAsync();
         }
 
         public async Task<bool> ExistsAsync(int postId)
         {
-            return await _appDbContext.Posts.AnyAsync(post => post.Id == postId);
+            return await _appDbContext.Posts.AnyAsync(post => post.Id == postId && !post.IsDeleted);
         }
     }
 }
