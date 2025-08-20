@@ -10,7 +10,9 @@ namespace MiniPainterHub.Server.Entities
         public string Title { get; set; } = default!;
         public string Content { get; set; } = default!;
         public string CreatedById { get; set; }    // FK to ApplicationUser
-        public DateTime CreatedAt { get; set; }
+        public DateTime CreatedUtc { get; set; }
+        public DateTime UpdatedUtc { get; set; }
+        public bool IsDeleted { get; set; }
         // Navigation:
         public ApplicationUser CreatedBy { get; set; }
 
