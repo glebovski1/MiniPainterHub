@@ -4,6 +4,7 @@
 @inject NavigationManager Nav
 @using MiniPainterHub.WebApp.Shared
 @using System.Linq
+@using System.Collections.Generic
 
 <div class="container mt-4" style="max-width: 768px;">
     @if (isLoading)
@@ -184,27 +185,54 @@
 
     private string GetImageUrl(dynamic img)
     {
-        // Try common property names
-        string? url =
-            (img?.ImageUrl as string) ??
-            (img?.Url as string) ??
-            (img?.imageUrl as string) ??
-            (img?.url as string);
+        var url =
+            TryGetString(img, nameof(PostImageDto.ImageUrl)) ??
+            TryGetString(img, "Url") ??
+            TryGetString(img, "imageUrl") ??
+            TryGetString(img, "url");
 
         return GetAbsoluteUrl(url);
     }
 
     private string GetThumbnailUrl(dynamic img)
     {
-        string? thumb =
-            (img?.ThumbnailUrl as string) ??
-            (img?.thumbnailUrl as string) ??
-            (img?.ImageUrl as string) ??
-            (img?.Url as string) ??
-            (img?.imageUrl as string) ??
-            (img?.url as string);
+        var thumb =
+            TryGetString(img, nameof(PostImageDto.ThumbnailUrl)) ??
+            TryGetString(img, "thumbnailUrl") ??
+            TryGetString(img, nameof(PostImageDto.ImageUrl)) ??
+            TryGetString(img, "Url") ??
+            TryGetString(img, "imageUrl") ??
+            TryGetString(img, "url");
 
         return GetAbsoluteUrl(thumb);
+    }
+
+    private static string? TryGetString(dynamic obj, string property)
+    {
+        if (obj is null) return null;
+
+        // Attempt reflection on the object
+        try
+        {
+            var prop = obj.GetType().GetProperty(property);
+            if (prop != null)
+            {
+                var propValue = prop.GetValue(obj) as string;
+                if (!string.IsNullOrWhiteSpace(propValue))
+                    return propValue;
+            }
+        }
+        catch { }
+
+        // If the object behaves like a dictionary
+        if (obj is IDictionary<string, object> dict &&
+            dict.TryGetValue(property, out var value) &&
+            value is string val && !string.IsNullOrWhiteSpace(val))
+        {
+            return val;
+        }
+
+        return null;
     }
 
     private string GetAbsoluteUrl(string? url)
