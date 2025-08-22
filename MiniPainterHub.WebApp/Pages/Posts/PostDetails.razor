@@ -1,4 +1,4 @@
-﻿@page "/posts/{PostId:int}"
+@page "/posts/{PostId:int}"
 @using MiniPainterHub.Common.DTOs
 @inject IPostService PostService
 @inject NavigationManager Nav
@@ -73,10 +73,11 @@
                     <i class="bi bi-calendar3 me-1"></i>
                     @post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
                 </p>
+
                 <div class="card-text mb-4">
                     @post.Content
                 </div>
-                That way:
+
                 <div class="d-flex align-items-center gap-3 mb-4">
                     <LikeButton PostId="@PostId" />
 
@@ -85,9 +86,8 @@
                         ← Back
                     </button>
                 </div>
-                <h5 class="mb-3">
-                    Comments
-                </h5>
+
+                <h5 class="mb-3">Comments</h5>
                 <CommentForm PostId="@PostId" OnCommentAdded="ReloadComments" />
                 <CommentList @ref="_commentList" PostId="@PostId" />
             </div>
@@ -116,12 +116,18 @@
     private PostDto? post;
     private bool isLoading;
     private bool showModal = false;
+
     private int selectedIndex = 0;
-    private IReadOnlyList<dynamic>? PostImages => (post as dynamic)?.Images as IReadOnlyList<dynamic>;
+
+    // Treat Images flexibly: supports List<PostImageDto>, arrays, etc., via dynamic
+    private List<dynamic>? PostImages
+        => TryGetImages(post);
+
     private bool HasImages => PostImages != null && PostImages.Count > 0;
-    private string SelectedImageUrl => HasImages
-        ? GetImageUrl(PostImages![selectedIndex])
-        : GetAbsoluteUrl(post?.ImageUrl);
+
+    private string SelectedImageUrl
+        => HasImages ? GetImageUrl(PostImages![selectedIndex])
+                     : GetAbsoluteUrl(post?.ImageUrl);
 
     protected override async Task OnInitializedAsync()
     {
@@ -146,18 +152,69 @@
     private void ShowZoomModal() => showModal = true;
     private void CloseZoomModal() => showModal = false;
 
-    private void SelectImage(int index) => selectedIndex = index;
+    private void SelectImage(int index)
+    {
+        if (!HasImages) return;
+        if (index < 0 || index >= PostImages!.Count) return;
+        selectedIndex = index;
+    }
 
-    private string GetImageUrl(dynamic img) => GetAbsoluteUrl((string?)(img?.Url ?? img?.url));
+    private static List<dynamic>? TryGetImages(PostDto? p)
+    {
+        if (p is null) return null;
 
-    private string GetThumbnailUrl(dynamic img) => GetAbsoluteUrl((string?)(img?.ThumbnailUrl ?? img?.thumbnailUrl ?? img?.Url ?? img?.url));
+        try
+        {
+            dynamic dyn = p;
+            var imgs = dyn.Images;
+
+            if (imgs is null) return null;
+
+            // Normalize to List<dynamic>
+            if (imgs is IEnumerable<object> seq)
+                return seq.Select(x => (dynamic)x).ToList();
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private string GetImageUrl(dynamic img)
+    {
+        // Try common property names
+        string? url =
+            (img?.ImageUrl as string) ??
+            (img?.Url as string) ??
+            (img?.imageUrl as string) ??
+            (img?.url as string);
+
+        return GetAbsoluteUrl(url);
+    }
+
+    private string GetThumbnailUrl(dynamic img)
+    {
+        string? thumb =
+            (img?.ThumbnailUrl as string) ??
+            (img?.thumbnailUrl as string) ??
+            (img?.ImageUrl as string) ??
+            (img?.Url as string) ??
+            (img?.imageUrl as string) ??
+            (img?.url as string);
+
+        return GetAbsoluteUrl(thumb);
+    }
 
     private string GetAbsoluteUrl(string? url)
     {
         if (string.IsNullOrEmpty(url))
             return string.Empty;
+
         return url.StartsWith("http", StringComparison.OrdinalIgnoreCase)
             ? url
             : $"{Nav.BaseUri.TrimEnd('/')}{url}";
     }
 }
+

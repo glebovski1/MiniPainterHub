@@ -13,8 +13,12 @@ namespace MiniPainterHub.Common.DTOs
         public string Title { get; set; }
         public string Content { get; set; }
 
-        // Bound from multipart/form-data under the “image” field
-        [FromForm(Name = "image")]
-        public IFormFile? Image { get; set; }
+        // Bound from multipart/form-data under the "images" field
+        [FromForm(Name = "images")]
+        public List<IFormFile>? Images { get; set; }
+
+        // Optional thumbnails matching each image
+        [FromForm(Name = "thumbnails")]
+        public List<IFormFile>? Thumbnails { get; set; }
     }
 }

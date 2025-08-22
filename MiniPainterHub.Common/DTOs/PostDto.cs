@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace MiniPainterHub.Common.DTOs
@@ -24,7 +25,6 @@ namespace MiniPainterHub.Common.DTOs
 
         public DateTime CreatedAt { get; set; }
 
-        [StringLength(2048)]
-        public string? ImageUrl { get; set; }
+        public List<PostImageDto> Images { get; set; } = new();
     }
 }

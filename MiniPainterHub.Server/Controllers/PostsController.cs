@@ -7,6 +7,7 @@ using MiniPainterHub.Server.Services.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace MiniPainterHub.Server.Controllers
 {
@@ -62,7 +63,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         // POST: api/posts/with-image
-        // Multipart/form-data create with image
+        // Multipart/form-data create with images and optional thumbnails
         [HttpPost("with-image")]
         [Consumes("multipart/form-data")]
         public async Task<ActionResult<PostDto>> CreateWithImage(
@@ -71,22 +72,45 @@ namespace MiniPainterHub.Server.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            if (dto.Images != null && dto.Images.Count > 5)
+                return BadRequest("A maximum of 5 images is allowed.");
+
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            // 1️⃣ create post without imageUrl
+            // create post first
             var created = await _postService.CreateAsync(userId, new CreatePostDto
             {
                 Title = dto.Title,
                 Content = dto.Content
             });
 
-            // 2️⃣ handle image upload
-            if (dto.Image is { Length: > 0 })
+            if (dto.Images is { Count: > 0 })
             {
-                using var stream = dto.Image.OpenReadStream();
-                var fileName = $"{created.Id}_{dto.Image.FileName}";
-                var url = await _imageService.UploadAsync(stream, fileName);
-                await _postService.SetImageUrlAsync(created.Id, url);
-                created.ImageUrl = url;
+                var imageDtos = new List<PostImageDto>();
+
+                for (int i = 0; i < dto.Images.Count && i < 5; i++)
+                {
+                    var img = dto.Images[i];
+                    using var stream = img.OpenReadStream();
+                    var fileName = $"{created.Id}_{i}_{img.FileName}";
+                    var url = await _imageService.UploadAsync(stream, fileName);
+
+                    string? thumbUrl = null;
+                    if (dto.Thumbnails != null && i < dto.Thumbnails.Count && dto.Thumbnails[i] is { Length: > 0 })
+                    {
+                        var thumb = dto.Thumbnails[i];
+                        using var tStream = thumb.OpenReadStream();
+                        var thumbFileName = $"{created.Id}_{i}_thumb_{thumb.FileName}";
+                        thumbUrl = await _imageService.UploadAsync(tStream, thumbFileName);
+                    }
+
+                    imageDtos.Add(new PostImageDto
+                    {
+                        ImageUrl = url,
+                        ThumbnailUrl = thumbUrl
+                    });
+                }
+
+                created.Images = await _postService.AddImagesAsync(created.Id, imageDtos);
             }
 
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
