@@ -1,8 +1,9 @@
-﻿@page "/posts/{PostId:int}"
+@page "/posts/{PostId:int}"
 @using MiniPainterHub.Common.DTOs
 @inject IPostService PostService
 @inject NavigationManager Nav
 @using MiniPainterHub.WebApp.Shared
+@using System.Linq
 
 <div class="container mt-4" style="max-width: 768px;">
     @if (isLoading)
@@ -23,12 +24,35 @@
     {
         <div class="card shadow-lg p-4">
 
-            @* 🔳 Image Section *@
-            @if (post.Images?.Count > 0)
+            @* 🔳 Image/Gallery Section *@
+            @if (HasImages)
+            {
+                <div class="bg-light border rounded p-3 mb-4">
+                    <div class="text-center mb-2">
+                        <img src="@SelectedImageUrl"
+                             class="img-fluid rounded shadow-sm"
+                             alt="Post image"
+                             loading="lazy"
+                             style="cursor: zoom-in;"
+                             @onclick="ShowZoomModal" />
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 justify-content-center">
+                        @for (int i = 0; i < PostImages!.Count; i++)
+                        {
+                            var img = PostImages[i];
+                            <img src="@GetThumbnailUrl(img)"
+                                 class="img-thumbnail"
+                                 style="width:80px;height:80px;object-fit:cover;cursor:pointer;"
+                                 @onclick="@(() => SelectImage(i))" />
+                        }
+                    </div>
+                </div>
+            }
+            else if (!string.IsNullOrEmpty(post.ImageUrl))
             {
                 <div class="bg-light border rounded p-3 mb-4">
                     <div class="text-center">
-                        <img src="@FullImageUrl"
+                        <img src="@GetAbsoluteUrl(post.ImageUrl)"
                              class="img-fluid rounded shadow-sm"
                              alt="Post image"
                              loading="lazy"
@@ -49,10 +73,11 @@
                     <i class="bi bi-calendar3 me-1"></i>
                     @post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
                 </p>
+
                 <div class="card-text mb-4">
                     @post.Content
                 </div>
-                That way:
+
                 <div class="d-flex align-items-center gap-3 mb-4">
                     <LikeButton PostId="@PostId" />
 
@@ -61,9 +86,8 @@
                         ← Back
                     </button>
                 </div>
-                <h5 class="mb-3">
-                    Comments
-                </h5>
+
+                <h5 class="mb-3">Comments</h5>
                 <CommentForm PostId="@PostId" OnCommentAdded="ReloadComments" />
                 <CommentList @ref="_commentList" PostId="@PostId" />
             </div>
@@ -77,7 +101,7 @@
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6);" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content bg-transparent border-0">
-                <img src="@FullImageUrl" class="img-fluid rounded zoomed-image" alt="Zoomed image" />
+                <img src="@SelectedImageUrl" class="img-fluid rounded zoomed-image" alt="Zoomed image" />
                 <button type="button" class="btn-close position-absolute top-0 end-0 m-3 bg-white rounded-circle"
                         aria-label="Close"
                         @onclick="CloseZoomModal"></button>
@@ -93,10 +117,17 @@
     private bool isLoading;
     private bool showModal = false;
 
-    private string FullImageUrl =>
-        post!.Images![0].ImageUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-            ? post.Images[0].ImageUrl
-            : $"{Nav.BaseUri.TrimEnd('/')}{post.Images[0].ImageUrl}";
+    private int selectedIndex = 0;
+
+    // Treat Images flexibly: supports List<PostImageDto>, arrays, etc., via dynamic
+    private List<dynamic>? PostImages
+        => TryGetImages(post);
+
+    private bool HasImages => PostImages != null && PostImages.Count > 0;
+
+    private string SelectedImageUrl
+        => HasImages ? GetImageUrl(PostImages![selectedIndex])
+                     : GetAbsoluteUrl(post?.ImageUrl);
 
     protected override async Task OnInitializedAsync()
     {
@@ -120,4 +151,70 @@
 
     private void ShowZoomModal() => showModal = true;
     private void CloseZoomModal() => showModal = false;
+
+    private void SelectImage(int index)
+    {
+        if (!HasImages) return;
+        if (index < 0 || index >= PostImages!.Count) return;
+        selectedIndex = index;
+    }
+
+    private static List<dynamic>? TryGetImages(PostDto? p)
+    {
+        if (p is null) return null;
+
+        try
+        {
+            dynamic dyn = p;
+            var imgs = dyn.Images;
+
+            if (imgs is null) return null;
+
+            // Normalize to List<dynamic>
+            if (imgs is IEnumerable<object> seq)
+                return seq.Select(x => (dynamic)x).ToList();
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private string GetImageUrl(dynamic img)
+    {
+        // Try common property names
+        string? url =
+            (img?.ImageUrl as string) ??
+            (img?.Url as string) ??
+            (img?.imageUrl as string) ??
+            (img?.url as string);
+
+        return GetAbsoluteUrl(url);
+    }
+
+    private string GetThumbnailUrl(dynamic img)
+    {
+        string? thumb =
+            (img?.ThumbnailUrl as string) ??
+            (img?.thumbnailUrl as string) ??
+            (img?.ImageUrl as string) ??
+            (img?.Url as string) ??
+            (img?.imageUrl as string) ??
+            (img?.url as string);
+
+        return GetAbsoluteUrl(thumb);
+    }
+
+    private string GetAbsoluteUrl(string? url)
+    {
+        if (string.IsNullOrEmpty(url))
+            return string.Empty;
+
+        return url.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            ? url
+            : $"{Nav.BaseUri.TrimEnd('/')}{url}";
+    }
 }
+
