@@ -57,6 +57,10 @@ namespace MiniPainterHub.Server.Services
                 Content = newPost.Content,
                 CreatedAt = newPost.CreatedUtc,
                 AuthorName = user.UserName,
+                ImageUrl = newPost.Images
+                                    .OrderBy(i => i.Id)
+                                    .Select(i => i.ImageUrl)
+                                    .FirstOrDefault(),
                 Images = newPost.Images.Select(i => new PostImageDto
                 {
                     Id = i.Id,
@@ -132,6 +136,10 @@ namespace MiniPainterHub.Server.Services
                          Content = p.Content,
                          CreatedAt = p.CreatedUtc,
                          AuthorName = p.CreatedBy.UserName,
+                         ImageUrl = p.Images
+                                        .OrderBy(i => i.Id)
+                                        .Select(i => i.ImageUrl)
+                                        .FirstOrDefault(),
                          Images = p.Images.Select(i => new PostImageDto
                          {
                              Id = i.Id,
