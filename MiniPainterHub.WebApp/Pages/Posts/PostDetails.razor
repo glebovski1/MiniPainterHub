@@ -40,11 +40,12 @@
                     <div class="d-flex flex-wrap gap-2 justify-content-center">
                         @for (int i = 0; i < PostImages!.Count; i++)
                         {
+                            int imageIndex = i;
                             var img = PostImages[i];
                             <img src="@GetThumbnailUrl(img)"
                                  class="img-thumbnail"
                                  style="width:80px;height:80px;object-fit:cover;cursor:pointer;"
-                                 @onclick="@(() => SelectImage(i))" />
+                                 @onclick="@(() => SelectImage(imageIndex))" />
                         }
                     </div>
                 </div>
