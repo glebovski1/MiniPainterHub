@@ -15,6 +15,7 @@ namespace MiniPainterHub.Server.Data
 
         public DbSet<Profile> Profiles { get; set; } = default!;
         public DbSet<Post> Posts { get; set; } = default!;
+        public DbSet<PostImage> PostImages { get; set; } = default!;
         public DbSet<Comment> Comments { get; set; } = default!;
         public DbSet<Like> Likes { get; set; } = default!;
 
@@ -37,6 +38,13 @@ namespace MiniPainterHub.Server.Data
                    .WithMany()
                    .HasForeignKey(p => p.CreatedById)
                    .OnDelete(DeleteBehavior.Restrict);
+
+            // PostImages: cascade on Post deletion
+            builder.Entity<PostImage>()
+                   .HasOne(pi => pi.Post)
+                   .WithMany(p => p.Images)
+                   .HasForeignKey(pi => pi.PostId)
+                   .OnDelete(DeleteBehavior.Cascade);
 
             // Comments: cascade on Post deletion, restrict on Author deletion
             builder.Entity<Comment>()

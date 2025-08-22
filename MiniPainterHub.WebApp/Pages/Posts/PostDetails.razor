@@ -24,7 +24,7 @@
         <div class="card shadow-lg p-4">
 
             @* 🔳 Image Section *@
-            @if (!string.IsNullOrEmpty(post.ImageUrl))
+            @if (post.Images?.Count > 0)
             {
                 <div class="bg-light border rounded p-3 mb-4">
                     <div class="text-center">
@@ -94,9 +94,9 @@
     private bool showModal = false;
 
     private string FullImageUrl =>
-        post!.ImageUrl!.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-            ? post.ImageUrl
-            : $"{Nav.BaseUri.TrimEnd('/')}{post.ImageUrl}";
+        post!.Images![0].ImageUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            ? post.Images[0].ImageUrl
+            : $"{Nav.BaseUri.TrimEnd('/')}{post.Images[0].ImageUrl}";
 
     protected override async Task OnInitializedAsync()
     {

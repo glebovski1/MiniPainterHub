@@ -28,8 +28,21 @@ namespace MiniPainterHub.Server.Services
                 Title = dto.Title,
                 Content = dto.Content,
                 CreatedUtc = DateTime.UtcNow,
-                UpdatedUtc = DateTime.UtcNow
+                UpdatedUtc = DateTime.UtcNow,
+                Images = new List<PostImage>()
             };
+
+            if (dto.Images != null)
+            {
+                foreach (var img in dto.Images.Take(5))
+                {
+                    newPost.Images.Add(new PostImage
+                    {
+                        ImageUrl = img.ImageUrl,
+                        ThumbnailUrl = img.ThumbnailUrl
+                    });
+                }
+            }
 
             // 2️⃣ Add and save
             _appDbContext.Posts.Add(newPost);
@@ -43,9 +56,13 @@ namespace MiniPainterHub.Server.Services
                 Title = newPost.Title,
                 Content = newPost.Content,
                 CreatedAt = newPost.CreatedUtc,
-                ImageUrl = newPost.ImageUrl,
-                AuthorName = user.UserName
-
+                AuthorName = user.UserName,
+                Images = newPost.Images.Select(i => new PostImageDto
+                {
+                    Id = i.Id,
+                    ImageUrl = i.ImageUrl,
+                    ThumbnailUrl = i.ThumbnailUrl
+                }).ToList()
             };
         }
 
@@ -82,7 +99,10 @@ namespace MiniPainterHub.Server.Services
                     Snippet = p.Content.Length > 100
                                      ? p.Content.Substring(0, 100) + "…"
                                      : p.Content,
-                    ImageUrl = p.ImageUrl,
+                    ImageUrl = p.Images
+                                 .OrderBy(i => i.Id)
+                                 .Select(i => i.ImageUrl)
+                                 .FirstOrDefault(),
                     AuthorName = p.CreatedBy.UserName,     // or p.CreatedBy.Profile.DisplayName
                     CreatedAt = p.CreatedUtc,
                     CommentCount = p.Comments.Count,
@@ -111,9 +131,13 @@ namespace MiniPainterHub.Server.Services
                          Title = p.Title,
                          Content = p.Content,
                          CreatedAt = p.CreatedUtc,
-                         ImageUrl = p.ImageUrl,
-                         AuthorName = p.CreatedBy.UserName,  // EF will JOIN Users for you
-                                                             // …add CommentCount, LikeCount if you want…
+                         AuthorName = p.CreatedBy.UserName,
+                         Images = p.Images.Select(i => new PostImageDto
+                         {
+                             Id = i.Id,
+                             ImageUrl = i.ImageUrl,
+                             ThumbnailUrl = i.ThumbnailUrl
+                         }).ToList()
                      })
                      .FirstOrDefaultAsync();
             return dto;
@@ -135,14 +159,35 @@ namespace MiniPainterHub.Server.Services
             return true;
         }
 
-        public async Task SetImageUrlAsync(int postId, string imageUrl)
+        public async Task<List<PostImageDto>> AddImagesAsync(int postId, IEnumerable<PostImageDto> images)
         {
             var post = await _appDbContext.Posts
+                        .Include(p => p.Images)
                         .FirstOrDefaultAsync(p => p.Id == postId && !p.IsDeleted)
                         ?? throw new KeyNotFoundException("Post not found");
-            post.ImageUrl = imageUrl;
+
+            var existingCount = post.Images.Count;
+            foreach (var img in images.Take(5 - existingCount))
+            {
+                var entity = new PostImage
+                {
+                    PostId = postId,
+                    ImageUrl = img.ImageUrl,
+                    ThumbnailUrl = img.ThumbnailUrl
+                };
+                _appDbContext.PostImages.Add(entity);
+                post.Images.Add(entity);
+            }
+
             post.UpdatedUtc = DateTime.UtcNow;
             await _appDbContext.SaveChangesAsync();
+
+            return post.Images.Select(i => new PostImageDto
+            {
+                Id = i.Id,
+                ImageUrl = i.ImageUrl,
+                ThumbnailUrl = i.ThumbnailUrl
+            }).ToList();
         }
 
         public async Task<bool> ExistsAsync(int postId)
