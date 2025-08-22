@@ -3,6 +3,7 @@
 @inject IPostService PostService
 @inject NavigationManager Nav
 @using MiniPainterHub.WebApp.Shared
+@using System.Linq
 
 <div class="container mt-4" style="max-width: 768px;">
     @if (isLoading)
@@ -23,12 +24,35 @@
     {
         <div class="card shadow-lg p-4">
 
-            @* 🔳 Image Section *@
-            @if (!string.IsNullOrEmpty(post.ImageUrl))
+            @* 🔳 Image/Gallery Section *@
+            @if (HasImages)
+            {
+                <div class="bg-light border rounded p-3 mb-4">
+                    <div class="text-center mb-2">
+                        <img src="@SelectedImageUrl"
+                             class="img-fluid rounded shadow-sm"
+                             alt="Post image"
+                             loading="lazy"
+                             style="cursor: zoom-in;"
+                             @onclick="ShowZoomModal" />
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 justify-content-center">
+                        @for (int i = 0; i < PostImages!.Count; i++)
+                        {
+                            var img = PostImages[i];
+                            <img src="@GetThumbnailUrl(img)"
+                                 class="img-thumbnail"
+                                 style="width:80px;height:80px;object-fit:cover;cursor:pointer;"
+                                 @onclick="@(() => SelectImage(i))" />
+                        }
+                    </div>
+                </div>
+            }
+            else if (!string.IsNullOrEmpty(post.ImageUrl))
             {
                 <div class="bg-light border rounded p-3 mb-4">
                     <div class="text-center">
-                        <img src="@FullImageUrl"
+                        <img src="@GetAbsoluteUrl(post.ImageUrl)"
                              class="img-fluid rounded shadow-sm"
                              alt="Post image"
                              loading="lazy"
@@ -77,7 +101,7 @@
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6);" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content bg-transparent border-0">
-                <img src="@FullImageUrl" class="img-fluid rounded zoomed-image" alt="Zoomed image" />
+                <img src="@SelectedImageUrl" class="img-fluid rounded zoomed-image" alt="Zoomed image" />
                 <button type="button" class="btn-close position-absolute top-0 end-0 m-3 bg-white rounded-circle"
                         aria-label="Close"
                         @onclick="CloseZoomModal"></button>
@@ -92,11 +116,12 @@
     private PostDto? post;
     private bool isLoading;
     private bool showModal = false;
-
-    private string FullImageUrl =>
-        post!.ImageUrl!.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-            ? post.ImageUrl
-            : $"{Nav.BaseUri.TrimEnd('/')}{post.ImageUrl}";
+    private int selectedIndex = 0;
+    private IReadOnlyList<dynamic>? PostImages => (post as dynamic)?.Images as IReadOnlyList<dynamic>;
+    private bool HasImages => PostImages != null && PostImages.Count > 0;
+    private string SelectedImageUrl => HasImages
+        ? GetImageUrl(PostImages![selectedIndex])
+        : GetAbsoluteUrl(post?.ImageUrl);
 
     protected override async Task OnInitializedAsync()
     {
@@ -120,4 +145,19 @@
 
     private void ShowZoomModal() => showModal = true;
     private void CloseZoomModal() => showModal = false;
+
+    private void SelectImage(int index) => selectedIndex = index;
+
+    private string GetImageUrl(dynamic img) => GetAbsoluteUrl((string?)(img?.Url ?? img?.url));
+
+    private string GetThumbnailUrl(dynamic img) => GetAbsoluteUrl((string?)(img?.ThumbnailUrl ?? img?.thumbnailUrl ?? img?.Url ?? img?.url));
+
+    private string GetAbsoluteUrl(string? url)
+    {
+        if (string.IsNullOrEmpty(url))
+            return string.Empty;
+        return url.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            ? url
+            : $"{Nav.BaseUri.TrimEnd('/')}{url}";
+    }
 }
