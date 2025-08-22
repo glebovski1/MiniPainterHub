@@ -20,6 +20,18 @@
         <InputTextArea class="form-control" rows="6" @bind-Value="newPost.Content" />
     </div>
 
+    <div class="mb-3">
+        <label class="form-label">Images</label>
+        <InputFile OnChange="OnFilesSelected" multiple />
+        @if (previewUrls.Count > 0)
+        {
+            foreach (var url in previewUrls)
+            {
+                <img src="@url" class="img-fluid rounded mt-2 me-2" style="max-height:200px;" />
+            }
+        }
+    </div>
+
     <button type="submit" class="btn btn-primary">Create</button>
     <button type="button" class="btn btn-secondary ms-2" @onclick="Cancel">Cancel</button>
 </EditForm>
@@ -31,17 +43,50 @@
 
 @code {
     private CreatePostDto newPost = new();
+    private IReadOnlyList<IBrowserFile> selectedFiles = Array.Empty<IBrowserFile>();
+    private List<string> previewUrls = new();
     private string errorMessage = string.Empty;
+
+    private void OnFilesSelected(InputFileChangeEventArgs e)
+    {
+        selectedFiles = e.GetMultipleFiles(5);
+        previewUrls.Clear();
+        foreach (var file in selectedFiles)
+        {
+            using var stream = file.OpenReadStream(5 * 1024 * 1024);
+            var buffer = new byte[file.Size];
+            stream.Read(buffer, 0, (int)file.Size);
+            previewUrls.Add($"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}");
+        }
+    }
 
     private async Task HandleSubmit()
     {
         errorMessage = "";
         try
         {
-            // Adjust signature if your CreateAsync requires userId:
-            //var created = await PostService.CreateAsync(userId, newPost);
-            var created = await PostService.CreateAsync(newPost);
-            Nav.NavigateTo($"/posts/{created.Id}");
+            if (selectedFiles.Count > 0)
+            {
+                var content = new MultipartFormDataContent
+                {
+                    { new StringContent(newPost.Title ?? ""), nameof(newPost.Title) },
+                    { new StringContent(newPost.Content ?? ""), nameof(newPost.Content) }
+                };
+
+                foreach (var file in selectedFiles)
+                {
+                    content.Add(new StreamContent(file.OpenReadStream(5 * 1024 * 1024)),
+                                "Images", file.Name);
+                }
+
+                var created = await PostService.CreateWithImageAsync(content);
+                Nav.NavigateTo($"/posts/{created.Id}");
+            }
+            else
+            {
+                var created = await PostService.CreateAsync(newPost);
+                Nav.NavigateTo($"/posts/{created.Id}");
+            }
         }
         catch (Exception ex)
         {
