@@ -25,6 +25,12 @@ namespace MiniPainterHub.Common.DTOs
 
         public DateTime CreatedAt { get; set; }
 
+        /// <summary>
+        /// Convenience URL for the first image associated with the post, if any.
+        /// Helps legacy clients that expect a single image field.
+        /// </summary>
+        public string? ImageUrl { get; set; }
+
         public List<PostImageDto> Images { get; set; } = new();
     }
 }

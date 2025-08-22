@@ -8,6 +8,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace MiniPainterHub.Server.Controllers
 {
@@ -30,7 +31,7 @@ namespace MiniPainterHub.Server.Controllers
         // GET: api/posts?page=1&pageSize=10
         [HttpGet]
         [AllowAnonymous]
-        public async Task<ActionResult<PagedResult<PostDto>>> GetAll(
+        public async Task<ActionResult<PagedResult<PostSummaryDto>>> GetAll(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10)
         {
@@ -111,6 +112,10 @@ namespace MiniPainterHub.Server.Controllers
                 }
 
                 created.Images = await _postService.AddImagesAsync(created.Id, imageDtos);
+                created.ImageUrl = created.Images
+                                       .OrderBy(i => i.Id)
+                                       .Select(i => i.ImageUrl)
+                                       .FirstOrDefault();
             }
 
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
