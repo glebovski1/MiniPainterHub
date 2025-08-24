@@ -1,7 +1,76 @@
 ﻿@inherits LayoutComponentBase
+@inject IJSRuntime JS
+@using Microsoft.AspNetCore.Components.Authorization
 
-<NavMenu/>
+<div class="app-layout">
+    <header @ref="HeaderRef" id="appHeader" class="sticky-top bg-white">
+        <NavMenu />
+        </header>
 
-<main class="container py-4">
-    @Body
-</main>
+
+    <!-- Slim header row; won’t disturb your NavMenu -->
+    <div @ref="ToolBarRef" class="d-flex align-items-center justify-content-start gap-3 px-3 py-2 border-bottom bg-light">
+        <AuthorizeView>
+            <Authorized>
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           role="switch"
+                           id="userPanelToggle"
+                           @onchange="OnToggleChanged"
+                           aria-label="Toggle personal panel" />
+                    <label class="form-check-label d-none d-sm-inline" for="userPanelToggle">
+                        Show personal panel
+                    </label>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+    <UserPanelOverlay IsVisible="@IsPanelVisible" OffsetTop="TopOffsetOfLeftPanel" />
+    <main class="container py-4">
+        @Body
+
+    </main>
+
+</div>
+
+@code {
+    bool IsPanelVisible = false;
+
+    private int TopOffsetOfLeftPanel = 0;
+
+    private ElementReference HeaderRef;
+
+    private ElementReference ToolBarRef;
+
+
+    private void OnToggleChanged(ChangeEventArgs _)
+    {
+        // Keep state events flowing to listeners (sidebar listens and animates)
+        if (IsPanelVisible)
+        {
+            IsPanelVisible = false;
+        }
+        else
+        {
+            IsPanelVisible = true;
+        }
+    }
+
+    // Fix for CS0115: Use correct signature for OnAfterRenderAsync
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        int totalHeight = 0;
+        if (firstRender)
+        {
+            totalHeight += await GetElementHeight(HeaderRef);
+            totalHeight += await GetElementHeight(ToolBarRef);
+            TopOffsetOfLeftPanel = totalHeight;
+            StateHasChanged(); // Notify the component to re-render with the updated height
+        }
+
+    }
+
+    private Task<int> GetElementHeight(ElementReference elementRef) =>
+        JS.InvokeAsync<int>("domHelpers.getHeight", elementRef).AsTask();
+}

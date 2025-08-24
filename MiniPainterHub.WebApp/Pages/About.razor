@@ -1,0 +1,209 @@
+﻿@page "/about"
+@using System.Reflection
+
+<div class="container py-4 py-lg-5">
+
+    <!-- HERO -->
+    <section class="text-center mb-5">
+        <span class="badge bg-primary-subtle text-primary border border-primary mb-2">About</span>
+        <h1 class="display-5 fw-semibold">MiniPainterHub</h1>
+        <p class="lead text-secondary mx-auto" style="max-width: 720px;">
+            A community for miniature‑painting enthusiasts to share finished models, discover new techniques,
+            and connect with other hobbyists.
+        </p>
+        <div class="d-flex gap-2 justify-content-center">
+            <a class="btn btn-primary" href="/posts">Explore Posts</a>
+            <a class="btn btn-outline-secondary" href="/profile">Your Profile</a>
+        </div>
+    </section>
+
+    <!-- PROJECT STORY -->
+    <section class="row align-items-center g-4 mb-5">
+        <div class="col-md-6">
+            <div class="ratio ratio-16x9 rounded-3 bg-body-secondary d-flex align-items-center justify-content-center">
+                <div class="text-center p-4">
+                    <i class="bi bi-brush fs-1 d-block mb-2"></i>
+                    <div class="fw-semibold">Share. Learn. Improve.</div>
+                    <small class="text-secondary">Technique tags • Comments • Likes • Profiles</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <h2 class="h3 fw-semibold">Why this exists</h2>
+            <p class="text-secondary">
+                Miniature painting is both art and practice. MiniPainterHub helps hobbyists showcase work,
+                learn from others, and keep track of their progress—without friction.
+            </p>
+            <ul class="list-unstyled mb-0">
+                <li class="d-flex align-items-start mb-2">
+                    <i class="bi bi-chat-dots me-2 mt-1"></i>
+                    <span><strong>Constructive feedback</strong> via comments & likes.</span>
+                </li>
+                <li class="d-flex align-items-start mb-2">
+                    <i class="bi bi-tags me-2 mt-1"></i>
+                    <span><strong>Technique tags</strong> to organize and discover styles.</span>
+                </li>
+                <li class="d-flex align-items-start">
+                    <i class="bi bi-person-circle me-2 mt-1"></i>
+                    <span><strong>Creator profiles</strong> with bios and avatars.</span>
+                </li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="mb-5">
+        <h2 class="h4 fw-semibold mb-3">What you can do</h2>
+        <div class="row g-3 g-md-4">
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <i class="bi bi-images fs-4 mb-2 d-inline-block"></i>
+                        <h3 class="h6">Post Works</h3>
+                        <p class="text-secondary small mb-0">Upload finished models with captions and tags.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <i class="bi bi-heart fs-4 mb-2 d-inline-block"></i>
+                        <h3 class="h6">Like & Discuss</h3>
+                        <p class="text-secondary small mb-0">React instantly and start helpful conversations.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <i class="bi bi-tags fs-4 mb-2 d-inline-block"></i>
+                        <h3 class="h6">Technique Tags</h3>
+                        <p class="text-secondary small mb-0">Find glazing, NMM, OSL, weathering, and more.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <i class="bi bi-shield-check fs-4 mb-2 d-inline-block"></i>
+                        <h3 class="h6">Account & Profiles</h3>
+                        <p class="text-secondary small mb-0">Customize your display name, bio, and avatar.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TECH STACK -->
+    <section class="mb-5">
+        <h2 class="h4 fw-semibold mb-3">Tech stack</h2>
+        <div class="d-flex flex-wrap gap-2">
+            <span class="badge text-bg-dark">.NET 8</span>
+            <span class="badge text-bg-primary">Blazor WebAssembly</span>
+            <span class="badge text-bg-secondary">ASP.NET Core Web API</span>
+            <span class="badge text-bg-info">Entity Framework Core</span>
+            <span class="badge text-bg-warning">Azure (App Service / Blob)</span>
+            <span class="badge text-bg-success">JWT Auth</span>
+            <span class="badge text-bg-light border">Bootstrap</span>
+        </div>
+    </section>
+
+    <!-- ROADMAP / TIMELINE -->
+    <section class="mb-5">
+        <h2 class="h4 fw-semibold mb-3">Roadmap highlights</h2>
+        <ul class="list-group list-group-flush">
+            <li class="list-group-item d-flex align-items-start">
+                <i class="bi bi-check2-circle text-success me-2 mt-1"></i>
+                <div>
+                    <div class="fw-semibold">Likes & Comments (Done)</div>
+                    <small class="text-secondary">Core interactivity implemented with paging & optimistic UI.</small>
+                </div>
+            </li>
+            <li class="list-group-item d-flex align-items-start">
+                <i class="bi bi-hourglass-split text-warning me-2 mt-1"></i>
+                <div>
+                    <div class="fw-semibold">Profile Page (In progress)</div>
+                    <small class="text-secondary">Edit display name, bio, and upload avatar.</small>
+                </div>
+            </li>
+            <li class="list-group-item d-flex align-items-start">
+                <i class="bi bi-flag text-primary me-2 mt-1"></i>
+                <div>
+                    <div class="fw-semibold">Moderation & Reporting (Next)</div>
+                    <small class="text-secondary">Safe, friendly community tools.</small>
+                </div>
+            </li>
+        </ul>
+    </section>
+
+    <!-- TEAM -->
+    <section class="mb-5">
+        <h2 class="h4 fw-semibold mb-3">Who’s behind it</h2>
+        <div class="row g-3">
+            <div class="col-sm-6 col-md-4 col-lg-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body d-flex align-items-center">
+                        <i class="bi bi-person-circle fs-1 me-3"></i>
+                        <div>
+                            <div class="fw-semibold">Gleb (Hlib) Usov</div>
+                            <small class="text-secondary d-block">C# / .NET</small>
+                            <small class="text-secondary">Builder & maintainer</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Add more contributors as needed -->
+        </div>
+    </section>
+
+    <!-- FAQ (Accordion) -->
+    <section class="mb-5" aria-label="Frequently asked questions">
+        <h2 class="h4 fw-semibold mb-3">FAQ</h2>
+        <div class="accordion" id="aboutFaq">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="q1">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#a1" aria-expanded="true" aria-controls="a1">
+                        Is MiniPainterHub free to use?
+                    </button>
+                </h2>
+                <div id="a1" class="accordion-collapse collapse show" data-bs-parent="#aboutFaq" aria-labelledby="q1">
+                    <div class="accordion-body">
+                        Yes. The MVP focuses on a simple, enjoyable community experience.
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="q2">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#a2" aria-expanded="false" aria-controls="a2">
+                        What’s coming next?
+                    </button>
+                </h2>
+                <div id="a2" class="accordion-collapse collapse" data-bs-parent="#aboutFaq" aria-labelledby="q2">
+                    <div class="accordion-body">
+                        Profiles, better search & tagging, and basic moderation are on the near-term roadmap.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CONTACT / CTA -->
+    <section class="text-center">
+        <div class="p-4 p-md-5 rounded-3 border bg-body-tertiary">
+            <h2 class="h4 fw-semibold mb-2">Have feedback or ideas?</h2>
+            <p class="text-secondary mb-3">We’d love to hear what would make MiniPainterHub more useful for you.</p>
+            <div class="d-flex gap-2 justify-content-center">
+                <a class="btn btn-primary" href="/posts">Start sharing</a>
+                <a class="btn btn-outline-secondary" href="/profile">Update your profile</a>
+            </div>
+        </div>
+        <small class="text-secondary d-block mt-3">
+            App version: @GetVersionString()
+        </small>
+    </section>
+</div>
+
+@code {
+    private static string GetVersionString()
+        => Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0";
+}

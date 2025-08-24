@@ -50,7 +50,7 @@ else
         var result = await PostService.GetAllAsync(page, PageSize);
 
         // Extract the items into your flat list
-        posts = result.Items.ToList();
+        posts = result.Items.OrderByDescending(posts => posts.CreatedAt).ToList();
 
         isLoading = false;
     }

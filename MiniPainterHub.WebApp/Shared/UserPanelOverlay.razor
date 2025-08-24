@@ -1,0 +1,35 @@
+﻿<AuthorizeView>
+    <Authorized> 
+        <div class="offcanvas offcanvas-start user-panel-offcanvas @(IsVisible ? "showing" : "") h-100 "
+             style="margin-top:@(OffsetTop.ToString() + "px")"
+             tabindex="-1"
+             id="userPanelOffcanvas"
+             aria-labelledby="userPanelLabel">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="userPanelLabel">Your Panel</h5>
+
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close" @onclick="ClosePanel"></button>
+            </div>
+            <div class="offcanvas-body">
+                <UserPanelContent />
+            </div>
+        </div>
+    </Authorized>
+</AuthorizeView>
+
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; } = false;
+
+    [Parameter]
+    public int OffsetTop { get; set; } = 0;
+
+
+    private void ClosePanel()
+    {
+        IsVisible = false;
+    }
+
+}
+
