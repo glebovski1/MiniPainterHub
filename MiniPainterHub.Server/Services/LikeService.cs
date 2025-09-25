@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
+using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -22,7 +23,7 @@ namespace MiniPainterHub.Server.Services
         {
             var exists = await _appDbContext.Posts.AsNoTracking().AnyAsync(p => p.Id == postId && !p.IsDeleted);
             if (!exists)
-                throw new KeyNotFoundException($"Post {postId} not found");
+                throw new NotFoundException($"Post {postId} not found.");
 
             var query = _appDbContext.Likes.AsNoTracking().Where(l => l.PostId == postId);
             var count = await query.CountAsync();
@@ -53,7 +54,7 @@ namespace MiniPainterHub.Server.Services
             {
                 var exists = await _appDbContext.Posts.AnyAsync(p => p.Id == postId && !p.IsDeleted);
                 if (!exists)
-                    return false;
+                    throw new NotFoundException($"Post {postId} not found.");
                 _appDbContext.Likes.Add(new Entities.Like
                 {
                     PostId = postId,
@@ -71,11 +72,13 @@ namespace MiniPainterHub.Server.Services
         public async Task<bool> RemoveAsync(int postId, string userId)
         {
             var like = await _appDbContext.Likes.FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
-            if (like != null)
+            if (like == null)
             {
-                _appDbContext.Likes.Remove(like);
-                await _appDbContext.SaveChangesAsync();
+                throw new NotFoundException("Like not found.");
             }
+
+            _appDbContext.Likes.Remove(like);
+            await _appDbContext.SaveChangesAsync();
             return true;
         }
     }

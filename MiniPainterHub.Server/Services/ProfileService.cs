@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
+using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Services.Interfaces;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
@@ -27,7 +28,7 @@ public class ProfileService : IProfileService
         Validate(dto.DisplayName, dto.Bio);
 
         if (await _dbContext.Profiles.AnyAsync(p => p.UserId == userId))
-            throw new InvalidOperationException("Profile already exists for this user.");
+            throw new ConflictException("Profile already exists for this user.");
 
         var profile = new Profile
         {
@@ -69,7 +70,7 @@ public class ProfileService : IProfileService
         Validate(dto.DisplayName, dto.Bio);
 
         var profile = await _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == userId)
-                      ?? throw new KeyNotFoundException("Profile not found.");
+                      ?? throw new NotFoundException("Profile not found.");
 
         profile.DisplayName = dto.DisplayName.Trim();
         profile.Bio = string.IsNullOrWhiteSpace(dto.Bio) ? null : dto.Bio.Trim();
@@ -89,7 +90,7 @@ public class ProfileService : IProfileService
     public async Task<UserProfileDto> SetAvatarUrlAsync(string userId, string avatarUrl)
     {
         var profile = await _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == userId)
-                      ?? throw new KeyNotFoundException("Profile not found.");
+                      ?? throw new NotFoundException("Profile not found.");
 
         profile.AvatarUrl = avatarUrl; // controller ensures same URL each time
         await _dbContext.SaveChangesAsync();
@@ -106,7 +107,7 @@ public class ProfileService : IProfileService
     public async Task<UserProfileDto> GetUserProfileById(string userId)
     {
         var profile = await _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == userId)
-                     ?? throw new KeyNotFoundException("Profile not found.");
+                     ?? throw new NotFoundException("Profile not found.");
 
         return new UserProfileDto
         {
@@ -119,11 +120,22 @@ public class ProfileService : IProfileService
 
     private static void Validate(string displayName, string? bio)
     {
+        var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
         var dn = (displayName ?? string.Empty).Trim();
         if (dn.Length < 2 || dn.Length > 80)
-            throw new ArgumentOutOfRangeException(nameof(displayName), "Display name must be 2–80 characters.");
-        if (!string.IsNullOrEmpty(bio) && bio.Length > 500)
-            throw new ArgumentOutOfRangeException(nameof(bio), "Bio must be ≤ 500 characters.");
+        {
+            errors[nameof(displayName)] = new[] { "Display name must be between 2 and 80 characters." };
+        }
+
+        if (!string.IsNullOrWhiteSpace(bio) && bio.Length > 500)
+        {
+            errors[nameof(bio)] = new[] { "Bio must be 500 characters or fewer." };
+        }
+
+        if (errors.Count > 0)
+        {
+            throw new DomainValidationException("Profile data is invalid.", errors);
+        }
     }
 
   

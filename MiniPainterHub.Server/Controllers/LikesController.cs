@@ -27,12 +27,9 @@ namespace MiniPainterHub.Server.Controllers
             [HttpGet, AllowAnonymous]
             public async Task<ActionResult<LikeDto>> GetLikes(int postId)
             {
-                if (!await _postService.ExistsAsync(postId))
-                    return NotFound();
-
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                    var likeDto = await _likeService.GetLikesAsync(postId, userId);
-                    return Ok(likeDto);
+                var likeDto = await _likeService.GetLikesAsync(postId, userId);
+                return Ok(likeDto);
             }
 
             // POST: api/posts/{postId}/likes
@@ -41,10 +38,8 @@ namespace MiniPainterHub.Server.Controllers
             public async Task<IActionResult> Like(int postId)
             {
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                var result = await _likeService.ToggleAsync(postId, userId);
-                if (!result)
-                    return NotFound();  // post not found or error
-                return NoContent();     // 204 on success
+                await _likeService.ToggleAsync(postId, userId);
+                return NoContent();
             }
 
             // DELETE: api/posts/{postId}/likes
@@ -53,9 +48,7 @@ namespace MiniPainterHub.Server.Controllers
             public async Task<IActionResult> Unlike(int postId)
             {
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                var result = await _likeService.RemoveAsync(postId, userId);
-                if (!result)
-                    return NotFound();  // like not found or error
+                await _likeService.RemoveAsync(postId, userId);
                 return NoContent();
             }
         }

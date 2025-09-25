@@ -2,6 +2,7 @@
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
+using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -77,7 +78,7 @@ namespace MiniPainterHub.Server.Services
                 .FirstOrDefaultAsync(p => p.Id == postId && p.CreatedById == userId && !p.IsDeleted);
 
             if (post == null)
-                return false;
+                throw new NotFoundException("Post not found.");
 
             post.IsDeleted = true;
             post.UpdatedUtc = DateTime.UtcNow;
@@ -149,6 +150,11 @@ namespace MiniPainterHub.Server.Services
                          }).ToList()
                      })
                      .FirstOrDefaultAsync();
+            if (dto is null)
+            {
+                throw new NotFoundException("Post not found.");
+            }
+
             return dto;
         }
 
@@ -158,7 +164,7 @@ namespace MiniPainterHub.Server.Services
                .FirstOrDefaultAsync(p => p.Id == postId && p.CreatedById == userId && !p.IsDeleted);
 
             if (post == null)
-                return false;
+                throw new NotFoundException("Post not found.");
 
             post.Title = dto.Title;
             post.Content = dto.Content;
@@ -173,7 +179,7 @@ namespace MiniPainterHub.Server.Services
             var post = await _appDbContext.Posts
                         .Include(p => p.Images)
                         .FirstOrDefaultAsync(p => p.Id == postId && !p.IsDeleted)
-                        ?? throw new KeyNotFoundException("Post not found");
+                        ?? throw new NotFoundException("Post not found.");
 
             var existingCount = post.Images.Count;
             foreach (var img in images.Take(5 - existingCount))
