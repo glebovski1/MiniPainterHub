@@ -1,8 +1,11 @@
-﻿@if (Slides?.Count > 0)
+@inject IJSRuntime JS
+
+@if (Slides?.Count > 0)
 {
     <div id="@_id"
          class="carousel slide"
-         @attributes="CarouselAttributes">
+         @attributes="CarouselAttributes"
+         @ref="_carouselElement">
 
         @if (ShowIndicators && Slides.Count > 1)
         {
@@ -81,6 +84,8 @@ else
 
     private readonly string _id = $"carousel-{Guid.NewGuid():N}";
 
+    private ElementReference _carouselElement;
+
     private IReadOnlyDictionary<string, object> CarouselAttributes =>
         Mode == CarouselMode.Auto
         ? new Dictionary<string, object>
@@ -94,6 +99,14 @@ else
             ["data-bs-interval"] = "false",
             ["data-bs-pause"] = "false"
         };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Mode == CarouselMode.Auto && (Slides?.Count ?? 0) > 1)
+        {
+            await JS.InvokeVoidAsync("domHelpers.initCarousel", _carouselElement);
+        }
+    }
 
     // ✅ Record type for compact slide model
     public record Slide(string Url, string? LinkTo = null, string? Caption = null);
