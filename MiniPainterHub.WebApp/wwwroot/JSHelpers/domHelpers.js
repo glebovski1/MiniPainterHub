@@ -1,3 +1,3 @@
-﻿window.domHelpers = {
-    getHeight: (el) => el ? el.offsetHeight : 0
-};
+window.domHelpers = window.domHelpers || {};
+
+window.domHelpers.getHeight = (el) => (el ? el.offsetHeight : 0);

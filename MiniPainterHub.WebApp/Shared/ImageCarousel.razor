@@ -1,8 +1,15 @@
-﻿@if (Slides?.Count > 0)
+@using Microsoft.JSInterop
+
+@implements IAsyncDisposable
+
+@inject IJSRuntime JS
+
+@if (Slides?.Count > 0)
 {
     <div id="@_id"
          class="carousel slide"
-         @attributes="CarouselAttributes">
+         @attributes="CarouselAttributes"
+         @ref="_carouselElement">
 
         @if (ShowIndicators && Slides.Count > 1)
         {
@@ -81,6 +88,9 @@ else
 
     private readonly string _id = $"carousel-{Guid.NewGuid():N}";
 
+    private ElementReference _carouselElement;
+    private IJSObjectReference? _carouselModule;
+
     private IReadOnlyDictionary<string, object> CarouselAttributes =>
         Mode == CarouselMode.Auto
         ? new Dictionary<string, object>
@@ -95,6 +105,23 @@ else
             ["data-bs-pause"] = "false"
         };
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Mode == CarouselMode.Auto && (Slides?.Count ?? 0) > 1)
+        {
+            _carouselModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./JSHelpers/carouselInterop.js");
+            await _carouselModule.InvokeVoidAsync("initCarousel", _carouselElement);
+        }
+    }
+
     // ✅ Record type for compact slide model
     public record Slide(string Url, string? LinkTo = null, string? Caption = null);
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_carouselModule is not null)
+        {
+            await _carouselModule.DisposeAsync();
+        }
+    }
 }
