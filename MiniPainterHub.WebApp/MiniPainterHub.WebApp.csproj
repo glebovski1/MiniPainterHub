@@ -23,10 +23,10 @@
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</Content>
                 <Content Update="wwwroot\JSHelpers\domHelpers.js">
-                        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+                        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
                 </Content>
                 <Content Update="wwwroot\JSHelpers\carouselInterop.js">
-                        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+                        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
                 </Content>
 	</ItemGroup>
 
