@@ -50,7 +50,7 @@ namespace MiniPainterHub.Server.Controllers
                     Errors = result.Errors.Select(e => e.Description)
                 });
 
-            var createProfileDto = new CreateProfileDto
+            var createProfileDto = new CreateUserProfileDto
             {
                 DisplayName = dto.UserName,
                 Bio = string.Empty  // or null, whichever your model allows

@@ -23,14 +23,22 @@ namespace MiniPainterHub.Server.Data
         {
             base.OnModelCreating(builder);
 
-            // Profile one-to-one with ApplicationUser, PK is UserId
-            builder.Entity<Profile>()
-                   .HasKey(p => p.UserId);
-            builder.Entity<Profile>()
-                   .HasOne(p => p.User)
-                   .WithOne()
-                   .HasForeignKey<Profile>(p => p.UserId)
-                   .OnDelete(DeleteBehavior.Cascade);
+            builder.Entity<Profile>(b =>
+            {
+                // Shared PK = FK to AspNetUsers
+                b.HasKey(p => p.UserId);
+
+                b.Property(p => p.UserId).HasMaxLength(450);   // matches default Identity key size
+                b.Property(p => p.DisplayName).HasMaxLength(80);
+                b.Property(p => p.Bio).HasMaxLength(500);
+                b.Property(p => p.AvatarUrl).HasMaxLength(2048);
+
+                b.HasOne(p => p.User)
+                 .WithOne(u => u.Profile)                      // <-- add back-nav on ApplicationUser
+                 .HasForeignKey<Profile>(p => p.UserId)
+                 .IsRequired()                                 // <-- make the relationship required
+                 .OnDelete(DeleteBehavior.Cascade);            // or Restrict, if you prefer
+            });
 
             // Post relationship to ApplicationUser: restrict delete
             builder.Entity<Post>()

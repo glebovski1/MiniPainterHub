@@ -1,0 +1,21 @@
+﻿@inject NavigationManager Navigation
+@page "/posts/mine"
+@inject IProfileService ProfileService;
+
+<UsersPost UserId="@MyId" UserName="@MyName"></UsersPost>
+
+
+@code {
+    public string MyId { get; set; }
+    public string MyName { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var myProfile = await ProfileService.GetMineAsync();
+        MyId = myProfile.UserId;
+        MyName = myProfile.DisplayName;
+
+        StateHasChanged();
+    }
+
+}

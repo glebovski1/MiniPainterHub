@@ -22,6 +22,8 @@ namespace MiniPainterHub.Common.DTOs
         [StringLength(100)]
         public string AuthorName { get; set; } = default!;
 
+        public string AuthorId { get; set; } = default!;
+
         public DateTime CreatedAt { get; set; }
         public int CommentCount { get; set; }
         public int LikeCount { get; set; }

@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MiniPainterHub.Common.DTOs
 {
-    public class UpdateProfileDto
+    public class UpdateUserProfileDto
     {
         [Required]
         [StringLength(100)]
@@ -11,6 +11,7 @@ namespace MiniPainterHub.Common.DTOs
         [Required]
         [StringLength(500)]
         public string Bio { get; set; }
-        // add any other editable fields here
+
     }
 }
+

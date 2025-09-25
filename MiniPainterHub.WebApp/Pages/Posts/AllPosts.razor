@@ -1,0 +1,7 @@
+﻿@page "/posts/all"
+
+<h3>AllPosts</h3>
+<CardList Query="(source)=> source.OrderByDescending(key => key.CreatedAt)"></CardList>
+@code {
+   
+}

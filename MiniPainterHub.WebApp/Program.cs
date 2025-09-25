@@ -58,6 +58,13 @@ namespace MiniPainterHub.WebApp
                 .AddHttpClient<ILikeService, LikeService>(c => c.BaseAddress = apiBase)
                 .AddHttpMessageHandler<JwtAuthorizationMessageHandler>();
 
+            builder.Services.AddHttpClient<IProfileService, ProfileService>(client =>
+            {
+                client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress);
+            })
+            .AddHttpMessageHandler<JwtAuthorizationMessageHandler>();
+
+
             //------------------------------------------------------------
             // 6)  Run!
             //------------------------------------------------------------

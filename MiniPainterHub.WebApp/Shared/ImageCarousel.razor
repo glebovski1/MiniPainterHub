@@ -1,0 +1,100 @@
+﻿@if (Slides?.Count > 0)
+{
+    <div id="@_id"
+         class="carousel slide"
+         @attributes="CarouselAttributes">
+
+        @if (ShowIndicators && Slides.Count > 1)
+        {
+            <div class="carousel-indicators">
+                @for (var i = 0; i < Slides.Count; i++)
+                {
+                    <button type="button"
+                            data-bs-target="#@_id"
+                            data-bs-slide-to="@i"
+                            class="@(i == 0 ? "active" : null)"
+                            aria-current="@(i == 0 ? "true" : null)"
+                            aria-label="Slide @(i + 1)"></button>
+                }
+            </div>
+        }
+
+        <div class="carousel-inner">
+            @for (var i = 0; i < Slides.Count; i++)
+            {
+                var slide = Slides[i];
+                var link = slide.LinkTo ?? slide.Url;
+
+                <div class="carousel-item @(i == 0 ? "active" : null)"
+                     style="@(HeightPx is not null ? $"height:{HeightPx}px" : null)">
+
+                    <a href="@link" target="@(OpenInNewTab ? "_blank" : null)" rel="@(OpenInNewTab ? "noopener" : null)">
+                        <img style="object-fit: cover;" class="d-block w-100 h-100"
+                             src="@slide.Url"
+                             alt="@(slide.Caption ?? $"Slide {i + 1}")" />
+                    </a>
+
+                    @if (!string.IsNullOrWhiteSpace(slide.Caption))
+                    {
+                        <div class="carousel-caption d-none d-md-block text-start">
+                            <h5>@slide.Caption</h5>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @if (ShowControls && Slides.Count > 1)
+        {
+            <button class="carousel-control-prev" type="button" data-bs-target="#@_id" data-bs-slide="prev" aria-label="Previous">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#@_id" data-bs-slide="next" aria-label="Next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            </button>
+        }
+    </div>
+}
+else
+{
+    @EmptyTemplate
+}
+
+@code {
+    public enum CarouselMode { Auto, Manual }
+
+    // Data
+    [Parameter] public List<Slide> Slides { get; set; } = new();
+
+    // Behavior
+    [Parameter] public CarouselMode Mode { get; set; } = CarouselMode.Auto;
+    [Parameter] public int IntervalMs { get; set; } = 5000;
+    [Parameter] public bool ShowIndicators { get; set; } = true;
+    [Parameter] public bool ShowControls { get; set; } = true;
+    [Parameter] public bool OpenInNewTab { get; set; } = false;
+
+    // Layout
+    [Parameter] public int? HeightPx { get; set; }
+
+    // Empty state
+    [Parameter] public RenderFragment EmptyTemplate { get; set; } = @<div class="text-muted">No slides.</div>;
+
+    private readonly string _id = $"carousel-{Guid.NewGuid():N}";
+
+    private IReadOnlyDictionary<string, object> CarouselAttributes =>
+        Mode == CarouselMode.Auto
+        ? new Dictionary<string, object>
+        {
+            ["data-bs-ride"] = "carousel",
+            ["data-bs-interval"] = IntervalMs,
+            ["data-bs-pause"] = "false"
+        }
+        : new Dictionary<string, object>
+        {
+            ["data-bs-interval"] = "false",
+            ["data-bs-pause"] = "false"
+        };
+
+    // ✅ Record type for compact slide model
+    public record Slide(string Url, string? LinkTo = null, string? Caption = null);
+}

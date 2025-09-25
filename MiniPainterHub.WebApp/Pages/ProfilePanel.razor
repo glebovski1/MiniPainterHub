@@ -1,0 +1,150 @@
+﻿@using Microsoft.AspNetCore.Components.Forms
+@using MiniPainterHub.Common.DTOs
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0">@Title</h5>
+
+            @if (IsOwner)
+            {
+                @if (!EditEnabled)
+                {
+                    <button class="btn btn-outline-primary btn-sm"
+                            @onclick="BeginEdit"
+                            disabled="@Busy">
+                        Edit
+                    </button>
+                }
+                else
+                {
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary btn-sm"
+                                @onclick="Save"
+                                disabled="@Busy">
+                            @if (Busy && BusyAction == "save")
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" />
+                            }
+                            Save
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm"
+                                @onclick="Cancel"
+                                disabled="@Busy">
+                            Cancel
+                        </button>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- Content -->
+        <div class="row g-4">
+            <!-- Avatar -->
+            <div class="col-12 col-md-4">
+                <div class="d-flex flex-column align-items-center">
+                    <img src="@(Profile?.AvatarUrl ?? "/images/avatar-placeholder.png")"
+                         alt="Avatar"
+                         class="rounded-circle shadow-sm mb-3 mx-auto d-block"
+                         style="width: 128px; height: 128px; object-fit: cover;" />
+
+                    @if (IsOwner && EditEnabled)
+                    {
+                        <div class="w-100">
+                            <InputFile OnChange="OnAvatarSelected"
+                                       accept="image/*"
+                                       class="form-control mb-2"
+                                       disabled="@Busy" />
+                            <div class="d-flex gap-2 justify-content-center">
+                                <button class="btn btn-outline-danger btn-sm"
+                                        @onclick="RemoveAvatar"
+                                        disabled="@(!HasAvatar || Busy)">
+                                    @if (Busy && BusyAction == "remove-avatar")
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" />
+                                    }
+                                    Remove avatar
+                                </button>
+                            </div>
+                            <div class="form-text text-center mt-2">
+                                JPEG/PNG/WEBP, up to 5&nbsp;MB.
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Profile details -->
+            <div class="col-12 col-md-8">
+                <div class="mb-3">
+                    <label class="form-label">Display name</label>
+                    <input class="form-control"
+                           placeholder="e.g. Sam Painter"
+                           @bind="_displayName"
+                           disabled="@(!IsOwner || !EditEnabled || Busy)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Bio</label>
+                    <textarea class="form-control"
+                              placeholder="A short bio…"
+                              rows="4"
+                              @bind="_bio"
+                              disabled="@(!IsOwner || !EditEnabled || Busy)"></textarea>
+                    <div class="form-text">Max 500 characters.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Parameters
+    [Parameter] public string Title { get; set; } = "Profile";
+    [Parameter] public UserProfileDto? Profile { get; set; }
+    [Parameter] public bool IsOwner { get; set; }
+    [Parameter] public bool EditEnabled { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public string BusyAction { get; set; } = string.Empty;
+
+    // Events
+    [Parameter] public EventCallback OnBeginEdit { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback<UpdateUserProfileDto> OnSave { get; set; }
+    [Parameter] public EventCallback<IBrowserFile> OnUploadAvatar { get; set; }
+    [Parameter] public EventCallback OnRemoveAvatar { get; set; }
+
+    // Local state for editing
+    private string _displayName = string.Empty;
+    private string? _bio;
+
+    protected override void OnParametersSet()
+    {
+        _displayName = Profile?.DisplayName ?? "";
+        _bio = Profile?.Bio;
+    }
+
+    private bool HasAvatar => !string.IsNullOrWhiteSpace(Profile?.AvatarUrl);
+
+    private Task BeginEdit() => OnBeginEdit.InvokeAsync();
+    private Task Cancel() => OnCancel.InvokeAsync();
+
+    private async Task Save()
+    {
+        var dto = new UpdateUserProfileDto
+        {
+            DisplayName = _displayName,
+            Bio = _bio
+        };
+        await OnSave.InvokeAsync(dto);
+    }
+
+    private async Task OnAvatarSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        await OnUploadAvatar.InvokeAsync(file);
+    }
+
+    private Task RemoveAvatar() => OnRemoveAvatar.InvokeAsync();
+}

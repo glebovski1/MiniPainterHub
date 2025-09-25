@@ -1,0 +1,49 @@
+﻿@inject NavigationManager NavigationManager
+@page "/posts/top"
+@using MiniPainterHub.WebApp.Shared
+@using MiniPainterHub.Common.DTOs
+@inject IPostService PostService
+
+<h3>TopPosts</h3>
+<ImageCarousel 
+    Mode="@ImageCarousel.CarouselMode.Auto"
+               IntervalMs="5000"
+               ShowControls="true"
+               HeightPx="600"
+               OpenInNewTab="false"
+               ShowIndicators="false"
+               Slides="@posts"
+
+></ImageCarousel>
+@code {
+    List<ImageCarousel.Slide> posts = new List<ImageCarousel.Slide>();
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await PostService.GetTopPosts(5, TimeSpan.FromDays(30));
+        foreach(var post in result)
+        {
+            if (post.ImageUrl == null) continue;
+            try
+                {
+                    ImageCarousel.Slide slide = new ImageCarousel.Slide
+                    (
+                        post?.ImageUrl,
+                        NavigationManager.ToAbsoluteUri($"/posts/{post.Id}").ToString(),
+                        post.Title
+                    );
+
+                    posts.Add(slide);
+                }
+                catch (Exception ex)
+                {
+                    // Log the exception (you can use a logging framework here)
+                    Console.WriteLine($"Error processing post ID {post.Id}: {ex.Message}");
+                }
+            
+        }
+
+        StateHasChanged();
+    }
+
+
+}

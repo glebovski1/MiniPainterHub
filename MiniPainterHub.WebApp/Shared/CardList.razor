@@ -1,11 +1,8 @@
-﻿@page "/"
+﻿
 @using MiniPainterHub.Common.DTOs
 @inject IPostService PostService
 @inject NavigationManager Nav
 
-<h1 class="mb-4">Latest Posts</h1>
-<CardList></CardList>
-@* 
 @if (isLoading)
 {
     <div class="text-center">
@@ -26,6 +23,8 @@ else
             </div>
         }
     </div>
+
+
 }
 
 @code {
@@ -38,7 +37,17 @@ else
     // Page size (you can make this a variable or parameter)
     private const int PageSize = 9;
 
+    public int _page = 1;
+
+    [Parameter]
+    public Func<IEnumerable<PostSummaryDto>, IEnumerable<PostSummaryDto>>? Query { get; set; } = (source) => source;
+
     protected override async Task OnInitializedAsync()
+    {
+        await LoadPosts();
+    }
+
+    protected override async Task OnParametersSetAsync()
     {
         await LoadPosts();
     }
@@ -51,8 +60,10 @@ else
         var result = await PostService.GetAllAsync(page, PageSize);
 
         // Extract the items into your flat list
-        posts = result.Items.OrderByDescending(posts => posts.CreatedAt).ToList();
+        // posts = result.Items.OrderByDescending(posts => posts.CreatedAt).ToList();
+
+        posts = Query != null ? Query.Invoke(result.Items).ToList() : result.Items.ToList();
 
         isLoading = false;
     }
-} *@
+}

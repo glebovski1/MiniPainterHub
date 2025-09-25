@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MiniPainterHub.Common.DTOs
 {
-    public class ProfileDto
+    public class UserProfileDto
     {
         /// <summary>
         /// The unique identifier of the user.

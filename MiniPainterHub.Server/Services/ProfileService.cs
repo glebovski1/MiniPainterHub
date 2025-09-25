@@ -1,89 +1,130 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
-using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
-using System.Collections.Generic;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
-namespace MiniPainterHub.Server.Services
+namespace MiniPainterHub.Server.Services;
+
+public class ProfileService : IProfileService
 {
-    public class ProfileService : IProfileService
+    private readonly AppDbContext _dbContext;
+    public ProfileService(AppDbContext dbContext) => _dbContext = dbContext;
+
+    public async Task<UserProfileDto> CreateAsync(string userId, CreateUserProfileDto dto)
     {
-        private readonly AppDbContext _dbContext;
+        Validate(dto.DisplayName, dto.Bio);
 
-        public ProfileService(AppDbContext dbContext)
+        if (await _dbContext.Profiles.AnyAsync(p => p.UserId == userId))
+            throw new InvalidOperationException("Profile already exists for this user.");
+
+        var profile = new Profile
         {
-            _dbContext = dbContext;
-        }
+            UserId = userId,
+            DisplayName = dto.DisplayName.Trim(),
+            Bio = string.IsNullOrWhiteSpace(dto.Bio) ? null : dto.Bio.Trim(),
+            AvatarUrl = null // always null on create
+        };
 
-        public async Task<ProfileDto> CreateAsync(string userId, CreateProfileDto dto)
+        _dbContext.Profiles.Add(profile);
+        await _dbContext.SaveChangesAsync();
+
+        return new UserProfileDto
         {
-            // Prevent duplicate profiles
-            var exists = await _dbContext.Profiles
-                .AnyAsync(p => p.UserId == userId);
-            if (exists)
-                throw new InvalidOperationException("Profile already exists for this user.");
-
-            var profile = new Profile
-            {
-                UserId = userId,
-                DisplayName = dto.DisplayName,
-                Bio = dto.Bio
-            };
-
-            _dbContext.Profiles.Add(profile);
-            await _dbContext.SaveChangesAsync();
-
-            // Manual mapping to DTO
-            return new ProfileDto
-            {
-                UserId = profile.UserId,
-                DisplayName = profile.DisplayName,
-                Bio = profile.Bio
-            };
-        }
-
-        public async Task<ProfileDto> GetByUserIdAsync(string userId)
-        {
-            var profile = await _dbContext.Profiles
-                .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.UserId == userId);
-
-            if (profile == null)
-                return null;
-
-            return new ProfileDto
-            {
-                UserId = profile.UserId,
-                DisplayName = profile.DisplayName,
-                Bio = profile.Bio
-            };
-        }
-
-        public async Task<ProfileDto> UpdateAsync(string userId, UpdateProfileDto dto)
-        {
-            var profile = await _dbContext.Profiles
-                .FirstOrDefaultAsync(p => p.UserId == userId);
-
-            if (profile == null)
-                throw new KeyNotFoundException("Profile not found.");
-
-            profile.DisplayName = dto.DisplayName;
-            profile.Bio = dto.Bio;
-
-            await _dbContext.SaveChangesAsync();
-
-            return new ProfileDto
-            {
-                UserId = profile.UserId,
-                DisplayName = profile.DisplayName,
-                Bio = profile.Bio
-            };
-        }
+            UserId = profile.UserId,
+            DisplayName = profile.DisplayName,
+            Bio = profile.Bio,
+            AvatarUrl = profile.AvatarUrl
+        };
     }
+
+    public async Task<UserProfileDto?> GetByUserIdAsync(string userId)
+    {
+        return await _dbContext.Profiles
+            .AsNoTracking()
+            .Where(p => p.UserId == userId)
+            .Select(p => new UserProfileDto
+            {
+                UserId = p.UserId,
+                DisplayName = p.DisplayName,
+                Bio = p.Bio,
+                AvatarUrl = p.AvatarUrl
+            })
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<UserProfileDto> UpdateAsync(string userId, UpdateUserProfileDto dto)
+    {
+        Validate(dto.DisplayName, dto.Bio);
+
+        var profile = await _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == userId)
+                      ?? throw new KeyNotFoundException("Profile not found.");
+
+        profile.DisplayName = dto.DisplayName.Trim();
+        profile.Bio = string.IsNullOrWhiteSpace(dto.Bio) ? null : dto.Bio.Trim();
+
+        await _dbContext.SaveChangesAsync();
+
+        return new UserProfileDto
+        {
+            UserId = profile.UserId,
+            DisplayName = profile.DisplayName,
+            Bio = profile.Bio,
+            AvatarUrl = profile.AvatarUrl
+        };
+    }
+
+    // Used ONLY by the upload endpoint to persist the (fixed) avatar URL.
+    public async Task<UserProfileDto> SetAvatarUrlAsync(string userId, string avatarUrl)
+    {
+        var profile = await _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == userId)
+                      ?? throw new KeyNotFoundException("Profile not found.");
+
+        profile.AvatarUrl = avatarUrl; // controller ensures same URL each time
+        await _dbContext.SaveChangesAsync();
+
+        return new UserProfileDto
+        {
+            UserId = profile.UserId,
+            DisplayName = profile.DisplayName,
+            Bio = profile.Bio,
+            AvatarUrl = profile.AvatarUrl
+        };
+    }
+
+    public async Task<UserProfileDto> GetUserProfileById(string userId)
+    {
+        var profile = await _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == userId)
+                     ?? throw new KeyNotFoundException("Profile not found.");
+
+        return new UserProfileDto
+        {
+            UserId = profile.UserId,
+            DisplayName = profile.DisplayName,
+            Bio = profile.Bio,
+            AvatarUrl = profile.AvatarUrl
+        };
+    }
+
+    private static void Validate(string displayName, string? bio)
+    {
+        var dn = (displayName ?? string.Empty).Trim();
+        if (dn.Length < 2 || dn.Length > 80)
+            throw new ArgumentOutOfRangeException(nameof(displayName), "Display name must be 2–80 characters.");
+        if (!string.IsNullOrEmpty(bio) && bio.Length > 500)
+            throw new ArgumentOutOfRangeException(nameof(bio), "Bio must be ≤ 500 characters.");
+    }
+
+  
 }

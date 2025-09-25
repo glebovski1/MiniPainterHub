@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using MiniPainterHub.Server.Entities;
 using System;
 
 namespace MiniPainterHub.Server.Identity
@@ -10,5 +11,7 @@ namespace MiniPainterHub.Server.Identity
         public string? AvatarUrl { get; set; }
 
         public DateTime DateJoined { get; set; } = DateTime.UtcNow;
+
+        public Profile? Profile { get; set; }
     }
 }

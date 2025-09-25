@@ -47,5 +47,23 @@ namespace MiniPainterHub.WebApp.Services
                 throw new InvalidOperationException("API returned no data when creating post with image.");
             return result;
         }
+
+        public async Task<IEnumerable<PostSummaryDto>> GetTopPosts(int count, TimeSpan timeOffcet)
+        {
+            var result = await _http.GetFromJsonAsync<PagedResult<PostSummaryDto>>(($"/api/posts?page={1}&pagesize={1000}"));
+
+            var posts = result?.Items
+                .Where(p => p.CreatedAt >= DateTime.UtcNow.Subtract(timeOffcet))
+                .OrderByDescending(p => p.CreatedAt)
+                .Take(count).ToList();
+
+
+            if (posts is null)
+                throw new InvalidOperationException("API returned no data when getting top posts.");
+            return posts;
+        }
+
+  
+
     }
 }

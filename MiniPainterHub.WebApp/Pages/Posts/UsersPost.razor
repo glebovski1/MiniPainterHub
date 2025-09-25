@@ -1,0 +1,21 @@
+﻿@page "/posts/user/{UserId}"
+
+@using MiniPainterHub.Common.DTOs
+@inject IPostService PostService
+@inject NavigationManager Nav
+@using MiniPainterHub.WebApp.Shared
+@using System.Linq
+@using System.Collections.Generic
+<h1 class="mb-4">@UserName</h1>
+<CardList Query="(source) => source.Where(post => post.AuthorId == UserId)"></CardList>
+
+
+@code {
+
+    [Parameter]
+    public string UserId { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? UserName { get; set; } = string.Empty;
+        
+}

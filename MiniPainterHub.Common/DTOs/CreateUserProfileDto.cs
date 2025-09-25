@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MiniPainterHub.Common.DTOs
 {
-    public class CreateProfileDto
+    public class CreateUserProfileDto
     {
         [Required]
         [StringLength(100)]

@@ -1,0 +1,145 @@
+﻿@page "/profile"
+@inject MiniPainterHub.WebApp.Services.Interfaces.IProfileService Profiles
+
+<h2 class="mb-4">My Profile</h2>
+
+@if (_busyInit)
+{
+    <div class="d-flex align-items-center gap-2 text-secondary">
+        <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+        <span>Loading your profile…</span>
+    </div>
+}
+else if (_profile is null)
+{
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Create your profile</h5>
+
+            <EditForm Model="_create" OnValidSubmit="Create">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+
+                <div class="mb-3">
+                    <label class="form-label">Display name</label>
+                    <InputText @bind-Value="_create.DisplayName" class="form-control" placeholder="e.g. Sam Painter" />
+                    <ValidationMessage For="@(() => _create.DisplayName)" class="text-danger" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Bio</label>
+                    <InputTextArea @bind-Value="_create.Bio" class="form-control" rows="4" placeholder="A short bio…" />
+                    <div class="form-text">Max 500 characters.</div>
+                    <ValidationMessage For="@(() => _create.Bio)" class="text-danger" />
+                </div>
+
+                <button class="btn btn-primary" type="submit" disabled="@_busy">
+                    @if (_busy)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                    }
+                    Create profile
+                </button>
+            </EditForm>
+        </div>
+    </div>
+}
+else
+{
+    <ProfilePanel Title="Profile"
+                  Profile="_profile"
+                  IsOwner="true"
+                  EditEnabled="_editing"
+                  Busy="_busy"
+                  BusyAction="_busyAction"
+                  OnBeginEdit="BeginEdit"
+                  OnCancel="CancelEdit"
+                  OnSave="Save"
+                  OnUploadAvatar="UploadAvatar"
+                  OnRemoveAvatar="RemoveAvatar" />
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="alert alert-danger mt-3" role="alert">@_error</div>
+    }
+}
+
+@code {
+    private bool _busyInit = true;
+    private bool _busy = false;
+    private string _busyAction = string.Empty;
+    private bool _editing = false;
+    private string? _error;
+
+    private UserProfileDto? _profile;
+    private CreateUserProfileDto _create = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _profile = await Profiles.GetMineAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busyInit = false; }
+    }
+
+    private async Task Create()
+    {
+        _error = null;
+        _busy = true; _busyAction = "create";
+        try
+        {
+            _profile = await Profiles.CreateMineAsync(_create);
+            _editing = false;
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; _busyAction = string.Empty; }
+    }
+
+    // Edit toggle
+    private void BeginEdit() => _editing = true;
+    private void CancelEdit() => _editing = false;
+
+    // Save profile details
+    private async Task Save(UpdateUserProfileDto dto)
+    {
+        _error = null;
+        _busy = true; _busyAction = "save";
+        try
+        {
+            _profile = await Profiles.UpdateMineAsync(dto);
+            _editing = false; // back to view
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; _busyAction = string.Empty; }
+    }
+
+    // Avatar actions
+    private async Task UploadAvatar(IBrowserFile file)
+    {
+        if (!_editing) return;
+        _error = null;
+        _busy = true; _busyAction = "upload-avatar";
+        try
+        {
+            _profile = await Profiles.UploadAvatarAsync(file);
+            StateHasChanged();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; _busyAction = string.Empty; }
+    }
+
+    private async Task RemoveAvatar()
+    {
+        if (!_editing) return;
+        _error = null;
+        _busy = true; _busyAction = "remove-avatar";
+        try
+        {
+            _profile = await Profiles.RemoveAvatarAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; _busyAction = string.Empty; }
+    }
+}

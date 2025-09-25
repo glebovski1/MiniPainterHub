@@ -108,6 +108,7 @@ namespace MiniPainterHub.Server.Services
                                  .Select(i => i.ImageUrl)
                                  .FirstOrDefault(),
                     AuthorName = p.CreatedBy.UserName,     // or p.CreatedBy.Profile.DisplayName
+                    AuthorId = p.CreatedById,
                     CreatedAt = p.CreatedUtc,
                     CommentCount = p.Comments.Count,
                     LikeCount = p.Likes.Count

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -14,6 +15,7 @@ using MiniPainterHub.Server.OpenAPIOperationFilter;
 using MiniPainterHub.Server.Services;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -92,8 +94,17 @@ public class Program
                     }
                 }] = Array.Empty<string>()
             });
+            c.MapType<IFormFile>(() => new OpenApiSchema
+            {
+                Type = "string",
+                Format = "binary"
+            });
+            c.MapType<IEnumerable<IFormFile>>(() => new OpenApiSchema
+            {
+                Type = "array",
+                Items = new OpenApiSchema { Type = "string", Format = "binary" }
+            });
 
-            c.OperationFilter<FileUploadOperationFilter>();
         });
 
         if (builder.Environment.IsDevelopment())
