@@ -1,8 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MiniPainterHub.Server.Data;
+using MiniPainterHub.Server.ErrorHandling;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.OpenAPIOperationFilter;
 using MiniPainterHub.Server.Services;
@@ -68,6 +67,16 @@ public class Program
         });
 
         builder.Services.AddControllers();
+
+        builder.Services.AddProblemDetails(o =>
+        {
+            o.CustomizeProblemDetails = ctx =>
+            {
+                ctx.ProblemDetails.Extensions["requestId"] = ctx.HttpContext.TraceIdentifier;
+            };
+        });
+        builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+        builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(c =>
@@ -137,7 +146,6 @@ public class Program
         // ------------------------------------------------------------------
         if (app.Environment.IsDevelopment())
         {
-            app.UseDeveloperExceptionPage();
             app.UseWebAssemblyDebugging();
             app.UseSwagger();
             app.UseSwaggerUI(c =>
@@ -147,9 +155,10 @@ public class Program
         }
         else
         {
-            app.UseExceptionHandler("/Error");
             app.UseHsts();
         }
+
+        app.UseExceptionHandler();
 
         app.UseHttpsRedirection();
         app.UseBlazorFrameworkFiles();  // 🟡 Serve WASM framework files

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
@@ -45,8 +46,6 @@ namespace MiniPainterHub.Server.Controllers
         public async Task<ActionResult<PostDto>> GetById(int id)
         {
             var dto = await _postService.GetByIdAsync(id);
-            if (dto == null)
-                return NotFound();
             return Ok(dto);
         }
 
@@ -55,9 +54,6 @@ namespace MiniPainterHub.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<PostDto>> Create([FromBody] CreatePostDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var created = await _postService.CreateAsync(userId, dto);
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
@@ -70,11 +66,13 @@ namespace MiniPainterHub.Server.Controllers
         public async Task<ActionResult<PostDto>> CreateWithImage(
             [FromForm] CreateImagePostDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
             if (dto.Images != null && dto.Images.Count > 5)
-                return BadRequest("A maximum of 5 images is allowed.");
+            {
+                throw new DomainValidationException("Invalid post images.", new Dictionary<string, string[]>
+                {
+                    ["Images"] = new[] { "A maximum of 5 images is allowed." }
+                });
+            }
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             // create post first
@@ -125,13 +123,8 @@ namespace MiniPainterHub.Server.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdatePostDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var updated = await _postService.UpdateAsync(id, userId, dto);
-            if (!updated)
-                return NotFound();
             return NoContent();
         }
 
@@ -141,8 +134,6 @@ namespace MiniPainterHub.Server.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var deleted = await _postService.DeleteAsync(id, userId);
-            if (!deleted)
-                return NotFound();
             return NoContent();
         }
     }

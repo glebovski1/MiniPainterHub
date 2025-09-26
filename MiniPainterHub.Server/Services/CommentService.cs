@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
+using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -24,7 +25,8 @@ namespace MiniPainterHub.Server.Services
         {
             // 1️⃣ Optional: verify the post actually exists
             var postExists = await _appDbContext.Posts.AnyAsync(p => p.Id == postId && !p.IsDeleted);
-            if (!postExists) return null;
+            if (!postExists)
+                throw new NotFoundException("Post not found.");
 
             // 2️⃣ Create the Comment entity, setting only the FKs
             var comment = new Comment
@@ -61,7 +63,7 @@ namespace MiniPainterHub.Server.Services
                 );
 
             if (comment == null)
-                return false;
+                throw new NotFoundException("Comment not found.");
 
             comment.IsDeleted = true;
             comment.UpdatedUtc = DateTime.UtcNow;
@@ -107,7 +109,7 @@ namespace MiniPainterHub.Server.Services
             var comment = await _appDbContext.Comments
                 .FirstOrDefaultAsync(c => c.Id == commentId && c.AuthorId == userId && !c.IsDeleted);
             if (comment == null)
-                return false;
+                throw new NotFoundException("Comment not found.");
 
             comment.Text = dto.Content;
             comment.UpdatedUtc = DateTime.UtcNow;

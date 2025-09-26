@@ -1,7 +1,9 @@
 @page "/posts/{PostId:int}"
 @using MiniPainterHub.Common.DTOs
-@inject IPostService PostService
+@inject ApiClient Api
 @inject NavigationManager Nav
+@using MiniPainterHub.WebApp.Services.Http
+@using System.Net.Http
 @using MiniPainterHub.WebApp.Shared
 @using System.Linq
 @using System.Collections.Generic
@@ -134,14 +136,8 @@
     protected override async Task OnInitializedAsync()
     {
         isLoading = true;
-        try
-        {
-            post = await PostService.GetByIdAsync(PostId);
-        }
-        catch
-        {
-            post = null;
-        }
+        var request = new HttpRequestMessage(HttpMethod.Get, $"api/posts/{PostId}");
+        post = await Api.SendAsync<PostDto>(request, new ApiRequestOptions { SuppressErrorNotifications = true });
         isLoading = false;
     }
 

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Security.Claims;
@@ -28,8 +29,6 @@ namespace MiniPainterHub.Server.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10)
         {
-            if (!await _postService.ExistsAsync(postId))
-                return NotFound();
             var result = await _commentService.GetByPostIdAsync(postId, page, pageSize);
             return Ok(result);
         }
@@ -40,14 +39,9 @@ namespace MiniPainterHub.Server.Controllers
             int postId,
             [FromBody] CreateCommentDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
-                     ?? throw new InvalidOperationException("No user ID in token");
+                     ?? throw new UnauthorizedAccessException("No user ID in token.");
             var created = await _commentService.CreateAsync(userId, postId, dto);
-            if (created == null)
-                return NotFound();
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
 
@@ -66,13 +60,8 @@ namespace MiniPainterHub.Server.Controllers
         [HttpPut("api/comments/{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateCommentDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var updated = await _commentService.UpdateAsync(id, userId, dto);
-            if (!updated)
-                return NotFound();
             return NoContent();
         }
 

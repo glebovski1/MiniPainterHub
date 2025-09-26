@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Services.Interfaces; // IProfileService, IImageService
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
@@ -32,54 +33,34 @@ public sealed class ProfilesController : ControllerBase
     public async Task<ActionResult<UserProfileDto>> GetMyProfile()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        if (string.IsNullOrEmpty(userId))
+            throw new UnauthorizedAccessException("User is not authenticated.");
 
-        var dto = await _profilesService.GetByUserIdAsync(userId);
-        return dto is null ? NotFound() : Ok(dto);
+        var dto = await _profilesService.GetByUserIdAsync(userId)
+                  ?? throw new NotFoundException("Profile not found.");
+        return Ok(dto);
     }
 
     [HttpPost("me")]
     public async Task<ActionResult<UserProfileDto>> CreateMyProfile([FromBody] CreateUserProfileDto body)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        if (string.IsNullOrEmpty(userId))
+            throw new UnauthorizedAccessException("User is not authenticated.");
 
-        try
-        {
-            var created = await _profilesService.CreateAsync(userId, body);
-            return CreatedAtAction(nameof(GetMyProfile), null, created);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { error = ex.Message });
-        }
-        catch (ArgumentOutOfRangeException ex)
-        {
-            ModelState.AddModelError(ex.ParamName ?? "input", ex.Message);
-            return ValidationProblem(ModelState);
-        }
+        var created = await _profilesService.CreateAsync(userId, body);
+        return CreatedAtAction(nameof(GetMyProfile), null, created);
     }
 
     [HttpPut("me")]
     public async Task<ActionResult<UserProfileDto>> UpdateMyProfile([FromBody] UpdateUserProfileDto body)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        if (string.IsNullOrEmpty(userId))
+            throw new UnauthorizedAccessException("User is not authenticated.");
 
-        try
-        {
-            var updated = await _profilesService.UpdateAsync(userId, body);
-            return Ok(updated);
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound();
-        }
-        catch (ArgumentOutOfRangeException ex)
-        {
-            ModelState.AddModelError(ex.ParamName ?? "input", ex.Message);
-            return ValidationProblem(ModelState);
-        }
+        var updated = await _profilesService.UpdateAsync(userId, body);
+        return Ok(updated);
     }
 
     // === AVATAR UPLOAD: single URL per user, always overwritten ===
@@ -89,14 +70,27 @@ public sealed class ProfilesController : ControllerBase
     public async Task<ActionResult<UserProfileDto>> UploadAvatar([FromForm] IFormFile file)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        if (string.IsNullOrEmpty(userId))
+            throw new UnauthorizedAccessException("User is not authenticated.");
 
-        if (file is null || file.Length == 0) return BadRequest("No file uploaded.");
-        if (file.Length > 5_000_000) return BadRequest("Max avatar size is 5 MB.");
+        if (file is null || file.Length == 0)
+            throw new DomainValidationException("Invalid avatar upload.", new Dictionary<string, string[]>
+            {
+                ["file"] = new[] { "No file uploaded." }
+            });
+
+        if (file.Length > 5_000_000)
+            throw new DomainValidationException("Invalid avatar upload.", new Dictionary<string, string[]>
+            {
+                ["file"] = new[] { "Max avatar size is 5 MB." }
+            });
 
         var allowed = new[] { "image/jpeg", "image/png", "image/webp" };
         if (!allowed.Contains(file.ContentType))
-            return BadRequest("Only JPEG, PNG, or WEBP images are allowed.");
+            throw new DomainValidationException("Invalid avatar upload.", new Dictionary<string, string[]>
+            {
+                ["file"] = new[] { "Only JPEG, PNG, or WEBP images are allowed." }
+            });
 
         // Re-encode to a single format for a stable filename (JPEG here)
         await using var inStream = file.OpenReadStream();
@@ -125,14 +119,7 @@ public sealed class ProfilesController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<UserProfileDto>> GetUserProfileById(string id)
     {
-        try
-        {
-            var dto = await _profilesService.GetUserProfileById(id);
-            return Ok(dto);
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound();
-        }
+        var dto = await _profilesService.GetUserProfileById(id);
+        return Ok(dto);
     }
 }
