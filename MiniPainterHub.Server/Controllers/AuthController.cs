@@ -1,17 +1,18 @@
-﻿using Microsoft.AspNetCore.Identity;
+using System;
+using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
+using System.Security.Claims;
+using System.Text;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using MiniPainterHub.Common.Auth;
-using MiniPainterHub.Server.Identity;
-using System.IdentityModel.Tokens.Jwt;
-using System;
-using System.Linq;
-using System.Security.Claims;
-using System.Threading.Tasks;
-using System.Text;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 
 namespace MiniPainterHub.Server.Controllers
@@ -33,31 +34,29 @@ namespace MiniPainterHub.Server.Controllers
             _profileService = profileService;
         }
 
-
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            {
+                throw new DomainValidationException("Registration request is invalid.", CreateModelStateErrors());
+            }
 
             var user = new ApplicationUser { UserName = dto.UserName, Email = dto.Email };
             var result = await _userManager.CreateAsync(user, dto.Password);
 
             if (!result.Succeeded)
-                return BadRequest(new AuthResponseDto
-                {
-                    IsSuccess = false,
-                    Errors = result.Errors.Select(e => e.Description)
-                });
+            {
+                throw new DomainValidationException("Registration failed.", CreateIdentityErrors(result.Errors));
+            }
 
             var createProfileDto = new CreateUserProfileDto
             {
                 DisplayName = dto.UserName,
-                Bio = string.Empty  // or null, whichever your model allows
+                Bio = string.Empty
             };
             await _profileService.CreateAsync(user.Id, createProfileDto);
 
-            // Optionally sign in the user here or return a token directly
             return Ok(new AuthResponseDto { IsSuccess = true });
         }
 
@@ -65,22 +64,24 @@ namespace MiniPainterHub.Server.Controllers
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            {
+                throw new DomainValidationException("Login request is invalid.", CreateModelStateErrors());
+            }
 
             var user = await _userManager.FindByNameAsync(dto.UserName);
             if (user == null)
-                return Unauthorized("Invalid login.");
+            {
+                throw new UnauthorizedAccessException("Invalid username or password.");
+            }
 
             var result = await _signInManager.PasswordSignInAsync(dto.UserName, dto.Password,
                                                                  isPersistent: false,
                                                                  lockoutOnFailure: false);
 
             if (!result.Succeeded)
-                return Unauthorized(new AuthResponseDto
-                {
-                    IsSuccess = false,
-                    Errors = new[] { "Invalid username or password." }
-                });
+            {
+                throw new UnauthorizedAccessException("Invalid username or password.");
+            }
 
             var jwtSection = _config.GetSection("Jwt");
             var keyString = jwtSection["Key"]!;
@@ -96,7 +97,6 @@ namespace MiniPainterHub.Server.Controllers
                 new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
-
 
             var token = new JwtSecurityToken(
                                    issuer: issuer,
@@ -114,6 +114,47 @@ namespace MiniPainterHub.Server.Controllers
             });
         }
 
+        private Dictionary<string, string[]> CreateModelStateErrors()
+        {
+            var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
 
+            foreach (var kvp in ModelState)
+            {
+                var messages = kvp.Value?.Errors
+                    .Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage) ? "Invalid value." : e.ErrorMessage)
+                    .Where(m => !string.IsNullOrWhiteSpace(m))
+                    .Select(m => m!)
+                    .ToArray();
+
+                if (messages is { Length: > 0 })
+                {
+                    var key = string.IsNullOrWhiteSpace(kvp.Key) ? "Request" : kvp.Key;
+                    errors[key] = messages;
+                }
+            }
+
+            return errors;
+        }
+
+        private static IDictionary<string, string[]> CreateIdentityErrors(IEnumerable<IdentityError> errors)
+        {
+            var result = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var group in errors.GroupBy(e => string.IsNullOrWhiteSpace(e.Code) ? "Identity" : e.Code))
+            {
+                var messages = group
+                    .Select(e => string.IsNullOrWhiteSpace(e.Description) ? "Identity error." : e.Description)
+                    .Where(m => !string.IsNullOrWhiteSpace(m))
+                    .Select(m => m!)
+                    .ToArray();
+
+                if (messages.Length > 0)
+                {
+                    result[group.Key] = messages;
+                }
+            }
+
+            return result;
+        }
     }
 }
