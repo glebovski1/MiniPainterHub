@@ -49,11 +49,8 @@ namespace MiniPainterHub.Server.Controllers
         [HttpGet("api/comments/{id}")]
         public async Task<ActionResult<CommentDto>> GetById(int id)
         {
-            // reuse service by fetching all for parent, then find? Or add a GetById in service?
-            // For now, fetch via GetByPost then filter:
-            // Alternatively, implement GetByIdAsync in service.
-        
-            return NotFound();
+            var comment = await _commentService.GetByIdAsync(id);
+            return Ok(comment);
         }
 
         // PUT: api/comments/{id}

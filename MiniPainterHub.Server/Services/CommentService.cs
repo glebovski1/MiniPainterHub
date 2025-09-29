@@ -71,6 +71,30 @@ namespace MiniPainterHub.Server.Services
             return true;
         }
 
+        public async Task<CommentDto> GetByIdAsync(int id)
+        {
+            var comment = await _appDbContext.Comments
+                .AsNoTracking()
+                .Where(c => c.Id == id && !c.IsDeleted)
+                .Select(c => new CommentDto
+                {
+                    Id = c.Id,
+                    AuthorId = c.AuthorId,
+                    AuthorName = c.Author.UserName ?? "No name",
+                    PostId = c.PostId,
+                    Content = c.Text,
+                    CreatedAt = c.CreatedUtc
+                })
+                .FirstOrDefaultAsync();
+
+            if (comment == null)
+            {
+                throw new NotFoundException("Comment not found.");
+            }
+
+            return comment;
+        }
+
         public async Task<PagedResult<CommentDto>> GetByPostIdAsync(int postId, int page = 1, int pageSize = 10)
         {
             var query = _appDbContext.Comments
