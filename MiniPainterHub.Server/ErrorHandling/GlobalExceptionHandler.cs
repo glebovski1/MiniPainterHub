@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Diagnostics;
@@ -53,6 +54,6 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             HttpContext = httpContext,
             ProblemDetails = problem,
             Exception = exception
-        }, cancellationToken);
+        });
     }
 }

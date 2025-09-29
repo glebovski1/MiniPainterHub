@@ -33,7 +33,7 @@ namespace MiniPainterHub.WebApp.Services
 
             var userProfile = await resp.Content.ReadFromJsonAsync<UserProfileDto>();
 
-            return SetAdnReturnMine(userProfile!);
+            return SetAndReturnMine(userProfile!);
         }
 
         public async Task<UserProfileDto?> CreateMineAsync(CreateUserProfileDto dto)
@@ -44,7 +44,7 @@ namespace MiniPainterHub.WebApp.Services
 
             var userProfile = await resp.Content.ReadFromJsonAsync<UserProfileDto>();
 
-            return SetAdnReturnMine(userProfile!);
+            return SetAndReturnMine(userProfile!);
 
         }
 
@@ -56,7 +56,7 @@ namespace MiniPainterHub.WebApp.Services
 
             var userProfile = await resp.Content.ReadFromJsonAsync<UserProfileDto>();
 
-            return SetAdnReturnMine(userProfile!);
+            return SetAndReturnMine(userProfile!);
         }
 
         public async Task<UserProfileDto?> UploadAvatarAsync(IBrowserFile file, long maxSizeBytes = 5_000_000)
@@ -71,7 +71,7 @@ namespace MiniPainterHub.WebApp.Services
 
             var userProfile = await resp.Content.ReadFromJsonAsync<UserProfileDto>();
 
-            return SetAdnReturnMine(userProfile!);
+            return SetAndReturnMine(userProfile!);
         }
 
         public async Task<UserProfileDto> RemoveAvatarAsync()
@@ -80,7 +80,7 @@ namespace MiniPainterHub.WebApp.Services
             resp.EnsureSuccessStatusCode();
             var userProfile = await resp.Content.ReadFromJsonAsync<UserProfileDto>()!;
 
-            return SetAdnReturnMine(userProfile!)!;
+            return SetAndReturnMine(userProfile!)!;
         }
 
         public async Task<UserProfileDto> GetUserProfileById(string id)
@@ -90,7 +90,7 @@ namespace MiniPainterHub.WebApp.Services
 
             var userProfile = await resp.Result.Content.ReadFromJsonAsync<UserProfileDto>()!;
 
-            return SetAdnReturnMine(userProfile);
+            return SetAndReturnMine(userProfile);
 
         }
 
@@ -100,7 +100,7 @@ namespace MiniPainterHub.WebApp.Services
             MineChanged?.Invoke(Mine);
         }   
 
-        private UserProfileDto? SetAdnReturnMine(UserProfileDto userProfileDto)
+        private UserProfileDto? SetAndReturnMine(UserProfileDto userProfileDto)
         {
             Mine = userProfileDto;
             MineChanged?.Invoke(Mine);

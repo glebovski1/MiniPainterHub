@@ -55,6 +55,6 @@ public sealed class ValidationExceptionHandler : IExceptionHandler
             HttpContext = httpContext,
             ProblemDetails = problem,
             Exception = exception
-        }, cancellationToken);
+        });
     }
 }
