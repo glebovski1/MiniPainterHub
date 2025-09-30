@@ -22,6 +22,46 @@ public class CommentServiceTests
             .WithMessage("Post not found.");
     }
 
+    [Theory]
+    [InlineData(0, 10, "page", "Page number must be at least 1.")]
+    [InlineData(-1, 5, "page", "Page number must be at least 1.")]
+    [InlineData(1, 0, "pageSize", "Page size must be greater than 0.")]
+    [InlineData(2, -3, "pageSize", "Page size must be greater than 0.")]
+    public async Task GetByPostIdAsync_WhenPaginationIsInvalid_ThrowsDomainValidationException(
+        int page,
+        int pageSize,
+        string expectedKey,
+        string expectedMessage)
+    {
+        await using var context = AppDbContextFactory.Create();
+        var service = new CommentService(context);
+
+        var act = async () => await service.GetByPostIdAsync(1, page, pageSize);
+
+        var exception = await act.Should().ThrowAsync<DomainValidationException>()
+            .WithMessage("Pagination parameters are invalid.");
+
+        exception.Which.Errors.Should().ContainKey(expectedKey)
+            .WhoseValue.Should().Contain(expectedMessage);
+    }
+
+    [Fact]
+    public async Task GetByPostIdAsync_WhenPageAndPageSizeInvalid_ThrowsDomainValidationExceptionWithAllErrors()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var service = new CommentService(context);
+
+        var act = async () => await service.GetByPostIdAsync(1, 0, 0);
+
+        var exception = await act.Should().ThrowAsync<DomainValidationException>()
+            .WithMessage("Pagination parameters are invalid.");
+
+        exception.Which.Errors.Should()
+            .ContainKey("page").WhoseValue.Should().Contain("Page number must be at least 1.");
+        exception.Which.Errors.Should()
+            .ContainKey("pageSize").WhoseValue.Should().Contain("Page size must be greater than 0.");
+    }
+
     [Fact]
     public async Task DeleteAsync_WhenCommentNotOwnedAndNotAdmin_ThrowsNotFoundException()
     {
