@@ -116,13 +116,21 @@ public class PostServiceTests
 
         var result = await service.AddImagesAsync(post.Id, newImages);
 
+        // Capped at 5 total
         result.Should().HaveCount(5);
+
+        // No duplicate IDs or URLs
         result.Should().OnlyHaveUniqueItems(i => i.Id);
+        result.Select(i => i.ImageUrl).Should().OnlyHaveUniqueItems();
+
+        // Content check: all existing + first new image only
         result.Select(i => i.ImageUrl)
             .Should().BeEquivalentTo(existingImageUrls.Concat(new[] { newImages.First().ImageUrl }));
-        result.Select(i => i.ImageUrl).Should().OnlyHaveUniqueItems();
+
+        // DB state mirrors expectations
         var storedPost = await context.Posts.Include(p => p.Images).SingleAsync();
         storedPost.Images.Should().HaveCount(5);
         storedPost.Images.Select(i => i.Id).Should().OnlyHaveUniqueItems();
     }
 }
+
