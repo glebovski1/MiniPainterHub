@@ -6,7 +6,6 @@ using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
@@ -54,7 +53,7 @@ namespace MiniPainterHub.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<PostDto>> Create([FromBody] CreatePostDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.GetUserIdOrThrow();
             var created = await _postService.CreateAsync(userId, dto);
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
@@ -74,7 +73,7 @@ namespace MiniPainterHub.Server.Controllers
                 });
             }
 
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.GetUserIdOrThrow();
             // create post first
             var created = await _postService.CreateAsync(userId, new CreatePostDto
             {
@@ -123,7 +122,7 @@ namespace MiniPainterHub.Server.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdatePostDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.GetUserIdOrThrow();
             var updated = await _postService.UpdateAsync(id, userId, dto);
             return NoContent();
         }
@@ -132,7 +131,7 @@ namespace MiniPainterHub.Server.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.GetUserIdOrThrow();
             var deleted = await _postService.DeleteAsync(id, userId);
             return NoContent();
         }

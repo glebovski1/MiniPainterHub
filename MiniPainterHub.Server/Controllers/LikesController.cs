@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -37,7 +38,7 @@ namespace MiniPainterHub.Server.Controllers
             [HttpPost]
             public async Task<IActionResult> Like(int postId)
             {
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var userId = User.GetUserIdOrThrow();
                 await _likeService.ToggleAsync(postId, userId);
                 return NoContent();
             }
@@ -47,7 +48,7 @@ namespace MiniPainterHub.Server.Controllers
             [HttpDelete]
             public async Task<IActionResult> Unlike(int postId)
             {
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var userId = User.GetUserIdOrThrow();
                 await _likeService.RemoveAsync(postId, userId);
                 return NoContent();
             }

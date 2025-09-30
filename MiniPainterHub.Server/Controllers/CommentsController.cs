@@ -2,9 +2,9 @@
 using Microsoft.AspNetCore.Mvc;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
-using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace MiniPainterHub.Server.Controllers
@@ -39,8 +39,7 @@ namespace MiniPainterHub.Server.Controllers
             int postId,
             [FromBody] CreateCommentDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
-                     ?? throw new UnauthorizedAccessException("No user ID in token.");
+            var userId = User.GetUserIdOrThrow();
             var created = await _commentService.CreateAsync(userId, postId, dto);
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
@@ -57,7 +56,7 @@ namespace MiniPainterHub.Server.Controllers
         [HttpPut("api/comments/{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateCommentDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.GetUserIdOrThrow();
             var updated = await _commentService.UpdateAsync(id, userId, dto);
             return NoContent();
         }
@@ -66,7 +65,7 @@ namespace MiniPainterHub.Server.Controllers
         [HttpDelete("api/comments/{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.GetUserIdOrThrow();
             var isAdmin = User.IsInRole("Admin");
             await _commentService.DeleteAsync(id, userId, isAdmin);
             return NoContent();
