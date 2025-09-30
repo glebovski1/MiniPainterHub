@@ -23,6 +23,20 @@ public class ProfileService : IProfileService
     private readonly AppDbContext _dbContext;
     public ProfileService(AppDbContext dbContext) => _dbContext = dbContext;
 
+    private IQueryable<UserProfileDto> ProjectProfiles() =>
+        _dbContext.Profiles
+                  .AsNoTracking()
+                  .Select(p => new UserProfileDto
+                  {
+                      UserId = p.UserId,
+                      DisplayName = p.DisplayName,
+                      Bio = p.Bio,
+                      AvatarUrl = p.AvatarUrl,
+                      UserName = p.User.UserName!,
+                      Email = p.User.Email!,
+                      DateJoined = p.User.DateJoined
+                  });
+
     public async Task<UserProfileDto> CreateAsync(string userId, CreateUserProfileDto dto)
     {
         Validate(dto.DisplayName, dto.Bio);
@@ -41,28 +55,14 @@ public class ProfileService : IProfileService
         _dbContext.Profiles.Add(profile);
         await _dbContext.SaveChangesAsync();
 
-        return new UserProfileDto
-        {
-            UserId = profile.UserId,
-            DisplayName = profile.DisplayName,
-            Bio = profile.Bio,
-            AvatarUrl = profile.AvatarUrl
-        };
+        return await ProjectProfiles()
+            .FirstAsync(p => p.UserId == profile.UserId);
     }
 
     public async Task<UserProfileDto?> GetByUserIdAsync(string userId)
     {
-        return await _dbContext.Profiles
-            .AsNoTracking()
-            .Where(p => p.UserId == userId)
-            .Select(p => new UserProfileDto
-            {
-                UserId = p.UserId,
-                DisplayName = p.DisplayName,
-                Bio = p.Bio,
-                AvatarUrl = p.AvatarUrl
-            })
-            .FirstOrDefaultAsync();
+        return await ProjectProfiles()
+            .FirstOrDefaultAsync(p => p.UserId == userId);
     }
 
     public async Task<UserProfileDto> UpdateAsync(string userId, UpdateUserProfileDto dto)
@@ -77,17 +77,12 @@ public class ProfileService : IProfileService
 
         await _dbContext.SaveChangesAsync();
 
-        return new UserProfileDto
-        {
-            UserId = profile.UserId,
-            DisplayName = profile.DisplayName,
-            Bio = profile.Bio,
-            AvatarUrl = profile.AvatarUrl
-        };
+        return await ProjectProfiles()
+            .FirstAsync(p => p.UserId == profile.UserId);
     }
 
     // Used ONLY by the upload endpoint to persist the (fixed) avatar URL.
-    public async Task<UserProfileDto> SetAvatarUrlAsync(string userId, string avatarUrl)
+    public async Task<UserProfileDto> SetAvatarUrlAsync(string userId, string? avatarUrl)
     {
         var profile = await _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == userId)
                       ?? throw new NotFoundException("Profile not found.");
@@ -95,27 +90,15 @@ public class ProfileService : IProfileService
         profile.AvatarUrl = avatarUrl; // controller ensures same URL each time
         await _dbContext.SaveChangesAsync();
 
-        return new UserProfileDto
-        {
-            UserId = profile.UserId,
-            DisplayName = profile.DisplayName,
-            Bio = profile.Bio,
-            AvatarUrl = profile.AvatarUrl
-        };
+        return await ProjectProfiles()
+            .FirstAsync(p => p.UserId == profile.UserId);
     }
 
     public async Task<UserProfileDto> GetUserProfileById(string userId)
     {
-        var profile = await _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == userId)
-                     ?? throw new NotFoundException("Profile not found.");
-
-        return new UserProfileDto
-        {
-            UserId = profile.UserId,
-            DisplayName = profile.DisplayName,
-            Bio = profile.Bio,
-            AvatarUrl = profile.AvatarUrl
-        };
+        return await ProjectProfiles()
+            .FirstOrDefaultAsync(p => p.UserId == userId)
+            ?? throw new NotFoundException("Profile not found.");
     }
 
     private static void Validate(string displayName, string? bio)
