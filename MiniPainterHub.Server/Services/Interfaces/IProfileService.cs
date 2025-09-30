@@ -8,7 +8,7 @@ namespace MiniPainterHub.Server.Services.Interfaces
     {
         Task<UserProfileDto> CreateAsync(string userId, CreateUserProfileDto dto);
         Task<UserProfileDto> UpdateAsync(string userId, UpdateUserProfileDto dto);
-        Task<UserProfileDto> GetByUserIdAsync(string userId);
+        Task<UserProfileDto?> GetByUserIdAsync(string userId);
         Task<UserProfileDto> SetAvatarUrlAsync(string userId, string? avatarUrl);
 
 
