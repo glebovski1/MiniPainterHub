@@ -21,7 +21,16 @@ namespace MiniPainterHub.Server.Services
         }
         public async Task<PostDto> CreateAsync(string userId, CreatePostDto dto)
         {
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                throw new UnauthorizedAccessException("User must be authenticated to create posts.");
+            }
+
             var user = await _appDbContext.Users.FindAsync(userId);
+            if (user is null)
+            {
+                throw new UnauthorizedAccessException("User must be authenticated to create posts.");
+            }
             // 1️⃣ Create the entity and set the FK
             var newPost = new Post
             {
