@@ -97,6 +97,23 @@ namespace MiniPainterHub.Server.Services
 
         public async Task<PagedResult<CommentDto>> GetByPostIdAsync(int postId, int page = 1, int pageSize = 10)
         {
+            var errors = new Dictionary<string, string[]>();
+
+            if (page < 1)
+            {
+                errors["page"] = new[] { "Page number must be at least 1." };
+            }
+
+            if (pageSize <= 0)
+            {
+                errors["pageSize"] = new[] { "Page size must be greater than 0." };
+            }
+
+            if (errors.Count > 0)
+            {
+                throw new DomainValidationException("Pagination parameters are invalid.", errors);
+            }
+
             var query = _appDbContext.Comments
                 .AsNoTracking()
                 .Where(c => c.PostId == postId && !c.IsDeleted)
