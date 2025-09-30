@@ -13,6 +13,7 @@ namespace MiniPainterHub.Server.Services
 {
     public class PostService : IPostService
     {
+        private const int MaxImagesPerPost = 5;
         private AppDbContext _appDbContext;
         public PostService(AppDbContext appDbContext)
         {
@@ -44,7 +45,7 @@ namespace MiniPainterHub.Server.Services
 
             if (dto.Images != null)
             {
-                foreach (var img in dto.Images.Take(5))
+                foreach (var img in dto.Images.Take(MaxImagesPerPost))
                 {
                     newPost.Images.Add(new PostImage
                     {
@@ -190,28 +191,36 @@ namespace MiniPainterHub.Server.Services
                         .FirstOrDefaultAsync(p => p.Id == postId && !p.IsDeleted)
                         ?? throw new NotFoundException("Post not found.");
 
-            var existingCount = post.Images.Count;
-            foreach (var img in images.Take(5 - existingCount))
-            {
-                var entity = new PostImage
+            var incoming = images ?? Enumerable.Empty<PostImageDto>();
+            var remainingSlots = Math.Max(0, MaxImagesPerPost - post.Images.Count);
+            var toAdd = incoming
+                .Take(remainingSlots)
+                .Select(img => new PostImage
                 {
                     PostId = postId,
                     ImageUrl = img.ImageUrl,
                     ThumbnailUrl = img.ThumbnailUrl
-                };
-                _appDbContext.PostImages.Add(entity);
+                })
+                .ToList();
+
+            foreach (var entity in toAdd)
+            {
                 post.Images.Add(entity);
             }
 
             post.UpdatedUtc = DateTime.UtcNow;
             await _appDbContext.SaveChangesAsync();
 
-            return post.Images.Select(i => new PostImageDto
-            {
-                Id = i.Id,
-                ImageUrl = i.ImageUrl,
-                ThumbnailUrl = i.ThumbnailUrl
-            }).ToList();
+            return await _appDbContext.PostImages
+                .Where(i => i.PostId == postId)
+                .OrderBy(i => i.Id)
+                .Select(i => new PostImageDto
+                {
+                    Id = i.Id,
+                    ImageUrl = i.ImageUrl,
+                    ThumbnailUrl = i.ThumbnailUrl
+                })
+                .ToListAsync();
         }
 
         public async Task<bool> ExistsAsync(int postId)
