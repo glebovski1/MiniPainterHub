@@ -1,9 +1,10 @@
-﻿using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
-using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
+using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Services.Interfaces;
 
 namespace MiniPainterHub.Server.Services
 {
@@ -31,7 +32,13 @@ namespace MiniPainterHub.Server.Services
         public Task<Stream> DownloadAsync(string fileName)
         {
             var filePath = Path.Combine(_basePath, fileName);
-            Stream stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+
+            if (!File.Exists(filePath))
+            {
+                throw new NotFoundException($"Image '{fileName}' not found.");
+            }
+
+            Stream stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             return Task.FromResult(stream);
         }
 
@@ -44,4 +51,3 @@ namespace MiniPainterHub.Server.Services
         }
     }
 }
-
