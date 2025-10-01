@@ -1,17 +1,19 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
 
 namespace MiniPainterHub.Common.DTOs
 {
     public class CreateImagePostDto
     {
-        public string Title { get; set; }
-        public string Content { get; set; }
+        [Required]
+        [StringLength(100)]
+        public string Title { get; set; } = default!;
+
+        [Required]
+        [StringLength(4000)]
+        public string Content { get; set; } = default!;
 
         // Bound from multipart/form-data under the "images" field
         [FromForm(Name = "images")]

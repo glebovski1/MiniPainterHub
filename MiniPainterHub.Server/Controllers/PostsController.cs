@@ -65,6 +65,11 @@ namespace MiniPainterHub.Server.Controllers
         public async Task<ActionResult<PostDto>> CreateWithImage(
             [FromForm] CreateImagePostDto dto)
         {
+            if (!ModelState.IsValid)
+            {
+                return ValidationProblem(ModelState);
+            }
+
             if (dto.Images != null && dto.Images.Count > 5)
             {
                 throw new DomainValidationException("Invalid post images.", new Dictionary<string, string[]>
