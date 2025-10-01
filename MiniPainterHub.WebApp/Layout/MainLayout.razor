@@ -17,6 +17,7 @@
                            type="checkbox"
                            role="switch"
                            id="userPanelToggle"
+                           checked="@IsPanelVisible"
                            @onchange="OnToggleChanged"
                            aria-label="Toggle personal panel" />
                     <label class="form-check-label d-none d-sm-inline" for="userPanelToggle">
@@ -26,7 +27,9 @@
             </Authorized>
         </AuthorizeView>
     </div>
-    <UserPanelOverlay IsVisible="@IsPanelVisible" OffsetTop="TopOffsetOfLeftPanel" />
+    <UserPanelOverlay IsVisible="@IsPanelVisible"
+                      OffsetTop="TopOffsetOfLeftPanel"
+                      OnVisibilityChanged="HandlePanelVisibilityChanged" />
     <main class="container py-4">
         @Body
 
@@ -44,17 +47,20 @@
     private ElementReference ToolBarRef;
 
 
-    private void OnToggleChanged(ChangeEventArgs _)
+    private void OnToggleChanged(ChangeEventArgs args)
     {
-        // Keep state events flowing to listeners (sidebar listens and animates)
-        if (IsPanelVisible)
+        IsPanelVisible = args.Value is bool checkedValue && checkedValue;
+    }
+
+    private Task HandlePanelVisibilityChanged(bool isVisible)
+    {
+        if (IsPanelVisible != isVisible)
         {
-            IsPanelVisible = false;
+            IsPanelVisible = isVisible;
+            StateHasChanged();
         }
-        else
-        {
-            IsPanelVisible = true;
-        }
+
+        return Task.CompletedTask;
     }
 
     // Fix for CS0115: Use correct signature for OnAfterRenderAsync

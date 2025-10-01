@@ -8,7 +8,11 @@
             <div class="offcanvas-header">
                 <h5 class="offcanvas-title" id="userPanelLabel">Your Panel</h5>
 
-                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close" @onclick="ClosePanel"></button>
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="offcanvas"
+                        aria-label="Close"
+                        @onclick="ClosePanel"></button>
             </div>
             <div class="offcanvas-body">
                 <UserPanelContent />
@@ -26,9 +30,15 @@
     public int OffsetTop { get; set; } = 0;
 
 
-    private void ClosePanel()
+    [Parameter]
+    public EventCallback<bool> OnVisibilityChanged { get; set; }
+
+    private async Task ClosePanel()
     {
-        IsVisible = false;
+        if (IsVisible)
+        {
+            await OnVisibilityChanged.InvokeAsync(false);
+        }
     }
 
 }
