@@ -22,6 +22,10 @@ namespace MiniPainterHub.Server.Services
         }
         public async Task<PostDto> CreateAsync(string userId, CreatePostDto dto)
         {
+            ArgumentNullException.ThrowIfNull(dto);
+            ArgumentException.ThrowIfNullOrWhiteSpace(dto.Title, nameof(dto.Title));
+            ArgumentException.ThrowIfNullOrWhiteSpace(dto.Content, nameof(dto.Content));
+
             if (string.IsNullOrWhiteSpace(userId))
             {
                 throw new UnauthorizedAccessException("User must be authenticated to create posts.");
