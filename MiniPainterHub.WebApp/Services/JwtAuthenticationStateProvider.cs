@@ -24,7 +24,7 @@ namespace MiniPainterHub.WebApp.Services
             return new AuthenticationState(new ClaimsPrincipal(identity));
         }
 
-        public void NotifyUserAuthentication(string token)
+        public void NotifyUserAuthentication(string? token)
         {
             NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
         }

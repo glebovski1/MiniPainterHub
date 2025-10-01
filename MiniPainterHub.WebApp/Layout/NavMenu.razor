@@ -1,7 +1,6 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 @inject IAuthService AuthService
 @inject NavigationManager Nav
-@inject AuthenticationStateProvider AuthProvider
 
 <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm">
     <div class="container-fluid">
@@ -64,8 +63,6 @@
     private async Task Logout()
     {
         await AuthService.LogoutAsync();
-        if (AuthProvider is JwtAuthenticationStateProvider jwt)
-            jwt.NotifyUserAuthentication(null);
         Nav.NavigateTo("/login");
     }
 }
