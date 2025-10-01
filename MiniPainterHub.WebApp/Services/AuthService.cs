@@ -9,11 +9,13 @@ namespace MiniPainterHub.WebApp.Services
     {
         private readonly HttpClient _http;
         private readonly IJSRuntime _js;
+        private readonly JwtAuthenticationStateProvider _authStateProvider;
 
-        public AuthService(HttpClient http, IJSRuntime js)
+        public AuthService(HttpClient http, IJSRuntime js, JwtAuthenticationStateProvider authStateProvider)
         {
             _http = http;
             _js = js;
+            _authStateProvider = authStateProvider;
         }
 
         public async Task<bool> LoginAsync(LoginDto dto)
@@ -22,7 +24,13 @@ namespace MiniPainterHub.WebApp.Services
             if (!resp.IsSuccessStatusCode) return false;
 
             var result = await resp.Content.ReadFromJsonAsync<AuthResponseDto>();
+            if (result?.Token is null)
+            {
+                return false;
+            }
+
             await _js.InvokeVoidAsync("localStorage.setItem", "authToken", result.Token);
+            _authStateProvider.NotifyUserAuthentication(result.Token);
             return true;
         }
 
@@ -35,6 +43,7 @@ namespace MiniPainterHub.WebApp.Services
         public async Task LogoutAsync()
         {
             await _js.InvokeVoidAsync("localStorage.removeItem", "authToken");
+            _authStateProvider.NotifyUserAuthentication(null);
         }
     }
 }
