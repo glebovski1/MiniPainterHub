@@ -8,10 +8,10 @@
 <ImageCarousel 
     Mode="@ImageCarousel.CarouselMode.Auto"
                IntervalMs="5000"
-               ShowControls="true"
+               ShowControls="false"
                HeightPx="600"
                OpenInNewTab="false"
-               ShowIndicators="false"
+               ShowIndicators="true"
                Slides="@posts"
 
 ></ImageCarousel>
@@ -19,7 +19,7 @@
     List<ImageCarousel.Slide> posts = new List<ImageCarousel.Slide>();
     protected override async Task OnInitializedAsync()
     {
-        var result = await PostService.GetTopPosts(5, TimeSpan.FromDays(30));
+        var result = await PostService.GetTopPosts(5, TimeSpan.FromDays(60));
         foreach(var post in result)
         {
             if (post.ImageUrl == null) continue;
