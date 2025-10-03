@@ -28,8 +28,7 @@
                     ImageCarousel.Slide slide = new ImageCarousel.Slide
                     (
                         post?.ImageUrl,
-                        NavigationManager.ToAbsoluteUri($"/posts/{post.Id}").ToString(),
-                        post.Title
+                        NavigationManager.ToAbsoluteUri($"/posts/{post.Id}").ToString()
                     );
 
                     posts.Add(slide);

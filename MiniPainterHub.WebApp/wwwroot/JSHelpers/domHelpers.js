@@ -11,27 +11,40 @@ window.domHelpers.getHeight = (el) => (el ? el.offsetHeight : 0);
  *                                If omitted, reads data-bs-interval from the element.
  */
 window.domHelpers.initCarousel = (element, intervalMs) => {
-  // Guard: Bootstrap not loaded or element missing
   const Carousel = window?.bootstrap?.Carousel;
   if (!element || !Carousel) return;
 
-  // Prefer explicit C# value; otherwise read data attributes
   const ds = element.dataset || {};
+
   const parsed = Number(intervalMs);
-  const interval =
-    Number.isFinite(parsed)
-      ? parsed
+  const interval = Number.isFinite(parsed)
+    ? parsed
+    : ds.bsInterval === "false"
+      ? false
       : (ds.bsInterval && Number.isFinite(Number(ds.bsInterval)))
           ? Number(ds.bsInterval)
-          : 5000; // sensible default
+          : 5000;
 
-  const pause = ds.bsPause ?? "hover";           // "hover" | "false"
-  const ride  = ds.bsRide ?? undefined;          // "carousel" to auto-start
+  let pause;
+  if (ds.bsPause === undefined) {
+    pause = "hover";
+  } else if (ds.bsPause === "false") {
+    pause = false;
+  } else {
+    pause = ds.bsPause;
+  }
+
+  const ride = ds.bsRide === "false" ? false : (ds.bsRide ?? undefined);
   const touch = ds.bsTouch ? ds.bsTouch !== "false" : true;
-  const wrap  = ds.bsWrap  ? ds.bsWrap  !== "false" : true;
+  const wrap = ds.bsWrap ? ds.bsWrap !== "false" : true;
 
-  // Create or reuse instance with config
-  const instance = Carousel.getOrCreateInstance(element, {
+  const existing = Carousel.getInstance(element);
+  if (existing) {
+    existing.pause?.();
+    existing.dispose();
+  }
+
+  const instance = new Carousel(element, {
     interval,
     pause,
     ride,
@@ -39,7 +52,9 @@ window.domHelpers.initCarousel = (element, intervalMs) => {
     wrap
   });
 
-  // Ensure cycling
-  instance.cycle();
+  if (ride === "carousel") {
+    instance.cycle();
+  }
+
   return instance;
 };
