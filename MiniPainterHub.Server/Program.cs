@@ -143,6 +143,11 @@ public class Program
             await DataSeeder.SeedAsync(app.Services);
         }
 
+        if(app.Environment.IsProduction())
+        {
+            await DataSeeder.SeedAdminAsync(app);
+        }
+
         // ------------------------------------------------------------------
         // 3️⃣  HTTP pipeline
         // ------------------------------------------------------------------
@@ -174,6 +179,9 @@ public class Program
         app.MapFallbackToFile("index.html"); // 🟢 Route everything else to Blazor
 
         app.MapGet("/healthz", () => Results.Ok("OK"));
+
+        
+
         app.Run();
     }
 }
