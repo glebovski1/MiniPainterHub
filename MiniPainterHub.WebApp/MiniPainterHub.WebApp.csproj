@@ -19,7 +19,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Content Update="appsettings.json">
+		<Content Update="appsettings.client.json">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</Content>
                 <Content Update="wwwroot\JSHelpers\domHelpers.js">
