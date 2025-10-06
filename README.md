@@ -7,3 +7,7 @@ The authentication endpoints surface validation and credential errors through st
 ## Comments API Notes
 
 Requesting a comment that does not exist (for example, `GET /api/comments/{id}`) now surfaces a consistent `ProblemDetails` payload. The global exception handler translates the service's `NotFoundException` into a `404 Not Found` response with the title `"Not found"` and a `detail` of `"Comment not found."`, allowing clients to rely on the standardized error contract when comments have been deleted or never existed.
+
+## Azure App Service configuration
+
+When deploying MiniPainterHub to Azure App Service, ensure the blob storage settings use the hierarchical configuration keys that the application expects (`ImageStorage:AzureConnectionString` and `ImageStorage:AzureContainer`). If your existing configuration still uses flat keys such as `ImageStorageAzureConnectionString` or `ImageStorageAzureContainer`, update them on the App Service **Configuration → Application settings** blade to the new names (or use the double-underscore form `ImageStorage__AzureConnectionString` and `ImageStorage__AzureContainer` for environment-variable compatibility). Save the configuration and restart the App Service to reload the updated settings.
