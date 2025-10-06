@@ -173,6 +173,7 @@ public class Program
 
         app.MapFallbackToFile("index.html"); // 🟢 Route everything else to Blazor
 
+        app.MapGet("/healthz", () => Results.Ok("OK"));
         app.Run();
     }
 }
