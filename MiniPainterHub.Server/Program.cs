@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Azure.Storage.Blobs;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -14,7 +15,9 @@ using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.ErrorHandling;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.OpenAPIOperationFilter;
+using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services;
+using MiniPainterHub.Server.Services.Images;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -119,13 +122,40 @@ public class Program
 
         });
 
+        builder.Services.AddOptions<ImagesOptions>()
+            .Bind(builder.Configuration.GetSection("Images"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        builder.Services.AddScoped<IImageProcessor, ImageProcessor>();
+
         if (builder.Environment.IsDevelopment())
         {
             builder.Services.AddSingleton<IImageService, LocalImageService>();
+            builder.Services.AddSingleton<IImageStore, LocalImageStore>();
         }
         else
         {
-            builder.Services.AddSingleton<IImageService, AzureBlobImageService>();
+            builder.Services.AddSingleton(provider =>
+            {
+                var config = provider.GetRequiredService<IConfiguration>();
+                var connection = config["ImageStorage:AzureConnectionString"]
+                    ?? throw new InvalidOperationException("Azure connection string is not configured.");
+                var containerName = config["ImageStorage:AzureContainer"]
+                    ?? throw new InvalidOperationException("Azure container name is not configured.");
+
+                var container = new BlobContainerClient(connection, containerName);
+                container.CreateIfNotExists();
+                return container;
+            });
+
+            builder.Services.AddSingleton<IImageService>(sp =>
+            {
+                var container = sp.GetRequiredService<BlobContainerClient>();
+                return new AzureBlobImageService(container);
+            });
+
+            builder.Services.AddSingleton<IImageStore, AzureBlobImageStore>();
         }
 
         builder.Services.AddScoped<IProfileService, ProfileService>();

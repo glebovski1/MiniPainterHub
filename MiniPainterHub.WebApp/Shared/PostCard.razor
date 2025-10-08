@@ -5,10 +5,11 @@
     <NavLink class="text-decoration-none text-dark" href="@($"/posts/{Post.Id}")">
         @if (!string.IsNullOrEmpty(Post.ImageUrl))
         {
-            <img src="@FullImageUrl"
-                 class="card-img-top"
+            <img src="@ThumbImageUrl"
+                 class="card-img-top bg-light"
                  alt="Post image"
-                 style="height: 180px; object-fit: cover;" />
+                 loading="lazy"
+                 style="height: 180px; object-fit: contain;" />
         }
         <div class="card-body">
             <h5 class="card-title">@Post.Title</h5>
@@ -29,9 +30,26 @@
 @code {
     [Parameter] public PostSummaryDto Post { get; set; } = default!;
 
-    private string FullImageUrl =>
-      !string.IsNullOrEmpty(Post.ImageUrl) &&
-      Post.ImageUrl!.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-        ? Post.ImageUrl
-        : $"{Navigation.BaseUri.TrimEnd('/')}{Post.ImageUrl}";
+    private string FullImageUrl => MakeAbsoluteUrl(Post.ImageUrl);
+
+    private string ThumbImageUrl => MakeAbsoluteUrl(ReplaceVariantSuffix(Post.ImageUrl, "_thumb."));
+
+    private string MakeAbsoluteUrl(string? url)
+        => string.IsNullOrEmpty(url)
+            ? string.Empty
+            : url.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                ? url
+                : $"{Navigation.BaseUri.TrimEnd('/')}{url}";
+
+    private static string ReplaceVariantSuffix(string? url, string replacement)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return string.Empty;
+        }
+
+        return url.Contains("_max.", StringComparison.OrdinalIgnoreCase)
+            ? url.Replace("_max.", replacement, StringComparison.OrdinalIgnoreCase)
+            : url;
+    }
 }
