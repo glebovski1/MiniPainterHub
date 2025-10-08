@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MiniPainterHub.Server.Data;
@@ -143,9 +144,30 @@ public class Program
             await DataSeeder.SeedAsync(app.Services);
         }
 
-        if(app.Environment.IsProduction())
+        var logger = app.Services.GetRequiredService<ILogger<Program>>();
+
+        if (app.Environment.IsProduction())
         {
-            await DataSeeder.SeedAdminAsync(app);
+            if (app.Environment.IsProduction())
+            {
+                try
+                {
+                    await using var scope = app.Services.CreateAsyncScope();
+                    // DB already migrated, so this should be a no-op; keep it for safety:
+                    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    await db.Database.MigrateAsync();
+                    logger.LogInformation("EF migrations ok.");
+
+                    // Seed admin may be your crash point—keep it but log it:
+                    await DataSeeder.SeedAdminAsync(app);
+                    logger.LogInformation("Admin seed ok.");
+                }
+                catch (Exception ex)
+                {
+                    logger.LogCritical(ex, "Startup failed in Production.");
+                    throw;
+                }
+            }
         }
 
         // ------------------------------------------------------------------
