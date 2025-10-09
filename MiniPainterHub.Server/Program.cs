@@ -17,6 +17,7 @@ using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.OpenAPIOperationFilter;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services;
+using MiniPainterHub.Server.Services.Images;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;
