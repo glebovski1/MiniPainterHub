@@ -1,12 +1,12 @@
 ﻿
 @using MiniPainterHub.Common.DTOs
 @inject IPostService PostService
-@inject NavigationManager Nav
 
 @if (isLoading)
 {
-    <div class="text-center">
-        <div class="spinner-border" role="status"></div>
+    <div class="text-center" aria-live="polite" aria-busy="true">
+        <div class="spinner-border" role="status" aria-hidden="true"></div>
+        <span class="visually-hidden">Loading posts...</span>
     </div>
 }
 else if (!posts.Any())
@@ -24,7 +24,43 @@ else
         }
     </div>
 
+    @if (totalPages > 1)
+    {
+        <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-3 mt-4">
+            <nav aria-label="Post pagination">
+                <ul class="pagination mb-0">
+                    <li class="page-item @(hasPreviousPage ? string.Empty : "disabled")">
+                        <button class="page-link" type="button" @onclick="() => ChangePage(currentPage - 1)" disabled="@(!hasPreviousPage || isLoading)">
+                            Previous
+                        </button>
+                    </li>
+                    <li class="page-item @(hasNextPage ? string.Empty : "disabled")">
+                        <button class="page-link" type="button" @onclick="() => ChangePage(currentPage + 1)" disabled="@(!hasNextPage || isLoading)">
+                            Next
+                        </button>
+                    </li>
+                </ul>
+            </nav>
 
+            <div class="d-flex align-items-center gap-2">
+                <label class="form-label mb-0" for="pageSelector">Page</label>
+                <select id="pageSelector" class="form-select w-auto" @onchange="OnPageSelected" disabled="@isLoading">
+                    @for (var page = 1; page <= totalPages; page++)
+                    {
+                        if (page == currentPage)
+                        {
+                            <option value="@page" selected>@page</option>
+                        }
+                        else
+                        {
+                            <option value="@page">@page</option>
+                        }
+                    }
+                </select>
+                <span class="text-muted">of @totalPages</span>
+            </div>
+        </div>
+    }
 }
 
 @code {
@@ -34,36 +70,66 @@ else
     // Simple loading flag for the spinner
     private bool isLoading = true;
 
-    // Page size (you can make this a variable or parameter)
     private const int PageSize = 9;
 
-    public int _page = 1;
+    private int currentPage = 1;
+    private int totalPages = 1;
+
+    private bool hasPreviousPage;
+    private bool hasNextPage;
 
     [Parameter]
     public Func<IEnumerable<PostSummaryDto>, IEnumerable<PostSummaryDto>>? Query { get; set; } = (source) => source;
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadPosts();
-    }
-
     protected override async Task OnParametersSetAsync()
     {
-        await LoadPosts();
+        if (previousQuery != Query)
+        {
+            previousQuery = Query;
+            await LoadPosts();
+        }
     }
+
+    private Func<IEnumerable<PostSummaryDto>, IEnumerable<PostSummaryDto>>? previousQuery;
 
     private async Task LoadPosts(int page = 1)
     {
         isLoading = true;
+        await InvokeAsync(StateHasChanged);
 
-        // Call your service to fetch a PagedResult<PostSummaryDto>
         var result = await PostService.GetAllAsync(page, PageSize);
 
-        // Extract the items into your flat list
-        // posts = result.Items.OrderByDescending(posts => posts.CreatedAt).ToList();
+        currentPage = result.TotalPages == 0 ? 1 : result.PageNumber;
+        totalPages = Math.Max(result.TotalPages, 1);
+        hasPreviousPage = result.HasPreviousPage && totalPages > 1;
+        hasNextPage = result.HasNextPage && totalPages > 1;
 
-        posts = Query != null ? Query.Invoke(result.Items).ToList() : result.Items.ToList();
+        var items = Query != null ? Query.Invoke(result.Items) : result.Items;
+        posts = items.ToList();
 
         isLoading = false;
+    }
+
+    private async Task ChangePage(int page)
+    {
+        if (page < 1 || page > totalPages || page == currentPage || isLoading)
+        {
+            return;
+        }
+
+        await LoadPosts(page);
+    }
+
+    private async Task OnPageSelected(ChangeEventArgs args)
+    {
+        if (args?.Value is null)
+        {
+            return;
+        }
+
+        if (int.TryParse(args.Value.ToString(), out var page))
+        {
+            await ChangePage(page);
+        }
     }
 }
