@@ -115,7 +115,8 @@ namespace MiniPainterHub.Server.Services
                 CacheControl = CacheControl
             };
 
-            await blob.UploadAsync(stream, headers, cancellationToken: ct, overwrite: true);
+            await blob.UploadAsync(stream, overwrite: true, cancellationToken: ct);
+            await blob.SetHttpHeadersAsync(headers, cancellationToken: ct);
             return blob.Uri.ToString();
         }
     }

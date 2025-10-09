@@ -336,14 +336,14 @@ namespace MiniPainterHub.Server.Services
 
                 var image = images[i];
 
-                await using var stream = image.OpenReadStream(MaxUploadBytes, ct);
+                await using var stream = image.OpenReadStream(MaxUploadBytes);
                 var fileName = $"{postId}_{i}_{image.FileName}";
                 var url = await _imageService.UploadAsync(stream, fileName);
 
                 string? thumbUrl = null;
                 if (thumbnails != null && i < thumbnails.Count && thumbnails[i] is { Length: > 0 } thumb)
                 {
-                    await using var thumbStream = thumb.OpenReadStream(MaxUploadBytes, ct);
+                    await using var thumbStream = thumb.OpenReadStream(MaxUploadBytes);
                     var thumbFileName = $"{postId}_{i}_thumb_{thumb.FileName}";
                     thumbUrl = await _imageService.UploadAsync(thumbStream, thumbFileName);
                 }
@@ -382,10 +382,10 @@ namespace MiniPainterHub.Server.Services
                     throw new UnsupportedImageContentTypeException(image.FileName, contentType);
                 }
 
-                await using var stream = image.OpenReadStream(MaxUploadBytes, ct);
+                await using var stream = image.OpenReadStream(MaxUploadBytes);
                 var variants = await _imageProcessor.ProcessAsync(stream, contentType, ct);
                 var imageId = Guid.NewGuid();
-                var stored = await _imageStore.SaveAsync(postId, imageId, variants, ct);
+                var stored = await _imageStore.SaveAsync(ConvertToStorageGuid(postId), imageId, variants, ct);
 
                 results.Add(new PostImageDto
                 {
@@ -396,5 +396,8 @@ namespace MiniPainterHub.Server.Services
 
             return results;
         }
+
+        private static Guid ConvertToStorageGuid(int postId)
+            => new(postId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     }
 }
