@@ -9,6 +9,7 @@ using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services.Interfaces;
 using MiniPainterHub.Server.Services.Models;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Advanced;
 using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
