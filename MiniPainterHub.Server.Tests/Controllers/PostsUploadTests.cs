@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +21,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
+using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using MiniPainterHub.Server.Services.Models;
@@ -122,6 +124,57 @@ public class PostsUploadTests : IClassFixture<PostsUploadTests.TestApplicationFa
         store.Saved.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task ServiceCreateWithImagesAsync_PersistsVariants()
+    {
+        await _factory.ResetAsync();
+        await SeedUserAsync();
+
+        using var scope = _factory.Services.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<IPostService>();
+        var store = scope.ServiceProvider.GetRequiredService<TestImageStore>();
+
+        using var imageStream = await CreateImageAsync(1600, 900);
+        var formFile = CreateFormFile(imageStream, "photo.jpg", "image/jpeg");
+
+        var dto = new CreateImagePostDto
+        {
+            Title = "Title",
+            Content = "Body",
+            Images = new List<IFormFile> { formFile }
+        };
+
+        var result = await service.CreateWithImagesAsync(TestAuthHandler.TestUserId, dto, default);
+
+        result.ImageUrl.Should().NotBeNullOrEmpty();
+        result.Images.Should().NotBeNull();
+        store.Saved.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task ServiceCreateWithImagesAsync_UnsupportedMimeType_Throws()
+    {
+        await _factory.ResetAsync();
+        await SeedUserAsync();
+
+        using var scope = _factory.Services.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<IPostService>();
+
+        using var imageStream = await CreateImageAsync(200, 200);
+        var formFile = CreateFormFile(imageStream, "photo.heic", "image/heic");
+
+        var dto = new CreateImagePostDto
+        {
+            Title = "Title",
+            Content = "Body",
+            Images = new List<IFormFile> { formFile }
+        };
+
+        var act = async () => await service.CreateWithImagesAsync(TestAuthHandler.TestUserId, dto, default);
+
+        await act.Should().ThrowAsync<UnsupportedImageContentTypeException>();
+    }
+
     private async Task SeedUserAsync()
     {
         using var scope = _factory.Services.CreateScope();
@@ -143,6 +196,16 @@ public class PostsUploadTests : IClassFixture<PostsUploadTests.TestApplicationFa
         await image.SaveAsJpegAsync(ms);
         ms.Position = 0;
         return ms;
+    }
+
+    private static IFormFile CreateFormFile(Stream stream, string fileName, string contentType)
+    {
+        stream.Position = 0;
+        return new FormFile(stream, 0, stream.Length, "images", fileName)
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = contentType
+        };
     }
 
     public class TestApplicationFactory : WebApplicationFactory<Program>

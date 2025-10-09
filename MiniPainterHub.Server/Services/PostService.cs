@@ -1,12 +1,18 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services.Interfaces;
+using MiniPainterHub.Server.Services.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MiniPainterHub.Server.Services
@@ -14,11 +20,35 @@ namespace MiniPainterHub.Server.Services
     public class PostService : IPostService
     {
         private const int MaxImagesPerPost = 5;
-        private AppDbContext _appDbContext;
-        public PostService(AppDbContext appDbContext)
+        private const long MaxUploadBytes = 20L * 1024 * 1024;
+        private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
         {
-            _appDbContext = appDbContext;
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+        };
 
+        private readonly AppDbContext _appDbContext;
+        private readonly IImageService _imageService;
+        private readonly IImageProcessor _imageProcessor;
+        private readonly IImageStore _imageStore;
+        private readonly ImagesOptions _imageOptions;
+        private readonly ILogger<PostService> _logger;
+
+        public PostService(
+            AppDbContext appDbContext,
+            IImageService imageService,
+            IImageProcessor imageProcessor,
+            IImageStore imageStore,
+            IOptions<ImagesOptions> imageOptions,
+            ILogger<PostService> logger)
+        {
+            _appDbContext = appDbContext ?? throw new ArgumentNullException(nameof(appDbContext));
+            _imageService = imageService ?? throw new ArgumentNullException(nameof(imageService));
+            _imageProcessor = imageProcessor ?? throw new ArgumentNullException(nameof(imageProcessor));
+            _imageStore = imageStore ?? throw new ArgumentNullException(nameof(imageStore));
+            _imageOptions = imageOptions?.Value ?? throw new ArgumentNullException(nameof(imageOptions));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
         public async Task<PostDto> CreateAsync(string userId, CreatePostDto dto)
         {
@@ -205,6 +235,49 @@ namespace MiniPainterHub.Server.Services
             return true;
         }
 
+        public async Task<PostDto> CreateWithImagesAsync(string userId, CreateImagePostDto dto, CancellationToken ct)
+        {
+            ArgumentNullException.ThrowIfNull(dto);
+            ct.ThrowIfCancellationRequested();
+
+            if (dto.Images != null && dto.Images.Count > MaxImagesPerPost)
+            {
+                throw new DomainValidationException("Invalid post images.", new Dictionary<string, string[]>
+                {
+                    ["Images"] = new[] { $"A maximum of {MaxImagesPerPost} images is allowed." }
+                });
+            }
+
+            var created = await CreateAsync(userId, new CreatePostDto
+            {
+                Title = dto.Title,
+                Content = dto.Content
+            });
+
+            if (dto.Images is null || dto.Images.Count == 0)
+            {
+                return created;
+            }
+
+            _logger.LogInformation(
+                "Processing {Count} uploaded images for post {PostId} (pipeline enabled: {Enabled})",
+                Math.Min(dto.Images.Count, MaxImagesPerPost),
+                created.Id,
+                _imageOptions.Enabled);
+
+            var imageDtos = _imageOptions.Enabled
+                ? await ProcessWithPipelineAsync(created.Id, dto.Images, ct)
+                : await ProcessWithLegacyAsync(created.Id, dto.Images, dto.Thumbnails, ct);
+
+            created.Images = await AddImagesAsync(created.Id, imageDtos);
+            created.ImageUrl = created.Images
+                .OrderBy(i => i.Id)
+                .Select(i => i.ImageUrl)
+                .FirstOrDefault();
+
+            return created;
+        }
+
         public async Task<List<PostImageDto>> AddImagesAsync(int postId, IEnumerable<PostImageDto> images)
         {
             var post = await _appDbContext.Posts
@@ -247,6 +320,81 @@ namespace MiniPainterHub.Server.Services
         public async Task<bool> ExistsAsync(int postId)
         {
             return await _appDbContext.Posts.AnyAsync(post => post.Id == postId && !post.IsDeleted);
+        }
+
+        private async Task<List<PostImageDto>> ProcessWithLegacyAsync(
+            int postId,
+            IReadOnlyList<IFormFile> images,
+            IReadOnlyList<IFormFile>? thumbnails,
+            CancellationToken ct)
+        {
+            var results = new List<PostImageDto>();
+
+            for (var i = 0; i < images.Count && i < MaxImagesPerPost; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var image = images[i];
+
+                await using var stream = image.OpenReadStream(MaxUploadBytes, ct);
+                var fileName = $"{postId}_{i}_{image.FileName}";
+                var url = await _imageService.UploadAsync(stream, fileName);
+
+                string? thumbUrl = null;
+                if (thumbnails != null && i < thumbnails.Count && thumbnails[i] is { Length: > 0 } thumb)
+                {
+                    await using var thumbStream = thumb.OpenReadStream(MaxUploadBytes, ct);
+                    var thumbFileName = $"{postId}_{i}_thumb_{thumb.FileName}";
+                    thumbUrl = await _imageService.UploadAsync(thumbStream, thumbFileName);
+                }
+
+                results.Add(new PostImageDto
+                {
+                    ImageUrl = url,
+                    ThumbnailUrl = thumbUrl
+                });
+            }
+
+            return results;
+        }
+
+        private async Task<List<PostImageDto>> ProcessWithPipelineAsync(
+            int postId,
+            IReadOnlyList<IFormFile> images,
+            CancellationToken ct)
+        {
+            var results = new List<PostImageDto>();
+
+            for (var i = 0; i < images.Count && i < MaxImagesPerPost; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var image = images[i];
+
+                if (image.Length > MaxUploadBytes)
+                {
+                    throw new ImageTooLargeException(image.FileName, image.Length, MaxUploadBytes);
+                }
+
+                var contentType = image.ContentType ?? string.Empty;
+                if (!AllowedContentTypes.Contains(contentType))
+                {
+                    throw new UnsupportedImageContentTypeException(image.FileName, contentType);
+                }
+
+                await using var stream = image.OpenReadStream(MaxUploadBytes, ct);
+                var variants = await _imageProcessor.ProcessAsync(stream, contentType, ct);
+                var imageId = Guid.NewGuid();
+                var stored = await _imageStore.SaveAsync(postId, imageId, variants, ct);
+
+                results.Add(new PostImageDto
+                {
+                    ImageUrl = stored.MaxUrl,
+                    ThumbnailUrl = stored.ThumbUrl
+                });
+            }
+
+            return results;
         }
     }
 }

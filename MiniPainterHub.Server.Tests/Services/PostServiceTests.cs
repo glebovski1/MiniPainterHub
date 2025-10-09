@@ -1,10 +1,17 @@
 using System;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services;
+using MiniPainterHub.Server.Services.Interfaces;
+using MiniPainterHub.Server.Services.Models;
 using MiniPainterHub.Server.Tests.Infrastructure;
 using Xunit;
 
@@ -19,7 +26,7 @@ public class PostServiceTests
     public async Task CreateAsync_WhenUserIdIsMissing_ThrowsUnauthorizedAccessException(string? userId)
     {
         await using var context = AppDbContextFactory.Create();
-        var service = new PostService(context);
+        var service = CreateService(context);
         var dto = TestData.CreatePostDto();
 
         var act = async () => await service.CreateAsync(userId!, dto);
@@ -32,7 +39,7 @@ public class PostServiceTests
     public async Task CreateAsync_WhenUserDoesNotExist_ThrowsUnauthorizedAccessException()
     {
         await using var context = AppDbContextFactory.Create();
-        var service = new PostService(context);
+        var service = CreateService(context);
         var dto = TestData.CreatePostDto();
 
         var act = async () => await service.CreateAsync("missing", dto);
@@ -53,7 +60,7 @@ public class PostServiceTests
         string expectedMessage)
     {
         await using var context = AppDbContextFactory.Create();
-        var service = new PostService(context);
+        var service = CreateService(context);
 
         var act = async () => await service.GetAllAsync(page, pageSize);
 
@@ -68,7 +75,7 @@ public class PostServiceTests
     public async Task GetAllAsync_WhenPageAndPageSizeInvalid_ThrowsDomainValidationExceptionWithAllErrors()
     {
         await using var context = AppDbContextFactory.Create();
-        var service = new PostService(context);
+        var service = CreateService(context);
 
         var act = async () => await service.GetAllAsync(0, 0);
 
@@ -88,7 +95,7 @@ public class PostServiceTests
         var user = TestData.CreateUser("user-1", "artist");
         await context.Users.AddAsync(user);
         await context.SaveChangesAsync();
-        var service = new PostService(context);
+        var service = CreateService(context);
         var dto = TestData.CreatePostDto(imageCount: 6);
 
         var result = await service.CreateAsync(user.Id, dto);
@@ -115,7 +122,7 @@ public class PostServiceTests
     public async Task DeleteAsync_WhenPostDoesNotExist_ThrowsNotFoundException()
     {
         await using var context = AppDbContextFactory.Create();
-        var service = new PostService(context);
+        var service = CreateService(context);
 
         var act = async () => await service.DeleteAsync(42, "user-1");
 
@@ -132,7 +139,7 @@ public class PostServiceTests
         await context.Users.AddAsync(user);
         await context.Posts.AddAsync(post);
         await context.SaveChangesAsync();
-        var service = new PostService(context);
+        var service = CreateService(context);
 
         var result = await service.DeleteAsync(post.Id, user.Id);
 
@@ -150,7 +157,7 @@ public class PostServiceTests
         await context.Users.AddAsync(user);
         await context.Posts.AddAsync(post);
         await context.SaveChangesAsync();
-        var service = new PostService(context);
+        var service = CreateService(context);
         var newImages = TestData.CreateImages(3, "extra").ToList();
         var existingImageUrls = post.Images.Select(i => i.ImageUrl).ToList();
 
@@ -171,6 +178,47 @@ public class PostServiceTests
         var storedPost = await context.Posts.Include(p => p.Images).SingleAsync();
         storedPost.Images.Should().HaveCount(5);
         storedPost.Images.Select(i => i.Id).Should().OnlyHaveUniqueItems();
+    }
+
+    private static PostService CreateService(AppDbContext context)
+    {
+        return new PostService(
+            context,
+            new StubImageService(),
+            new StubImageProcessor(),
+            new StubImageStore(),
+            Options.Create(new ImagesOptions()),
+            NullLogger<PostService>.Instance);
+    }
+
+    private sealed class StubImageService : IImageService
+    {
+        public Task DeleteAsync(string fileName) => Task.CompletedTask;
+
+        public Task<Stream> DownloadAsync(string fileName) => Task.FromResult<Stream>(Stream.Null);
+
+        public Task<string> UploadAsync(Stream fileStream, string fileName) => Task.FromResult($"https://test.local/{fileName}");
+    }
+
+    private sealed class StubImageProcessor : IImageProcessor
+    {
+        public Task<ImageVariants> ProcessAsync(Stream stream, string contentType, CancellationToken ct)
+        {
+            var variant = new ImageVariant(new byte[] { 1 }, "image/jpeg", "jpg", 1, 1);
+            return Task.FromResult(new ImageVariants(variant, variant, variant));
+        }
+    }
+
+    private sealed class StubImageStore : IImageStore
+    {
+        public Task<ImageStoreResult> SaveAsync(Guid postId, Guid imageId, ImageVariants variants, CancellationToken ct)
+        {
+            var baseUrl = $"https://test.local/{postId:D}/";
+            return Task.FromResult(new ImageStoreResult(
+                baseUrl + $"{imageId:D}_max.jpg",
+                baseUrl + $"{imageId:D}_preview.jpg",
+                baseUrl + $"{imageId:D}_thumb.jpg"));
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 using MiniPainterHub.Common.DTOs;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MiniPainterHub.Server.Services.Interfaces
@@ -13,5 +14,6 @@ namespace MiniPainterHub.Server.Services.Interfaces
         Task<bool> UpdateAsync(int postId, string userId, UpdatePostDto dto);
         Task<bool> DeleteAsync(int postId, string userId);
         Task<List<PostImageDto>> AddImagesAsync(int postId, IEnumerable<PostImageDto> images);
+        Task<PostDto> CreateWithImagesAsync(string userId, CreateImagePostDto dto, CancellationToken ct);
     }
 }
