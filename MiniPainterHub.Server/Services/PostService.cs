@@ -6,6 +6,7 @@ using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Imaging;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services.Interfaces;
 using MiniPainterHub.Server.Services.Models;
@@ -21,13 +22,6 @@ namespace MiniPainterHub.Server.Services
     {
         private const int MaxImagesPerPost = 5;
         private const long MaxUploadBytes = 20L * 1024 * 1024;
-        private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "image/jpeg",
-            "image/png",
-            "image/webp"
-        };
-
         private readonly AppDbContext _appDbContext;
         private readonly IImageService _imageService;
         private readonly IImageProcessor _imageProcessor;
@@ -387,7 +381,7 @@ namespace MiniPainterHub.Server.Services
                 }
 
                 var contentType = image.ContentType ?? string.Empty;
-                if (!AllowedContentTypes.Contains(contentType))
+                if (!ImageContentTypes.IsAllowed(contentType))
                 {
                     throw new UnsupportedImageContentTypeException(image.FileName, contentType);
                 }

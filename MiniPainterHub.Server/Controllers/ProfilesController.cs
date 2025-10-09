@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Imaging;
 using MiniPainterHub.Server.Services.Interfaces; // IProfileService, IImageService
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
@@ -85,11 +86,10 @@ public sealed class ProfilesController : ControllerBase
                 ["file"] = new[] { "Max avatar size is 5 MB." }
             });
 
-        var allowed = new[] { "image/jpeg", "image/png", "image/webp" };
-        if (!allowed.Contains(file.ContentType))
+        if (!ImageContentTypes.IsAllowed(file.ContentType))
             throw new DomainValidationException("Invalid avatar upload.", new Dictionary<string, string[]>
             {
-                ["file"] = new[] { "Only JPEG, PNG, or WEBP images are allowed." }
+                ["file"] = new[] { "Only JPEG, PNG, WEBP, GIF, BMP, or TIFF images are allowed." }
             });
 
         // Re-encode to a single format for a stable filename (JPEG here)
