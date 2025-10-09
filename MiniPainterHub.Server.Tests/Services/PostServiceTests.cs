@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services;
 using MiniPainterHub.Server.Services.Interfaces;
