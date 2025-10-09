@@ -75,8 +75,9 @@
 
                 foreach (var file in selectedFiles)
                 {
-                    content.Add(new StreamContent(file.OpenReadStream(5 * 1024 * 1024)),
-                                "Images", file.Name);
+                    var stremaContent = new StreamContent(file.OpenReadStream(5 * 1024 * 1024));
+                    stremaContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+                    content.Add(stremaContent, "Images", file.Name);
                 }
 
                 var created = await PostService.CreateWithImageAsync(content);
