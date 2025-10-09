@@ -10,10 +10,6 @@ namespace MiniPainterHub.Server.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "ImageUrl",
-                table: "Posts");
-
             migrationBuilder.CreateTable(
                 name: "PostImages",
                 columns: table => new
@@ -39,19 +35,40 @@ namespace MiniPainterHub.Server.Migrations
                 name: "IX_PostImages_PostId",
                 table: "PostImages",
                 column: "PostId");
+
+            migrationBuilder.Sql(
+                @"INSERT INTO PostImages (PostId, ImageUrl)
+                  SELECT Id, ImageUrl
+                  FROM Posts
+                  WHERE ImageUrl IS NOT NULL AND LTRIM(RTRIM(ImageUrl)) <> '';");
+
+            migrationBuilder.DropColumn(
+                name: "ImageUrl",
+                table: "Posts");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "PostImages");
-
             migrationBuilder.AddColumn<string>(
                 name: "ImageUrl",
                 table: "Posts",
                 type: "nvarchar(max)",
                 nullable: true);
+
+            migrationBuilder.Sql(
+                @"UPDATE P
+                  SET ImageUrl = PI.ImageUrl
+                  FROM Posts P
+                  INNER JOIN (
+                        SELECT PostId, MIN(Id) AS FirstImageId
+                        FROM PostImages
+                        GROUP BY PostId
+                  ) AS FirstImage ON FirstImage.PostId = P.Id
+                  INNER JOIN PostImages PI ON PI.Id = FirstImage.FirstImageId;");
+
+            migrationBuilder.DropTable(
+                name: "PostImages");
         }
     }
 }
