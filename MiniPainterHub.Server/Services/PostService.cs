@@ -8,7 +8,7 @@ using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services.Interfaces;
-using MiniPainterHub.Server.Services.Models;
+using MiniPainterHub.Server.Services.Images.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;

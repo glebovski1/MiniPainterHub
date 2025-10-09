@@ -1,6 +1,6 @@
 using System;
 
-namespace MiniPainterHub.Server.Services.Models;
+namespace MiniPainterHub.Server.Services.Images.Models;
 
 /// <summary>
 /// Represents a processed image variant payload.

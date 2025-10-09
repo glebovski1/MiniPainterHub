@@ -7,7 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services.Interfaces;
-using MiniPainterHub.Server.Services.Models;
+using MiniPainterHub.Server.Services.Images.Models;
 
 namespace MiniPainterHub.Server.Services.Images;
 

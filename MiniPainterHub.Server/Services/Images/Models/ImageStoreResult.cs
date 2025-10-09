@@ -1,4 +1,4 @@
-namespace MiniPainterHub.Server.Services.Models;
+namespace MiniPainterHub.Server.Services.Images.Models;
 
 /// <summary>
 /// Result returned from persisting processed image variants.

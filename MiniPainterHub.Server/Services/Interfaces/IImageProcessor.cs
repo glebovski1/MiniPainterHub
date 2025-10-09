@@ -1,7 +1,7 @@
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using MiniPainterHub.Server.Services.Models;
+using MiniPainterHub.Server.Services.Images.Models;
 
 namespace MiniPainterHub.Server.Services.Interfaces;
 
