@@ -97,7 +97,6 @@ public sealed class ImageProcessor : IImageProcessor
         metadata.IptcProfile = null;
         metadata.XmpProfile = null;
         metadata.IccProfile = null;
-        metadata.ColorSpace = ColorSpace.Rgb;
     }
 
     private async Task<ImageVariant> CreateVariantAsync(Image<Rgba32> source, ImageSizeOptions target, EncoderInfo encoderInfo, CancellationToken ct)
@@ -133,16 +132,16 @@ public sealed class ImageProcessor : IImageProcessor
 
     private static bool ContainsTransparency(Image<Rgba32> image)
     {
-        if (!image.TryGetSinglePixelSpan(out var pixels))
+        for (var y = 0; y < image.Height; y++)
         {
-            return true;
-        }
+            var span = image.DangerousGetPixelRowMemory(y).Span;
 
-        foreach (var pixel in pixels)
-        {
-            if (pixel.A < 255)
+            foreach (var pixel in span)
             {
-                return true;
+                if (pixel.A < 255)
+                {
+                    return true;
+                }
             }
         }
 
