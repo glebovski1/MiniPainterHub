@@ -5,6 +5,7 @@
 @using MiniPainterHub.WebApp.Services.Http
 @using System.Net.Http
 @using MiniPainterHub.WebApp.Shared
+@using System
 @using System.Linq
 @using System.Collections.Generic
 
@@ -32,7 +33,7 @@
             {
                 <div class="bg-light border rounded p-3 mb-4">
                     <div class="text-center mb-2">
-                        <img src="@SelectedImageUrl"
+                        <img src="@SelectedPreviewUrl"
                              class="img-fluid rounded shadow-sm"
                              alt="Post image"
                              loading="lazy"
@@ -56,7 +57,7 @@
             {
                 <div class="bg-light border rounded p-3 mb-4">
                     <div class="text-center">
-                        <img src="@GetAbsoluteUrl(post.ImageUrl)"
+                        <img src="@GetAbsoluteUrl(ReplaceVariantSuffix(post.ImageUrl, "_preview."))"
                              class="img-fluid rounded shadow-sm"
                              alt="Post image"
                              loading="lazy"
@@ -105,7 +106,7 @@
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6);" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content bg-transparent border-0">
-                <img src="@SelectedImageUrl" class="img-fluid rounded zoomed-image" alt="Zoomed image" />
+                <img src="@SelectedMaxUrl" class="img-fluid rounded zoomed-image" alt="Zoomed image" />
                 <button type="button" class="btn-close position-absolute top-0 end-0 m-3 bg-white rounded-circle"
                         aria-label="Close"
                         @onclick="CloseZoomModal"></button>
@@ -129,8 +130,12 @@
 
     private bool HasImages => PostImages != null && PostImages.Count > 0;
 
-    private string SelectedImageUrl
-        => HasImages ? GetImageUrl(PostImages![selectedIndex])
+    private string SelectedPreviewUrl
+        => HasImages ? GetImageVariantUrl(PostImages![selectedIndex], "_preview.")
+                     : GetAbsoluteUrl(ReplaceVariantSuffix(post?.ImageUrl, "_preview."));
+
+    private string SelectedMaxUrl
+        => HasImages ? GetImageVariantUrl(PostImages![selectedIndex], "_max.")
                      : GetAbsoluteUrl(post?.ImageUrl);
 
     protected override async Task OnInitializedAsync()
@@ -180,28 +185,38 @@
         }
     }
 
-    private string GetImageUrl(dynamic img)
+    private string GetImageVariantUrl(dynamic img, string variantSuffix)
     {
-        var url =
+        var baseUrl =
             TryGetString(img, nameof(PostImageDto.ImageUrl)) ??
             TryGetString(img, "Url") ??
             TryGetString(img, "imageUrl") ??
             TryGetString(img, "url");
 
-        return GetAbsoluteUrl(url);
+        if (string.IsNullOrEmpty(baseUrl))
+        {
+            return string.Empty;
+        }
+
+        var target = variantSuffix == "_max."
+            ? baseUrl
+            : ReplaceVariantSuffix(baseUrl, variantSuffix);
+
+        return GetAbsoluteUrl(target);
     }
 
     private string GetThumbnailUrl(dynamic img)
     {
         var thumb =
             TryGetString(img, nameof(PostImageDto.ThumbnailUrl)) ??
-            TryGetString(img, "thumbnailUrl") ??
-            TryGetString(img, nameof(PostImageDto.ImageUrl)) ??
-            TryGetString(img, "Url") ??
-            TryGetString(img, "imageUrl") ??
-            TryGetString(img, "url");
+            TryGetString(img, "thumbnailUrl");
 
-        return GetAbsoluteUrl(thumb);
+        if (!string.IsNullOrEmpty(thumb))
+        {
+            return GetAbsoluteUrl(thumb);
+        }
+
+        return GetImageVariantUrl(img, "_thumb.");
     }
 
     private static string? TryGetString(dynamic obj, string property)
@@ -230,6 +245,18 @@
         }
 
         return null;
+    }
+
+    private static string ReplaceVariantSuffix(string? url, string replacement)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return string.Empty;
+        }
+
+        return url.Contains("_max.", StringComparison.OrdinalIgnoreCase)
+            ? url.Replace("_max.", replacement, StringComparison.OrdinalIgnoreCase)
+            : url;
     }
 
     private string GetAbsoluteUrl(string? url)

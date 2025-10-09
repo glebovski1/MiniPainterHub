@@ -1,10 +1,18 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Identity;
+using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services.Interfaces;
+using MiniPainterHub.Server.Services.Models;
+using System;
+using System.IO;
+using System.Threading;
 using System.IdentityModel.Tokens.Jwt;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -17,15 +25,35 @@ namespace MiniPainterHub.Server.Controllers
     [Authorize]
     public class PostsController : ControllerBase
     {
+        private const long MaxUploadBytes = 20L * 1024 * 1024;
+        private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+        };
+
         private readonly IPostService _postService;
         private readonly IImageService _imageService;
+        private readonly IImageProcessor _imageProcessor;
+        private readonly IImageStore _imageStore;
+        private readonly ImagesOptions _imageOptions;
+        private readonly ILogger<PostsController> _logger;
 
         public PostsController(
             IPostService postService,
-            IImageService imageService)
+            IImageService imageService,
+            IOptions<ImagesOptions> imageOptions,
+            IImageProcessor imageProcessor,
+            IImageStore imageStore,
+            ILogger<PostsController> logger)
         {
-            _postService = postService;
-            _imageService = imageService;
+            _postService = postService ?? throw new ArgumentNullException(nameof(postService));
+            _imageService = imageService ?? throw new ArgumentNullException(nameof(imageService));
+            _imageOptions = imageOptions?.Value ?? throw new ArgumentNullException(nameof(imageOptions));
+            _imageProcessor = imageProcessor ?? throw new ArgumentNullException(nameof(imageProcessor));
+            _imageStore = imageStore ?? throw new ArgumentNullException(nameof(imageStore));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         // GET: api/posts?page=1&pageSize=10
@@ -88,29 +116,69 @@ namespace MiniPainterHub.Server.Controllers
 
             if (dto.Images is { Count: > 0 })
             {
+                _logger.LogInformation("Processing {Count} uploaded images for post {PostId} (pipeline enabled: {Enabled})", Math.Min(dto.Images.Count, 5), created.Id, _imageOptions.Enabled);
+
                 var imageDtos = new List<PostImageDto>();
+                var cancellation = HttpContext.RequestAborted;
 
-                for (int i = 0; i < dto.Images.Count && i < 5; i++)
+                if (!_imageOptions.Enabled)
                 {
-                    var img = dto.Images[i];
-                    using var stream = img.OpenReadStream();
-                    var fileName = $"{created.Id}_{i}_{img.FileName}";
-                    var url = await _imageService.UploadAsync(stream, fileName);
-
-                    string? thumbUrl = null;
-                    if (dto.Thumbnails != null && i < dto.Thumbnails.Count && dto.Thumbnails[i] is { Length: > 0 })
+                    for (int i = 0; i < dto.Images.Count && i < 5; i++)
                     {
-                        var thumb = dto.Thumbnails[i];
-                        using var tStream = thumb.OpenReadStream();
-                        var thumbFileName = $"{created.Id}_{i}_thumb_{thumb.FileName}";
-                        thumbUrl = await _imageService.UploadAsync(tStream, thumbFileName);
+                        var img = dto.Images[i];
+
+                        if (img.Length > MaxUploadBytes)
+                        {
+                            return Problem(statusCode: StatusCodes.Status413PayloadTooLarge, title: "Image too large", detail: $"Image '{img.FileName}' exceeds the {MaxUploadBytes / (1024 * 1024)} MB limit.");
+                        }
+
+                        await using var stream = img.OpenReadStream(MaxUploadBytes);
+                        var fileName = $"{created.Id}_{i}_{img.FileName}";
+                        var url = await _imageService.UploadAsync(stream, fileName);
+
+                        string? thumbUrl = null;
+                        if (dto.Thumbnails != null && i < dto.Thumbnails.Count && dto.Thumbnails[i] is { Length: > 0 } thumb)
+                        {
+                            await using var thumbStream = thumb.OpenReadStream(MaxUploadBytes);
+                            var thumbFileName = $"{created.Id}_{i}_thumb_{thumb.FileName}";
+                            thumbUrl = await _imageService.UploadAsync(thumbStream, thumbFileName);
+                        }
+
+                        imageDtos.Add(new PostImageDto
+                        {
+                            ImageUrl = url,
+                            ThumbnailUrl = thumbUrl
+                        });
                     }
-
-                    imageDtos.Add(new PostImageDto
+                }
+                else
+                {
+                    for (int i = 0; i < dto.Images.Count && i < 5; i++)
                     {
-                        ImageUrl = url,
-                        ThumbnailUrl = thumbUrl
-                    });
+                        var img = dto.Images[i];
+                        var contentType = img.ContentType ?? string.Empty;
+
+                        if (img.Length > MaxUploadBytes)
+                        {
+                            return Problem(statusCode: StatusCodes.Status413PayloadTooLarge, title: "Image too large", detail: $"Image '{img.FileName}' exceeds the {MaxUploadBytes / (1024 * 1024)} MB limit.");
+                        }
+
+                        if (!AllowedContentTypes.Contains(contentType))
+                        {
+                            return Problem(statusCode: StatusCodes.Status415UnsupportedMediaType, title: "Unsupported media type", detail: $"Images must be JPEG, PNG, or WebP. '{img.FileName}' was {contentType}.");
+                        }
+
+                        await using var stream = img.OpenReadStream(MaxUploadBytes);
+                        var variants = await _imageProcessor.ProcessAsync(stream, contentType, cancellation);
+                        var imageId = Guid.NewGuid();
+                        var stored = await _imageStore.SaveAsync(created.Id, imageId, variants, cancellation);
+
+                        imageDtos.Add(new PostImageDto
+                        {
+                            ImageUrl = stored.MaxUrl,
+                            ThumbnailUrl = stored.ThumbUrl
+                        });
+                    }
                 }
 
                 created.Images = await _postService.AddImagesAsync(created.Id, imageDtos);
