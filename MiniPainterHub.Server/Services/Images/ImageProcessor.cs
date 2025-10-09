@@ -137,7 +137,7 @@ public sealed class ImageProcessor : IImageProcessor
 
         for (var y = 0; y < frame.Height; y++)
         {
-            var span = frame.GetPixelRowSpan(y);
+            var span = frame.DangerousGetPixelRowMemory(y).Span;
 
             foreach (var pixel in span)
             {
