@@ -188,7 +188,7 @@ public class PostServiceTests
             new StubImageService(),
             new StubImageProcessor(),
             new StubImageStore(),
-            Options.Create(new ImagesOptions()),
+            Microsoft.Extensions.Options.Options.Create(new ImagesOptions()),
             NullLogger<PostService>.Instance);
     }
 
