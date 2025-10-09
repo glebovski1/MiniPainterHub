@@ -1,5 +1,5 @@
-﻿using MiniPainterHub.Common.DTOs;
-using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using MiniPainterHub.Common.DTOs;
 using System.Threading.Tasks;
 
 namespace MiniPainterHub.Server.Services.Interfaces
@@ -10,12 +10,7 @@ namespace MiniPainterHub.Server.Services.Interfaces
         Task<UserProfileDto> UpdateAsync(string userId, UpdateUserProfileDto dto);
         Task<UserProfileDto?> GetByUserIdAsync(string userId);
         Task<UserProfileDto> SetAvatarUrlAsync(string userId, string? avatarUrl);
-
-
-
+        Task<UserProfileDto> UploadAvatarAsync(string userId, IFormFile file);
         Task<UserProfileDto> GetUserProfileById(string id);
-
-
-
     }
 }

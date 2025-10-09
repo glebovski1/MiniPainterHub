@@ -3,13 +3,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Exceptions;
-using MiniPainterHub.Server.Imaging;
-using MiniPainterHub.Server.Services.Interfaces; // IProfileService, IImageService
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Processing;
+using MiniPainterHub.Server.Services.Interfaces; // IProfileService
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -22,13 +17,9 @@ namespace MiniPainterHub.Server.Controllers;
 public sealed class ProfilesController : ControllerBase
 {
     private readonly IProfileService _profilesService;
-    private readonly IImageService _images;
 
-    public ProfilesController(IProfileService profiles, IImageService images)
-    {
-        _profilesService = profiles;
-        _images = images;
-    }
+    public ProfilesController(IProfileService profiles)
+        => _profilesService = profiles;
 
     [HttpGet("me")]
     public async Task<ActionResult<UserProfileDto>> GetMyProfile()
@@ -74,44 +65,7 @@ public sealed class ProfilesController : ControllerBase
         if (string.IsNullOrEmpty(userId))
             throw new UnauthorizedAccessException("User is not authenticated.");
 
-        if (file is null || file.Length == 0)
-            throw new DomainValidationException("Invalid avatar upload.", new Dictionary<string, string[]>
-            {
-                ["file"] = new[] { "No file uploaded." }
-            });
-
-        if (file.Length > 5_000_000)
-            throw new DomainValidationException("Invalid avatar upload.", new Dictionary<string, string[]>
-            {
-                ["file"] = new[] { "Max avatar size is 5 MB." }
-            });
-
-        if (!ImageContentTypes.IsAllowed(file.ContentType))
-            throw new DomainValidationException("Invalid avatar upload.", new Dictionary<string, string[]>
-            {
-                ["file"] = new[] { "Only JPEG, PNG, WEBP, GIF, BMP, or TIFF images are allowed." }
-            });
-
-        // Re-encode to a single format for a stable filename (JPEG here)
-        await using var inStream = file.OpenReadStream();
-        using var image = await SixLabors.ImageSharp.Image.LoadAsync(inStream);
-        const int MAX = 512;
-        image.Mutate(x => x.Resize(new SixLabors.ImageSharp.Processing.ResizeOptions
-        {
-            Mode = SixLabors.ImageSharp.Processing.ResizeMode.Max,
-            Size = new SixLabors.ImageSharp.Size(MAX, MAX)
-        }));
-
-        await using var outMs = new MemoryStream();
-        await image.SaveAsJpegAsync(outMs, new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = 85 });
-        outMs.Position = 0;
-
-        // FIXED filename per user
-        var fileName = $"avatar_{userId}.jpg";
-        var publicUrl = await _images.UploadAsync(outMs, fileName); // both services overwrite
-
-        // Persist the URL on profile (if first time) or keep same URL (overwritten file)
-        var updated = await _profilesService.SetAvatarUrlAsync(userId, publicUrl);
+        var updated = await _profilesService.UploadAvatarAsync(userId, file);
         return Ok(updated);
     }
 
