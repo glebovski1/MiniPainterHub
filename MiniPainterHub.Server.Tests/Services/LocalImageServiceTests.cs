@@ -5,7 +5,9 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services;
 using Moq;
 using Xunit;
@@ -32,7 +34,7 @@ public class LocalImageServiceTests
                 })
                 .Build();
 
-            var service = new LocalImageService(envMock.Object, config);
+            var service = new LocalImageService(envMock.Object, config, Options.Create(new ImagesOptions()));
 
             var act = async () => await service.DownloadAsync("missing.png");
 

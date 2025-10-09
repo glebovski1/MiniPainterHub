@@ -17,7 +17,6 @@ using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.OpenAPIOperationFilter;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services;
-using MiniPainterHub.Server.Services.Images;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -131,8 +130,9 @@ public class Program
 
         if (builder.Environment.IsDevelopment())
         {
-            builder.Services.AddSingleton<IImageService, LocalImageService>();
-            builder.Services.AddSingleton<IImageStore, LocalImageStore>();
+            builder.Services.AddSingleton<LocalImageService>();
+            builder.Services.AddSingleton<IImageService>(sp => sp.GetRequiredService<LocalImageService>());
+            builder.Services.AddSingleton<IImageStore>(sp => sp.GetRequiredService<LocalImageService>());
         }
         else
         {
@@ -149,13 +149,9 @@ public class Program
                 return container;
             });
 
-            builder.Services.AddSingleton<IImageService>(sp =>
-            {
-                var container = sp.GetRequiredService<BlobContainerClient>();
-                return new AzureBlobImageService(container);
-            });
-
-            builder.Services.AddSingleton<IImageStore, AzureBlobImageStore>();
+            builder.Services.AddSingleton<AzureBlobImageService>();
+            builder.Services.AddSingleton<IImageService>(sp => sp.GetRequiredService<AzureBlobImageService>());
+            builder.Services.AddSingleton<IImageStore>(sp => sp.GetRequiredService<AzureBlobImageService>());
         }
 
         builder.Services.AddScoped<IProfileService, ProfileService>();
