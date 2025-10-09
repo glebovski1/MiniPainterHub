@@ -220,5 +220,6 @@ public class PostServiceTests
                 baseUrl + $"{imageId:D}_thumb.jpg"));
         }
     }
+
 }
 

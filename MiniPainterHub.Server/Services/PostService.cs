@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Primitives;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
@@ -380,7 +381,7 @@ namespace MiniPainterHub.Server.Services
                     throw new ImageTooLargeException(image.FileName, image.Length, MaxUploadBytes);
                 }
 
-                var contentType = image.ContentType ?? string.Empty;
+                var contentType = ResolveContentType(image);
                 if (!ImageContentTypes.IsAllowed(contentType))
                 {
                     throw new UnsupportedImageContentTypeException(image.FileName, contentType);
@@ -403,5 +404,23 @@ namespace MiniPainterHub.Server.Services
 
         private static Guid ConvertToStorageGuid(int postId)
             => new(postId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+        private static string ResolveContentType(IFormFile file)
+        {
+            ArgumentNullException.ThrowIfNull(file);
+
+            if (!string.IsNullOrWhiteSpace(file.ContentType))
+            {
+                return file.ContentType;
+            }
+
+            if (file.Headers?.TryGetValue("Content-Type", out StringValues headerValue) == true
+                && !StringValues.IsNullOrEmpty(headerValue))
+            {
+                return headerValue.ToString();
+            }
+
+            return string.Empty;
+        }
     }
 }
