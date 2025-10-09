@@ -133,9 +133,11 @@ public sealed class ImageProcessor : IImageProcessor
 
     private static bool ContainsTransparency(Image<Rgba32> image)
     {
-        for (var y = 0; y < image.Height; y++)
+        var frame = image.Frames.RootFrame;
+
+        for (var y = 0; y < frame.Height; y++)
         {
-            var span = image.GetPixelRowSpan(y);
+            var span = frame.GetPixelRowSpan(y);
 
             foreach (var pixel in span)
             {
