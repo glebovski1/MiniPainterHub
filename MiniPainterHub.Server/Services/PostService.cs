@@ -336,14 +336,24 @@ namespace MiniPainterHub.Server.Services
 
                 var image = images[i];
 
-                await using var stream = image.OpenReadStream(MaxUploadBytes);
+                if (image.Length > MaxUploadBytes)
+                {
+                    throw new ImageTooLargeException(image.FileName, image.Length, MaxUploadBytes);
+                }
+
+                await using var stream = image.OpenReadStream();
                 var fileName = $"{postId}_{i}_{image.FileName}";
                 var url = await _imageService.UploadAsync(stream, fileName);
 
                 string? thumbUrl = null;
                 if (thumbnails != null && i < thumbnails.Count && thumbnails[i] is { Length: > 0 } thumb)
                 {
-                    await using var thumbStream = thumb.OpenReadStream(MaxUploadBytes);
+                    if (thumb.Length > MaxUploadBytes)
+                    {
+                        throw new ImageTooLargeException(thumb.FileName, thumb.Length, MaxUploadBytes);
+                    }
+
+                    await using var thumbStream = thumb.OpenReadStream();
                     var thumbFileName = $"{postId}_{i}_thumb_{thumb.FileName}";
                     thumbUrl = await _imageService.UploadAsync(thumbStream, thumbFileName);
                 }
@@ -382,7 +392,7 @@ namespace MiniPainterHub.Server.Services
                     throw new UnsupportedImageContentTypeException(image.FileName, contentType);
                 }
 
-                await using var stream = image.OpenReadStream(MaxUploadBytes);
+                await using var stream = image.OpenReadStream();
                 var variants = await _imageProcessor.ProcessAsync(stream, contentType, ct);
                 var imageId = Guid.NewGuid();
                 var stored = await _imageStore.SaveAsync(ConvertToStorageGuid(postId), imageId, variants, ct);
