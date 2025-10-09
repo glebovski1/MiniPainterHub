@@ -47,13 +47,17 @@ else
                 <select id="pageSelector" class="form-select w-auto" @onchange="OnPageSelected" disabled="@isLoading">
                     @for (var page = 1; page <= totalPages; page++)
                     {
+
+                        var selectPage = page;
                         if (page == currentPage)
                         {
-                            <option value="@page" selected>@page</option>
+
+                            <option value="@selectPage" selected>@selectPage </option>
                         }
                         else
                         {
-                            <option value="@page">@page</option>
+
+                            <option value="@selectPage">@selectPage </option>
                         }
                     }
                 </select>
