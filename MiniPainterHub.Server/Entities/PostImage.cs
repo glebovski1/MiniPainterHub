@@ -7,6 +7,7 @@ namespace MiniPainterHub.Server.Entities
         public int Id { get; set; }
         public int PostId { get; set; }
         public string ImageUrl { get; set; } = default!;
+        public string? PreviewUrl { get; set; }
         public string? ThumbnailUrl { get; set; }
         // Navigation:
         public Post Post { get; set; } = default!;

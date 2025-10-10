@@ -11,6 +11,9 @@ namespace MiniPainterHub.Common.DTOs
         public string ImageUrl { get; set; } = default!;
 
         [StringLength(2048)]
+        public string? PreviewUrl { get; set; }
+
+        [StringLength(2048)]
         public string? ThumbnailUrl { get; set; }
     }
 }
