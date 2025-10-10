@@ -69,6 +69,7 @@ internal static class TestData
             dto.Images!.Add(new PostImageDto
             {
                 ImageUrl = $"https://img/new/{i}",
+                PreviewUrl = $"https://preview/new/{i}",
                 ThumbnailUrl = $"https://thumb/new/{i}"
             });
         }
@@ -83,6 +84,7 @@ internal static class TestData
             yield return new PostImageDto
             {
                 ImageUrl = $"https://img/{prefix}/{i}",
+                PreviewUrl = $"https://preview/{prefix}/{i}",
                 ThumbnailUrl = $"https://thumb/{prefix}/{i}"
             };
         }
