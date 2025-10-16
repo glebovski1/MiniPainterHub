@@ -131,11 +131,11 @@
     private bool HasImages => PostImages != null && PostImages.Count > 0;
 
     private string SelectedPreviewUrl
-        => HasImages ? GetImageVariantUrl(PostImages![selectedIndex], "_preview.")
+        => HasImages ? GetPreviewUrl(PostImages![selectedIndex])
                      : GetAbsoluteUrl(ReplaceVariantSuffix(post?.ImageUrl, "_preview."));
 
     private string SelectedMaxUrl
-        => HasImages ? GetImageVariantUrl(PostImages![selectedIndex], "_max.")
+        => HasImages ? GetMaxUrl(PostImages![selectedIndex])
                      : GetAbsoluteUrl(post?.ImageUrl);
 
     protected override async Task OnInitializedAsync()
@@ -185,7 +185,7 @@
         }
     }
 
-    private string GetImageVariantUrl(dynamic img, string variantSuffix)
+    private string GetMaxUrl(dynamic img)
     {
         var baseUrl =
             TryGetString(img, nameof(PostImageDto.ImageUrl)) ??
@@ -193,16 +193,22 @@
             TryGetString(img, "imageUrl") ??
             TryGetString(img, "url");
 
-        if (string.IsNullOrEmpty(baseUrl))
+        return GetAbsoluteUrl(baseUrl);
+    }
+
+    private string GetPreviewUrl(dynamic img)
+    {
+        var preview =
+            TryGetString(img, nameof(PostImageDto.PreviewUrl)) ??
+            TryGetString(img, "PreviewUrl") ??
+            TryGetString(img, "previewUrl");
+
+        if (!string.IsNullOrEmpty(preview))
         {
-            return string.Empty;
+            return GetAbsoluteUrl(preview);
         }
 
-        var target = variantSuffix == "_max."
-            ? baseUrl
-            : ReplaceVariantSuffix(baseUrl, variantSuffix);
-
-        return GetAbsoluteUrl(target);
+        return GetMaxUrl(img);
     }
 
     private string GetThumbnailUrl(dynamic img)
@@ -216,7 +222,13 @@
             return GetAbsoluteUrl(thumb);
         }
 
-        return GetImageVariantUrl(img, "_thumb.");
+        var baseUrl =
+            TryGetString(img, nameof(PostImageDto.ImageUrl)) ??
+            TryGetString(img, "Url") ??
+            TryGetString(img, "imageUrl") ??
+            TryGetString(img, "url");
+
+        return GetAbsoluteUrl(ReplaceVariantSuffix(baseUrl, "_thumb."));
     }
 
     private static string? TryGetString(dynamic obj, string property)

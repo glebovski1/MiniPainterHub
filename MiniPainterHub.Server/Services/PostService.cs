@@ -79,6 +79,7 @@ namespace MiniPainterHub.Server.Services
                     newPost.Images.Add(new PostImage
                     {
                         ImageUrl = img.ImageUrl,
+                        PreviewUrl = string.IsNullOrWhiteSpace(img.PreviewUrl) ? img.ImageUrl : img.PreviewUrl,
                         ThumbnailUrl = img.ThumbnailUrl
                     });
                 }
@@ -105,6 +106,7 @@ namespace MiniPainterHub.Server.Services
                 {
                     Id = i.Id,
                     ImageUrl = i.ImageUrl,
+                    PreviewUrl = i.PreviewUrl,
                     ThumbnailUrl = i.ThumbnailUrl
                 }).ToList()
             };
@@ -203,6 +205,7 @@ namespace MiniPainterHub.Server.Services
                          {
                              Id = i.Id,
                              ImageUrl = i.ImageUrl,
+                             PreviewUrl = i.PreviewUrl,
                              ThumbnailUrl = i.ThumbnailUrl
                          }).ToList()
                      })
@@ -289,6 +292,7 @@ namespace MiniPainterHub.Server.Services
                 {
                     PostId = postId,
                     ImageUrl = img.ImageUrl,
+                    PreviewUrl = string.IsNullOrWhiteSpace(img.PreviewUrl) ? img.ImageUrl : img.PreviewUrl,
                     ThumbnailUrl = img.ThumbnailUrl
                 })
                 .ToList();
@@ -308,6 +312,7 @@ namespace MiniPainterHub.Server.Services
                 {
                     Id = i.Id,
                     ImageUrl = i.ImageUrl,
+                    PreviewUrl = i.PreviewUrl,
                     ThumbnailUrl = i.ThumbnailUrl
                 })
                 .ToListAsync();
@@ -357,6 +362,7 @@ namespace MiniPainterHub.Server.Services
                 results.Add(new PostImageDto
                 {
                     ImageUrl = url,
+                    PreviewUrl = url,
                     ThumbnailUrl = thumbUrl
                 });
             }
@@ -396,6 +402,7 @@ namespace MiniPainterHub.Server.Services
                 results.Add(new PostImageDto
                 {
                     ImageUrl = stored.MaxUrl,
+                    PreviewUrl = stored.PreviewUrl,
                     ThumbnailUrl = stored.ThumbUrl
                 });
             }

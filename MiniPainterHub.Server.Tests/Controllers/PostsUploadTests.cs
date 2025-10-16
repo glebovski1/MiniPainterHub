@@ -67,6 +67,10 @@ public class PostsUploadTests : IClassFixture<PostsUploadTests.TestApplicationFa
         dto.Should().NotBeNull();
         dto!.ImageUrl.Should().NotBeNull();
         dto.ImageUrl.Should().Contain("_max.");
+        dto.Images.Should().NotBeNull();
+        dto.Images.Should().HaveCountGreaterOrEqualTo(1);
+        dto.Images![0].PreviewUrl.Should().NotBeNull();
+        dto.Images[0].PreviewUrl.Should().Contain("_preview.");
 
         var store = _factory.Services.GetRequiredService<TestImageStore>();
         store.Saved.Count.Should().Be(3);
@@ -150,6 +154,7 @@ public class PostsUploadTests : IClassFixture<PostsUploadTests.TestApplicationFa
 
         result.ImageUrl.Should().NotBeNullOrEmpty();
         result.Images.Should().NotBeNull();
+        result.Images![0].PreviewUrl.Should().NotBeNullOrEmpty();
         store.Saved.Should().HaveCount(3);
     }
 
