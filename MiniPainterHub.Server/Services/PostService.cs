@@ -196,6 +196,7 @@ namespace MiniPainterHub.Server.Services
                          AuthorName = p.CreatedBy.UserName,
                          ImageUrl = p.Images
                                         .OrderBy(i => i.Id)
+                                        .Where(i => !String.IsNullOrEmpty(i.ImageUrl))
                                         .Select(i => i.ImageUrl)
                                         .FirstOrDefault(),
                          Images = p.Images.Select(i => new PostImageDto
