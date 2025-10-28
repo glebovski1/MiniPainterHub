@@ -27,32 +27,79 @@ public sealed class ApiClient
 
     public async Task<T?> SendAsync<T>(HttpRequestMessage request, ApiRequestOptions? options = null, CancellationToken cancellationToken = default)
     {
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
-
-        if (response.IsSuccessStatusCode)
-        {
-            if (response.StatusCode == HttpStatusCode.NoContent || response.Content.Headers.ContentLength == 0)
-            {
-                return default;
-            }
-
-            return await response.Content.ReadFromJsonAsync<T>(SerializerOptions, cancellationToken);
-        }
-
-        await HandleErrorAsync(response, options, cancellationToken);
-        return default;
+        var result = await SendForResultAsync<T>(request, options, cancellationToken);
+        return result.Success ? result.Value : default;
     }
 
     public async Task<bool> SendAsync(HttpRequestMessage request, ApiRequestOptions? options = null, CancellationToken cancellationToken = default)
     {
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
-        if (response.IsSuccessStatusCode)
+        var response = await SendCoreAsync(request, options, cancellationToken);
+        if (response is null)
         {
-            return true;
+            return false;
         }
 
-        await HandleErrorAsync(response, options, cancellationToken);
-        return false;
+        using (response)
+        {
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
+            }
+
+            await HandleErrorAsync(response, options, cancellationToken);
+            return false;
+        }
+    }
+
+    public async Task<ApiResult<T?>> SendForResultAsync<T>(HttpRequestMessage request, ApiRequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        var response = await SendCoreAsync(request, options, cancellationToken);
+        if (response is null)
+        {
+            return new ApiResult<T?>(false, null, default);
+        }
+
+        using (response)
+        {
+            var status = response.StatusCode;
+            if (response.IsSuccessStatusCode)
+            {
+                if (status == HttpStatusCode.NoContent || response.Content.Headers.ContentLength == 0)
+                {
+                    return new ApiResult<T?>(true, status, default);
+                }
+
+                var value = await response.Content.ReadFromJsonAsync<T>(SerializerOptions, cancellationToken);
+                return new ApiResult<T?>(true, status, value);
+            }
+
+            await HandleErrorAsync(response, options, cancellationToken);
+            return new ApiResult<T?>(false, status, default);
+        }
+    }
+
+    private async Task<HttpResponseMessage?> SendCoreAsync(HttpRequestMessage request, ApiRequestOptions? options, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _httpClient.SendAsync(request, cancellationToken);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            if (options?.SuppressErrorNotifications != true)
+            {
+                await _notifications.ShowErrorAsync("The request timed out. Please try again.", "Request timed out");
+            }
+            return null;
+        }
+        catch (HttpRequestException)
+        {
+            if (options?.SuppressErrorNotifications != true)
+            {
+                await _notifications.ShowErrorAsync("Unable to reach the server. Please check your connection and try again.", "Network error");
+            }
+            return null;
+        }
     }
 
     private async Task HandleErrorAsync(HttpResponseMessage response, ApiRequestOptions? options, CancellationToken cancellationToken)
@@ -86,6 +133,11 @@ public sealed class ApiClient
         }
 
         if (options?.SuppressErrorNotifications == true)
+        {
+            return;
+        }
+
+        if (options?.SuppressedStatusCodes != null && options.SuppressedStatusCodes.Contains(response.StatusCode))
         {
             return;
         }
@@ -195,4 +247,8 @@ public sealed class ApiClient
 public sealed class ApiRequestOptions
 {
     public bool SuppressErrorNotifications { get; init; }
+
+    public ISet<HttpStatusCode>? SuppressedStatusCodes { get; init; }
 }
+
+public sealed record ApiResult<T>(bool Success, HttpStatusCode? StatusCode, T? Value);
