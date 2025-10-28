@@ -1,69 +1,81 @@
-﻿using MiniPainterHub.Common.DTOs;
-using MiniPainterHub.WebApp.Services.Interfaces;
+using System.Linq;
+using System.Net.Http;
 using System.Net.Http.Json;
+using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.WebApp.Services.Http;
+using MiniPainterHub.WebApp.Services.Interfaces;
 
 namespace MiniPainterHub.WebApp.Services
 {
     public class PostService : IPostService
     {
-        private readonly HttpClient _http;
-        public PostService(HttpClient http) => _http = http;
+        private readonly ApiClient _api;
+
+        public PostService(ApiClient api) => _api = api;
 
         public async Task<PagedResult<PostSummaryDto>> GetAllAsync(int page, int pageSize)
         {
-            var result = await _http.GetFromJsonAsync<PagedResult<PostSummaryDto>>(
-                $"/api/posts?page={page}&pageSize={pageSize}");
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/posts?page={page}&pageSize={pageSize}");
+            var result = await _api.SendAsync<PagedResult<PostSummaryDto>>(request);
             return result ?? new PagedResult<PostSummaryDto>();
         }
 
         public async Task<PostDto> GetByIdAsync(int id)
         {
-            var resp = await _http.GetAsync($"/api/posts/{id}");
-            resp.EnsureSuccessStatusCode();
-            var dto = await resp.Content.ReadFromJsonAsync<PostDto>();
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/posts/{id}");
+            var dto = await _api.SendAsync<PostDto>(request);
             if (dto is null)
+            {
                 throw new InvalidOperationException($"No post returned from API for ID {id}.");
+            }
+
             return dto;
         }
 
         public async Task<PostDto> CreateAsync(CreatePostDto dto)
         {
-            var resp = await _http.PostAsJsonAsync("api/posts", dto);
-            resp.EnsureSuccessStatusCode();
+            using var request = new HttpRequestMessage(HttpMethod.Post, "api/posts")
+            {
+                Content = JsonContent.Create(dto)
+            };
 
-            var result = await resp.Content.ReadFromJsonAsync<PostDto>();
+            var result = await _api.SendAsync<PostDto>(request);
             if (result is null)
+            {
                 throw new InvalidOperationException("API returned no data when creating post.");
+            }
+
             return result;
         }
 
         public async Task<PostDto> CreateWithImageAsync(MultipartFormDataContent content)
         {
-            var resp = await _http.PostAsync("api/posts/with-image", content);
-            resp.EnsureSuccessStatusCode();
+            using var request = new HttpRequestMessage(HttpMethod.Post, "api/posts/with-image")
+            {
+                Content = content
+            };
 
-            var result = await resp.Content.ReadFromJsonAsync<PostDto>();
+            var result = await _api.SendAsync<PostDto>(request);
             if (result is null)
+            {
                 throw new InvalidOperationException("API returned no data when creating post with image.");
+            }
+
             return result;
         }
 
         public async Task<IEnumerable<PostSummaryDto>> GetTopPosts(int count, TimeSpan timeOffcet)
         {
-            var result = await _http.GetFromJsonAsync<PagedResult<PostSummaryDto>>(($"/api/posts?page={1}&pagesize={1000}"));
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/posts?page={1}&pagesize={1000}");
+            var result = await _api.SendAsync<PagedResult<PostSummaryDto>>(request);
 
             var posts = result?.Items
                 .Where(p => p.CreatedAt >= DateTime.UtcNow.Subtract(timeOffcet))
                 .OrderByDescending(p => p.CreatedAt)
-                .Take(count).ToList();
+                .Take(count)
+                .ToList();
 
-
-            if (posts is null)
-                throw new InvalidOperationException("API returned no data when getting top posts.");
-            return posts;
+            return posts ?? Enumerable.Empty<PostSummaryDto>();
         }
-
-  
-
     }
 }

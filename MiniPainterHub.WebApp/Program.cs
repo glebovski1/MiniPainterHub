@@ -44,26 +44,11 @@ public class Program
         //------------------------------------------------------------
         // 5)  Typed HTTP clients
         //------------------------------------------------------------
-        builder.Services
-            .AddHttpClient<IAuthService, AuthService>(c => c.BaseAddress = apiBase);
-
-        builder.Services
-            .AddHttpClient<IPostService, PostService>(c => c.BaseAddress = apiBase)
-            .AddHttpMessageHandler<JwtAuthorizationMessageHandler>();
-
-        builder.Services
-            .AddHttpClient<ICommentService, CommentService>(c => c.BaseAddress = apiBase)
-            .AddHttpMessageHandler<JwtAuthorizationMessageHandler>();
-
-        builder.Services
-            .AddHttpClient<ILikeService, LikeService>(c => c.BaseAddress = apiBase)
-            .AddHttpMessageHandler<JwtAuthorizationMessageHandler>();
-
-        builder.Services.AddHttpClient<IProfileService, ProfileService>(client =>
-        {
-            client.BaseAddress = apiBase;
-        })
-        .AddHttpMessageHandler<JwtAuthorizationMessageHandler>();
+        builder.Services.AddScoped<IAuthService, AuthService>();
+        builder.Services.AddScoped<IPostService, PostService>();
+        builder.Services.AddScoped<ICommentService, CommentService>();
+        builder.Services.AddScoped<ILikeService, LikeService>();
+        builder.Services.AddScoped<IProfileService, ProfileService>();
 
         builder.Services
             .AddHttpClient<ApiClient>(client => client.BaseAddress = apiBase)

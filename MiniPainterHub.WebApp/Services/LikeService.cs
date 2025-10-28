@@ -1,32 +1,30 @@
-﻿using MiniPainterHub.Common.DTOs;
+using System.Net.Http;
+using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.WebApp.Services.Http;
 using MiniPainterHub.WebApp.Services.Interfaces;
-using System.Net.Http.Json;
 
 namespace MiniPainterHub.WebApp.Services
 {
     public class LikeService : ILikeService
     {
-        private readonly HttpClient _http;
+        private readonly ApiClient _api;
 
-        public LikeService(HttpClient http)
+        public LikeService(ApiClient api)
         {
-            _http = http;
+            _api = api;
         }
 
         public async Task<LikeDto> GetLikesAsync(int postId)
         {
-            // GET api/posts/{postId}/likes
-            var dto = await _http.GetFromJsonAsync<LikeDto>($"api/posts/{postId}/likes");
-            return dto!;
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"api/posts/{postId}/likes");
+            var dto = await _api.SendAsync<LikeDto>(request);
+            return dto ?? new LikeDto();
         }
 
         public async Task<LikeDto> ToggleLikeAsync(int postId)
         {
-            // POST api/posts/{postId}/likes
-            var response = await _http.PostAsync($"api/posts/{postId}/likes", null);
-            response.EnsureSuccessStatusCode();
-
-            // return fresh state
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"api/posts/{postId}/likes");
+            _ = await _api.SendAsync(request);
             return await GetLikesAsync(postId);
         }
     }

@@ -1,38 +1,42 @@
-﻿using MiniPainterHub.Common.DTOs;
-using MiniPainterHub.WebApp.Services.Interfaces;
+using System.Net.Http;
 using System.Net.Http.Json;
+using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.WebApp.Services.Http;
+using MiniPainterHub.WebApp.Services.Interfaces;
 
 namespace MiniPainterHub.WebApp.Services
 {
     public class CommentService : ICommentService
     {
-        private readonly HttpClient _http;
+        private readonly ApiClient _api;
 
-        public CommentService(HttpClient http)
+        public CommentService(ApiClient api)
         {
-            _http = http;
+            _api = api;
         }
 
         public async Task<PagedResult<CommentDto>> GetByPostAsync(int postId, int page, int pageSize)
         {
-            // GET api/posts/{postId}/comments?page=1&pageSize=10
             var url = $"api/posts/{postId}/comments?page={page}&pageSize={pageSize}";
-            var result = await _http.GetFromJsonAsync<PagedResult<CommentDto>>(url);
-            return result!;
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            var result = await _api.SendAsync<PagedResult<CommentDto>>(request);
+            return result ?? new PagedResult<CommentDto>();
         }
 
         public async Task<CommentDto> CreateAsync(int postId, CreateCommentDto dto)
         {
-            // POST api/posts/{postId}/comments
-            var response = await _http.PostAsJsonAsync($"api/posts/{postId}/comments", dto);
-            response.EnsureSuccessStatusCode();
-            // The API returns 201 Created with the CommentDto in the body
-            return await response.Content.ReadFromJsonAsync<CommentDto>()!;
-        }
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"api/posts/{postId}/comments")
+            {
+                Content = JsonContent.Create(dto)
+            };
 
-        // Optional methods:
-        // public async Task<bool> UpdateAsync(int commentId, UpdateCommentDto dto) { … }
-        // public async Task DeleteAsync(int commentId) { … }
+            var result = await _api.SendAsync<CommentDto>(request);
+            if (result is null)
+            {
+                throw new InvalidOperationException("API returned no data when creating comment.");
+            }
+
+            return result;
+        }
     }
 }
-

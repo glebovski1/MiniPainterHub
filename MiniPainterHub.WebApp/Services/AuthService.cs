@@ -1,43 +1,51 @@
-﻿using Microsoft.JSInterop;
-using MiniPainterHub.Common.Auth;
-using MiniPainterHub.WebApp.Services.Interfaces;
+using System.Net.Http;
 using System.Net.Http.Json;
+using Microsoft.JSInterop;
+using MiniPainterHub.Common.Auth;
+using MiniPainterHub.WebApp.Services.Http;
+using MiniPainterHub.WebApp.Services.Interfaces;
 
 namespace MiniPainterHub.WebApp.Services
 {
     public class AuthService : IAuthService
     {
-        private readonly HttpClient _http;
+        private readonly ApiClient _api;
         private readonly IJSRuntime _js;
         private readonly JwtAuthenticationStateProvider _authStateProvider;
 
-        public AuthService(HttpClient http, IJSRuntime js, JwtAuthenticationStateProvider authStateProvider)
+        public AuthService(ApiClient api, IJSRuntime js, JwtAuthenticationStateProvider authStateProvider)
         {
-            _http = http;
+            _api = api;
             _js = js;
             _authStateProvider = authStateProvider;
         }
 
         public async Task<bool> LoginAsync(LoginDto dto)
         {
-            var resp = await _http.PostAsJsonAsync("api/auth/login", dto);
-            if (!resp.IsSuccessStatusCode) return false;
+            using var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/login")
+            {
+                Content = JsonContent.Create(dto)
+            };
 
-            var result = await resp.Content.ReadFromJsonAsync<AuthResponseDto>();
-            if (result?.Token is null)
+            var response = await _api.SendAsync<AuthResponseDto>(request);
+            if (string.IsNullOrWhiteSpace(response?.Token))
             {
                 return false;
             }
 
-            await _js.InvokeVoidAsync("localStorage.setItem", "authToken", result.Token);
-            _authStateProvider.NotifyUserAuthentication(result.Token);
+            await _js.InvokeVoidAsync("localStorage.setItem", "authToken", response.Token);
+            _authStateProvider.NotifyUserAuthentication(response.Token);
             return true;
         }
 
         public async Task<bool> RegisterAsync(RegisterDto dto)
         {
-            var resp = await _http.PostAsJsonAsync("api/auth/register", dto);
-            return resp.IsSuccessStatusCode;
+            using var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/register")
+            {
+                Content = JsonContent.Create(dto)
+            };
+
+            return await _api.SendAsync(request);
         }
 
         public async Task LogoutAsync()
