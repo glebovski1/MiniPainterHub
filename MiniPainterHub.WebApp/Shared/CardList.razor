@@ -1,8 +1,23 @@
 ﻿
+@using System.Net
 @using MiniPainterHub.Common.DTOs
 @inject IPostService PostService
 
-@if (isLoading)
+@if (!string.IsNullOrEmpty(loadError))
+{
+    <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <i class="bi bi-wifi-off me-2"></i>
+        <div>
+            @loadError
+            @if (errorStatus.HasValue)
+            {
+                <span class="text-muted small">(Status: @((int)errorStatus.Value))</span>
+            }
+        </div>
+        <button class="btn btn-link btn-sm ms-auto" @onclick="() => LoadPosts(currentPage)">Retry</button>
+    </div>
+}
+else if (isLoading)
 {
     <div class="text-center" aria-live="polite" aria-busy="true">
         <div class="spinner-border" role="status" aria-hidden="true"></div>
@@ -75,6 +90,8 @@ else
     private bool isLoading = true;
 
     private const int PageSize = 9;
+    private string? loadError;
+    private HttpStatusCode? errorStatus;
 
     private int currentPage = 1;
     private int totalPages = 1;
@@ -99,16 +116,32 @@ else
     private async Task LoadPosts(int page = 1)
     {
         isLoading = true;
+        loadError = null;
+        errorStatus = null;
         await InvokeAsync(StateHasChanged);
 
         var result = await PostService.GetAllAsync(page, PageSize);
 
-        currentPage = result.TotalPages == 0 ? 1 : result.PageNumber;
-        totalPages = Math.Max(result.TotalPages, 1);
-        hasPreviousPage = result.HasPreviousPage && totalPages > 1;
-        hasNextPage = result.HasNextPage && totalPages > 1;
+        if (!result.Success)
+        {
+            errorStatus = result.StatusCode;
+            loadError = result.StatusCode == HttpStatusCode.NotFound
+                ? "No posts could be found."
+                : "We couldn't load posts right now. Please check your connection and try again.";
+            posts = new List<PostSummaryDto>();
+            isLoading = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
 
-        var items = Query != null ? Query.Invoke(result.Items) : result.Items;
+        var pageResult = result.Value ?? new PagedResult<PostSummaryDto>();
+
+        currentPage = pageResult.TotalPages == 0 ? 1 : pageResult.PageNumber;
+        totalPages = Math.Max(pageResult.TotalPages, 1);
+        hasPreviousPage = pageResult.HasPreviousPage && totalPages > 1;
+        hasNextPage = pageResult.HasNextPage && totalPages > 1;
+
+        var items = Query != null ? Query.Invoke(pageResult.Items) : pageResult.Items;
         posts = items.ToList();
 
         isLoading = false;

@@ -1,4 +1,5 @@
 ﻿using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.WebApp.Services.Http;
 
 namespace MiniPainterHub.WebApp.Services.Interfaces
 {
@@ -8,7 +9,7 @@ namespace MiniPainterHub.WebApp.Services.Interfaces
             /// <summary>
             /// Fetches a paged list of comments for a post.
             /// </summary>
-            Task<PagedResult<CommentDto>> GetByPostAsync(int postId, int page, int pageSize);
+            Task<ApiResult<PagedResult<CommentDto>>> GetByPostAsync(int postId, int page, int pageSize);
 
             /// <summary>
             /// Posts a new comment and returns the created CommentDto.
