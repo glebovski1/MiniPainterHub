@@ -1,9 +1,24 @@
 ﻿@using MiniPainterHub.Common.DTOs
 @using MiniPainterHub.WebApp.Services
+@using System.Net
 @inject ICommentService CommentService
 
 <div>
-    @if (_comments == null)
+    @if (!string.IsNullOrEmpty(_loadError))
+    {
+        <div class="alert alert-warning d-flex align-items-center" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <div>
+                @_loadError
+                @if (_errorStatus.HasValue)
+                {
+                    <span class="text-muted small">(Status: @((int)_errorStatus.Value))</span>
+                }
+            </div>
+            <button class="btn btn-link btn-sm ms-auto" @onclick="ReloadAsync">Retry</button>
+        </div>
+    }
+    else if (_comments == null)
     {
         <p class="text-muted"><em>Loading comments…</em></p>
     }
@@ -47,6 +62,8 @@
     private PagedResult<CommentDto>? _comments;
     private int _page = 1;
     private const int PageSize = 10;
+    private string? _loadError;
+    private HttpStatusCode? _errorStatus;
 
     protected override async Task OnParametersSetAsync()
         => await LoadPageAsync();
@@ -61,8 +78,25 @@
     {
         Console.WriteLine($"LoadPageAsync hit for PostId={PostId} at {DateTime.Now:hh:mm:ss}");
 
-        _comments = await CommentService.GetByPostAsync(PostId, _page, PageSize);
-        StateHasChanged();
+        _loadError = null;
+        _errorStatus = null;
+
+        var response = await CommentService.GetByPostAsync(PostId, _page, PageSize);
+
+        if (!response.Success)
+        {
+            _errorStatus = response.StatusCode;
+            _loadError = response.StatusCode == HttpStatusCode.NotFound
+                ? "Comments could not be found for this post."
+                : "We couldn't load comments right now. Please try again.";
+            _comments = null;
+        }
+        else
+        {
+            _comments = response.Value ?? new PagedResult<CommentDto>();
+        }
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task ChangePage(int newPage)
