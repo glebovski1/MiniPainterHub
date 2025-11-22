@@ -15,28 +15,31 @@ namespace MiniPainterHub.WebApp.Services
             _api = api;
         }
 
-        public async Task<PagedResult<CommentDto>> GetByPostAsync(int postId, int page, int pageSize)
+        public async Task<ApiResult<PagedResult<CommentDto>>> GetByPostAsync(int postId, int page, int pageSize)
         {
             var url = $"api/posts/{postId}/comments?page={page}&pageSize={pageSize}";
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            var result = await _api.SendAsync<PagedResult<CommentDto>>(request);
-            return result ?? new PagedResult<CommentDto>();
+            var result = await _api.SendForResultAsync<PagedResult<CommentDto>>(request);
+
+            return result with
+            {
+                Value = result.Value ?? new PagedResult<CommentDto>()
+            };
         }
 
-        public async Task<CommentDto> CreateAsync(int postId, CreateCommentDto dto)
+        public async Task<ApiResult<CommentDto?>> CreateAsync(int postId, CreateCommentDto dto)
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, $"api/posts/{postId}/comments")
             {
                 Content = JsonContent.Create(dto)
             };
 
-            var result = await _api.SendAsync<CommentDto>(request);
-            if (result is null)
-            {
-                throw new InvalidOperationException("API returned no data when creating comment.");
-            }
+            var result = await _api.SendForResultAsync<CommentDto>(request);
 
-            return result;
+            return result with
+            {
+                Value = result.Success ? result.Value : default
+            };
         }
     }
 }

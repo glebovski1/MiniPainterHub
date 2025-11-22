@@ -3,6 +3,7 @@
 @inject ApiClient Api
 @inject NavigationManager Nav
 @using MiniPainterHub.WebApp.Services.Http
+@using System.Net
 @using System.Net.Http
 @using MiniPainterHub.WebApp.Shared
 @using System
@@ -16,6 +17,20 @@
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>
             </div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(loadError))
+    {
+        <div class="alert alert-danger d-flex align-items-center">
+            <i class="bi bi-exclamation-octagon me-2"></i>
+            <div>
+                @loadError
+                @if (loadStatus.HasValue)
+                {
+                    <span class="text-muted small">(Status: @((int)loadStatus.Value))</span>
+                }
+            </div>
+            <button class="btn btn-link btn-sm ms-auto" @onclick="LoadPost">Retry</button>
         </div>
     }
     else if (post is null)
@@ -93,7 +108,20 @@
                 </div>
 
                 <h5 class="mb-3">Comments</h5>
-                <CommentForm PostId="@PostId" OnCommentAdded="ReloadComments" />
+                <AuthorizeView>
+                    <Authorized>
+                        <CommentForm PostId="@PostId" OnCommentAdded="ReloadComments" />
+                    </Authorized>
+                    <NotAuthorized>
+                        <div class="alert alert-info d-flex align-items-center" role="alert">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <div>
+                                Sign in to join the conversation.
+                                <button class="btn btn-link p-0 align-baseline" @onclick="GoToLogin">Login</button>
+                            </div>
+                        </div>
+                    </NotAuthorized>
+                </AuthorizeView>
                 <CommentList @ref="_commentList" PostId="@PostId" />
             </div>
         </div>
@@ -120,6 +148,8 @@
     private CommentList? _commentList;
     private PostDto? post;
     private bool isLoading;
+    private string? loadError;
+    private HttpStatusCode? loadStatus;
     private bool showModal = false;
 
     private int selectedIndex = 0;
@@ -140,9 +170,32 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadPost();
+    }
+
+    private async Task LoadPost()
+    {
         isLoading = true;
+        loadError = null;
+        loadStatus = null;
+
         var request = new HttpRequestMessage(HttpMethod.Get, $"api/posts/{PostId}");
-        post = await Api.SendAsync<PostDto>(request, new ApiRequestOptions { SuppressErrorNotifications = true });
+        var response = await Api.SendForResultAsync<PostDto>(request, new ApiRequestOptions { SuppressErrorNotifications = true });
+
+        if (response.Success && response.Value is not null)
+        {
+            post = response.Value;
+            loadStatus = null;
+        }
+        else
+        {
+            loadStatus = response.StatusCode;
+            loadError = response.StatusCode == HttpStatusCode.NotFound
+                ? "This post could not be found."
+                : "We couldn't load this post. Please check your connection and try again.";
+            post = null;
+        }
+
         isLoading = false;
     }
 
@@ -150,6 +203,12 @@
     {
         if (_commentList != null)
             await _commentList.ReloadAsync();
+    }
+
+    private void GoToLogin()
+    {
+        var returnUrl = Uri.EscapeDataString(Nav.Uri);
+        Nav.NavigateTo($"/login?returnUrl={returnUrl}", true);
     }
 
     private void ShowZoomModal() => showModal = true;
