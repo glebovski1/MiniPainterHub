@@ -1,5 +1,7 @@
-﻿@inject NavigationManager Navigation
+@using System
+@inject NavigationManager Navigation
 @page "/posts/mine"
+@attribute [Authorize]
 @inject IProfileService ProfileService;
 
 <UsersPost UserId="@MyId" UserName="@MyName"></UsersPost>
@@ -12,6 +14,12 @@
     protected override async Task OnInitializedAsync()
     {
         var myProfile = await ProfileService.GetMineAsync();
+        if (myProfile is null)
+        {
+            Navigation.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(Navigation.Uri)}", true);
+            return;
+        }
+
         MyId = myProfile.UserId;
         MyName = myProfile.DisplayName;
 

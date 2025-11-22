@@ -1,12 +1,16 @@
-﻿using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.JSInterop;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.JSInterop;
 
 namespace MiniPainterHub.WebApp.Services
 {
     public class JwtAuthenticationStateProvider : AuthenticationStateProvider
     {
+        private static readonly AuthenticationState AnonymousState = new(new ClaimsPrincipal(new ClaimsIdentity()));
         private readonly IJSRuntime _js;
 
         public JwtAuthenticationStateProvider(IJSRuntime js)
@@ -17,10 +21,29 @@ namespace MiniPainterHub.WebApp.Services
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
             var token = await _js.InvokeAsync<string>("localStorage.getItem", "authToken");
-            var identity = string.IsNullOrEmpty(token)
-                ? new ClaimsIdentity()
-                : new ClaimsIdentity(ParseClaimsFromJwt(token), "jwt");
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return AnonymousState;
+            }
 
+            List<Claim> claims;
+            try
+            {
+                claims = ParseClaimsFromJwt(token).ToList();
+            }
+            catch
+            {
+                await ClearPersistedTokenAsync();
+                return AnonymousState;
+            }
+
+            if (IsExpired(claims))
+            {
+                await ClearPersistedTokenAsync();
+                return AnonymousState;
+            }
+
+            var identity = new ClaimsIdentity(claims, "jwt");
             return new AuthenticationState(new ClaimsPrincipal(identity));
         }
 
@@ -28,6 +51,20 @@ namespace MiniPainterHub.WebApp.Services
         {
             NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
         }
+
+        private static bool IsExpired(IEnumerable<Claim> claims)
+        {
+            var expClaim = claims.FirstOrDefault(c => c.Type.Equals("exp", StringComparison.OrdinalIgnoreCase));
+            if (expClaim is null || !long.TryParse(expClaim.Value, out var expSeconds))
+            {
+                return false;
+            }
+
+            var expiration = DateTimeOffset.FromUnixTimeSeconds(expSeconds);
+            return expiration <= DateTimeOffset.UtcNow;
+        }
+
+        private Task ClearPersistedTokenAsync() => _js.InvokeVoidAsync("localStorage.removeItem", "authToken").AsTask();
 
         private IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
         {
