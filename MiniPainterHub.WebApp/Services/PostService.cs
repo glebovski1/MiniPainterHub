@@ -13,11 +13,15 @@ namespace MiniPainterHub.WebApp.Services
 
         public PostService(ApiClient api) => _api = api;
 
-        public async Task<PagedResult<PostSummaryDto>> GetAllAsync(int page, int pageSize)
+        public async Task<ApiResult<PagedResult<PostSummaryDto>>> GetAllAsync(int page, int pageSize)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/posts?page={page}&pageSize={pageSize}");
-            var result = await _api.SendAsync<PagedResult<PostSummaryDto>>(request);
-            return result ?? new PagedResult<PostSummaryDto>();
+            var result = await _api.SendForResultAsync<PagedResult<PostSummaryDto>>(request);
+
+            return result with
+            {
+                Value = result.Value ?? new PagedResult<PostSummaryDto>()
+            };
         }
 
         public async Task<PostDto> GetByIdAsync(int id)

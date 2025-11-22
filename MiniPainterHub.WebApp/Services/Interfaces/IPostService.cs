@@ -1,11 +1,12 @@
 ﻿using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.WebApp.Services.Http;
 
 namespace MiniPainterHub.WebApp.Services.Interfaces
 {
     public interface IPostService
     {
         /// <summary>Fetches a paged list of posts.</summary>
-        Task<PagedResult<PostSummaryDto>> GetAllAsync(int page, int pageSize);
+        Task<ApiResult<PagedResult<PostSummaryDto>>> GetAllAsync(int page, int pageSize);
 
         public Task<IEnumerable<PostSummaryDto>> GetTopPosts(int count, TimeSpan timeOffcet);
 
