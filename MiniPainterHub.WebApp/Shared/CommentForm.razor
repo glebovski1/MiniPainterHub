@@ -1,6 +1,21 @@
-﻿@using MiniPainterHub.Common.DTOs
+@using System.Net
+@using MiniPainterHub.Common.DTOs
 @using MiniPainterHub.WebApp.Services
 @inject ICommentService CommentService
+
+@if (!string.IsNullOrEmpty(_submitError))
+{
+    <div class="alert alert-warning d-flex align-items-center" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <div>
+            @_submitError
+            @if (_submitStatus.HasValue)
+            {
+                <span class="text-muted small">(Status: @((int)_submitStatus.Value))</span>
+            }
+        </div>
+    </div>
+}
 
 <EditForm Model="_model" OnValidSubmit="HandleSubmit">
     <DataAnnotationsValidator />
@@ -27,17 +42,34 @@
 
     private CreateCommentDto _model = new();
     private bool _isSubmitting;
+    private string? _submitError;
+    private HttpStatusCode? _submitStatus;
 
     private async Task HandleSubmit()
     {
-        Console.WriteLine($"[CommentForm] HandleSubmit firing at {DateTime.Now:T}");
+        _submitError = null;
+        _submitStatus = null;
         _isSubmitting = true;
-        // this line should POST to your API and return the created CommentDto
-        await CommentService.CreateAsync(PostId, _model);
-        _model.Text = string.Empty;
-        _isSubmitting = false;
 
-        if (OnCommentAdded.HasDelegate)
-            await OnCommentAdded.InvokeAsync();
+        var response = await CommentService.CreateAsync(PostId, _model);
+
+        if (response.Success && response.Value is not null)
+        {
+            _model.Text = string.Empty;
+
+            if (OnCommentAdded.HasDelegate)
+            {
+                await OnCommentAdded.InvokeAsync();
+            }
+        }
+        else
+        {
+            _submitStatus = response.StatusCode;
+            _submitError = response.StatusCode == HttpStatusCode.Unauthorized
+                ? "Please sign in to add a comment."
+                : "We couldn't post your comment. Please try again.";
+        }
+
+        _isSubmitting = false;
     }
 }

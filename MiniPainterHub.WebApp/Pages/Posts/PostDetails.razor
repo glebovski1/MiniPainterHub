@@ -108,7 +108,20 @@
                 </div>
 
                 <h5 class="mb-3">Comments</h5>
-                <CommentForm PostId="@PostId" OnCommentAdded="ReloadComments" />
+                <AuthorizeView>
+                    <Authorized>
+                        <CommentForm PostId="@PostId" OnCommentAdded="ReloadComments" />
+                    </Authorized>
+                    <NotAuthorized>
+                        <div class="alert alert-info d-flex align-items-center" role="alert">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <div>
+                                Sign in to join the conversation.
+                                <button class="btn btn-link p-0 align-baseline" @onclick="GoToLogin">Login</button>
+                            </div>
+                        </div>
+                    </NotAuthorized>
+                </AuthorizeView>
                 <CommentList @ref="_commentList" PostId="@PostId" />
             </div>
         </div>
@@ -190,6 +203,12 @@
     {
         if (_commentList != null)
             await _commentList.ReloadAsync();
+    }
+
+    private void GoToLogin()
+    {
+        var returnUrl = Uri.EscapeDataString(Nav.Uri);
+        Nav.NavigateTo($"/login?returnUrl={returnUrl}", true);
     }
 
     private void ShowZoomModal() => showModal = true;
