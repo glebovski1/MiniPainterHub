@@ -28,3 +28,32 @@ AI agents should verify that `app.UseAuthentication()` is present and not modify
 ## 🧪 Test Expectations
 
 No test suite yet. AI agents should validate code with `dotnet build` and avoid introducing runtime errors.
+
+## 📘 How to Use `/docs` for RAG and AI Agents
+
+This repository includes a structured RAG-style documentation folder at `/docs` for AI and developers.
+
+Each document is purpose-specific:
+
+- `CODE_STYLE.md`: C# and ASP.NET naming conventions, formatting rules, async practices.
+- `ARCHITECTURE.md`: Overview of system layers, data flow, EF Core models, and auth strategy.
+- `BEST_PRACTICES.md`: Preferred patterns for validation, DI, service usage, and async code.
+- `ANTI_PATTERNS.md`: Known issues and what to avoid (.Result, fat controllers, swallowed exceptions).
+- `CONTRIBUTING.md`: Contributor setup and etiquette.
+
+### Agent Guidelines
+
+- Use full path lookups (e.g. `docs/ARCHITECTURE.md`) for semantic search or embedding.
+- When answering questions about project rules or design, retrieve from the most relevant file.
+- Prioritize recent `/docs/` content over older inline comments or out-of-date READMEs.
+- Do not generate new styles or patterns not aligned with `CODE_STYLE.md` or `BEST_PRACTICES.md`.
+
+### Use Case Mapping (for retrieval)
+
+| Question Type                                 | File to Consult             |
+|----------------------------------------------|-----------------------------|
+| How should I name a service method?           | `CODE_STYLE.md`             |
+| What does ImageService do internally?         | `ARCHITECTURE.md`           |
+| Can I use `.Result` in controller logic?      | `ANTI_PATTERNS.md`          |
+| Where does validation go — controller or svc? | `BEST_PRACTICES.md`         |
+| How do I contribute or open a PR?             | `CONTRIBUTING.md`           |
