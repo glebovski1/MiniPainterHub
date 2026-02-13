@@ -25,7 +25,7 @@ public class AzureBlobImageServiceTests
         blobMock.Setup(b => b.ExistsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(false, Mock.Of<Response>()));
 
-        var service = new AzureBlobImageService(containerMock.Object, Options.Create(new ImagesOptions()));
+        var service = new AzureBlobImageService(containerMock.Object, Microsoft.Extensions.Options.Options.Create(new ImagesOptions()));
 
         var act = async () => await service.DownloadAsync("missing.png");
 

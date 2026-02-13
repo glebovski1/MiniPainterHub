@@ -34,7 +34,10 @@ public class LocalImageServiceTests
                 })
                 .Build();
 
-            var service = new LocalImageService(envMock.Object, config, Options.Create(new ImagesOptions()));
+            var service = new LocalImageService(
+                envMock.Object,
+                config,
+                Microsoft.Extensions.Options.Options.Create(new ImagesOptions()));
 
             var act = async () => await service.DownloadAsync("missing.png");
 
