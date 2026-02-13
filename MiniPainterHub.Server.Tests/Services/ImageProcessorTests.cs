@@ -76,7 +76,7 @@ public class ImageProcessorTests
     private static ImageProcessor CreateProcessor(ImagesOptions? options = null)
     {
         options ??= new ImagesOptions();
-        return new ImageProcessor(Options.Create(options), NullLogger<ImageProcessor>.Instance);
+        return new ImageProcessor(Microsoft.Extensions.Options.Options.Create(options), NullLogger<ImageProcessor>.Instance);
     }
 
     private static async Task<MemoryStream> CreateImageAsync(int width, int height, System.Action<Image<Rgba32>>? configure = null, bool useJpeg = false)
