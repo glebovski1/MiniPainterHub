@@ -19,7 +19,7 @@ namespace MiniPainterHub.Server.Controllers
         public CommentsController(ICommentService commentService, IPostService postService)
         {
             _commentService = commentService;
-            _postService = postService; 
+            _postService = postService;
         }
 
         // GET: api/posts/{postId}/comments?page=1&pageSize=10

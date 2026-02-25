@@ -35,11 +35,25 @@ public class Program
         // ------------------------------------------------------------------
         // 1️⃣  Services
         // ------------------------------------------------------------------
+        var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnection");
+        var useInMemoryDatabase =
+            builder.Environment.IsDevelopment()
+            && OperatingSystem.IsLinux()
+            && defaultConnection?.Contains("(localdb)", StringComparison.OrdinalIgnoreCase) == true;
+
         builder.Services.AddDbContext<AppDbContext>(options =>
+        {
+            if (useInMemoryDatabase)
+            {
+                options.UseInMemoryDatabase("MiniPainterHubDev");
+                return;
+            }
+
             options.UseSqlServer(
-                builder.Configuration.GetConnectionString("DefaultConnection"),
+                defaultConnection,
                 sqlOpts => sqlOpts.MigrationsAssembly(typeof(AppDbContext).Assembly.GetName().Name)
-                                   .MigrationsHistoryTable("__EFMigrationsHistory", "dbo")));
+                                   .MigrationsHistoryTable("__EFMigrationsHistory", "dbo"));
+        });
 
         builder.Services.AddDefaultIdentity<ApplicationUser>(o =>
         {
@@ -175,25 +189,22 @@ public class Program
 
         if (app.Environment.IsProduction())
         {
-            if (app.Environment.IsProduction())
+            try
             {
-                try
-                {
-                    await using var scope = app.Services.CreateAsyncScope();
-                    // DB already migrated, so this should be a no-op; keep it for safety:
-                    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                    await db.Database.MigrateAsync();
-                    logger.LogInformation("EF migrations ok.");
+                await using var scope = app.Services.CreateAsyncScope();
+                // DB already migrated, so this should be a no-op; keep it for safety:
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await db.Database.MigrateAsync();
+                logger.LogInformation("EF migrations ok.");
 
-                    // Seed admin may be your crash point—keep it but log it:
-                    await DataSeeder.SeedAdminAsync(app);
-                    logger.LogInformation("Admin seed ok.");
-                }
-                catch (Exception ex)
-                {
-                    logger.LogCritical(ex, "Startup failed in Production.");
-                    throw;
-                }
+                // Seed admin may be your crash point—keep it but log it:
+                await DataSeeder.SeedAdminAsync(app);
+                logger.LogInformation("Admin seed ok.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogCritical(ex, "Startup failed in Production.");
+                throw;
             }
         }
 
@@ -229,7 +240,7 @@ public class Program
 
         app.MapGet("/healthz", () => Results.Ok("OK"));
 
-        
+
 
         app.Run();
     }

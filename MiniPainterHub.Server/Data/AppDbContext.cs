@@ -10,7 +10,7 @@ namespace MiniPainterHub.Server.Data
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
-            
+
         }
 
         public DbSet<Profile> Profiles { get; set; } = default!;

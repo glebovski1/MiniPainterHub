@@ -185,31 +185,31 @@ namespace MiniPainterHub.Server.Services
 
         public async Task<PostDto> GetByIdAsync(int postId)
         {
-              var dto = await _appDbContext.Posts
-                     .AsNoTracking()
-                     .Where(p => p.Id == postId && !p.IsDeleted)
-                     .Select(p => new PostDto
-                     {
-                         Id = p.Id,
-                         CreatedById = p.CreatedById,
-                         Title = p.Title,
-                         Content = p.Content,
-                         CreatedAt = p.CreatedUtc,
-                         AuthorName = p.CreatedBy.UserName,
-                         ImageUrl = p.Images
-                                        .OrderBy(i => i.Id)
-                                        .Where(i => !String.IsNullOrEmpty(i.ImageUrl))
-                                        .Select(i => i.ImageUrl)
-                                        .FirstOrDefault(),
-                         Images = p.Images.Select(i => new PostImageDto
-                         {
-                             Id = i.Id,
-                             ImageUrl = i.ImageUrl,
-                             PreviewUrl = i.PreviewUrl,
-                             ThumbnailUrl = i.ThumbnailUrl
-                         }).ToList()
-                     })
-                     .FirstOrDefaultAsync();
+            var dto = await _appDbContext.Posts
+                   .AsNoTracking()
+                   .Where(p => p.Id == postId && !p.IsDeleted)
+                   .Select(p => new PostDto
+                   {
+                       Id = p.Id,
+                       CreatedById = p.CreatedById,
+                       Title = p.Title,
+                       Content = p.Content,
+                       CreatedAt = p.CreatedUtc,
+                       AuthorName = p.CreatedBy.UserName,
+                       ImageUrl = p.Images
+                                      .OrderBy(i => i.Id)
+                                      .Where(i => !String.IsNullOrEmpty(i.ImageUrl))
+                                      .Select(i => i.ImageUrl)
+                                      .FirstOrDefault(),
+                       Images = p.Images.Select(i => new PostImageDto
+                       {
+                           Id = i.Id,
+                           ImageUrl = i.ImageUrl,
+                           PreviewUrl = i.PreviewUrl,
+                           ThumbnailUrl = i.ThumbnailUrl
+                       }).ToList()
+                   })
+                   .FirstOrDefaultAsync();
             if (dto is null)
             {
                 throw new NotFoundException("Post not found.");

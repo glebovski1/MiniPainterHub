@@ -19,7 +19,7 @@ namespace MiniPainterHub.Server.Migrations
             migrationBuilder.Sql(
                 @"UPDATE PostImages
                   SET PreviewUrl = ImageUrl
-                  WHERE PreviewUrl IS NULL OR LTRIM(RTRIM(PreviewUrl)) = '';" );
+                  WHERE PreviewUrl IS NULL OR LTRIM(RTRIM(PreviewUrl)) = '';");
         }
 
         /// <inheritdoc />
