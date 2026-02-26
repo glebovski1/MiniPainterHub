@@ -15,7 +15,9 @@
         <div class="dashboard-main d-flex align-items-start @(UserPanel.IsDesktopCollapsed ? "sidebar-collapsed" : string.Empty)">
             <AuthorizeView>
                 <Authorized>
-                    <aside class="dashboard-sidebar-column d-none d-lg-block @(UserPanel.IsDesktopCollapsed ? "is-collapsed" : string.Empty)">
+                    <aside class="dashboard-sidebar-column d-none d-lg-block @(UserPanel.IsDesktopCollapsed ? "is-collapsed" : string.Empty)"
+                           hidden="@UserPanel.IsDesktopCollapsed"
+                           aria-hidden="@UserPanel.IsDesktopCollapsed">
                         <div class="dashboard-sidebar-shell">
                             <UserPanelContent ShowPanelTitle="true" />
                         </div>
