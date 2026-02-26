@@ -29,6 +29,15 @@ AI agents should verify that `app.UseAuthentication()` is present and not modify
 
 No test suite yet. AI agents should validate code with `dotnet build` and avoid introducing runtime errors.
 
+## 🎨 UI Workflow (Required)
+
+When making any UI change (Razor/CSS/JS in `MiniPainterHub.WebApp`):
+- Start the app if needed, then visually verify changes in a browser.
+- Use the automated snapshot script to sanity-check desktop + mobile layouts:
+  - Run `.\.venv\Scripts\python tools\ui_snapshot_panel.py`
+  - Review screenshots in `artifacts/ui-panel-check\` before concluding the change is acceptable.
+- Perform a UI smoke test on impacted pages and confirm every visible button still works as expected.
+
 ## 📘 How to Use `/docs` for RAG and AI Agents
 
 This repository includes a structured RAG-style documentation folder at `/docs` for AI and developers.

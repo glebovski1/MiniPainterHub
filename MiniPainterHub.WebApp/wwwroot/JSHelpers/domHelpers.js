@@ -3,6 +3,15 @@
 window.domHelpers = window.domHelpers || {};
 
 window.domHelpers.getHeight = (el) => (el ? el.offsetHeight : 0);
+window.domHelpers.focus = (el) => {
+  try {
+    if (el && typeof el.focus === "function") {
+      el.focus({ preventScroll: true });
+    }
+  } catch {
+    // no-op
+  }
+};
 
 /**
  * Initialize a Bootstrap Carousel on a given element.

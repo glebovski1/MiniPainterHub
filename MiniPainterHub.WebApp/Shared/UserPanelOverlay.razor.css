@@ -1,0 +1,11 @@
+.dashboard-sidebar-offcanvas {
+  --bs-offcanvas-width: 240px;
+  background-color: #f8f9fa;
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0.25rem 0 1.25rem rgba(33, 37, 41, 0.08);
+}
+
+.dashboard-sidebar-offcanvas :global(.offcanvas-header) {
+  padding: 1rem 1rem;
+  background-color: #f8f9fa;
+}

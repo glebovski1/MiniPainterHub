@@ -2,18 +2,22 @@
 @inject IAuthService AuthService
 @inject NavigationManager Nav
 
+<PageTitle>Login</PageTitle>
+
 <EditForm Model="@credentials" OnValidSubmit="HandleLogin">
     <div class="container">
         <div class="row justify-content-center align-items-center vh-100">
             <div class="col-12 col-sm-8 col-md-6 col-lg-4">
                 <div class="card shadow-sm">
                     <div class="card-body">
+                        <h1 class="visually-hidden">Login</h1>
                         <h4 class="card-title text-center mb-4">Login</h4>
 
                         <div class="mb-3">
-                            <label for="login-username" class="form-label">Username or Email</label>
+                            <label for="login-username" class="form-label">Username</label>
                             <InputText id="login-username"
                                        class="form-control"
+                                       autocomplete="username"
                                        @bind-Value="credentials.UserName" />
                         </div>
 
@@ -22,6 +26,7 @@
                             <InputText id="login-password"
                                        type="password"
                                        class="form-control"
+                                       autocomplete="current-password"
                                        @bind-Value="credentials.Password" />
                         </div>
 
@@ -37,7 +42,7 @@
                         <div class="text-center mt-3">
                             <small>
                                 Don’t have an account?
-                                <NavLink href="register">Register</NavLink>
+                                <NavLink href="/register">Register</NavLink>
                             </small>
                         </div>
 
@@ -47,11 +52,6 @@
         </div>
     </div>
 </EditForm>
-
-@if (!string.IsNullOrEmpty(error))
-{
-    <div class="text-danger">@error</div>
-}
 
 @code {
     private LoginDto credentials = new();
@@ -66,7 +66,7 @@
         }
         else
         {
-            error = "Invalid email or password.";
+            error = "Invalid username or password.";
         }
     }
 }

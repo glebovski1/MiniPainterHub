@@ -2,18 +2,22 @@
 @inject IAuthService AuthService
 @inject NavigationManager Nav
 
+<PageTitle>Register</PageTitle>
+
 <EditForm Model="@registration" OnValidSubmit="HandleRegister">
     <div class="container">
         <div class="row justify-content-center align-items-center vh-100">
             <div class="col-12 col-sm-8 col-md-6 col-lg-4">
                 <div class="card shadow-sm">
                     <div class="card-body">
+                        <h1 class="visually-hidden">Register</h1>
                         <h4 class="card-title text-center mb-4">Register</h4>
 
                         <div class="mb-3">
                             <label for="reg-username" class="form-label">Username</label>
                             <InputText id="reg-username"
                                        class="form-control"
+                                       autocomplete="username"
                                        @bind-Value="registration.UserName" />
                         </div>
 
@@ -22,6 +26,7 @@
                             <InputText id="reg-password"
                                        type="password"
                                        class="form-control"
+                                       autocomplete="new-password"
                                        @bind-Value="registration.Password" />
                         </div>
 
@@ -37,7 +42,7 @@
                         <div class="text-center mt-3">
                             <small>
                                 Already have an account?
-                                <NavLink href="login">Sign In</NavLink>
+                                <NavLink href="/login">Sign In</NavLink>
                             </small>
                         </div>
 
@@ -47,11 +52,6 @@
         </div>
     </div>
 </EditForm>
-
-@if (!string.IsNullOrEmpty(msg))
-{
-    <div>@msg</div>
-}
 
 @code {
     private RegisterDto registration = new();

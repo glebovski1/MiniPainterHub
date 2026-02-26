@@ -6,6 +6,7 @@ using MiniPainterHub.WebApp.Services;
 using MiniPainterHub.WebApp.Services.Http;
 using MiniPainterHub.WebApp.Services.Interfaces;
 using MiniPainterHub.WebApp.Services.Notifications;
+using MiniPainterHub.WebApp.Layout;
 
 namespace MiniPainterHub.WebApp;
 
@@ -21,6 +22,11 @@ public class Program
         // 1)  Blazor-WASM authorization core  (<AuthorizeView>, etc.)
         //------------------------------------------------------------
         builder.Services.AddAuthorizationCore();
+
+        //------------------------------------------------------------
+        // UI state
+        //------------------------------------------------------------
+        builder.Services.AddScoped<UserPanelState>();
 
         //------------------------------------------------------------
         // 2)  JWT-based authentication state provider

@@ -1,25 +1,47 @@
-﻿@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IAuthService AuthService
 @inject NavigationManager Nav
+@inject UserPanelState UserPanel
 
 <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm">
     <div class="container-fluid">
-        <!-- Brand -->
-        <a class="navbar-brand fw-bold" href="">MiniPainterHub</a>
+        <NavLink class="navbar-brand fw-bold" href="/">MiniPainterHub</NavLink>
 
-        <!-- Toggler for mobile -->
-        <button class="navbar-toggler" type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#navbarNav"
-                aria-controls="navbarNav"
-                aria-expanded="false"
-                aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+        <div class="d-flex align-items-center gap-2 ms-auto">
+            <AuthorizeView>
+                <Authorized>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary d-none d-lg-inline-flex align-items-center gap-2"
+                            @onclick="ToggleDesktopPanel"
+                            aria-label="Toggle desktop panel"
+                            aria-pressed="@UserPanel.IsDesktopCollapsed">
+                        <i class="bi @(UserPanel.IsDesktopCollapsed ? "bi-layout-sidebar-inset-reverse" : "bi-layout-sidebar-inset")" aria-hidden="true"></i>
+                        <span>@(UserPanel.IsDesktopCollapsed ? "Show panel" : "Hide panel")</span>
+                    </button>
 
-        <!-- Collapsible menu items -->
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-2 d-lg-none"
+                            data-bs-toggle="offcanvas"
+                            data-bs-target="#userPanelOffcanvas"
+                            aria-controls="userPanelOffcanvas"
+                            aria-label="Toggle personal panel">
+                        <i class="bi bi-person" aria-hidden="true"></i>
+                        <span>My panel</span>
+                    </button>
+                </Authorized>
+            </AuthorizeView>
+
+            <button class="navbar-toggler" type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#navbarNav"
+                    aria-controls="navbarNav"
+                    aria-expanded="false"
+                    aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+        </div>
+
         <div class="collapse navbar-collapse align-items-center" id="navbarNav">
-            <!-- Left-side nav links -->
             <ul class="navbar-nav mb-2 mb-lg-0">
                 <li>
                     <NavLink class="nav-link" href="/home">Home</NavLink>
@@ -27,30 +49,33 @@
                 <li>
                     <NavLink class="nav-link" href="/posts/all">Explore posts</NavLink>
                 </li>
+                <AuthorizeView>
+                    <Authorized>
+                        <li>
+                            <NavLink class="nav-link" href="/posts/new">New Post</NavLink>
+                        </li>
+                    </Authorized>
+                </AuthorizeView>
                 <li>
-                    <NavLink class="nav-link" href="posts/new">New Post</NavLink>
-                </li>
-                <li>
-                    <NavLink class="nav-link" href="about">About</NavLink>
+                    <NavLink class="nav-link" href="/about">About</NavLink>
                 </li>
             </ul>
 
-            <!-- Right-side auth links (push with ms-auto) -->
             <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                 <AuthorizeView>
                     <Authorized>
                         <li>
-                            <button class="btn btn-link nav-link p-0" @onclick="Logout">
+                            <button type="button" class="btn btn-link nav-link" @onclick="Logout">
                                 Logout
                             </button>
                         </li>
                     </Authorized>
                     <NotAuthorized>
                         <li>
-                            <NavLink class="nav-link" href="login">Login</NavLink>
+                            <NavLink class="nav-link" href="/login">Login</NavLink>
                         </li>
                         <li>
-                            <NavLink class="nav-link" href="register">Register</NavLink>
+                            <NavLink class="nav-link" href="/register">Register</NavLink>
                         </li>
                     </NotAuthorized>
                 </AuthorizeView>
@@ -60,6 +85,11 @@
 </nav>
 
 @code {
+    private void ToggleDesktopPanel()
+    {
+        UserPanel.ToggleDesktopCollapsed();
+    }
+
     private async Task Logout()
     {
         await AuthService.LogoutAsync();

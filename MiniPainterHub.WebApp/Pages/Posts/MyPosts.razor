@@ -4,7 +4,21 @@
 @attribute [Authorize]
 @inject IProfileService ProfileService;
 
-<UsersPost UserId="@MyId" UserName="@MyName"></UsersPost>
+<PageTitle>My posts</PageTitle>
+
+<h1 class="mb-4">My posts</h1>
+
+@if (string.IsNullOrWhiteSpace(MyId))
+{
+    <div class="d-flex align-items-center gap-2 text-secondary">
+        <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+        <span>Loading…</span>
+    </div>
+}
+else
+{
+    <UsersPost UserId="@MyId" UserName="@MyName"></UsersPost>
+}
 
 
 @code {

@@ -4,30 +4,32 @@
 @inject IPostService PostService
 @inject NavigationManager Nav
 
-<h2 class="mb-4">Create New Post</h2>
+<PageTitle>Create new post</PageTitle>
+
+<h1 class="mb-4">Create new post</h1>
 
 <EditForm Model="@newPost" OnValidSubmit="HandleSubmit">
     <DataAnnotationsValidator />
     <ValidationSummary />
 
     <div class="mb-3">
-        <label class="form-label">Title</label>
-        <InputText class="form-control" @bind-Value="newPost.Title" />
+        <label for="post-title" class="form-label">Title</label>
+        <InputText id="post-title" class="form-control" @bind-Value="newPost.Title" />
     </div>
 
     <div class="mb-3">
-        <label class="form-label">Content</label>
-        <InputTextArea class="form-control" rows="6" @bind-Value="newPost.Content" />
+        <label for="post-content" class="form-label">Content</label>
+        <InputTextArea id="post-content" class="form-control" rows="6" @bind-Value="newPost.Content" />
     </div>
 
     <div class="mb-3">
-        <label class="form-label">Images</label>
-        <InputFile OnChange="OnFilesSelected" multiple />
+        <label for="post-images" class="form-label">Images</label>
+        <InputFile id="post-images" class="form-control" OnChange="OnFilesSelected" multiple />
         @if (previewUrls.Count > 0)
         {
             foreach (var url in previewUrls)
             {
-                <img src="@url" class="img-fluid rounded mt-2 me-2" style="max-height:200px;" />
+                <img src="@url" alt="Selected image preview" class="img-fluid rounded mt-2 me-2" style="max-height:200px;" />
             }
         }
     </div>

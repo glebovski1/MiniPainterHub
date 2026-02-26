@@ -1,82 +1,93 @@
-﻿@inherits LayoutComponentBase
-@inject IJSRuntime JS
+@inherits LayoutComponentBase
+@implements IDisposable
 @using Microsoft.AspNetCore.Components.Authorization
+@inject IJSRuntime JS
+@inject UserPanelState UserPanel
 
 <div class="app-layout">
-    <header @ref="HeaderRef" id="appHeader" class="sticky-top bg-white">
+    <header id="appHeader" class="sticky-top bg-white">
         <NavMenu />
-        </header>
+    </header>
 
+    <UserPanelOverlay />
 
-    <!-- Slim header row; won’t disturb your NavMenu -->
-    <div @ref="ToolBarRef" class="d-flex align-items-center justify-content-start gap-3 px-3 py-2 border-bottom bg-light">
-        <AuthorizeView>
-            <Authorized>
-                <div class="form-check form-switch m-0">
-                    <input class="form-check-input"
-                           type="checkbox"
-                           role="switch"
-                           id="userPanelToggle"
-                           checked="@IsPanelVisible"
-                           @onchange="OnToggleChanged"
-                           aria-label="Toggle personal panel" />
-                    <label class="form-check-label d-none d-sm-inline" for="userPanelToggle">
-                        Show personal panel
-                    </label>
-                </div>
-            </Authorized>
-        </AuthorizeView>
-    </div>
-    <UserPanelOverlay IsVisible="@IsPanelVisible"
-                      OffsetTop="TopOffsetOfLeftPanel"
-                      OnVisibilityChanged="HandlePanelVisibilityChanged" />
-    <main class="container py-4">
-        @Body
+    <main class="container-fluid py-4">
+        <div class="dashboard-main d-flex align-items-start @(UserPanel.IsDesktopCollapsed ? "sidebar-collapsed" : string.Empty)">
+            <AuthorizeView>
+                <Authorized>
+                    <aside class="dashboard-sidebar-column d-none d-lg-block @(UserPanel.IsDesktopCollapsed ? "is-collapsed" : string.Empty)">
+                        <div class="dashboard-sidebar-shell">
+                            <UserPanelContent ShowPanelTitle="true" />
+                        </div>
+                    </aside>
+                </Authorized>
+            </AuthorizeView>
 
+            <section class="dashboard-content flex-grow-1">
+                @Body
+            </section>
+        </div>
     </main>
-
 </div>
 
 @code {
-    bool IsPanelVisible = false;
+    private const string DesktopPanelPreferenceKey = "userPanelDesktopCollapsed";
+    private bool _isRestoringPreference;
 
-    private int TopOffsetOfLeftPanel = 0;
-
-    private ElementReference HeaderRef;
-
-    private ElementReference ToolBarRef;
-
-
-    private void OnToggleChanged(ChangeEventArgs args)
+    protected override void OnInitialized()
     {
-        IsPanelVisible = args.Value is bool checkedValue && checkedValue;
+        UserPanel.OnChange += OnPanelStateChanged;
     }
 
-    private Task HandlePanelVisibilityChanged(bool isVisible)
+    public void Dispose()
     {
-        if (IsPanelVisible != isVisible)
-        {
-            IsPanelVisible = isVisible;
-            StateHasChanged();
-        }
-
-        return Task.CompletedTask;
+        UserPanel.OnChange -= OnPanelStateChanged;
     }
 
-    // Fix for CS0115: Use correct signature for OnAfterRenderAsync
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        int totalHeight = 0;
         if (firstRender)
         {
-            totalHeight += await GetElementHeight(HeaderRef);
-            totalHeight += await GetElementHeight(ToolBarRef);
-            TopOffsetOfLeftPanel = totalHeight;
-            StateHasChanged(); // Notify the component to re-render with the updated height
+            await RestoreCollapsedPreferenceAsync();
         }
-
     }
 
-    private Task<int> GetElementHeight(ElementReference elementRef) =>
-        JS.InvokeAsync<int>("domHelpers.getHeight", elementRef).AsTask();
+    private void OnPanelStateChanged()
+    {
+        if (!_isRestoringPreference)
+        {
+            _ = PersistCollapsedPreferenceAsync(UserPanel.IsDesktopCollapsed);
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task PersistCollapsedPreferenceAsync(bool isCollapsed)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", DesktopPanelPreferenceKey, isCollapsed ? "1" : "0");
+        }
+        catch
+        {
+            // Ignore if storage is unavailable.
+        }
+    }
+
+    private async Task RestoreCollapsedPreferenceAsync()
+    {
+        try
+        {
+            var value = await JS.InvokeAsync<string?>("localStorage.getItem", DesktopPanelPreferenceKey);
+            var isCollapsed = string.Equals(value, "1", StringComparison.Ordinal);
+
+            _isRestoringPreference = true;
+            UserPanel.SetDesktopCollapsed(isCollapsed);
+            _isRestoringPreference = false;
+        }
+        catch
+        {
+            // Ignore if storage is unavailable.
+        }
+    }
 }
