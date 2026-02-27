@@ -1,318 +1,77 @@
-# Best Practices for HobbyCenter (BEST_PRACTICES.md)
+# MiniPainterHub Best Practices
 
-This guide defines the recommended patterns and practices for developing and refactoring HobbyCenter.
-It’s designed for both humans and AI assistants to keep the codebase consistent, maintainable, and safe.
+This guide describes preferred implementation patterns for MiniPainterHub.
 
-If you’re unsure how to implement something, check **Architecture** first: `docs/ARCHITECTURE.md`, and follow **Code Style**: `docs/CODE_STYLE.md`.
+## 1) Decision Principles
 
----
+- Optimize for correctness first, then clarity, then performance.
+- Keep change scope small and reviewable.
+- Make behavior explicit at boundaries (DTOs, validation, errors).
 
-## Core Principles
+## 2) Layer Responsibilities
 
-1. **Controllers are thin; Services are thick.**
-2. **Async all the way. No `.Result` / `.Wait()`.**
-3. **Validate at the edges, enforce rules in services.**
-4. **Prefer simple data models (FKs + navigation) over manual join-table orchestration (unless truly needed).**
-5. **Make failures visible: log and return consistent errors.**
-6. **Refactor toward consistency (docs are the source of truth).**
+Controllers:
+- Handle routing, binding, HTTP semantics.
+- Keep orchestration minimal.
 
----
+Services:
+- Implement business workflows.
+- Enforce domain validation and permissions.
+- Coordinate persistence and external dependencies.
 
-## Layer Responsibilities
+Data layer:
+- `AppDbContext` remains the persistence boundary.
+- Entities model storage concerns, DTOs model transport concerns.
 
-### Controllers (`Controllers/`)
+## 3) Validation Strategy
 
-Controllers should:
+- Validate request shape at API boundary.
+- Validate business rules in service layer.
+- Return consistent error contracts using problem details.
 
-* Handle routing and HTTP semantics (status codes, redirects, view rendering).
-* Bind and validate request input (via model binding and `ModelState`).
-* Extract identity/claims (`User`).
-* Call service methods and translate results into responses.
+## 4) API Contract Discipline
 
-Controllers should not:
+- Shared API request/response DTOs should live in `MiniPainterHub.Common` when used by server and WebApp.
+- Avoid duplicate DTO definitions across projects.
+- If contracts change, update both server and client callers in the same task.
 
-* Build complex EF queries.
-* Contain business rules (ownership checks, rating update logic, etc.).
-* Block on async.
+## 5) Data Access
 
-### Services (`Services/`)
+- Prefer query projection to DTOs for read endpoints.
+- Use pagination for list endpoints.
+- Keep soft-delete behavior consistent in reads/writes.
 
-Services should:
+## 6) Authentication and Authorization
 
-* Own business rules and workflows.
-* Interact with EF Core context.
-* Perform authorization checks *in addition to controller-level `[Authorize]`* (ownership, etc.).
-* Return clear result objects or booleans (and log failures when needed).
+- Use JWT claims as identity source in controllers.
+- Re-check ownership/permissions in services for any write action.
+- Do not rely on UI visibility as a security mechanism.
 
-Services should not:
+## 7) Image and Upload Flows
 
-* Depend on UI or MVC types (`ViewBag`, `IActionResult`, etc.).
-* Use `HttpContext` directly (keep services testable and reusable).
+- Enforce upload count and size limits consistently.
+- Validate content type before processing.
+- Use `IImageProcessor` + `IImageStore` pipeline for variant workflows.
+- Keep storage backend abstracted (`LocalImageService` vs `AzureBlobImageService`).
 
----
+## 8) Testing Practice
 
-## Dependency Injection
+Minimum expected verification for backend-impacting changes:
+- `dotnet build MiniPainterHub.sln`
+- `dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj`
 
-### Register services with correct lifetimes
+Test data quality rule:
+- Seed realistic relational data even for EF InMemory tests.
+- Avoid impossible states that production constraints would block.
 
-* `DbContext`: **Scoped** (one per request)
-* Domain services: **Scoped**
-* Pure helpers: **Singleton** only if truly stateless and thread-safe
+## 9) Documentation Practice
 
-Avoid:
+When code behavior changes, update the matching docs in `/docs` during the same change.
 
-* Creating `DbContext` manually with `new`.
-* Using Service Locator (`HttpContext.RequestServices...`) in business logic.
+## 10) Preferred Delivery Format
 
-Preferred:
-
-* Constructor injection everywhere.
-
-Example:
-
-```csharp
-public class ImageService
-{
-    private readonly HobbyCenterContext _context;
-    private readonly ILogger<ImageService> _logger;
-
-    public ImageService(HobbyCenterContext context, ILogger<ImageService> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
-}
-```
-
----
-
-## Authentication & Authorization
-
-### Middleware order matters
-
-Authentication and authorization must be configured correctly:
-
-```csharp
-app.UseRouting();
-app.UseAuthentication();
-app.UseAuthorization();
-```
-
-### Protect write actions
-
-Any action that creates/modifies/deletes data should be:
-
-* `[Authorize]` at controller/action level
-* and also checked in the service for ownership/permissions
-
-Example:
-
-* Controller: `[Authorize]`
-* Service: verify the current user owns the image before deletion
-
-**Do not trust the UI** to hide buttons. Always validate server-side.
-
----
-
-## Async and EF Core Best Practices
-
-### Async all the way
-
-* Services that hit the DB should be async (`Task`/`Task<T>`).
-* Controllers should `await` service calls.
-* Never use `.Result` / `.Wait()`.
-
-### Prefer EF-side operations
-
-Do calculations in SQL when possible:
-
-* `AnyAsync`, `CountAsync`, `AverageAsync`, `SumAsync`
-* Use `Select` projections to fetch only what you need
-
-Avoid:
-
-* Loading a full list into memory just to count or average (unless tiny and justified).
-
-### Avoid N+1 queries
-
-If you loop items and query the DB inside the loop, you likely have N+1.
-
-Bad:
-
-```csharp
-foreach (var comment in comments)
-{
-    var user = await _context.Users.FindAsync(comment.UserId);
-}
-```
-
-Better:
-
-* Query with joins/projections
-* Or load users in one query
-* Or use navigation properties with `Include` (carefully)
-
----
-
-## Data Modeling and Relationships
-
-### Prefer straightforward FK relationships
-
-Current project uses join/link tables for relationships (images ↔ users, comments ↔ images, ratings ↔ images). This adds complexity and often causes bugs and extra queries.
-
-Preferred (refactor direction):
-
-* `ImageModel` has `OwnerUserId`
-* `CommentModel` has `ImageId` and `UserId`
-* `RatingModel` has `ImageId` and `UserId` (and unique constraint on pair)
-
-### Enforce integrity
-
-* Configure cascading deletes where appropriate
-* Ensure dependent records are removed when a parent is deleted
-* Add indexes for frequent queries (e.g., `ImageId`, `UserId`)
-
----
-
-## Validation Strategy
-
-### Validate at the edges (Controller)
-
-Use model validation for request shape:
-
-* Data annotations (`[Required]`, `[MaxLength]`)
-* `ModelState.IsValid`
-
-If invalid:
-
-* MVC: return the same view with validation errors
-* API: return `BadRequest(ModelState)` or a structured error response
-
-### Enforce rules in services
-
-Service should validate:
-
-* entity exists (image, user, comment)
-* ownership and permissions
-* “one rating per user per image” rule
-* business constraints (e.g., rating range)
-
----
-
-## Error Handling and Result Patterns
-
-### Prefer explicit results over silent failures
-
-Do not swallow exceptions.
-
-Use one of these patterns:
-
-#### Pattern A: Return a “Result” object
-
-```csharp
-public record ServiceResult(bool Success, string? Error = null);
-
-public async Task<ServiceResult> DeleteImageAsync(int userId, int imageId)
-{
-    // ...
-    return new ServiceResult(true);
-}
-```
-
-#### Pattern B: Return bool + log error
-
-Acceptable for small operations, but log failures.
-
-#### Pattern C: Throw domain exceptions
-
-Use with a consistent controller/global handler.
-
----
-
-## Logging
-
-Log meaningful events:
-
-* unexpected exceptions
-* denied operations (ownership fail)
-* important write operations (delete image, update rating)
-
-Never log:
-
-* passwords
-* hashes/salts
-* secrets
-
-Use structured logging if possible:
-
-```csharp
-_logger.LogWarning("User {UserId} tried to delete image {ImageId} without ownership", userId, imageId);
-```
-
----
-
-## Controller Patterns (MVC and API)
-
-### Keep one source of truth for write endpoints
-
-If you have both:
-
-* MVC actions
-* API endpoints
-
-Avoid duplicating logic across both. Prefer:
-
-* Controller action calls service
-* API controller calls same service
-* Both share validation and rules in service
-
-Do not maintain two separate business rule implementations.
-
----
-
-## ViewModels and UI Concerns
-
-* ViewModels should not contain EF entities.
-* ViewModels can include UI helpers like `CanDelete`, `AverageRating`, etc.
-* Compute UI flags in services or controllers, but rules should still be enforced in services.
-
----
-
-## JavaScript and AJAX
-
-* Prefer moving JS into `wwwroot/js/` once it grows.
-* Handle failure cases (show user feedback, not only `console.error`).
-* Use consistent endpoints and response shapes.
-
----
-
-## Refactoring Practices
-
-### Make refactors safe
-
-When refactoring:
-
-* change one layer at a time
-* keep commits small and focused
-* update docs when a pattern changes
-* prefer tests for the service layer (future direction)
-
-### Known high-impact refactors (recommended roadmap)
-
-* Remove `.Result` usage everywhere
-* Fix/ensure auth middleware order (`UseAuthentication`)
-* Simplify relationships (reduce manual join-table usage)
-* Prevent divide-by-zero in rating averages
-* Avoid orphan records on deletes (cascade or manual cleanup)
-
----
-
-## Checklist Before Merge
-
-* [ ] No `.Result` / `.Wait()` added
-* [ ] Controllers remain thin
-* [ ] Services own business rules and authorization checks
-* [ ] EF queries are async and avoid N+1
-* [ ] Validation is consistent (ModelState + service checks)
-* [ ] Errors are logged and returned consistently
-* [ ] Docs updated if architecture/pattern changed
+For each completed task provide:
+- What changed.
+- Why it changed.
+- Validation run.
+- Remaining risks or follow-ups.

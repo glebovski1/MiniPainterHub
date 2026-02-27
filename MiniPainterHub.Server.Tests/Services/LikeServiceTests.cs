@@ -28,8 +28,9 @@ public class LikeServiceTests
     {
         await using var context = AppDbContextFactory.Create();
         var user = TestData.CreateUser("user-1");
+        var otherUser = TestData.CreateUser("user-2");
         var post = TestData.CreatePost(1, user.Id);
-        await context.Users.AddAsync(user);
+        await context.Users.AddRangeAsync(user, otherUser);
         await context.Posts.AddAsync(post);
         await context.Likes.AddRangeAsync(
             new Like { PostId = post.Id, UserId = "user-1" },

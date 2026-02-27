@@ -1,68 +1,118 @@
-## 🧠 Context for AI Agents
+## Agent Workflow Contract
 
-This repo includes structured documentation in `/docs` to support Retrieval-Augmented Generation (RAG).
+This file defines the default operating workflow for AI/code agents in this repository.
 
-AI agents should:
-- Reference `/docs/ARCHITECTURE.md` to understand layered structure
-- Use `/docs/CODE_STYLE.md` to follow code conventions
-- Avoid practices listed in `/docs/ANTI_PATTERNS.md`
-- Always use the service layer (`Services/`) when writing or modifying controller logic
-- Access EF Core via `HobbyCenterContext` in `Data/`
+## 1) Objective
 
-## 🔐 Authentication Handling
+Deliver correct, reviewable changes with minimal risk.
+Extended execution examples: `docs/ai/WORKFLOW_PLAYBOOK.md`.
 
-AI agents should verify that `app.UseAuthentication()` is present and not modify its position in middleware order.
+## 2) Instruction Priority
 
-## 🚫 Avoid
+When guidance conflicts, follow this order:
+- User request in the current task
+- `AGENT.md`
+- `docs/ARCHITECTURE.md`
+- `docs/CODE_STYLE.md`
+- `docs/BEST_PRACTICES.md`
+- `docs/ANTI_PATTERNS.md`
+- `docs/CONTRIBUTING.md`
+- Existing code patterns
 
-- Creating `.Result` on async calls
-- Writing logic directly in controllers
-- Introducing raw SQL unless specified
+If docs conflict with code behavior, trust running code and update docs in the same change.
 
-## ✅ Preferred Patterns
+## 3) Scope and Routing
 
-- `async`/`await` everywhere
-- Use dependency injection
-- All business logic in `Services/`
+Treat this as a single product with these projects:
+- `MiniPainterHub.Server`: API and host
+- `MiniPainterHub.WebApp`: Blazor WebAssembly client
+- `MiniPainterHub.Common`: shared DTO/contracts
+- `MiniPainterHub.Server.Tests`: tests
 
-## 🧪 Test Expectations
+Architecture baseline:
+- Controllers are transport layer only.
+- Business logic lives in `MiniPainterHub.Server/Services`.
+- Persistence is `AppDbContext` in `MiniPainterHub.Server/Data/AppDbContext.cs`.
 
-No test suite yet. AI agents should validate code with `dotnet build` and avoid introducing runtime errors.
+## 4) Default Execution Workflow
 
-## 🎨 UI Workflow (Required)
+For any non-trivial task, execute this sequence:
+1. Discover: read only files needed to understand impacted flow.
+2. Plan: identify minimal safe change set.
+3. Implement: keep edits focused and consistent with existing patterns.
+4. Verify: run required checks from Section 7.
+5. Deliver: summarize what changed, why, and what was validated.
 
-When making any UI change (Razor/CSS/JS in `MiniPainterHub.WebApp`):
-- Start the app if needed, then visually verify changes in a browser.
-- Use the automated snapshot script to sanity-check desktop + mobile layouts:
-  - Run `.\.venv\Scripts\python tools\ui_snapshot_panel.py`
-  - Review screenshots in `artifacts/ui-panel-check\` before concluding the change is acceptable.
-- Perform a UI smoke test on impacted pages and confirm every visible button still works as expected.
+## 5) Flex Modes
 
-## 📘 How to Use `/docs` for RAG and AI Agents
+Pick the lightest mode that safely completes the task:
 
-This repository includes a structured RAG-style documentation folder at `/docs` for AI and developers.
+`Quick Patch`:
+- Small isolated fix.
+- No architectural changes.
+- Run targeted checks.
 
-Each document is purpose-specific:
+`Standard Change`:
+- Multi-file feature/bug fix.
+- Includes code + tests/docs when needed.
+- Run project-level checks.
 
-- `CODE_STYLE.md`: C# and ASP.NET naming conventions, formatting rules, async practices.
-- `ARCHITECTURE.md`: Overview of system layers, data flow, EF Core models, and auth strategy.
-- `BEST_PRACTICES.md`: Preferred patterns for validation, DI, service usage, and async code.
-- `ANTI_PATTERNS.md`: Known issues and what to avoid (.Result, fat controllers, swallowed exceptions).
-- `CONTRIBUTING.md`: Contributor setup and etiquette.
+`High-Risk Change`:
+- Auth, DB schema, cross-cutting contracts, upload/image pipeline, or security-sensitive paths.
+- Add/adjust tests and run broader validation.
+- Document assumptions and residual risk.
 
-### Agent Guidelines
+## 6) Guardrails
 
-- Use full path lookups (e.g. `docs/ARCHITECTURE.md`) for semantic search or embedding.
-- When answering questions about project rules or design, retrieve from the most relevant file.
-- Prioritize recent `/docs/` content over older inline comments or out-of-date READMEs.
-- Do not generate new styles or patterns not aligned with `CODE_STYLE.md` or `BEST_PRACTICES.md`.
+Always:
+- Use async/await end to end; no `.Result` or `.Wait()`.
+- Keep controller actions thin and delegate rules to services.
+- Validate request shape at boundary and business rules in services.
+- Preserve middleware order in `MiniPainterHub.Server/Program.cs`:
+  - `UseAuthentication()` before `UseAuthorization()`.
+- Keep API contracts in `MiniPainterHub.Common` unless there is a strong reason not to.
 
-### Use Case Mapping (for retrieval)
+Never:
+- Move logic into UI/controller layer to bypass service rules.
+- Add raw SQL unless explicitly required.
+- Skip verification for risky changes.
 
-| Question Type                                 | File to Consult             |
-|----------------------------------------------|-----------------------------|
-| How should I name a service method?           | `CODE_STYLE.md`             |
-| What does ImageService do internally?         | `ARCHITECTURE.md`           |
-| Can I use `.Result` in controller logic?      | `ANTI_PATTERNS.md`          |
-| Where does validation go — controller or svc? | `BEST_PRACTICES.md`         |
-| How do I contribute or open a PR?             | `CONTRIBUTING.md`           |
+## 7) Verification Matrix
+
+Use the strongest applicable check set:
+
+Docs-only changes:
+- Optional build.
+- Ensure docs point to existing files/types.
+
+Server code changes:
+- `dotnet build MiniPainterHub.sln`
+- `dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj`
+
+WebApp UI changes:
+- `dotnet build MiniPainterHub.sln`
+- Visual smoke test of impacted page(s)
+- `./.venv/Scripts/python tools/ui_snapshot_panel.py`
+- Review images in `artifacts/ui-panel-check/`
+
+Contract/auth/data-flow changes:
+- Full solution build
+- Server tests
+- Extra targeted manual checks for impacted endpoints
+
+## 8) Documentation Maintenance Rule
+
+When behavior changes, update docs in the same task:
+- Architecture/layering changes -> `docs/ARCHITECTURE.md`
+- Style/convention changes -> `docs/CODE_STYLE.md`
+- New recommended workflow/pattern -> `docs/BEST_PRACTICES.md`
+- New pitfall discovered -> `docs/ANTI_PATTERNS.md`
+- Process change for contributors -> `docs/CONTRIBUTING.md`
+
+## 9) Definition of Done
+
+A task is complete only when:
+- Requested behavior is implemented.
+- Verification for the selected mode is done.
+- Relevant docs are updated if guidance changed.
+- Summary includes: files changed, validation run, and known follow-ups.
