@@ -1,0 +1,4 @@
+interface:
+  display_name: ".NET Playwright E2E"
+  short_description: "Playwright smoke tests for .NET apps"
+  default_prompt: "Use $dotnet-playwright-e2e-smoke to add or maintain Playwright end-to-end smoke tests for this repository."

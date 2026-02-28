@@ -1,0 +1,4 @@
+interface:
+  display_name: ".NET Test Engineer"
+  short_description: "xUnit fixtures and API test conventions"
+  default_prompt: "Use $dotnet-test-engineer to add or improve .NET tests for this repository."
