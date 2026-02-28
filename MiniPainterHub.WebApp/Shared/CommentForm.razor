@@ -5,7 +5,7 @@
 
 @if (!string.IsNullOrEmpty(_submitError))
 {
-    <div class="alert alert-warning d-flex align-items-center" role="alert">
+    <div class="alert alert-warning d-flex align-items-center" role="alert" data-testid="comment-error">
         <i class="bi bi-exclamation-triangle-fill me-2"></i>
         <div>
             @_submitError
@@ -24,10 +24,12 @@
     <InputTextArea @bind-Value="_model.Text"
                    class="form-control"
                    placeholder="Write your comment…"
+                   data-testid="comment-input"
                    rows="3" />
 
     <button type="submit"
             class="btn btn-primary mt-2"
+            data-testid="comment-submit"
             disabled="@_isSubmitting">
         @(_isSubmitting ? "Posting…" : "Post Comment")
     </button>

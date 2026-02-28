@@ -8,18 +8,18 @@
 
 <h1 class="mb-4">Create new post</h1>
 
-<EditForm Model="@newPost" OnValidSubmit="HandleSubmit">
+<EditForm Model="@newPost" OnValidSubmit="HandleSubmit" data-testid="create-post-form">
     <DataAnnotationsValidator />
     <ValidationSummary />
 
     <div class="mb-3">
         <label for="post-title" class="form-label">Title</label>
-        <InputText id="post-title" class="form-control" @bind-Value="newPost.Title" />
+        <InputText id="post-title" class="form-control" data-testid="create-post-title" @bind-Value="newPost.Title" />
     </div>
 
     <div class="mb-3">
         <label for="post-content" class="form-label">Content</label>
-        <InputTextArea id="post-content" class="form-control" rows="6" @bind-Value="newPost.Content" />
+        <InputTextArea id="post-content" class="form-control" rows="6" data-testid="create-post-content" @bind-Value="newPost.Content" />
     </div>
 
     <div class="mb-3">
@@ -34,13 +34,13 @@
         }
     </div>
 
-    <button type="submit" class="btn btn-primary">Create</button>
+    <button type="submit" class="btn btn-primary" data-testid="create-post-submit">Create</button>
     <button type="button" class="btn btn-secondary ms-2" @onclick="Cancel">Cancel</button>
 </EditForm>
 
 @if (!string.IsNullOrEmpty(errorMessage))
 {
-    <div class="alert alert-danger mt-3">@errorMessage</div>
+    <div class="alert alert-danger mt-3" data-testid="create-post-error">@errorMessage</div>
 }
 
 @code {

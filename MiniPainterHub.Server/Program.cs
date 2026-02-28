@@ -240,6 +240,33 @@ public class Program
 
         app.MapGet("/healthz", () => Results.Ok("OK"));
 
+        if (app.Environment.IsDevelopment())
+        {
+            app.MapPost("/api/test-support/reset", async (AppDbContext db) =>
+            {
+                if (db.Database.IsRelational())
+                {
+                    await db.Likes.ExecuteDeleteAsync();
+                    await db.Comments.ExecuteDeleteAsync();
+                    await db.PostImages.ExecuteDeleteAsync();
+                    await db.Posts.ExecuteDeleteAsync();
+                    await db.Profiles.ExecuteDeleteAsync();
+                }
+                else
+                {
+                    db.Likes.RemoveRange(db.Likes);
+                    db.Comments.RemoveRange(db.Comments);
+                    db.PostImages.RemoveRange(db.PostImages);
+                    db.Posts.RemoveRange(db.Posts);
+                    db.Profiles.RemoveRange(db.Profiles);
+                    await db.SaveChangesAsync();
+                }
+
+                await DataSeeder.SeedAsync(app.Services);
+
+                return Results.Ok(new { ok = true });
+            });
+        }
 
 
         app.Run();
