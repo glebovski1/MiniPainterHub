@@ -1,0 +1,4 @@
+interface:
+  display_name: "Blazor bUnit Testing"
+  short_description: "bUnit patterns for Blazor components"
+  default_prompt: "Use $blazor-bunit-testing to design and implement bUnit tests for this Blazor codebase."

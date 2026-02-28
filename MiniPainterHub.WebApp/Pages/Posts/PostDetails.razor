@@ -84,7 +84,7 @@
 
             @* 📝 Post Content *@
             <div class="card-body p-0">
-                <h2 class="card-title mb-3">@post.Title</h2>
+                <h2 class="card-title mb-3" data-testid="post-title">@post.Title</h2>
 
                 <p class="text-muted small mb-3">
                     <i class="bi bi-person me-1"></i>
@@ -99,7 +99,7 @@
                 </div>
 
                 <div class="d-flex align-items-center gap-3 mb-4">
-                    <LikeButton PostId="@PostId" />
+                    <LikeButton PostId="@PostId" TestId="post-like-toggle" />
 
                     <button class="btn btn-outline-secondary btn-sm ms-auto"
                             @onclick='() => Nav.NavigateTo("/")'>
@@ -107,7 +107,7 @@
                     </button>
                 </div>
 
-                <h5 class="mb-3">Comments</h5>
+                <h5 class="mb-3" data-testid="comments-heading">Comments</h5>
                 <AuthorizeView>
                     <Authorized>
                         <CommentForm PostId="@PostId" OnCommentAdded="ReloadComments" />

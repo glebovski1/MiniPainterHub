@@ -1,0 +1,12 @@
+{
+  "name": "minipainterhub-e2e",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Playwright smoke tests for MiniPainterHub.",
+  "scripts": {
+    "test:smoke": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.2"
+  }
+}

@@ -94,6 +94,9 @@ WebApp UI changes:
 - Visual smoke test of impacted page(s)
 - `./.venv/Scripts/python tools/ui_snapshot_panel.py`
 - Review images in `artifacts/ui-panel-check/`
+- Behavioral smoke suite:
+  - `npm --prefix e2e ci`
+  - `npm --prefix e2e run test:smoke`
 
 Contract/auth/data-flow changes:
 - Full solution build

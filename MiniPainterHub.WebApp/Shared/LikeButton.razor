@@ -4,6 +4,7 @@
 
 
 <button class="btn btn-sm"
+        data-testid="@ResolvedTestId"
         @onclick="ToggleLike"
         disabled="@_isLoading">
     @if (_state.UserHasLiked)
@@ -14,14 +15,16 @@
     {
         <i class="bi bi-heart"></i>
     }
-    <span class="ms-1">@_state.Count</span>
+    <span class="ms-1" data-testid="@($"{ResolvedTestId}-count")">@_state.Count</span>
 </button>
 
 @code {
     [Parameter] public int PostId { get; set; }
+    [Parameter] public string? TestId { get; set; }
 
     private LikeDto _state = new();
     private bool _isLoading;
+    private string ResolvedTestId => string.IsNullOrWhiteSpace(TestId) ? "like-toggle" : TestId;
 
     protected override async Task OnParametersSetAsync()
         => _state = await LikeService.GetLikesAsync(PostId);

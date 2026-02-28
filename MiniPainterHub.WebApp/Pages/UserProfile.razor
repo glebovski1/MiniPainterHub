@@ -22,18 +22,18 @@ else if (_profile is null)
 
                 <div class="mb-3">
                     <label class="form-label">Display name</label>
-                    <InputText @bind-Value="_create.DisplayName" class="form-control" placeholder="e.g. Sam Painter" />
+                    <InputText @bind-Value="_create.DisplayName" class="form-control" data-testid="profile-create-display-name" placeholder="e.g. Sam Painter" />
                     <ValidationMessage For="@(() => _create.DisplayName)" class="text-danger" />
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label">Bio</label>
-                    <InputTextArea @bind-Value="_create.Bio" class="form-control" rows="4" placeholder="A short bio…" />
+                    <InputTextArea @bind-Value="_create.Bio" class="form-control" data-testid="profile-create-bio" rows="4" placeholder="A short bio…" />
                     <div class="form-text">Max 500 characters.</div>
                     <ValidationMessage For="@(() => _create.Bio)" class="text-danger" />
                 </div>
 
-                <button class="btn btn-primary" type="submit" disabled="@_busy">
+                <button class="btn btn-primary" type="submit" data-testid="profile-create-submit" disabled="@_busy">
                     @if (_busy)
                     {
                         <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>

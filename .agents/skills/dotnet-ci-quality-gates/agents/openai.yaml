@@ -1,0 +1,4 @@
+interface:
+  display_name: ".NET CI Quality Gates"
+  short_description: "Build, test, coverage, artifacts in CI"
+  default_prompt: "Use $dotnet-ci-quality-gates to create or harden CI quality gates for this repository."

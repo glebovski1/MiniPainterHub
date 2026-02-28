@@ -3,7 +3,7 @@
 @using System.Net
 @inject ICommentService CommentService
 
-<div>
+<div data-testid="comment-list-container">
     @if (!string.IsNullOrEmpty(_loadError))
     {
         <div class="alert alert-warning d-flex align-items-center" role="alert">

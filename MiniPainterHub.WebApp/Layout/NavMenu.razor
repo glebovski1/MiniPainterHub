@@ -65,14 +65,14 @@
                 <AuthorizeView>
                     <Authorized>
                         <li>
-                            <button type="button" class="btn btn-link nav-link" @onclick="Logout">
+                            <button type="button" class="btn btn-link nav-link" data-testid="nav-logout" @onclick="Logout">
                                 Logout
                             </button>
                         </li>
                     </Authorized>
                     <NotAuthorized>
                         <li>
-                            <NavLink class="nav-link" href="/login">Login</NavLink>
+                            <NavLink class="nav-link" href="/login" data-testid="nav-login">Login</NavLink>
                         </li>
                         <li>
                             <NavLink class="nav-link" href="/register">Register</NavLink>

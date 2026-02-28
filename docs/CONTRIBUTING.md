@@ -36,6 +36,9 @@ UI-impacting changes:
 - Run impacted page manually
 - Optional snapshot check:
   - `./.venv/Scripts/python tools/ui_snapshot_panel.py`
+- Optional behavioral smoke check:
+  - `npm --prefix e2e ci`
+  - `npm --prefix e2e run test:smoke`
 
 ## 5) Coding Expectations
 
