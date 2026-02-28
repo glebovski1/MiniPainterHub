@@ -1,9 +1,14 @@
 const { test, expect } = require("@playwright/test");
 
 test.describe.configure({ mode: "serial" });
+const RESET_TOKEN = process.env.E2E_RESET_TOKEN || "local-e2e-reset-token";
 
 async function resetAppState(request) {
-  const response = await request.post("/api/test-support/reset");
+  const response = await request.post("/api/test-support/reset", {
+    headers: {
+      "X-Test-Support-Token": RESET_TOKEN,
+    },
+  });
   expect(response.ok(), `Reset failed with HTTP ${response.status()}`).toBeTruthy();
 }
 

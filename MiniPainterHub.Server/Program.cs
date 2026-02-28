@@ -19,6 +19,8 @@ using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services;
 using MiniPainterHub.Server.Services.Images;
 using MiniPainterHub.Server.Services.Interfaces;
+using System.Net;
+using System.Security.Cryptography;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -240,28 +242,43 @@ public class Program
 
         app.MapGet("/healthz", () => Results.Ok("OK"));
 
-        if (app.Environment.IsDevelopment())
+        var resetToken = app.Configuration["TestSupport:ResetToken"];
+        if (app.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(resetToken))
         {
-            app.MapPost("/api/test-support/reset", async (AppDbContext db) =>
+            app.MapPost("/api/test-support/reset", async (HttpContext context, AppDbContext db) =>
             {
-                if (db.Database.IsRelational())
+                var requestToken = context.Request.Headers["X-Test-Support-Token"].ToString();
+                if (string.IsNullOrWhiteSpace(requestToken))
                 {
-                    await db.Likes.ExecuteDeleteAsync();
-                    await db.Comments.ExecuteDeleteAsync();
-                    await db.PostImages.ExecuteDeleteAsync();
-                    await db.Posts.ExecuteDeleteAsync();
-                    await db.Profiles.ExecuteDeleteAsync();
-                }
-                else
-                {
-                    db.Likes.RemoveRange(db.Likes);
-                    db.Comments.RemoveRange(db.Comments);
-                    db.PostImages.RemoveRange(db.PostImages);
-                    db.Posts.RemoveRange(db.Posts);
-                    db.Profiles.RemoveRange(db.Profiles);
-                    await db.SaveChangesAsync();
+                    return Results.Unauthorized();
                 }
 
+                var remoteIp = context.Connection.RemoteIpAddress;
+                if (remoteIp is null)
+                {
+                    return Results.Forbid();
+                }
+
+                if (remoteIp.IsIPv4MappedToIPv6)
+                {
+                    remoteIp = remoteIp.MapToIPv4();
+                }
+
+                if (!IPAddress.IsLoopback(remoteIp))
+                {
+                    return Results.Forbid();
+                }
+
+                var expectedTokenBytes = Encoding.UTF8.GetBytes(resetToken);
+                var requestTokenBytes = Encoding.UTF8.GetBytes(requestToken);
+                var validToken = CryptographicOperations.FixedTimeEquals(expectedTokenBytes, requestTokenBytes);
+                if (!validToken)
+                {
+                    return Results.Unauthorized();
+                }
+
+                await db.Database.EnsureDeletedAsync();
+                await db.Database.EnsureCreatedAsync();
                 await DataSeeder.SeedAsync(app.Services);
 
                 return Results.Ok(new { ok = true });
