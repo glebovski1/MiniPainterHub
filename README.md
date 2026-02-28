@@ -11,3 +11,36 @@ Requesting a comment that does not exist (for example, `GET /api/comments/{id}`)
 ## Azure App Service configuration
 
 When deploying MiniPainterHub to Azure App Service, ensure the blob storage settings use the hierarchical configuration keys that the application expects (`ImageStorage:AzureConnectionString` and `ImageStorage:AzureContainer`). If your existing configuration still uses flat keys such as `ImageStorageAzureConnectionString` or `ImageStorageAzureContainer`, update them on the App Service **Configuration → Application settings** blade to the new names (or use the double-underscore form `ImageStorage__AzureConnectionString` and `ImageStorage__AzureContainer` for environment-variable compatibility). Save the configuration and restart the App Service to reload the updated settings.
+
+## Codex Skills Tooling
+
+This repo now includes helper scripts under `tools/skills`:
+
+- `init-skill.py`: scaffold a new skill skeleton.
+- `install-skill-from-github.py`: install a skill from GitHub with target scope support.
+
+### Create a new skill skeleton
+
+```powershell
+python tools/skills/init-skill.py `
+  --name my-skill `
+  --description "Use when ..." `
+  --target repo
+```
+
+Targets:
+
+- `repo`: `./.agents/skills`
+- `global`: `%CODEX_HOME%/skills` (defaults to `~/.codex/skills`)
+- `both`: install/create in both locations
+
+### Install a skill from GitHub
+
+```powershell
+python tools/skills/install-skill-from-github.py `
+  --repo openai/skills `
+  --path skills/.curated/doc `
+  --target both
+```
+
+You can also pass `--url https://github.com/<owner>/<repo>/tree/<ref>/<path>` instead of `--repo` + `--path`.

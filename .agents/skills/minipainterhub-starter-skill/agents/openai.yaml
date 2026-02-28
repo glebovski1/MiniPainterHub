@@ -1,0 +1,7 @@
+interface:
+  display_name: "MiniPainterHub Starter"
+  short_description: "Starter template for Codex skills"
+  default_prompt: "Use $minipainterhub-starter-skill as a starting template, then customize it for this task."
+
+policy:
+  allow_implicit_invocation: false
