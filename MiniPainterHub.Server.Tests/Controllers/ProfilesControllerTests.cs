@@ -122,6 +122,50 @@ public class ProfilesControllerTests
         body.Bio.Should().Be("Visible bio");
     }
 
+    [Fact]
+    public async Task GetUserProfileById_WhenProfileExists_ReturnsProfile()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await SeedUserAsync(factory, "target-user", "target-user");
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            await db.Profiles.AddAsync(new Profile
+            {
+                UserId = "target-user",
+                DisplayName = "Target Name",
+                Bio = "Target bio"
+            });
+            await db.SaveChangesAsync();
+        });
+        using var client = factory.CreateAuthenticatedClient("caller-user", "caller-user");
+
+        var response = await client.GetAsync("/api/profiles/target-user");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<UserProfileDto>();
+        body.Should().NotBeNull();
+        body!.UserId.Should().Be("target-user");
+        body.DisplayName.Should().Be("Target Name");
+    }
+
+    [Fact]
+    public async Task GetUserProfileById_WhenProfileMissing_ReturnsNotFoundProblemDetails()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateAuthenticatedClient("caller-user", "caller-user");
+
+        var response = await client.GetAsync("/api/profiles/missing-user");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        json.RootElement.GetProperty("title").GetString().Should().Be("Not found");
+        json.RootElement.GetProperty("detail").GetString().Should().Be("Profile not found.");
+    }
+
     private static Task SeedUserAsync(
         IntegrationTestApplicationFactory factory,
         string userId,

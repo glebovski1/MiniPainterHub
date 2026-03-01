@@ -101,4 +101,38 @@ public class CommentServiceTests
         result.Should().BeTrue();
         (await context.Comments.SingleAsync()).Text.Should().Be("Updated");
     }
+
+    [Fact]
+    public async Task GetByIdAsync_WhenCommentExists_ReturnsComment()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1", "commenter");
+        var post = TestData.CreatePost(1, user.Id);
+        var comment = TestData.CreateComment(7, post.Id, user.Id);
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.Comments.AddAsync(comment);
+        await context.SaveChangesAsync();
+        var service = new CommentService(context);
+
+        var result = await service.GetByIdAsync(comment.Id);
+
+        result.Id.Should().Be(comment.Id);
+        result.PostId.Should().Be(post.Id);
+        result.AuthorId.Should().Be(user.Id);
+        result.AuthorName.Should().Be(user.UserName);
+        result.Content.Should().Be(comment.Text);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_WhenCommentMissing_ThrowsNotFoundException()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var service = new CommentService(context);
+
+        var act = async () => await service.GetByIdAsync(777);
+
+        await act.Should().ThrowAsync<NotFoundException>()
+            .WithMessage("Comment not found.");
+    }
 }

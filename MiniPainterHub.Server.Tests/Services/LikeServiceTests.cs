@@ -85,4 +85,37 @@ public class LikeServiceTests
         await act.Should().ThrowAsync<NotFoundException>()
             .WithMessage("Like not found.");
     }
+
+    [Fact]
+    public async Task IsLikedAsync_WhenLikeExists_ReturnsTrue()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        var post = TestData.CreatePost(1, user.Id);
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.Likes.AddAsync(new Like { PostId = post.Id, UserId = user.Id });
+        await context.SaveChangesAsync();
+        var service = new LikeService(context);
+
+        var result = await service.IsLikedAsync(post.Id, user.Id);
+
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task IsLikedAsync_WhenLikeMissing_ReturnsFalse()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        var post = TestData.CreatePost(1, user.Id);
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.SaveChangesAsync();
+        var service = new LikeService(context);
+
+        var result = await service.IsLikedAsync(post.Id, user.Id);
+
+        result.Should().BeFalse();
+    }
 }

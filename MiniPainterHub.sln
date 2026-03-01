@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.9.34622.214
@@ -10,6 +10,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MiniPainterHub.WebApp", "MiniPainterHub.WebApp\MiniPainterHub.WebApp.csproj", "{B2163EF5-DDDF-4EA7-A022-5FBE186A0F90}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MiniPainterHub.Server.Tests", "MiniPainterHub.Server.Tests\MiniPainterHub.Server.Tests.csproj", "{1D295B36-FB97-43FE-80D3-B760615243D2}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MiniPainterHub.WebApp.Tests", "MiniPainterHub.WebApp.Tests\MiniPainterHub.WebApp.Tests.csproj", "{3DB3125B-0E9D-485D-BCDE-F840BAB781BE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{1D295B36-FB97-43FE-80D3-B760615243D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1D295B36-FB97-43FE-80D3-B760615243D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1D295B36-FB97-43FE-80D3-B760615243D2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3DB3125B-0E9D-485D-BCDE-F840BAB781BE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3DB3125B-0E9D-485D-BCDE-F840BAB781BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3DB3125B-0E9D-485D-BCDE-F840BAB781BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3DB3125B-0E9D-485D-BCDE-F840BAB781BE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

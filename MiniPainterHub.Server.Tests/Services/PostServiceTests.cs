@@ -181,6 +181,40 @@ public class PostServiceTests
         storedPost.Images.Select(i => i.Id).Should().OnlyHaveUniqueItems();
     }
 
+    [Fact]
+    public async Task ExistsAsync_WhenActivePostExists_ReturnsTrue()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        var post = TestData.CreatePost(1, user.Id);
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var exists = await service.ExistsAsync(post.Id);
+
+        exists.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExistsAsync_WhenPostIsMissingOrDeleted_ReturnsFalse()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        var deletedPost = TestData.CreatePost(1, user.Id, isDeleted: true);
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(deletedPost);
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var missingExists = await service.ExistsAsync(999);
+        var deletedExists = await service.ExistsAsync(deletedPost.Id);
+
+        missingExists.Should().BeFalse();
+        deletedExists.Should().BeFalse();
+    }
+
     private static PostService CreateService(AppDbContext context)
     {
         return new PostService(

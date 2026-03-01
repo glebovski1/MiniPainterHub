@@ -3,9 +3,12 @@ const { defineConfig } = require("@playwright/test");
 const PORT = 5176;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 const RESET_TOKEN = process.env.E2E_RESET_TOKEN || "local-e2e-reset-token";
+const DEFAULT_E2E_DB = process.env.CI
+  ? "MiniPainterHub_E2E"
+  : `MiniPainterHub_E2E_${Date.now()}_${process.pid}`;
 const E2E_CONNECTION_STRING =
   process.env.E2E_CONNECTION_STRING ||
-  "Server=(localdb)\\MSSQLLocalDB;Database=MiniPainterHub_E2E;Trusted_Connection=True;MultipleActiveResultSets=true";
+  `Server=(localdb)\\MSSQLLocalDB;Database=${DEFAULT_E2E_DB};Trusted_Connection=True;MultipleActiveResultSets=true`;
 
 module.exports = defineConfig({
   testDir: "./tests",

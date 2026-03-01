@@ -17,6 +17,7 @@ Related docs:
 - `MiniPainterHub.WebApp`: Blazor WebAssembly client.
 - `MiniPainterHub.Common`: shared DTO/auth contracts used by server and client.
 - `MiniPainterHub.Server.Tests`: server unit/integration-style tests.
+- `MiniPainterHub.WebApp.Tests`: bUnit component tests for Blazor UI behavior.
 
 High-level runtime flow:
 
@@ -175,9 +176,11 @@ Service clients in `MiniPainterHub.WebApp/Services` mirror server domains (`Auth
 ## 8) Testing Strategy
 
 Server tests are in `MiniPainterHub.Server.Tests` and cover services/controllers.
+Blazor component tests are in `MiniPainterHub.WebApp.Tests`.
 
 Preferred validation commands:
 - `dotnet build MiniPainterHub.sln`
 - `dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj`
+- `dotnet test MiniPainterHub.WebApp.Tests/MiniPainterHub.WebApp.Tests.csproj`
 
 When adding tests with EF InMemory, seed realistic relational data (for example all referenced users for likes/comments) to avoid impossible production states.
