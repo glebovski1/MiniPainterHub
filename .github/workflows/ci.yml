@@ -33,7 +33,11 @@ jobs:
         run: dotnet build MiniPainterHub.sln --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=server-tests.trx" --results-directory artifacts/test-results
+        run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=server-tests.trx" --collect:"XPlat Code Coverage" --results-directory artifacts/test-results
+
+      - name: Enforce MiniPainterHub.Server coverage baseline (65%)
+        shell: pwsh
+        run: ./tools/coverage/check-server-coverage.ps1 -CoverageRoot artifacts/test-results -AssemblyName MiniPainterHub.Server -Threshold 65
 
       - name: Upload test results
         if: always()
