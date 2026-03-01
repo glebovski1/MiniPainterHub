@@ -184,6 +184,17 @@ public class Program
         // ------------------------------------------------------------------
         if (app.Environment.IsDevelopment())
         {
+            await using var scope = app.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            if (db.Database.IsRelational())
+            {
+                await db.Database.MigrateAsync();
+            }
+            else
+            {
+                await db.Database.EnsureCreatedAsync();
+            }
+
             await DataSeeder.SeedAsync(app.Services);
         }
 
@@ -243,7 +254,8 @@ public class Program
         app.MapGet("/healthz", () => Results.Ok("OK"));
 
         var resetToken = app.Configuration["TestSupport:ResetToken"];
-        if (app.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(resetToken))
+        var resetEnabled = app.Configuration.GetValue<bool>("TestSupport:ResetEnabled");
+        if (app.Environment.IsDevelopment() && resetEnabled && !string.IsNullOrWhiteSpace(resetToken))
         {
             app.MapPost("/api/test-support/reset", async (HttpContext context, AppDbContext db) =>
             {
