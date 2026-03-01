@@ -27,6 +27,9 @@ Thanks for contributing. This guide keeps changes consistent and reviewable.
 
 ## 4) Validation Expectations
 
+Codex Cloud preflight (only when `dotnet` is unavailable):
+- `bash tools/cloud/bootstrap-dotnet-and-test.sh`
+
 Backend-impacting changes:
 - `dotnet build MiniPainterHub.sln`
 - `dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj`
