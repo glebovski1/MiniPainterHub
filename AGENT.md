@@ -81,6 +81,9 @@ Never:
 
 Use the strongest applicable check set:
 
+Codex Cloud preflight (when `dotnet` is missing):
+- `bash tools/cloud/bootstrap-dotnet-and-test.sh`
+
 Docs-only changes:
 - Optional build.
 - Ensure docs point to existing files/types.
