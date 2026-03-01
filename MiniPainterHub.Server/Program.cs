@@ -290,7 +290,7 @@ public class Program
                 }
 
                 await db.Database.EnsureDeletedAsync();
-                await db.Database.EnsureCreatedAsync();
+                await db.Database.MigrateAsync();
                 await DataSeeder.SeedAsync(app.Services);
 
                 return Results.Ok(new { ok = true });
