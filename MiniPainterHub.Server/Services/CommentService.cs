@@ -24,7 +24,7 @@ namespace MiniPainterHub.Server.Services
         public async Task<CommentDto> CreateAsync(string userId, int postId, CreateCommentDto dto)
         {
             // 1️⃣ Optional: verify the post actually exists
-            var postExists = await _appDbContext.Posts.AnyAsync(p => p.Id == postId && !p.IsDeleted);
+            var postExists = await _appDbContext.Posts.AnyAsync(p => p.Id == postId && p.Status == ContentStatus.Active);
             if (!postExists)
                 throw new NotFoundException("Post not found.");
 
@@ -59,13 +59,14 @@ namespace MiniPainterHub.Server.Services
                 .FirstOrDefaultAsync(c =>
                     c.Id == commentId
                     && (c.AuthorId == userId || isAdmin)
-                    && !c.IsDeleted
+                    && c.Status == ContentStatus.Active
                 );
 
             if (comment == null)
                 throw new NotFoundException("Comment not found.");
 
-            comment.IsDeleted = true;
+            comment.Status = ContentStatus.SoftDeleted;
+            comment.DeletedAt = DateTime.UtcNow;
             comment.UpdatedUtc = DateTime.UtcNow;
             await _appDbContext.SaveChangesAsync();
             return true;
@@ -75,7 +76,7 @@ namespace MiniPainterHub.Server.Services
         {
             var comment = await _appDbContext.Comments
                 .AsNoTracking()
-                .Where(c => c.Id == id && !c.IsDeleted)
+                .Where(c => c.Id == id && c.Status == ContentStatus.Active)
                 .Select(c => new CommentDto
                 {
                     Id = c.Id,
@@ -116,7 +117,7 @@ namespace MiniPainterHub.Server.Services
 
             var query = _appDbContext.Comments
                 .AsNoTracking()
-                .Where(c => c.PostId == postId && !c.IsDeleted)
+                .Where(c => c.PostId == postId && c.Status == ContentStatus.Active)
                 .OrderBy(c => c.CreatedUtc);
 
             var totalCount = await query.CountAsync();
@@ -148,7 +149,7 @@ namespace MiniPainterHub.Server.Services
         public async Task<bool> UpdateAsync(int commentId, string userId, UpdateCommentDto dto)
         {
             var comment = await _appDbContext.Comments
-                .FirstOrDefaultAsync(c => c.Id == commentId && c.AuthorId == userId && !c.IsDeleted);
+                .FirstOrDefaultAsync(c => c.Id == commentId && c.AuthorId == userId && c.Status == ContentStatus.Active);
             if (comment == null)
                 throw new NotFoundException("Comment not found.");
 

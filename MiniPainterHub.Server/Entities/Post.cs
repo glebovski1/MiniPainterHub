@@ -12,7 +12,13 @@ namespace MiniPainterHub.Server.Entities
         public string CreatedById { get; set; }    // FK to ApplicationUser
         public DateTime CreatedUtc { get; set; }
         public DateTime UpdatedUtc { get; set; }
-        public bool IsDeleted { get; set; }
+        public ContentStatus Status { get; set; } = ContentStatus.Active;
+        public string? ModerationNote { get; set; }
+        public DateTime? ModeratedAt { get; set; }
+        public string? ModeratedByUserId { get; set; }
+        public DateTime? DeletedAt { get; set; }
+        public bool IsPinned { get; set; }
+        public int PinPriority { get; set; }
         // Navigation:
         public ApplicationUser CreatedBy { get; set; }
 

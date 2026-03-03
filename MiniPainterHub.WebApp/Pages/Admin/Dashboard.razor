@@ -1,0 +1,26 @@
+@page "/admin"
+@attribute [Authorize(Roles = "Admin,Moderator")]
+@using Microsoft.AspNetCore.Authorization
+@using MiniPainterHub.Common.DTOs
+@inject AdminService Admin
+
+<h3>Admin Dashboard</h3>
+
+@if (flags.Count == 0)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <ul>
+        @foreach (var f in flags)
+        {
+            <li>@f.Key: @f.Value</li>
+        }
+    </ul>
+}
+
+@code {
+    private List<AppSettingDto> flags = new();
+    protected override async Task OnInitializedAsync() => flags = await Admin.GetFlagsAsync();
+}

@@ -48,7 +48,7 @@ public class ProgramStartupTests
                 CreatedById = "seed-user",
                 CreatedUtc = System.DateTime.UtcNow,
                 UpdatedUtc = System.DateTime.UtcNow,
-                IsDeleted = false
+                Status = MiniPainterHub.Server.Entities.ContentStatus.Active
             });
             await db.SaveChangesAsync();
         });

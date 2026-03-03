@@ -14,6 +14,7 @@ using Microsoft.OpenApi.Models;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.ErrorHandling;
 using MiniPainterHub.Server.Identity;
+using MiniPainterHub.Server.Middleware;
 using MiniPainterHub.Server.OpenAPIOperationFilter;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services;
@@ -175,7 +176,19 @@ public class Program
         builder.Services.AddScoped<IPostService, PostService>();
         builder.Services.AddScoped<ICommentService, CommentService>();
         builder.Services.AddScoped<ILikeService, LikeService>();
-        builder.Services.AddAuthorization();
+        builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+        builder.Services.AddScoped<IFeatureFlagsService, FeatureFlagsService>();
+        builder.Services.AddScoped<IUserModerationService, UserModerationService>();
+        builder.Services.AddScoped<IUserAccessService, UserAccessService>();
+        builder.Services.AddScoped<IModerationService, ModerationService>();
+        builder.Services.AddScoped<IFeedService, FeedService>();
+        builder.Services.AddScoped<INewsAdminService, NewsAdminService>();
+        builder.Services.AddScoped<IFeedPolicyAdminService, FeedPolicyAdminService>();
+        builder.Services.AddAuthorization(options =>
+        {
+            options.AddPolicy("RequireAdmin", p => p.RequireRole("Admin"));
+            options.AddPolicy("RequireStaff", p => p.RequireRole("Admin", "Moderator"));
+        });
 
         var app = builder.Build();
 
@@ -245,6 +258,7 @@ public class Program
         app.UseStaticFiles();
 
         app.UseAuthentication();
+        app.UseMiddleware<MaintenanceMiddleware>();
         app.UseAuthorization();
 
         app.MapControllers();

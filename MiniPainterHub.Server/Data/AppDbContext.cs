@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Identity;
+using System;
 
 namespace MiniPainterHub.Server.Data
 {
@@ -18,6 +19,13 @@ namespace MiniPainterHub.Server.Data
         public DbSet<PostImage> PostImages { get; set; } = default!;
         public DbSet<Comment> Comments { get; set; } = default!;
         public DbSet<Like> Likes { get; set; } = default!;
+        public DbSet<UserRestriction> UserRestrictions { get; set; } = default!;
+        public DbSet<AppSetting> AppSettings { get; set; } = default!;
+        public DbSet<NewsItem> NewsItems { get; set; } = default!;
+        public DbSet<FeedPolicy> FeedPolicies { get; set; } = default!;
+        public DbSet<ModerationAction> ModerationActions { get; set; } = default!;
+
+        private DateTime UtcNow => DateTime.UtcNow;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -77,6 +85,19 @@ namespace MiniPainterHub.Server.Data
                    .WithMany()
                    .HasForeignKey(l => l.UserId)
                    .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<UserRestriction>().HasKey(x => x.UserId);
+            builder.Entity<AppSetting>().HasKey(x => x.Key);
+            builder.Entity<ModerationAction>().HasIndex(x => x.Timestamp);
+
+            builder.Entity<Post>().HasQueryFilter(x => x.Status == ContentStatus.Active);
+            builder.Entity<Comment>().HasQueryFilter(x => x.Status == ContentStatus.Active);
+            builder.Entity<PostImage>().HasQueryFilter(x => x.Status == ContentStatus.Active);
+            builder.Entity<Like>().HasQueryFilter(x => x.Post.Status == ContentStatus.Active);
+            builder.Entity<NewsItem>().HasQueryFilter(x =>
+                x.Status == ContentStatus.Active
+                && x.PublishAt <= UtcNow
+                && (x.ExpiresAt == null || x.ExpiresAt > UtcNow));
         }
 
 

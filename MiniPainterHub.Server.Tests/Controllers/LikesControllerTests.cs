@@ -43,7 +43,7 @@ public class LikesControllerTests
                 CreatedById = currentUser.Id,
                 CreatedUtc = DateTime.UtcNow,
                 UpdatedUtc = DateTime.UtcNow,
-                IsDeleted = false
+                Status = MiniPainterHub.Server.Entities.ContentStatus.Active
             });
             await db.Likes.AddRangeAsync(
                 new Like { PostId = 202, UserId = currentUser.Id, CreatedAt = DateTime.UtcNow },
@@ -133,7 +133,7 @@ public class LikesControllerTests
                 CreatedById = currentUser.Id,
                 CreatedUtc = DateTime.UtcNow,
                 UpdatedUtc = DateTime.UtcNow,
-                IsDeleted = false
+                Status = MiniPainterHub.Server.Entities.ContentStatus.Active
             });
             await db.SaveChangesAsync();
         });

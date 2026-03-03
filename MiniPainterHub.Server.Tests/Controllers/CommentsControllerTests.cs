@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Tests.Infrastructure;
 using Xunit;
@@ -94,7 +95,7 @@ public class CommentsControllerTests
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         await factory.ExecuteDbContextAsync(async db =>
         {
-            (await db.Comments.FindAsync(701))!.IsDeleted.Should().BeTrue();
+            (await db.Comments.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == 701))!.Status.Should().Be(MiniPainterHub.Server.Entities.ContentStatus.SoftDeleted);
         });
     }
 

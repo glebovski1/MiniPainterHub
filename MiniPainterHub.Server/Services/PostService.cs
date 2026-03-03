@@ -116,12 +116,13 @@ namespace MiniPainterHub.Server.Services
         {
             // find the post only if it belongs to this user
             var post = await _appDbContext.Posts
-                .FirstOrDefaultAsync(p => p.Id == postId && p.CreatedById == userId && !p.IsDeleted);
+                .FirstOrDefaultAsync(p => p.Id == postId && p.CreatedById == userId && p.Status == Entities.ContentStatus.Active);
 
             if (post == null)
                 throw new NotFoundException("Post not found.");
 
-            post.IsDeleted = true;
+            post.Status = Entities.ContentStatus.SoftDeleted;
+            post.DeletedAt = DateTime.UtcNow;
             post.UpdatedUtc = DateTime.UtcNow;
             await _appDbContext.SaveChangesAsync();
             return true;
@@ -148,7 +149,7 @@ namespace MiniPainterHub.Server.Services
 
             var query = _appDbContext.Posts
                 .AsNoTracking()
-                .Where(p => !p.IsDeleted)
+                
                 .OrderByDescending(p => p.CreatedUtc);
 
             var totalCount = await query.CountAsync();
@@ -187,7 +188,7 @@ namespace MiniPainterHub.Server.Services
         {
             var dto = await _appDbContext.Posts
                    .AsNoTracking()
-                   .Where(p => p.Id == postId && !p.IsDeleted)
+                   .Where(p => p.Id == postId && p.Status == Entities.ContentStatus.Active)
                    .Select(p => new PostDto
                    {
                        Id = p.Id,
@@ -221,7 +222,7 @@ namespace MiniPainterHub.Server.Services
         public async Task<bool> UpdateAsync(int postId, string userId, UpdatePostDto dto)
         {
             var post = await _appDbContext.Posts
-               .FirstOrDefaultAsync(p => p.Id == postId && p.CreatedById == userId && !p.IsDeleted);
+               .FirstOrDefaultAsync(p => p.Id == postId && p.CreatedById == userId && p.Status == Entities.ContentStatus.Active);
 
             if (post == null)
                 throw new NotFoundException("Post not found.");
@@ -281,7 +282,7 @@ namespace MiniPainterHub.Server.Services
         {
             var post = await _appDbContext.Posts
                         .Include(p => p.Images)
-                        .FirstOrDefaultAsync(p => p.Id == postId && !p.IsDeleted)
+                        .FirstOrDefaultAsync(p => p.Id == postId && p.Status == Entities.ContentStatus.Active)
                         ?? throw new NotFoundException("Post not found.");
 
             var incoming = images ?? Enumerable.Empty<PostImageDto>();
@@ -320,7 +321,7 @@ namespace MiniPainterHub.Server.Services
 
         public async Task<bool> ExistsAsync(int postId)
         {
-            return await _appDbContext.Posts.AnyAsync(post => post.Id == postId && !post.IsDeleted);
+            return await _appDbContext.Posts.AnyAsync(post => post.Id == postId && post.Status == ContentStatus.Active);
         }
 
         private async Task<List<PostImageDto>> ProcessWithLegacyAsync(

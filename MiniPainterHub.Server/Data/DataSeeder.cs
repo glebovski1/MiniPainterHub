@@ -19,15 +19,19 @@ namespace MiniPainterHub.Server.Data
             using var scope = services.CreateScope();
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
             // Define roles
             var adminRole = "Admin";
             var userRole = "User";
+            var moderatorRole = "Moderator";
 
             if (!await roleManager.RoleExistsAsync(adminRole))
                 await roleManager.CreateAsync(new IdentityRole(adminRole));
             if (!await roleManager.RoleExistsAsync(userRole))
                 await roleManager.CreateAsync(new IdentityRole(userRole));
+            if (!await roleManager.RoleExistsAsync(moderatorRole))
+                await roleManager.CreateAsync(new IdentityRole(moderatorRole));
 
             // Seed admin
             const string adminEmail = "admin@local";
@@ -44,6 +48,10 @@ namespace MiniPainterHub.Server.Data
                 await userManager.CreateAsync(admin, adminPass);
                 await userManager.AddToRolesAsync(admin, new[] { adminRole, userRole });
             }
+
+
+
+            await SeedSystemDefaultsAsync(db);
 
             // Seed ordinary user
             const string userEmail = "user@local";
@@ -63,11 +71,55 @@ namespace MiniPainterHub.Server.Data
         }
 
 
+
+        public static async Task SeedSystemDefaultsAsync(AppDbContext db)
+        {
+            var defaults = new (string Key, string Value)[]
+            {
+                ("SiteOnline", "true"),
+                ("RegistrationEnabled", "true"),
+                ("LoginEnabled", "true"),
+                ("PostingEnabled", "true"),
+                ("ImageUploadEnabled", "true"),
+                ("RetentionDays", "30")
+            };
+
+            foreach (var (key, value) in defaults)
+            {
+                if (!db.AppSettings.Any(x => x.Key == key))
+                {
+                    db.AppSettings.Add(new Entities.AppSetting { Key = key, Value = value, UpdatedAt = DateTime.UtcNow });
+                }
+            }
+
+            if (!db.FeedPolicies.Any())
+            {
+                db.FeedPolicies.Add(new Entities.FeedPolicy
+                {
+                    Name = "Default",
+                    WRecency = 1.0,
+                    WLikes = 1.5,
+                    WComments = 1.2,
+                    WReportsPenalty = 1.0,
+                    HalfLifeHours = 24,
+                    DiversityByAuthor = true,
+                    MaxPerAuthorPerPage = 2,
+                    ExcludeNSFW = false,
+                    IsActive = true,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+
+            await db.SaveChangesAsync();
+        }
+
         public static async Task SeedAdminAsync(WebApplication app)
         {
             using var scope = app.Services.CreateScope();
             var cfg = scope.ServiceProvider.GetRequiredService<IConfiguration>();
             var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await SeedSystemDefaultsAsync(db);
             var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
             // 1) Hard off by default — you flip this on in Azure App Settings (or Key Vault-backed config)

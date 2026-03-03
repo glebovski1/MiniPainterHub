@@ -16,10 +16,12 @@ namespace MiniPainterHub.Server.Controllers
     public class PostsController : ControllerBase
     {
         private readonly IPostService _postService;
+        private readonly IUserAccessService _access;
 
-        public PostsController(IPostService postService)
+        public PostsController(IPostService postService, IUserAccessService access)
         {
             _postService = postService ?? throw new ArgumentNullException(nameof(postService));
+            _access = access ?? throw new ArgumentNullException(nameof(access));
         }
 
         // GET: api/posts?page=1&pageSize=10
@@ -48,6 +50,7 @@ namespace MiniPainterHub.Server.Controllers
         public async Task<ActionResult<PostDto>> Create([FromBody] CreatePostDto dto)
         {
             var userId = User.GetUserIdOrThrow();
+            await _access.EnsureCanPostAsync(userId, false);
             var created = await _postService.CreateAsync(userId, dto);
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
@@ -65,6 +68,7 @@ namespace MiniPainterHub.Server.Controllers
             }
 
             var userId = User.GetUserIdOrThrow();
+            await _access.EnsureCanPostAsync(userId, true);
             var cancellation = HttpContext.RequestAborted;
 
             try

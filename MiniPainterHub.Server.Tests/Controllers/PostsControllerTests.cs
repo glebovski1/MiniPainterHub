@@ -124,9 +124,9 @@ public class PostsControllerTests
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         await factory.ExecuteDbContextAsync(async db =>
         {
-            var post = await db.Posts.FindAsync(303);
+            var post = await db.Posts.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == 303);
             post.Should().NotBeNull();
-            post!.IsDeleted.Should().BeTrue();
+            post!.Status.Should().Be(MiniPainterHub.Server.Entities.ContentStatus.SoftDeleted);
         });
     }
 
@@ -164,7 +164,7 @@ public class PostsControllerTests
                 CreatedById = userId,
                 CreatedUtc = DateTime.UtcNow,
                 UpdatedUtc = DateTime.UtcNow,
-                IsDeleted = false
+                Status = MiniPainterHub.Server.Entities.ContentStatus.Active
             });
             await db.SaveChangesAsync();
         });

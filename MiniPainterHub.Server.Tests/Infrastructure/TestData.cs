@@ -38,7 +38,7 @@ internal static class TestData
             CreatedById = userId,
             CreatedUtc = DateTime.UtcNow,
             UpdatedUtc = DateTime.UtcNow,
-            IsDeleted = isDeleted,
+            Status = isDeleted ? MiniPainterHub.Server.Entities.ContentStatus.SoftDeleted : MiniPainterHub.Server.Entities.ContentStatus.Active,
             Images = new List<PostImage>()
         };
 
@@ -65,7 +65,7 @@ internal static class TestData
             Text = $"Comment {id}",
             CreatedUtc = DateTime.UtcNow,
             UpdatedUtc = DateTime.UtcNow,
-            IsDeleted = isDeleted
+            Status = isDeleted ? MiniPainterHub.Server.Entities.ContentStatus.SoftDeleted : MiniPainterHub.Server.Entities.ContentStatus.Active
         };
 
     public static CreatePostDto CreatePostDto(int imageCount = 0)

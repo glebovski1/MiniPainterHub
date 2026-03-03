@@ -145,8 +145,8 @@ public class PostServiceTests
         var result = await service.DeleteAsync(post.Id, user.Id);
 
         result.Should().BeTrue();
-        var storedPost = await context.Posts.SingleAsync();
-        storedPost.IsDeleted.Should().BeTrue();
+        var storedPost = await context.Posts.IgnoreQueryFilters().SingleAsync();
+        storedPost.Status.Should().Be(MiniPainterHub.Server.Entities.ContentStatus.SoftDeleted);
     }
 
     [Fact]

@@ -15,11 +15,13 @@ namespace MiniPainterHub.Server.Controllers
     {
         private readonly ICommentService _commentService;
         private readonly IPostService _postService;
+        private readonly IUserAccessService _access;
 
-        public CommentsController(ICommentService commentService, IPostService postService)
+        public CommentsController(ICommentService commentService, IPostService postService, IUserAccessService access)
         {
             _commentService = commentService;
             _postService = postService;
+            _access = access;
         }
 
         // GET: api/posts/{postId}/comments?page=1&pageSize=10
@@ -40,6 +42,7 @@ namespace MiniPainterHub.Server.Controllers
             [FromBody] CreateCommentDto dto)
         {
             var userId = User.GetUserIdOrThrow();
+            await _access.EnsureCanCommentAsync(userId);
             var created = await _commentService.CreateAsync(userId, postId, dto);
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }

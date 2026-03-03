@@ -21,7 +21,7 @@ namespace MiniPainterHub.Server.Services
         // Returns total count and whether specified user has liked
         public async Task<LikeDto> GetLikesAsync(int postId, string? userId)
         {
-            var exists = await _appDbContext.Posts.AsNoTracking().AnyAsync(p => p.Id == postId && !p.IsDeleted);
+            var exists = await _appDbContext.Posts.AsNoTracking().AnyAsync(p => p.Id == postId && p.Status == Entities.ContentStatus.Active);
             if (!exists)
                 throw new NotFoundException($"Post {postId} not found.");
 
@@ -52,7 +52,7 @@ namespace MiniPainterHub.Server.Services
             }
             else
             {
-                var exists = await _appDbContext.Posts.AnyAsync(p => p.Id == postId && !p.IsDeleted);
+                var exists = await _appDbContext.Posts.AnyAsync(p => p.Id == postId && p.Status == Entities.ContentStatus.Active);
                 if (!exists)
                     throw new NotFoundException($"Post {postId} not found.");
                 _appDbContext.Likes.Add(new Entities.Like

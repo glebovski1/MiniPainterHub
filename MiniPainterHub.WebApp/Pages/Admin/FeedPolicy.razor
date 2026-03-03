@@ -1,0 +1,16 @@
+@page "/admin/feed-policy"
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.AspNetCore.Authorization
+@using MiniPainterHub.Common.DTOs
+@inject AdminService Admin
+
+<h3>Feed Policies</h3>
+@foreach (var item in policies)
+{
+    <div>@item.Name (@(item.IsActive ? "Active" : "Inactive"))</div>
+}
+
+@code {
+    private List<FeedPolicyDto> policies = new();
+    protected override async Task OnInitializedAsync() => policies = await Admin.GetFeedPoliciesAsync();
+}

@@ -25,13 +25,17 @@ namespace MiniPainterHub.Server.Controllers
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IConfiguration _config;
         private readonly IProfileService _profileService;
+        private readonly IUserAccessService _userAccess;
+        private readonly IFeatureFlagsService _flags;
 
-        public AuthController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IProfileService profileService, IConfiguration config)
+        public AuthController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IProfileService profileService, IConfiguration config, IUserAccessService userAccess, IFeatureFlagsService flags)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _config = config;
             _profileService = profileService;
+            _userAccess = userAccess;
+            _flags = flags;
         }
 
         [HttpPost("register")]
@@ -40,6 +44,11 @@ namespace MiniPainterHub.Server.Controllers
             if (!ModelState.IsValid)
             {
                 throw new DomainValidationException("Registration request is invalid.", CreateModelStateErrors());
+            }
+
+            if (!await _flags.GetFlagAsync("RegistrationEnabled", true))
+            {
+                throw new ForbiddenException("Registration is currently disabled.");
             }
 
             var user = new ApplicationUser { UserName = dto.UserName, Email = dto.Email };
@@ -74,6 +83,10 @@ namespace MiniPainterHub.Server.Controllers
                 throw new UnauthorizedAccessException("Invalid username or password.");
             }
 
+            var roles = await _userManager.GetRolesAsync(user);
+            var isAdmin = roles.Contains("Admin");
+            await _userAccess.EnsureCanLoginAsync(user.Id, isAdmin);
+
             var result = await _signInManager.PasswordSignInAsync(dto.UserName, dto.Password,
                                                                  isPersistent: false,
                                                                  lockoutOnFailure: false);
@@ -92,11 +105,13 @@ namespace MiniPainterHub.Server.Controllers
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyString));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var claims = new[] {
+            var claims = new List<Claim> {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+                new Claim(System.Security.Claims.ClaimTypes.NameIdentifier, user.Id),
                 new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
+            claims.AddRange(roles.Select(r => new Claim(System.Security.Claims.ClaimTypes.Role, r)));
 
             var token = new JwtSecurityToken(
                                    issuer: issuer,

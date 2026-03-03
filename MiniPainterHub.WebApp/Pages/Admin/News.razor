@@ -1,0 +1,16 @@
+@page "/admin/news"
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.AspNetCore.Authorization
+@using MiniPainterHub.Common.DTOs
+@inject AdminService Admin
+
+<h3>News</h3>
+@foreach (var item in news)
+{
+    <div><strong>@item.Title</strong> (@item.Status)</div>
+}
+
+@code {
+    private List<NewsItemDto> news = new();
+    protected override async Task OnInitializedAsync() => news = await Admin.GetNewsAsync();
+}

@@ -1,0 +1,16 @@
+@page "/admin/audit"
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.AspNetCore.Authorization
+@using MiniPainterHub.Common.DTOs
+@inject AdminService Admin
+
+<h3>Audit</h3>
+@foreach (var item in audit.Items)
+{
+    <div>@item.Timestamp: @item.Action @item.TargetType/@item.TargetId</div>
+}
+
+@code {
+    private PagedResult<ModerationActionDto> audit = new();
+    protected override async Task OnInitializedAsync() => audit = await Admin.GetAuditAsync();
+}

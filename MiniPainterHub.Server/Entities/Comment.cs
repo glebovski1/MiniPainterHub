@@ -11,7 +11,11 @@ namespace MiniPainterHub.Server.Entities
         public string Text { get; set; } = default!;
         public DateTime CreatedUtc { get; set; }
         public DateTime UpdatedUtc { get; set; }
-        public bool IsDeleted { get; set; }
+        public ContentStatus Status { get; set; } = ContentStatus.Active;
+        public string? ModerationNote { get; set; }
+        public DateTime? ModeratedAt { get; set; }
+        public string? ModeratedByUserId { get; set; }
+        public DateTime? DeletedAt { get; set; }
         // Navigation:
         public Post Post { get; set; }
         public ApplicationUser Author { get; set; }
