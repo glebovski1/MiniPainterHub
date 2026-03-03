@@ -2,12 +2,9 @@ using System;
 using System.Net;
 using System.Net.Http.Json;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using MiniPainterHub.Common.DTOs;
-using MiniPainterHub.Server.Entities;
-using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Tests.Infrastructure;
 using Xunit;
 
@@ -20,37 +17,8 @@ public class CommentsControllerTests
     {
         using var factory = new IntegrationTestApplicationFactory();
         await factory.ResetDatabaseAsync();
-        await factory.ExecuteDbContextAsync(async db =>
-        {
-            var author = new ApplicationUser
-            {
-                Id = "comment-user",
-                UserName = "comment-user",
-                Email = "comment-user@example.test"
-            };
-            await db.Users.AddAsync(author);
-            await db.Posts.AddAsync(new Post
-            {
-                Id = 101,
-                Title = "Post",
-                Content = "Post body",
-                CreatedById = author.Id,
-                CreatedUtc = DateTime.UtcNow,
-                UpdatedUtc = DateTime.UtcNow,
-                IsDeleted = false
-            });
-            await db.Comments.AddAsync(new Comment
-            {
-                Id = 501,
-                PostId = 101,
-                AuthorId = author.Id,
-                Text = "First comment",
-                CreatedUtc = DateTime.UtcNow,
-                UpdatedUtc = DateTime.UtcNow,
-                IsDeleted = false
-            });
-            await db.SaveChangesAsync();
-        });
+        await factory.SeedUserAndPostAsync("comment-user", 101);
+        await factory.SeedCommentAsync(501, 101, "comment-user", "First comment");
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/api/posts/101/comments?page=1&pageSize=10");
@@ -74,7 +42,7 @@ public class CommentsControllerTests
     {
         using var factory = new IntegrationTestApplicationFactory();
         await factory.ResetDatabaseAsync();
-        await SeedUserAndPostAsync(factory, "author-user", 102);
+        await factory.SeedUserAndPostAsync("author-user", 102);
         using var client = factory.CreateAuthenticatedClient("author-user", "author-user");
 
         var response = await client.PostAsJsonAsync("/api/posts/102/comments", new CreateCommentDto
@@ -96,21 +64,8 @@ public class CommentsControllerTests
     {
         using var factory = new IntegrationTestApplicationFactory();
         await factory.ResetDatabaseAsync();
-        await SeedUserAndPostAsync(factory, "author-user", 103);
-        await factory.ExecuteDbContextAsync(async db =>
-        {
-            await db.Comments.AddAsync(new Comment
-            {
-                Id = 700,
-                PostId = 103,
-                AuthorId = "author-user",
-                Text = "Before",
-                CreatedUtc = DateTime.UtcNow,
-                UpdatedUtc = DateTime.UtcNow,
-                IsDeleted = false
-            });
-            await db.SaveChangesAsync();
-        });
+        await factory.SeedUserAndPostAsync("author-user", 103);
+        await factory.SeedCommentAsync(700, 103, "author-user", "Before");
         using var client = factory.CreateAuthenticatedClient("author-user", "author-user");
 
         var response = await client.PutAsJsonAsync("/api/comments/700", new UpdateCommentDto
@@ -130,21 +85,8 @@ public class CommentsControllerTests
     {
         using var factory = new IntegrationTestApplicationFactory();
         await factory.ResetDatabaseAsync();
-        await SeedUserAndPostAsync(factory, "author-user", 104);
-        await factory.ExecuteDbContextAsync(async db =>
-        {
-            await db.Comments.AddAsync(new Comment
-            {
-                Id = 701,
-                PostId = 104,
-                AuthorId = "author-user",
-                Text = "Delete me",
-                CreatedUtc = DateTime.UtcNow,
-                UpdatedUtc = DateTime.UtcNow,
-                IsDeleted = false
-            });
-            await db.SaveChangesAsync();
-        });
+        await factory.SeedUserAndPostAsync("author-user", 104);
+        await factory.SeedCommentAsync(701, 104, "author-user", "Delete me");
         using var client = factory.CreateAuthenticatedClient("author-user", "author-user");
 
         var response = await client.DeleteAsync("/api/comments/701");
@@ -161,21 +103,8 @@ public class CommentsControllerTests
     {
         using var factory = new IntegrationTestApplicationFactory();
         await factory.ResetDatabaseAsync();
-        await SeedUserAndPostAsync(factory, "author-user", 105);
-        await factory.ExecuteDbContextAsync(async db =>
-        {
-            await db.Comments.AddAsync(new Comment
-            {
-                Id = 702,
-                PostId = 105,
-                AuthorId = "author-user",
-                Text = "Lookup comment",
-                CreatedUtc = DateTime.UtcNow,
-                UpdatedUtc = DateTime.UtcNow,
-                IsDeleted = false
-            });
-            await db.SaveChangesAsync();
-        });
+        await factory.SeedUserAndPostAsync("author-user", 105);
+        await factory.SeedCommentAsync(702, 105, "author-user", "Lookup comment");
         using var client = factory.CreateAuthenticatedClient("author-user", "author-user");
 
         var response = await client.GetAsync("/api/comments/702");
@@ -198,40 +127,10 @@ public class CommentsControllerTests
 
         var response = await client.GetAsync("/api/comments/999");
 
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
-
-        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        json.RootElement.GetProperty("title").GetString().Should().Be("Not found");
-        json.RootElement.GetProperty("detail").GetString().Should().Be("Comment not found.");
-    }
-
-    private static Task SeedUserAndPostAsync(
-        IntegrationTestApplicationFactory factory,
-        string userId,
-        int postId)
-    {
-        return factory.ExecuteDbContextAsync(async db =>
-        {
-            var author = new ApplicationUser
-            {
-                Id = userId,
-                UserName = userId,
-                Email = $"{userId}@example.test"
-            };
-
-            await db.Users.AddAsync(author);
-            await db.Posts.AddAsync(new Post
-            {
-                Id = postId,
-                Title = "Post",
-                Content = "Post body",
-                CreatedById = author.Id,
-                CreatedUtc = DateTime.UtcNow,
-                UpdatedUtc = DateTime.UtcNow,
-                IsDeleted = false
-            });
-            await db.SaveChangesAsync();
-        });
+        await ProblemDetailsAssertions.AssertAsync(
+            response,
+            HttpStatusCode.NotFound,
+            "Not found",
+            "Comment not found.");
     }
 }

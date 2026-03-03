@@ -1,11 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using MiniPainterHub.Common.DTOs;
-using MiniPainterHub.Server.Entities;
-using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Tests.Infrastructure;
 using Xunit;
 
@@ -30,17 +27,16 @@ public class ProfilesControllerTests
     {
         using var factory = new IntegrationTestApplicationFactory();
         await factory.ResetDatabaseAsync();
-        await SeedUserAsync(factory, "profile-user", "profile-user");
+        await factory.SeedUserAsync("profile-user", "profile-user");
         using var client = factory.CreateAuthenticatedClient("profile-user", "profile-user");
 
         var response = await client.GetAsync("/api/profiles/me");
 
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
-
-        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        json.RootElement.GetProperty("title").GetString().Should().Be("Not found");
-        json.RootElement.GetProperty("detail").GetString().Should().Be("Profile not found.");
+        await ProblemDetailsAssertions.AssertAsync(
+            response,
+            HttpStatusCode.NotFound,
+            "Not found",
+            "Profile not found.");
     }
 
     [Fact]
@@ -48,7 +44,7 @@ public class ProfilesControllerTests
     {
         using var factory = new IntegrationTestApplicationFactory();
         await factory.ResetDatabaseAsync();
-        await SeedUserAsync(factory, "profile-user", "profile-user");
+        await factory.SeedUserAsync("profile-user", "profile-user");
         using var client = factory.CreateAuthenticatedClient("profile-user", "profile-user");
 
         var response = await client.PostAsJsonAsync("/api/profiles/me", new CreateUserProfileDto
@@ -69,17 +65,8 @@ public class ProfilesControllerTests
     {
         using var factory = new IntegrationTestApplicationFactory();
         await factory.ResetDatabaseAsync();
-        await SeedUserAsync(factory, "profile-user", "profile-user");
-        await factory.ExecuteDbContextAsync(async db =>
-        {
-            await db.Profiles.AddAsync(new Profile
-            {
-                UserId = "profile-user",
-                DisplayName = "Old",
-                Bio = "Old bio"
-            });
-            await db.SaveChangesAsync();
-        });
+        await factory.SeedUserAsync("profile-user", "profile-user");
+        await factory.SeedProfileAsync("profile-user", "Old", "Old bio");
         using var client = factory.CreateAuthenticatedClient("profile-user", "profile-user");
 
         var response = await client.PutAsJsonAsync("/api/profiles/me", new UpdateUserProfileDto
@@ -100,17 +87,8 @@ public class ProfilesControllerTests
     {
         using var factory = new IntegrationTestApplicationFactory();
         await factory.ResetDatabaseAsync();
-        await SeedUserAsync(factory, "profile-user", "profile-user");
-        await factory.ExecuteDbContextAsync(async db =>
-        {
-            await db.Profiles.AddAsync(new Profile
-            {
-                UserId = "profile-user",
-                DisplayName = "Visible Name",
-                Bio = "Visible bio"
-            });
-            await db.SaveChangesAsync();
-        });
+        await factory.SeedUserAsync("profile-user", "profile-user");
+        await factory.SeedProfileAsync("profile-user", "Visible Name", "Visible bio");
         using var client = factory.CreateAuthenticatedClient("profile-user", "profile-user");
 
         var response = await client.GetAsync("/api/profiles/me");
@@ -127,17 +105,8 @@ public class ProfilesControllerTests
     {
         using var factory = new IntegrationTestApplicationFactory();
         await factory.ResetDatabaseAsync();
-        await SeedUserAsync(factory, "target-user", "target-user");
-        await factory.ExecuteDbContextAsync(async db =>
-        {
-            await db.Profiles.AddAsync(new Profile
-            {
-                UserId = "target-user",
-                DisplayName = "Target Name",
-                Bio = "Target bio"
-            });
-            await db.SaveChangesAsync();
-        });
+        await factory.SeedUserAsync("target-user", "target-user");
+        await factory.SeedProfileAsync("target-user", "Target Name", "Target bio");
         using var client = factory.CreateAuthenticatedClient("caller-user", "caller-user");
 
         var response = await client.GetAsync("/api/profiles/target-user");
@@ -158,28 +127,10 @@ public class ProfilesControllerTests
 
         var response = await client.GetAsync("/api/profiles/missing-user");
 
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
-
-        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        json.RootElement.GetProperty("title").GetString().Should().Be("Not found");
-        json.RootElement.GetProperty("detail").GetString().Should().Be("Profile not found.");
-    }
-
-    private static Task SeedUserAsync(
-        IntegrationTestApplicationFactory factory,
-        string userId,
-        string userName)
-    {
-        return factory.ExecuteDbContextAsync(async db =>
-        {
-            await db.Users.AddAsync(new ApplicationUser
-            {
-                Id = userId,
-                UserName = userName,
-                Email = $"{userName}@example.test"
-            });
-            await db.SaveChangesAsync();
-        });
+        await ProblemDetailsAssertions.AssertAsync(
+            response,
+            HttpStatusCode.NotFound,
+            "Not found",
+            "Profile not found.");
     }
 }

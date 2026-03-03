@@ -12,12 +12,23 @@ if (-not $coverageFiles -or $coverageFiles.Count -eq 0) {
     throw "No cobertura coverage file found under '$CoverageRoot'."
 }
 
-$coverageFile = $coverageFiles[0].FullName
-[xml]$xml = Get-Content -Path $coverageFile
+$coverageFile = $null
+$xml = $null
+$package = @()
 
-$package = @($xml.coverage.packages.package | Where-Object { $_.name -eq $AssemblyName })
-if (-not $package -or $package.Count -eq 0) {
-    throw "Assembly package '$AssemblyName' was not found in '$coverageFile'."
+foreach ($candidate in $coverageFiles) {
+    [xml]$candidateXml = Get-Content -Path $candidate.FullName
+    $candidatePackage = @($candidateXml.coverage.packages.package | Where-Object { $_.name -eq $AssemblyName })
+    if ($candidatePackage -and $candidatePackage.Count -gt 0) {
+        $coverageFile = $candidate.FullName
+        $xml = $candidateXml
+        $package = $candidatePackage
+        break
+    }
+}
+
+if (-not $coverageFile) {
+    throw "Assembly package '$AssemblyName' was not found in any cobertura file under '$CoverageRoot'."
 }
 
 $totalCovered = 0

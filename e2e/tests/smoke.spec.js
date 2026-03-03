@@ -124,3 +124,31 @@ test("profile create and update flow persists values", async ({ page }) => {
   await expect(page.getByTestId("profile-display-name")).toHaveValue(updatedName);
   await expect(page.getByTestId("profile-bio")).toHaveValue(updatedBio);
 });
+
+test("unauthenticated user cannot access create-post form", async ({ page }) => {
+  await clearAuth(page);
+  await page.goto("/posts/new");
+
+  await expect(page.getByTestId("nav-login")).toBeVisible();
+  await expect(page.getByTestId("create-post-form")).toHaveCount(0);
+});
+
+test("create post form shows validation messages when required fields are empty", async ({ page }) => {
+  await loginAsSeedUser(page);
+  await page.goto("/posts/new");
+  await page.getByTestId("create-post-submit").click();
+
+  await expect(page.getByText(/title field is required/i)).toBeVisible();
+  await expect(page.getByText(/content field is required/i)).toBeVisible();
+});
+
+test("post details prompt sign-in for comments when session is cleared", async ({ page }) => {
+  await loginAsSeedUser(page);
+  await createPost(page, "comment-auth");
+  const detailsUrl = page.url();
+
+  await clearAuth(page);
+  await page.goto(detailsUrl);
+
+  await expect(page.getByText("Sign in to join the conversation.")).toBeVisible();
+});

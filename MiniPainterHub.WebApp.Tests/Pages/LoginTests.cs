@@ -3,9 +3,8 @@ using Bunit;
 using FluentAssertions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
-using MiniPainterHub.Common.Auth;
 using MiniPainterHub.WebApp.Pages;
-using MiniPainterHub.WebApp.Services.Interfaces;
+using MiniPainterHub.WebApp.Tests.Infrastructure;
 using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages;
@@ -15,7 +14,7 @@ public class LoginTests : TestContext
     [Fact]
     public void RendersLoginFormWithStableSelectors()
     {
-        Services.AddSingleton<IAuthService>(new StubAuthService(loginResult: false));
+        this.AddAuthStub(new StubAuthService { LoginHandler = _ => Task.FromResult(false) });
 
         var cut = RenderComponent<Login>();
 
@@ -28,7 +27,7 @@ public class LoginTests : TestContext
     [Fact]
     public async Task Submit_WhenAuthFails_ShowsUserFacingError()
     {
-        Services.AddSingleton<IAuthService>(new StubAuthService(loginResult: false));
+        this.AddAuthStub(new StubAuthService { LoginHandler = _ => Task.FromResult(false) });
         var cut = RenderComponent<Login>();
 
         cut.Find("[data-testid='login-username']").Change("user");
@@ -43,7 +42,7 @@ public class LoginTests : TestContext
     [Fact]
     public async Task Submit_WhenAuthSucceeds_NavigatesToHome()
     {
-        Services.AddSingleton<IAuthService>(new StubAuthService(loginResult: true));
+        this.AddAuthStub(new StubAuthService { LoginHandler = _ => Task.FromResult(true) });
         var cut = RenderComponent<Login>();
         var nav = Services.GetRequiredService<NavigationManager>();
 
@@ -52,21 +51,5 @@ public class LoginTests : TestContext
         await cut.Find("[data-testid='login-form']").SubmitAsync();
 
         cut.WaitForAssertion(() => nav.Uri.Should().Be("http://localhost/"));
-    }
-
-    private sealed class StubAuthService : IAuthService
-    {
-        private readonly bool _loginResult;
-
-        public StubAuthService(bool loginResult)
-        {
-            _loginResult = loginResult;
-        }
-
-        public Task<bool> LoginAsync(LoginDto dto) => Task.FromResult(_loginResult);
-
-        public Task<bool> RegisterAsync(RegisterDto dto) => Task.FromResult(true);
-
-        public Task LogoutAsync() => Task.CompletedTask;
     }
 }

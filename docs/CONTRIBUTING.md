@@ -35,8 +35,8 @@ Backend-impacting changes:
 - `dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj`
 - `dotnet test MiniPainterHub.WebApp.Tests/MiniPainterHub.WebApp.Tests.csproj`
 - `dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj -c Release --collect:"XPlat Code Coverage" --results-directory artifacts/test-results`
-- `pwsh ./tools/coverage/check-server-coverage.ps1 -CoverageRoot artifacts/test-results -AssemblyName MiniPainterHub.Server -Threshold 65`
-- Coverage gate baseline: `65%` line coverage for `MiniPainterHub.Server` (excluding EF migration generated files). TODO: raise this threshold over time as coverage expands.
+- `pwsh ./tools/coverage/check-server-coverage.ps1 -CoverageRoot artifacts/test-results -AssemblyName MiniPainterHub.Server -Threshold 80`
+- Coverage gate baseline: `80%` line coverage for `MiniPainterHub.Server` (excluding EF migration generated files).
 
 UI-impacting changes:
 - Build solution

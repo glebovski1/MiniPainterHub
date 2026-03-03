@@ -37,17 +37,38 @@ jobs:
         run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=server-tests.trx" --collect:"XPlat Code Coverage" --results-directory artifacts/test-results
 
       - name: Test WebApp components
-        run: dotnet test MiniPainterHub.WebApp.Tests/MiniPainterHub.WebApp.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=webapp-tests.trx" --results-directory artifacts/test-results
+        run: dotnet test MiniPainterHub.WebApp.Tests/MiniPainterHub.WebApp.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=webapp-tests.trx" --collect:"XPlat Code Coverage" --results-directory artifacts/test-results
 
-      - name: Enforce MiniPainterHub.Server coverage baseline (65%)
+      - name: Detect test file changes for anti-flake rerun
+        if: github.event_name == 'pull_request'
+        id: test_changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only '${{ github.event.pull_request.base.sha }}' '${{ github.sha }}')"
+          if echo "$changed_files" | grep -Eq '^(MiniPainterHub\.Server\.Tests/|MiniPainterHub\.WebApp\.Tests/|e2e/tests/)'; then
+            echo "tests_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tests_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Anti-flake rerun server tests
+        if: github.event_name == 'pull_request' && steps.test_changes.outputs.tests_changed == 'true'
+        run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=server-tests-rerun.trx" --results-directory artifacts/test-results
+
+      - name: Anti-flake rerun WebApp tests
+        if: github.event_name == 'pull_request' && steps.test_changes.outputs.tests_changed == 'true'
+        run: dotnet test MiniPainterHub.WebApp.Tests/MiniPainterHub.WebApp.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=webapp-tests-rerun.trx" --results-directory artifacts/test-results
+
+      - name: Enforce MiniPainterHub.Server coverage baseline (80%)
         shell: pwsh
-        run: ./tools/coverage/check-server-coverage.ps1 -CoverageRoot artifacts/test-results -AssemblyName MiniPainterHub.Server -Threshold 65
+        run: ./tools/coverage/check-server-coverage.ps1 -CoverageRoot artifacts/test-results -AssemblyName MiniPainterHub.Server -Threshold 80
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: server-test-results
+          name: test-results-and-coverage
           path: artifacts/test-results
           retention-days: 7
 

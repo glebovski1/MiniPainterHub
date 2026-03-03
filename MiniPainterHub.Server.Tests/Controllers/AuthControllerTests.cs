@@ -1,9 +1,9 @@
 using System.Linq;
+using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -68,6 +68,11 @@ public class AuthControllerTests
         body.Should().NotBeNull();
         body!.IsSuccess.Should().BeTrue();
         body.Token.Should().NotBeNullOrWhiteSpace();
+
+        var token = new JwtSecurityTokenHandler().ReadJwtToken(body.Token);
+        token.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.Sub && c.Value.Length > 0);
+        token.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.UniqueName && c.Value == "loginuser");
+        token.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.Jti && c.Value.Length > 0);
     }
 
     [Fact]
@@ -90,12 +95,11 @@ public class AuthControllerTests
             Password = "WrongPass123!"
         });
 
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
-
-        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        json.RootElement.GetProperty("title").GetString().Should().Be("Unauthorized");
-        json.RootElement.GetProperty("detail").GetString().Should().Be("Invalid username or password.");
+        await ProblemDetailsAssertions.AssertAsync(
+            response,
+            HttpStatusCode.Unauthorized,
+            "Unauthorized",
+            "Invalid username or password.");
     }
 
     [Fact]
@@ -108,13 +112,50 @@ public class AuthControllerTests
 
         var response = await client.PostAsync("/api/auth/register", content);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+        await ProblemDetailsAssertions.AssertAsync(
+            response,
+            HttpStatusCode.BadRequest,
+            "One or more validation errors occurred.",
+            expectedErrorKeys: new[] { "UserName", "Email", "Password" });
+    }
 
-        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        json.RootElement.GetProperty("status").GetInt32().Should().Be(400);
-        json.RootElement.TryGetProperty("errors", out var errors).Should().BeTrue();
-        errors.EnumerateObject().Select(e => e.Name)
-            .Should().Contain(new[] { "UserName", "Email", "Password" });
+    [Fact]
+    public async Task Login_WhenModelStateInvalid_ReturnsBadRequestProblemDetailsWithErrors()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateClient();
+        using var content = new StringContent("{}", Encoding.UTF8, "application/json");
+
+        var response = await client.PostAsync("/api/auth/login", content);
+
+        await ProblemDetailsAssertions.AssertAsync(
+            response,
+            HttpStatusCode.BadRequest,
+            "One or more validation errors occurred.",
+            expectedErrorKeys: new[] { "UserName", "Password" });
+    }
+
+    [Fact]
+    public async Task Register_WhenUserAlreadyExists_ReturnsBadRequestProblemDetailsWithIdentityErrors()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateClient();
+
+        var dto = new RegisterDto
+        {
+            UserName = "duplicate-user",
+            Email = "duplicate-user@example.test",
+            Password = "ValidPass123!"
+        };
+
+        await client.PostAsJsonAsync("/api/auth/register", dto);
+        var duplicate = await client.PostAsJsonAsync("/api/auth/register", dto);
+
+        duplicate.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var payload = await duplicate.Content.ReadAsStringAsync();
+        payload.Should().Contain("DuplicateUserName");
     }
 }

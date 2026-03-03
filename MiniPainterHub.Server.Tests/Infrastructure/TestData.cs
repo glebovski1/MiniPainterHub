@@ -9,10 +9,23 @@ namespace MiniPainterHub.Server.Tests.Infrastructure;
 internal static class TestData
 {
     public static ApplicationUser CreateUser(string id, string? userName = null)
-        => new()
+    {
+        var resolvedName = userName ?? $"user-{id}";
+        return new ApplicationUser
         {
             Id = id,
-            UserName = userName ?? $"user-{id}"
+            UserName = resolvedName,
+            Email = $"{resolvedName}@example.test",
+            EmailConfirmed = true
+        };
+    }
+
+    public static Profile CreateProfile(string userId, string? displayName = null, string? bio = null)
+        => new()
+        {
+            UserId = userId,
+            DisplayName = displayName ?? $"Profile {userId}",
+            Bio = bio ?? string.Empty
         };
 
     public static Post CreatePost(int id, string userId, int imageCount = 0, bool isDeleted = false)
