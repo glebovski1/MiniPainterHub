@@ -36,6 +36,49 @@ public class ModerationServiceTests
         stored.IsDeleted.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task ModerateCommentAsync_WhenRestoringLegacyDeletedComment_AllowsRestore()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var comment = TestData.CreateComment(11, 3, "author-1", isDeleted: true);
+        comment.SoftDeletedUtc = null;
+        comment.ModeratedByUserId = null;
+        comment.ModeratedUtc = null;
+        await context.Comments.AddAsync(comment);
+        await context.SaveChangesAsync();
+
+        var userManager = CreateUserManagerMock();
+        userManager.Setup(m => m.FindByIdAsync("admin-1"))
+            .ReturnsAsync(TestData.CreateUser("admin-1", "admin-1"));
+        userManager.Setup(m => m.GetRolesAsync(It.IsAny<ApplicationUser>()))
+            .ReturnsAsync(["Admin"]);
+        var service = new ModerationService(context, userManager.Object);
+
+        await service.ModerateCommentAsync(comment.Id, "admin-1", hide: false, reason: "legacy restore");
+
+        var stored = await context.Comments.SingleAsync(c => c.Id == comment.Id);
+        stored.IsDeleted.Should().BeFalse();
+        stored.ModeratedByUserId.Should().Be("admin-1");
+    }
+
+    [Fact]
+    public async Task ModeratePostAsync_WhenUserDeletedAfterModerationHide_ThrowsDomainValidationException()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var post = TestData.CreatePost(2, "author-1", isDeleted: true);
+        post.ModeratedByUserId = "mod-1";
+        post.ModeratedUtc = DateTime.UtcNow.AddMinutes(-15);
+        post.SoftDeletedUtc = DateTime.UtcNow.AddMinutes(-5);
+        await context.Posts.AddAsync(post);
+        await context.SaveChangesAsync();
+
+        var service = new ModerationService(context, CreateUserManagerMock().Object);
+
+        var act = async () => await service.ModeratePostAsync(post.Id, "mod-1", hide: false, reason: "restore");
+
+        await act.Should().ThrowAsync<DomainValidationException>();
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("2020-01-01T00:00:00Z")]

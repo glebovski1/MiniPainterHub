@@ -27,13 +27,13 @@ namespace MiniPainterHub.Server.Services
         {
             var post = await _db.Posts.FirstOrDefaultAsync(p => p.Id == postId) ?? throw new NotFoundException("Post not found.");
 
-            if (!hide && !WasHiddenByModeration(post.IsDeleted, post.ModeratedByUserId, post.ModeratedUtc, post.SoftDeletedUtc))
+            if (!hide && !CanRestoreModeratedContent(post.IsDeleted, post.ModeratedByUserId, post.ModeratedUtc, post.SoftDeletedUtc))
             {
                 throw new DomainValidationException(
                     "Only posts hidden by moderation can be restored.",
                     new System.Collections.Generic.Dictionary<string, string[]>
                     {
-                        ["postId"] = new[] { "The post is not currently hidden by moderation." }
+                        ["postId"] = new[] { "The post appears to be deleted outside moderation and cannot be restored here." }
                     });
             }
 
@@ -53,13 +53,13 @@ namespace MiniPainterHub.Server.Services
         {
             var comment = await _db.Comments.FirstOrDefaultAsync(c => c.Id == commentId) ?? throw new NotFoundException("Comment not found.");
 
-            if (!hide && !WasHiddenByModeration(comment.IsDeleted, comment.ModeratedByUserId, comment.ModeratedUtc, comment.SoftDeletedUtc))
+            if (!hide && !CanRestoreModeratedContent(comment.IsDeleted, comment.ModeratedByUserId, comment.ModeratedUtc, comment.SoftDeletedUtc))
             {
                 throw new DomainValidationException(
                     "Only comments hidden by moderation can be restored.",
                     new System.Collections.Generic.Dictionary<string, string[]>
                     {
-                        ["commentId"] = new[] { "The comment is not currently hidden by moderation." }
+                        ["commentId"] = new[] { "The comment appears to be deleted outside moderation and cannot be restored here." }
                     });
             }
 
@@ -97,19 +97,31 @@ namespace MiniPainterHub.Server.Services
             await _db.SaveChangesAsync();
         }
 
-        private static bool WasHiddenByModeration(
+        private static bool CanRestoreModeratedContent(
             bool isDeleted,
             string? moderatedByUserId,
             DateTime? moderatedUtc,
             DateTime? softDeletedUtc)
         {
-            if (!isDeleted || string.IsNullOrWhiteSpace(moderatedByUserId) || !moderatedUtc.HasValue || !softDeletedUtc.HasValue)
+            if (!isDeleted)
             {
                 return false;
             }
 
-            var difference = (moderatedUtc.Value - softDeletedUtc.Value).Duration();
-            return difference <= TimeSpan.FromSeconds(1);
+            // Backward compatibility for rows that were marked deleted before SoftDeletedUtc was introduced.
+            if (!softDeletedUtc.HasValue)
+            {
+                return true;
+            }
+
+            // User-driven delete flows set SoftDeletedUtc but do not set moderation metadata.
+            if (string.IsNullOrWhiteSpace(moderatedByUserId) || !moderatedUtc.HasValue)
+            {
+                return false;
+            }
+
+            // Restore is safe only when moderation is the latest delete-related action.
+            return moderatedUtc.Value >= softDeletedUtc.Value;
         }
 
         public async Task UnsuspendUserAsync(string targetUserId, string actorUserId, string? reason)
