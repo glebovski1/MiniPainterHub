@@ -1,4 +1,5 @@
 using FluentAssertions;
+using MiniPainterHub.Common.Auth;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Tests.Infrastructure;
@@ -64,6 +65,37 @@ public class AdminModerationApiTests
         var html = await client.SendAsync(req);
         html.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
         (await html.Content.ReadAsStringAsync()).Should().Contain("Maintenance");
+    }
+
+
+    [Fact]
+    public async Task MaintenanceMode_AllowsLoginEndpoint()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateClient();
+
+        await client.PostAsJsonAsync("/api/auth/register", new RegisterDto
+        {
+            UserName = "maintenance-admin",
+            Email = "maintenance-admin@example.test",
+            Password = "ValidPass123!"
+        });
+
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            db.AppSettings.Add(new AppSetting { Key = "SiteOnline", Value = "false", UpdatedAt = DateTime.UtcNow });
+            await db.SaveChangesAsync();
+        });
+
+        var login = await client.PostAsJsonAsync("/api/auth/login", new LoginDto
+        {
+            UserName = "maintenance-admin",
+            Password = "ValidPass123!"
+        });
+
+        login.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await login.Content.ReadFromJsonAsync<AuthResponseDto>())!.IsSuccess.Should().BeTrue();
     }
 
     [Fact]

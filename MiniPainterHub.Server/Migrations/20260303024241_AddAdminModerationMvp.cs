@@ -11,14 +11,12 @@ namespace MiniPainterHub.Server.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "IsDeleted",
-                table: "Comments");
-
-            migrationBuilder.RenameColumn(
-                name: "IsDeleted",
+            migrationBuilder.AddColumn<bool>(
+                name: "IsPinned",
                 table: "Posts",
-                newName: "IsPinned");
+                type: "bit",
+                nullable: false,
+                defaultValue: false);
 
             migrationBuilder.AlterColumn<string>(
                 name: "DisplayName",
@@ -88,6 +86,17 @@ namespace MiniPainterHub.Server.Migrations
                 nullable: false,
                 defaultValue: 0);
 
+            migrationBuilder.Sql(@"
+UPDATE [Posts]
+SET
+    [Status] = 2,
+    [DeletedAt] = COALESCE([DeletedAt], GETUTCDATE())
+WHERE [IsDeleted] = 1;");
+
+            migrationBuilder.DropColumn(
+                name: "IsDeleted",
+                table: "Posts");
+
             migrationBuilder.AddColumn<DateTime>(
                 name: "DeletedAt",
                 table: "PostImages",
@@ -149,6 +158,17 @@ namespace MiniPainterHub.Server.Migrations
                 type: "int",
                 nullable: false,
                 defaultValue: 0);
+
+            migrationBuilder.Sql(@"
+UPDATE [Comments]
+SET
+    [Status] = 2,
+    [DeletedAt] = COALESCE([DeletedAt], GETUTCDATE())
+WHERE [IsDeleted] = 1;");
+
+            migrationBuilder.DropColumn(
+                name: "IsDeleted",
+                table: "Comments");
 
             migrationBuilder.AlterColumn<string>(
                 name: "Name",
@@ -305,6 +325,17 @@ namespace MiniPainterHub.Server.Migrations
             migrationBuilder.DropTable(
                 name: "UserRestrictions");
 
+            migrationBuilder.AddColumn<bool>(
+                name: "IsDeleted",
+                table: "Posts",
+                type: "bit",
+                nullable: false,
+                defaultValue: false);
+
+            migrationBuilder.Sql(@"
+UPDATE [Posts]
+SET [IsDeleted] = CASE WHEN [Status] = 2 THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;");
+
             migrationBuilder.DropColumn(
                 name: "DeletedAt",
                 table: "Posts");
@@ -349,6 +380,17 @@ namespace MiniPainterHub.Server.Migrations
                 name: "Status",
                 table: "PostImages");
 
+            migrationBuilder.AddColumn<bool>(
+                name: "IsDeleted",
+                table: "Comments",
+                type: "bit",
+                nullable: false,
+                defaultValue: false);
+
+            migrationBuilder.Sql(@"
+UPDATE [Comments]
+SET [IsDeleted] = CASE WHEN [Status] = 2 THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;");
+
             migrationBuilder.DropColumn(
                 name: "DeletedAt",
                 table: "Comments");
@@ -369,10 +411,9 @@ namespace MiniPainterHub.Server.Migrations
                 name: "Status",
                 table: "Comments");
 
-            migrationBuilder.RenameColumn(
+            migrationBuilder.DropColumn(
                 name: "IsPinned",
-                table: "Posts",
-                newName: "IsDeleted");
+                table: "Posts");
 
             migrationBuilder.AlterColumn<string>(
                 name: "DisplayName",
@@ -403,13 +444,6 @@ namespace MiniPainterHub.Server.Migrations
                 oldType: "nvarchar(2048)",
                 oldMaxLength: 2048,
                 oldNullable: true);
-
-            migrationBuilder.AddColumn<bool>(
-                name: "IsDeleted",
-                table: "Comments",
-                type: "bit",
-                nullable: false,
-                defaultValue: false);
 
             migrationBuilder.AlterColumn<string>(
                 name: "Name",

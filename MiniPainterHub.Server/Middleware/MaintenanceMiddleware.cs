@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
-using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -28,10 +27,11 @@ namespace MiniPainterHub.Server.Middleware
             var path = context.Request.Path.Value ?? string.Empty;
             var isAdminPath = path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase)
                 || path.StartsWith("/api/admin", StringComparison.OrdinalIgnoreCase);
+            var isAuthLoginPath = path.Equals("/api/auth/login", StringComparison.OrdinalIgnoreCase);
             var isAdminUser = context.User.Identity?.IsAuthenticated == true
                 && context.User.IsInRole("Admin");
 
-            if (isAdminPath || isAdminUser)
+            if (isAdminPath || isAuthLoginPath || isAdminUser)
             {
                 await _next(context);
                 return;
