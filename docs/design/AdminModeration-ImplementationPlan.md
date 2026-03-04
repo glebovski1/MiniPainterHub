@@ -199,7 +199,7 @@ Place shared request/response contracts in `MiniPainterHub.Common/DTOs`:
 - **New middleware**: `MiniPainterHub.Server/Middleware/MaintenanceModeMiddleware.cs`
 - **Pipeline placement in `Program.cs`**:
   - After `UseExceptionHandler()`
-  - Before `UseAuthentication()` and controller mapping
+  - **After `UseAuthentication()` and before `UseAuthorization()`** so `HttpContext.User` is populated for optional admin bypass checks.
 - Behavior:
   - If maintenance disabled: no-op.
   - If enabled:
