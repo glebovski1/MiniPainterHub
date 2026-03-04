@@ -56,15 +56,19 @@
 </EditForm>
 
 @code {
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
     private LoginDto credentials = new();
-    private string error;
+    private string error = string.Empty;
 
     private async Task HandleLogin()
     {
         var success = await AuthService.LoginAsync(credentials);
         if (success)
         {
-            Nav.NavigateTo("/");
+            var destination = string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : ReturnUrl;
+            Nav.NavigateTo(destination);
         }
         else
         {
