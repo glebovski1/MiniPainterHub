@@ -31,9 +31,10 @@ public class DataSeederTests
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         db.Users.Should().HaveCount(2);
-        db.Roles.Should().HaveCount(2);
+        db.Roles.Should().HaveCount(3);
         (await roles.RoleExistsAsync("Admin")).Should().BeTrue();
         (await roles.RoleExistsAsync("User")).Should().BeTrue();
+        (await roles.RoleExistsAsync("Moderator")).Should().BeTrue();
 
         var admin = await users.FindByEmailAsync("admin@local");
         admin.Should().NotBeNull();
@@ -64,6 +65,38 @@ public class DataSeederTests
 
         (await users.FindByEmailAsync("admin@example.test")).Should().BeNull();
         (await roles.RoleExistsAsync("Admin")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SeedAsync_WhenAdminAlreadyExistsWithDifferentPassword_ResetsPasswordAndEnsuresRoles()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var create = await users.CreateAsync(new ApplicationUser
+            {
+                UserName = "admin",
+                Email = "admin@local",
+                EmailConfirmed = true
+            }, "OldPass123!");
+
+            create.Succeeded.Should().BeTrue();
+        }
+
+        await DataSeeder.SeedAsync(factory.Services);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var admin = await users.FindByNameAsync("admin");
+            admin.Should().NotBeNull();
+            (await users.CheckPasswordAsync(admin!, "P@ssw0rd!")).Should().BeTrue();
+            (await users.IsInRoleAsync(admin!, "Admin")).Should().BeTrue();
+            (await users.IsInRoleAsync(admin!, "User")).Should().BeTrue();
+        }
     }
 
     private static async Task<WebApplication> BuildSeedAdminApp(IDictionary<string, string?> configuration)

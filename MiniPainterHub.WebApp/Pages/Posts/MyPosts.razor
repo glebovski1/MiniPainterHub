@@ -1,43 +1,73 @@
-@using System
-@inject NavigationManager Navigation
+﻿@using System
+@using System.Security.Claims
 @page "/posts/mine"
 @attribute [Authorize]
-@inject IProfileService ProfileService;
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IProfileService ProfileService
 
 <PageTitle>My posts</PageTitle>
 
 <h1 class="mb-4">My posts</h1>
 
-@if (string.IsNullOrWhiteSpace(MyId))
+@if (!string.IsNullOrWhiteSpace(LoadError))
+{
+    <div class="alert alert-danger" data-testid="my-posts-error">@LoadError</div>
+}
+else if (string.IsNullOrWhiteSpace(MyId))
 {
     <div class="d-flex align-items-center gap-2 text-secondary">
         <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-        <span>Loading…</span>
+        <span>Loading...</span>
     </div>
 }
 else
 {
-    <UsersPost UserId="@MyId" UserName="@MyName"></UsersPost>
+    <UsersPost UserId="@MyId" UserName="@MyName" />
 }
 
-
 @code {
-    public string MyId { get; set; }
-    public string MyName { get; set; }
+    private string? MyId { get; set; }
+    private string? MyName { get; set; }
+    private string? LoadError { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        var myProfile = await ProfileService.GetMineAsync();
-        if (myProfile is null)
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated != true)
         {
             Navigation.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(Navigation.Uri)}", true);
             return;
         }
 
-        MyId = myProfile.UserId;
-        MyName = myProfile.DisplayName;
+        MyId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? user.FindFirst("sub")?.Value;
+        MyName = user.Identity.Name;
 
-        StateHasChanged();
+        try
+        {
+            var myProfile = await ProfileService.GetMineAsync();
+            if (myProfile is not null)
+            {
+                if (!string.IsNullOrWhiteSpace(myProfile.UserId))
+                {
+                    MyId = myProfile.UserId;
+                }
+
+                if (!string.IsNullOrWhiteSpace(myProfile.DisplayName))
+                {
+                    MyName = myProfile.DisplayName;
+                }
+            }
+        }
+        catch
+        {
+            // Keep claim-based identity fallback when profile loading fails.
+        }
+
+        if (string.IsNullOrWhiteSpace(MyId))
+        {
+            LoadError = "Could not determine your account. Please sign in again.";
+        }
     }
-
 }

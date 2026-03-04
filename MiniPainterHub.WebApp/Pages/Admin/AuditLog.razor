@@ -1,0 +1,200 @@
+@page "/admin/audit"
+@attribute [Authorize(Roles = "Moderator,Admin")]
+@inject Services.Interfaces.IModerationService ModerationService
+
+<PageTitle>Audit Log</PageTitle>
+
+<h3 class="mb-4">Audit Log</h3>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h4 class="h6 text-uppercase text-muted fw-semibold mb-3">Filters</h4>
+
+        <div class="row g-3">
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="audit-target-type">Target type</label>
+                <select id="audit-target-type" class="form-select" data-testid="audit-filter-target-type" @bind="_targetType">
+                    <option value="">All</option>
+                    <option value="Post">Post</option>
+                    <option value="Comment">Comment</option>
+                    <option value="User">User</option>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="audit-actor-user-id">Actor user id</label>
+                <input id="audit-actor-user-id" class="form-control" type="text" data-testid="audit-filter-actor-user-id" @bind="_actorUserId" />
+            </div>
+
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="audit-action-type">Action type</label>
+                <input id="audit-action-type" class="form-control" type="text" data-testid="audit-filter-action-type" @bind="_actionType" />
+            </div>
+
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="audit-page-size">Page size</label>
+                <select id="audit-page-size" class="form-select" data-testid="audit-filter-page-size" @bind="_pageSize">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                </select>
+            </div>
+        </div>
+
+        <button class="btn btn-primary mt-3" type="button" data-testid="audit-apply-filters" @onclick="ApplyFiltersAsync" disabled="@_loading">
+            @(_loading ? "Loading..." : "Apply filters")
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <div class="alert alert-danger" data-testid="audit-error">@_error</div>
+}
+else if (_loading)
+{
+    <div class="d-flex align-items-center gap-2 text-secondary" data-testid="audit-loading">
+        <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+        <span>Loading...</span>
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped align-middle" data-testid="audit-table">
+            <thead>
+                <tr>
+                    <th scope="col">Created (UTC)</th>
+                    <th scope="col">Actor</th>
+                    <th scope="col">Role</th>
+                    <th scope="col">Action</th>
+                    <th scope="col">Target</th>
+                    <th scope="col">Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (_items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="6" class="text-muted" data-testid="audit-empty">No audit records found.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in _items)
+                    {
+                        <tr data-testid="audit-row">
+                            <td>@item.CreatedUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            <td>@item.ActorUserId</td>
+                            <td>@item.ActorRole</td>
+                            <td>@item.ActionType</td>
+                            <td>@item.TargetType/@item.TargetId</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.Reason) ? "-" : item.Reason)</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-outline-secondary" type="button" data-testid="audit-prev" @onclick="LoadPreviousPageAsync" disabled="@(!_hasPreviousPage || _loading)">Previous</button>
+        <button class="btn btn-outline-secondary" type="button" data-testid="audit-next" @onclick="LoadNextPageAsync" disabled="@(!_hasNextPage || _loading)">Next</button>
+        <span class="text-muted" data-testid="audit-page-state">Page @_page • @_totalCount total</span>
+    </div>
+}
+
+@code {
+    private readonly List<MiniPainterHub.Common.DTOs.ModerationAuditDto> _items = new();
+    private bool _loading;
+    private string? _error;
+
+    private int _page = 1;
+    private int _pageSize = 20;
+    private int _totalCount;
+    private string _targetType = string.Empty;
+    private string _actorUserId = string.Empty;
+    private string _actionType = string.Empty;
+
+    private bool _hasPreviousPage => _page > 1;
+    private bool _hasNextPage => _page * _pageSize < _totalCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task ApplyFiltersAsync()
+    {
+        _page = 1;
+        await LoadAsync();
+    }
+
+    private async Task LoadPreviousPageAsync()
+    {
+        if (!_hasPreviousPage)
+        {
+            return;
+        }
+
+        _page--;
+        await LoadAsync();
+    }
+
+    private async Task LoadNextPageAsync()
+    {
+        if (!_hasNextPage)
+        {
+            return;
+        }
+
+        _page++;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            var result = await ModerationService.GetAuditAsync(new MiniPainterHub.Common.DTOs.ModerationAuditQueryDto
+            {
+                Page = _page,
+                PageSize = _pageSize,
+                TargetType = NormalizeOptional(_targetType),
+                ActorUserId = NormalizeOptional(_actorUserId),
+                ActionType = NormalizeOptional(_actionType)
+            });
+
+            if (!result.Success || result.Value is null)
+            {
+                _items.Clear();
+                _totalCount = 0;
+                _error = "Could not load audit records. Please try again.";
+                return;
+            }
+
+            _items.Clear();
+            _items.AddRange(result.Value.Items);
+            _totalCount = result.Value.TotalCount;
+            _page = result.Value.PageNumber;
+            _pageSize = result.Value.PageSize;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return value.Trim();
+    }
+}

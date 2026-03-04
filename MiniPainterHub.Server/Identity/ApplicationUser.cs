@@ -12,6 +12,12 @@ namespace MiniPainterHub.Server.Identity
 
         public DateTime DateJoined { get; set; } = DateTime.UtcNow;
 
+        public DateTime? SuspendedUntilUtc { get; set; }
+
+        public string? SuspensionReason { get; set; }
+
+        public DateTime? SuspensionUpdatedUtc { get; set; }
+
         public Profile? Profile { get; set; }
     }
 }

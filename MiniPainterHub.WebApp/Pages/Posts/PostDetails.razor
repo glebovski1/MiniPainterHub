@@ -2,6 +2,7 @@
 @using MiniPainterHub.Common.DTOs
 @inject ApiClient Api
 @inject NavigationManager Nav
+@inject MiniPainterHub.WebApp.Services.Interfaces.IModerationService ModerationService
 @using MiniPainterHub.WebApp.Services.Http
 @using System.Net
 @using System.Net.Http
@@ -84,11 +85,18 @@
 
             @* 📝 Post Content *@
             <div class="card-body p-0">
-                <h2 class="card-title mb-3" data-testid="post-title">@post.Title</h2>
+                <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
+                    <h2 class="card-title mb-0" data-testid="post-title">@post.Title</h2>
+                    <AuthorizeView Roles="Moderator,Admin">
+                        <Authorized>
+                            <span class="badge text-bg-secondary flex-shrink-0" data-testid="post-id-badge">#@PostId</span>
+                        </Authorized>
+                    </AuthorizeView>
+                </div>
 
                 <p class="text-muted small mb-3">
                     <i class="bi bi-person me-1"></i>
-                    <strong>@post.AuthorName</strong>
+                    <NavLink class="text-decoration-none" href="@($"/users/{post.CreatedById}")"><strong>@post.AuthorName</strong></NavLink>
                     <span class="mx-2">•</span>
                     <i class="bi bi-calendar3 me-1"></i>
                     @post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
@@ -106,6 +114,36 @@
                         ← Back
                     </button>
                 </div>
+
+                <AuthorizeView Roles="Moderator,Admin">
+                    <Authorized>
+                        <div class="d-flex flex-wrap gap-2 mb-3" data-testid="post-inline-moderation-controls">
+                            <button class="btn btn-outline-warning btn-sm"
+                                    type="button"
+                                    data-testid="post-inline-hide"
+                                    @onclick="HidePostAsync"
+                                    disabled="@_postModerationBusy">
+                                Hide post
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm"
+                                    type="button"
+                                    data-testid="post-inline-restore"
+                                    @onclick="RestorePostAsync"
+                                    disabled="@_postModerationBusy">
+                                Restore post
+                            </button>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+
+                @if (!string.IsNullOrWhiteSpace(_postModerationError))
+                {
+                    <div class="alert alert-danger py-2" role="alert" data-testid="post-inline-moderation-error">@_postModerationError</div>
+                }
+                else if (!string.IsNullOrWhiteSpace(_postModerationResult))
+                {
+                    <div class="alert alert-success py-2" role="alert" data-testid="post-inline-moderation-result">@_postModerationResult</div>
+                }
 
                 <h5 class="mb-3" data-testid="comments-heading">Comments</h5>
                 <AuthorizeView>
@@ -151,6 +189,9 @@
     private string? loadError;
     private HttpStatusCode? loadStatus;
     private bool showModal = false;
+    private bool _postModerationBusy;
+    private string? _postModerationError;
+    private string? _postModerationResult;
 
     private int selectedIndex = 0;
 
@@ -213,6 +254,43 @@
 
     private void ShowZoomModal() => showModal = true;
     private void CloseZoomModal() => showModal = false;
+
+    private Task HidePostAsync() => ModeratePostAsync(hide: true);
+
+    private Task RestorePostAsync() => ModeratePostAsync(hide: false);
+
+    private async Task ModeratePostAsync(bool hide)
+    {
+        _postModerationError = null;
+        _postModerationResult = null;
+
+        _postModerationBusy = true;
+        try
+        {
+            var request = new ModerationActionRequestDto
+            {
+                Reason = "Inline moderation from post details."
+            };
+
+            var success = hide
+                ? await ModerationService.HidePostAsync(PostId, request)
+                : await ModerationService.RestorePostAsync(PostId, request);
+
+            if (!success)
+            {
+                _postModerationError = "Moderation action failed.";
+                return;
+            }
+
+            _postModerationResult = hide ? "Post hidden." : "Post restored.";
+            await LoadPost();
+            await ReloadComments();
+        }
+        finally
+        {
+            _postModerationBusy = false;
+        }
+    }
 
     private void SelectImage(int index)
     {

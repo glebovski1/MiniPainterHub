@@ -1,38 +1,98 @@
-﻿@using MiniPainterHub.Common.DTOs
+@using MiniPainterHub.Common.DTOs
+@using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager Navigation
+@inject MiniPainterHub.WebApp.Services.Interfaces.IModerationService ModerationService
 
 <div class="card h-100 shadow-sm">
     <NavLink class="text-decoration-none text-dark" href="@($"/posts/{Post.Id}")">
         @if (!string.IsNullOrEmpty(Post.ImageUrl))
         {
-            <img src="@ThumbImageUrl"
+            <img src="@DisplayImageUrl"
                  class="card-img-top bg-light"
                  alt="Post image"
+                 @onerror="HandleImageError"
                  loading="lazy"
                  style="height: 180px; object-fit: contain;" />
         }
         <div class="card-body">
-            <h5 class="card-title">@Post.Title</h5>
+            <div class="d-flex align-items-start justify-content-between gap-2">
+                <h5 class="card-title mb-0">@Post.Title</h5>
+                <AuthorizeView Roles="Moderator,Admin">
+                    <Authorized>
+                        <span class="badge text-bg-secondary flex-shrink-0" data-testid="post-id-badge">#@Post.Id</span>
+                    </Authorized>
+                </AuthorizeView>
+            </div>
             <p class="card-text text-truncate">@Post.Snippet</p>
+            @if (Post.IsDeleted)
+            {
+                <span class="badge text-bg-warning mt-2" data-testid="post-hidden-badge">Hidden</span>
+            }
         </div>
     </NavLink>
     <div class="card-footer d-flex justify-content-between align-items-center mt-auto">
         <small class="text-muted">
-            @Post.AuthorName • @Post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
+            <NavLink class="text-decoration-none" href="@($"/users/{Post.AuthorId}")">@Post.AuthorName</NavLink>
+            • @Post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
         </small>
         <div>
             <span class="me-2"><i class="bi bi-chat-left-text"></i> @Post.CommentCount</span>
             <span><i class="bi bi-heart"></i> @Post.LikeCount</span>
         </div>
     </div>
+
+    <AuthorizeView Roles="Moderator,Admin">
+        <Authorized>
+            <div class="card-footer border-top-0 pt-0">
+                <div class="d-flex gap-2">
+                    @if (Post.IsDeleted)
+                    {
+                        <button class="btn btn-outline-secondary btn-sm"
+                                type="button"
+                                data-testid="post-card-restore"
+                                @onclick="RestoreAsync"
+                                disabled="@_moderationBusy">
+                            Restore
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-outline-warning btn-sm"
+                                type="button"
+                                data-testid="post-card-hide"
+                                @onclick="HideAsync"
+                                disabled="@_moderationBusy">
+                            Hide
+                        </button>
+                    }
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(_moderationError))
+                {
+                    <div class="text-danger small mt-2" data-testid="post-card-moderation-error">@_moderationError</div>
+                }
+                else if (!string.IsNullOrWhiteSpace(_moderationResult))
+                {
+                    <div class="text-success small mt-2" data-testid="post-card-moderation-result">@_moderationResult</div>
+                }
+            </div>
+        </Authorized>
+    </AuthorizeView>
 </div>
 
 @code {
     [Parameter] public PostSummaryDto Post { get; set; } = default!;
+    [Parameter] public EventCallback OnModerated { get; set; }
+
+    private bool _useFullImage;
+    private bool _moderationBusy;
+    private string? _moderationError;
+    private string? _moderationResult;
 
     private string FullImageUrl => MakeAbsoluteUrl(Post.ImageUrl);
 
     private string ThumbImageUrl => MakeAbsoluteUrl(ReplaceVariantSuffix(Post.ImageUrl, "_thumb."));
+    private string DisplayImageUrl => _useFullImage ? FullImageUrl : ThumbImageUrl;
 
     private string MakeAbsoluteUrl(string? url)
         => string.IsNullOrEmpty(url)
@@ -51,5 +111,54 @@
         return url.Contains("_max.", StringComparison.OrdinalIgnoreCase)
             ? url.Replace("_max.", replacement, StringComparison.OrdinalIgnoreCase)
             : url;
+    }
+
+    private void HandleImageError()
+    {
+        if (_useFullImage)
+        {
+            return;
+        }
+
+        _useFullImage = true;
+    }
+
+    private Task HideAsync() => ModerateAsync(hide: true);
+
+    private Task RestoreAsync() => ModerateAsync(hide: false);
+
+    private async Task ModerateAsync(bool hide)
+    {
+        _moderationError = null;
+        _moderationResult = null;
+
+        _moderationBusy = true;
+        try
+        {
+            var request = new ModerationActionRequestDto
+            {
+                Reason = "Inline moderation from post list."
+            };
+
+            var success = hide
+                ? await ModerationService.HidePostAsync(Post.Id, request)
+                : await ModerationService.RestorePostAsync(Post.Id, request);
+
+            if (!success)
+            {
+                _moderationError = "Moderation action failed.";
+                return;
+            }
+
+            _moderationResult = hide ? "Post hidden." : "Post restored.";
+            if (OnModerated.HasDelegate)
+            {
+                await OnModerated.InvokeAsync();
+            }
+        }
+        finally
+        {
+            _moderationBusy = false;
+        }
     }
 }

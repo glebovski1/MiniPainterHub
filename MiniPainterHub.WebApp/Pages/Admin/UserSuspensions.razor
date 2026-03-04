@@ -1,0 +1,235 @@
+@page "/admin/suspensions"
+@attribute [Authorize(Roles = "Admin")]
+@inject Services.Interfaces.IModerationService ModerationService
+
+<PageTitle>User Suspensions</PageTitle>
+
+<h3 class="mb-4">User Suspensions</h3>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h4 class="h6 text-uppercase text-muted fw-semibold mb-3">Find user</h4>
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-8">
+                <label class="form-label" for="lookup-user-query">User id, username, or email (leave empty to list suspended users)</label>
+                <input id="lookup-user-query" class="form-control" type="text" data-testid="lookup-user-query" @bind="_lookupQuery" />
+            </div>
+            <div class="col-12 col-md-4">
+                <button class="btn btn-outline-secondary w-100" type="button" data-testid="lookup-user-submit" @onclick="SearchUsersAsync" disabled="@_lookupBusy">
+                    @(_lookupBusy ? "Searching..." : "Search users / suspended")
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_lookupError))
+        {
+            <div class="alert alert-warning mt-3 py-2" data-testid="lookup-user-error">@_lookupError</div>
+        }
+        else if (_lookupResults.Count > 0)
+        {
+            <div class="list-group mt-3" data-testid="lookup-user-results">
+                @foreach (var user in _lookupResults)
+                {
+                    <button type="button" class="list-group-item list-group-item-action" data-testid="lookup-user-item" @onclick="() => SelectUser(user.UserId)">
+                        <div class="fw-semibold">@user.UserName (@user.UserId)</div>
+                        <div class="small text-muted">@user.Email • Roles: @string.Join(", ", user.Roles)</div>
+                    </button>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h4 class="h6 text-uppercase text-muted fw-semibold mb-3">Suspend user</h4>
+
+                <label class="form-label" for="suspend-user-id">User id</label>
+                <input id="suspend-user-id" class="form-control mb-3" type="text" data-testid="suspend-user-id" @bind="_suspendUserId" />
+
+                <label class="form-label" for="suspend-until">Suspend until (UTC)</label>
+                <input id="suspend-until" class="form-control mb-3" type="datetime-local" data-testid="suspend-until" @bind="_suspendedUntilLocal" />
+
+                <label class="form-label" for="suspend-reason">Reason</label>
+                <textarea id="suspend-reason" class="form-control mb-3" rows="3" data-testid="suspend-reason" @bind="_suspendReason"></textarea>
+
+                @if (!string.IsNullOrWhiteSpace(_suspendError))
+                {
+                    <div class="alert alert-danger py-2" data-testid="suspend-error">@_suspendError</div>
+                }
+                else if (!string.IsNullOrWhiteSpace(_suspendResult))
+                {
+                    <div class="alert alert-success py-2" data-testid="suspend-result">@_suspendResult</div>
+                }
+
+                <button class="btn btn-primary" type="button" data-testid="suspend-submit" @onclick="SubmitSuspendAsync" disabled="@_suspendBusy">
+                    @(_suspendBusy ? "Working..." : "Suspend user")
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h4 class="h6 text-uppercase text-muted fw-semibold mb-3">Unsuspend user</h4>
+
+                <label class="form-label" for="unsuspend-user-id">User id</label>
+                <input id="unsuspend-user-id" class="form-control mb-3" type="text" data-testid="unsuspend-user-id" @bind="_unsuspendUserId" />
+
+                <label class="form-label" for="unsuspend-reason">Reason</label>
+                <textarea id="unsuspend-reason" class="form-control mb-3" rows="3" data-testid="unsuspend-reason" @bind="_unsuspendReason"></textarea>
+
+                @if (!string.IsNullOrWhiteSpace(_unsuspendError))
+                {
+                    <div class="alert alert-danger py-2" data-testid="unsuspend-error">@_unsuspendError</div>
+                }
+                else if (!string.IsNullOrWhiteSpace(_unsuspendResult))
+                {
+                    <div class="alert alert-success py-2" data-testid="unsuspend-result">@_unsuspendResult</div>
+                }
+
+                <button class="btn btn-primary" type="button" data-testid="unsuspend-submit" @onclick="SubmitUnsuspendAsync" disabled="@_unsuspendBusy">
+                    @(_unsuspendBusy ? "Working..." : "Unsuspend user")
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _suspendUserId = string.Empty;
+    private DateTime _suspendedUntilLocal = DateTime.UtcNow.AddDays(1).ToLocalTime();
+    private string _suspendReason = string.Empty;
+    private bool _suspendBusy;
+    private string? _suspendError;
+    private string? _suspendResult;
+
+    private string _unsuspendUserId = string.Empty;
+    private string _unsuspendReason = string.Empty;
+    private bool _unsuspendBusy;
+    private string? _unsuspendError;
+    private string? _unsuspendResult;
+
+    private string _lookupQuery = string.Empty;
+    private bool _lookupBusy;
+    private string? _lookupError;
+    private readonly List<MiniPainterHub.Common.DTOs.ModerationUserLookupDto> _lookupResults = new();
+
+    private async Task SubmitSuspendAsync()
+    {
+        _suspendError = null;
+        _suspendResult = null;
+
+        if (string.IsNullOrWhiteSpace(_suspendUserId))
+        {
+            _suspendError = "User id is required.";
+            return;
+        }
+
+        var suspendedUntilUtc = _suspendedUntilLocal.ToUniversalTime();
+
+        _suspendBusy = true;
+        try
+        {
+            var success = await ModerationService.SuspendUserAsync(_suspendUserId.Trim(), new MiniPainterHub.Common.DTOs.SuspendUserRequestDto
+            {
+                SuspendedUntilUtc = suspendedUntilUtc,
+                Reason = NormalizeReason(_suspendReason)
+            });
+
+            if (!success)
+            {
+                _suspendError = "Suspension request failed. Please verify values and try again.";
+                return;
+            }
+
+            _suspendResult = $"User {_suspendUserId.Trim()} suspended until {suspendedUntilUtc:yyyy-MM-dd HH:mm:ss} UTC.";
+        }
+        finally
+        {
+            _suspendBusy = false;
+        }
+    }
+
+    private async Task SubmitUnsuspendAsync()
+    {
+        _unsuspendError = null;
+        _unsuspendResult = null;
+
+        if (string.IsNullOrWhiteSpace(_unsuspendUserId))
+        {
+            _unsuspendError = "User id is required.";
+            return;
+        }
+
+        _unsuspendBusy = true;
+        try
+        {
+            var success = await ModerationService.UnsuspendUserAsync(_unsuspendUserId.Trim(), new MiniPainterHub.Common.DTOs.ModerationActionRequestDto
+            {
+                Reason = NormalizeReason(_unsuspendReason)
+            });
+
+            if (!success)
+            {
+                _unsuspendError = "Unsuspend request failed. Please verify values and try again.";
+                return;
+            }
+
+            _unsuspendResult = $"User {_unsuspendUserId.Trim()} unsuspended.";
+        }
+        finally
+        {
+            _unsuspendBusy = false;
+        }
+    }
+
+    private static string? NormalizeReason(string? reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return null;
+        }
+
+        return reason.Trim();
+    }
+
+    private async Task SearchUsersAsync()
+    {
+        _lookupError = null;
+        _lookupResults.Clear();
+
+        _lookupBusy = true;
+        try
+        {
+            var normalizedQuery = string.IsNullOrWhiteSpace(_lookupQuery) ? null : _lookupQuery.Trim();
+            var result = await ModerationService.SearchUsersAsync(normalizedQuery, 10);
+            if (!result.Success || result.Value is null)
+            {
+                _lookupError = "Could not load users.";
+                return;
+            }
+
+            _lookupResults.AddRange(result.Value);
+            if (_lookupResults.Count == 0)
+            {
+                _lookupError = string.IsNullOrWhiteSpace(normalizedQuery)
+                    ? "No suspended users found."
+                    : "No matching users found.";
+            }
+        }
+        finally
+        {
+            _lookupBusy = false;
+        }
+    }
+
+    private void SelectUser(string userId)
+    {
+        _suspendUserId = userId;
+        _unsuspendUserId = userId;
+    }
+}

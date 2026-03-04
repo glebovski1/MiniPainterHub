@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -122,6 +123,7 @@ public class CommentServiceTests
         result.AuthorId.Should().Be(user.Id);
         result.AuthorName.Should().Be(user.UserName);
         result.Content.Should().Be(comment.Text);
+        result.IsDeleted.Should().BeFalse();
     }
 
     [Fact]
@@ -134,5 +136,47 @@ public class CommentServiceTests
 
         await act.Should().ThrowAsync<NotFoundException>()
             .WithMessage("Comment not found.");
+    }
+
+    [Fact]
+    public async Task GetByPostIdAsync_WhenIncludeDeletedTrue_ReturnsVisibleAndHiddenComments()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1", "commenter");
+        var post = TestData.CreatePost(1, user.Id);
+        var visibleComment = TestData.CreateComment(20, post.Id, user.Id, isDeleted: false);
+        var hiddenComment = TestData.CreateComment(21, post.Id, user.Id, isDeleted: true);
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.Comments.AddRangeAsync(visibleComment, hiddenComment);
+        await context.SaveChangesAsync();
+        var service = new CommentService(context);
+
+        var result = await service.GetByPostIdAsync(post.Id, 1, 20, includeDeleted: true, deletedOnly: false);
+
+        result.Items.Should().HaveCount(2);
+        result.Items.Should().Contain(item => item.Id == visibleComment.Id && !item.IsDeleted);
+        result.Items.Should().Contain(item => item.Id == hiddenComment.Id && item.IsDeleted);
+    }
+
+    [Fact]
+    public async Task GetByPostIdAsync_WhenDeletedOnlyTrue_ReturnsOnlyHiddenComments()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1", "commenter");
+        var post = TestData.CreatePost(2, user.Id);
+        var visibleComment = TestData.CreateComment(30, post.Id, user.Id, isDeleted: false);
+        var hiddenComment = TestData.CreateComment(31, post.Id, user.Id, isDeleted: true);
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.Comments.AddRangeAsync(visibleComment, hiddenComment);
+        await context.SaveChangesAsync();
+        var service = new CommentService(context);
+
+        var result = await service.GetByPostIdAsync(post.Id, 1, 20, includeDeleted: true, deletedOnly: true);
+
+        result.Items.Should().ContainSingle();
+        result.Items.Single().Id.Should().Be(hiddenComment.Id);
+        result.Items.Single().IsDeleted.Should().BeTrue();
     }
 }

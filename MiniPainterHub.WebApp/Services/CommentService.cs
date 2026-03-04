@@ -15,9 +15,9 @@ namespace MiniPainterHub.WebApp.Services
             _api = api;
         }
 
-        public async Task<ApiResult<PagedResult<CommentDto>>> GetByPostAsync(int postId, int page, int pageSize)
+        public async Task<ApiResult<PagedResult<CommentDto>>> GetByPostAsync(int postId, int page, int pageSize, bool includeDeleted = false, bool deletedOnly = false)
         {
-            var url = $"api/posts/{postId}/comments?page={page}&pageSize={pageSize}";
+            var url = $"api/posts/{postId}/comments?page={page}&pageSize={pageSize}&includeDeleted={includeDeleted}&deletedOnly={deletedOnly}";
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             var result = await _api.SendForResultAsync<PagedResult<CommentDto>>(request);
 

@@ -1,4 +1,5 @@
 using System.Linq;
+using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http;
@@ -100,6 +101,78 @@ public class AuthControllerTests
             HttpStatusCode.Unauthorized,
             "Unauthorized",
             "Invalid username or password.");
+    }
+
+    [Fact]
+    public async Task Login_WhenSuspendedUserPasswordIsInvalid_ReturnsUnauthorizedProblemDetails()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateClient();
+
+        await client.PostAsJsonAsync("/api/auth/register", new RegisterDto
+        {
+            UserName = "suspended-user",
+            Email = "suspended-user@example.test",
+            Password = "ValidPass123!"
+        });
+
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            var user = db.Users.Single(u => u.UserName == "suspended-user");
+            user.SuspendedUntilUtc = DateTime.UtcNow.AddHours(1);
+            user.SuspensionReason = "policy";
+            user.SuspensionUpdatedUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        });
+
+        var response = await client.PostAsJsonAsync("/api/auth/login", new LoginDto
+        {
+            UserName = "suspended-user",
+            Password = "WrongPass123!"
+        });
+
+        await ProblemDetailsAssertions.AssertAsync(
+            response,
+            HttpStatusCode.Unauthorized,
+            "Unauthorized",
+            "Invalid username or password.");
+    }
+
+    [Fact]
+    public async Task Login_WhenSuspendedUserPasswordIsValid_ReturnsForbiddenProblemDetails()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateClient();
+
+        await client.PostAsJsonAsync("/api/auth/register", new RegisterDto
+        {
+            UserName = "suspended-user",
+            Email = "suspended-user@example.test",
+            Password = "ValidPass123!"
+        });
+
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            var user = db.Users.Single(u => u.UserName == "suspended-user");
+            user.SuspendedUntilUtc = DateTime.UtcNow.AddHours(1);
+            user.SuspensionReason = "policy";
+            user.SuspensionUpdatedUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        });
+
+        var response = await client.PostAsJsonAsync("/api/auth/login", new LoginDto
+        {
+            UserName = "suspended-user",
+            Password = "ValidPass123!"
+        });
+
+        await ProblemDetailsAssertions.AssertAsync(
+            response,
+            HttpStatusCode.Forbidden,
+            "Forbidden",
+            "Your account is suspended.");
     }
 
     [Fact]

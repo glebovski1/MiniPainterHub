@@ -6,7 +6,7 @@ namespace MiniPainterHub.WebApp.Services.Interfaces
     public interface IPostService
     {
         /// <summary>Fetches a paged list of posts.</summary>
-        Task<ApiResult<PagedResult<PostSummaryDto>>> GetAllAsync(int page, int pageSize);
+        Task<ApiResult<PagedResult<PostSummaryDto>>> GetAllAsync(int page, int pageSize, bool includeDeleted = false, bool deletedOnly = false);
 
         public Task<IEnumerable<PostSummaryDto>> GetTopPosts(int count, TimeSpan timeOffcet);
 

@@ -16,13 +16,20 @@ namespace MiniPainterHub.Server.Services
 {
     public class CommentService : ICommentService
     {
-        private AppDbContext _appDbContext;
-        public CommentService(AppDbContext appDbContext)
+        private readonly AppDbContext _appDbContext;
+        private readonly IAccountRestrictionService? _accountRestrictionService;
+        public CommentService(AppDbContext appDbContext, IAccountRestrictionService? accountRestrictionService = null)
         {
             _appDbContext = appDbContext;
+            _accountRestrictionService = accountRestrictionService;
         }
         public async Task<CommentDto> CreateAsync(string userId, int postId, CreateCommentDto dto)
         {
+            if (_accountRestrictionService != null)
+            {
+                await _accountRestrictionService.EnsureCanCommentAsync(userId);
+            }
+
             // 1️⃣ Optional: verify the post actually exists
             var postExists = await _appDbContext.Posts.AnyAsync(p => p.Id == postId && !p.IsDeleted);
             if (!postExists)
@@ -48,7 +55,8 @@ namespace MiniPainterHub.Server.Services
                 AuthorId = comment.AuthorId,
                 PostId = comment.PostId,
                 Content = comment.Text,
-                CreatedAt = comment.CreatedUtc
+                CreatedAt = comment.CreatedUtc,
+                IsDeleted = comment.IsDeleted
             };
 
         }
@@ -66,6 +74,7 @@ namespace MiniPainterHub.Server.Services
                 throw new NotFoundException("Comment not found.");
 
             comment.IsDeleted = true;
+            comment.SoftDeletedUtc = DateTime.UtcNow;
             comment.UpdatedUtc = DateTime.UtcNow;
             await _appDbContext.SaveChangesAsync();
             return true;
@@ -83,7 +92,8 @@ namespace MiniPainterHub.Server.Services
                     AuthorName = c.Author.UserName ?? "No name",
                     PostId = c.PostId,
                     Content = c.Text,
-                    CreatedAt = c.CreatedUtc
+                    CreatedAt = c.CreatedUtc,
+                    IsDeleted = c.IsDeleted
                 })
                 .FirstOrDefaultAsync();
 
@@ -95,7 +105,7 @@ namespace MiniPainterHub.Server.Services
             return comment;
         }
 
-        public async Task<PagedResult<CommentDto>> GetByPostIdAsync(int postId, int page = 1, int pageSize = 10)
+        public async Task<PagedResult<CommentDto>> GetByPostIdAsync(int postId, int page = 1, int pageSize = 10, bool includeDeleted = false, bool deletedOnly = false)
         {
             var errors = new Dictionary<string, string[]>();
 
@@ -116,8 +126,18 @@ namespace MiniPainterHub.Server.Services
 
             var query = _appDbContext.Comments
                 .AsNoTracking()
-                .Where(c => c.PostId == postId && !c.IsDeleted)
-                .OrderBy(c => c.CreatedUtc);
+                .Where(c => c.PostId == postId);
+
+            if (deletedOnly)
+            {
+                query = query.Where(c => c.IsDeleted);
+            }
+            else if (!includeDeleted)
+            {
+                query = query.Where(c => !c.IsDeleted);
+            }
+
+            query = query.OrderBy(c => c.CreatedUtc);
 
             var totalCount = await query.CountAsync();
             var items = await query
@@ -130,7 +150,8 @@ namespace MiniPainterHub.Server.Services
                     PostId = c.PostId,
                     Content = c.Text,
                     CreatedAt = c.CreatedUtc,
-                    AuthorName = c.Author.UserName ?? "No name"
+                    AuthorName = c.Author.UserName ?? "No name",
+                    IsDeleted = c.IsDeleted
                 })
                 .ToListAsync();
 

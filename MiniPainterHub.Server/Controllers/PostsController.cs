@@ -27,9 +27,21 @@ namespace MiniPainterHub.Server.Controllers
         [AllowAnonymous]
         public async Task<ActionResult<PagedResult<PostSummaryDto>>> GetAll(
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10)
+            [FromQuery] int pageSize = 10,
+            [FromQuery] bool includeDeleted = false,
+            [FromQuery] bool deletedOnly = false)
         {
-            var result = await _postService.GetAllAsync(page, pageSize);
+            if (deletedOnly)
+            {
+                includeDeleted = true;
+            }
+
+            if (includeDeleted && !(User.IsInRole("Admin") || User.IsInRole("Moderator")))
+            {
+                throw new ForbiddenException("Only moderators and admins can query hidden posts.");
+            }
+
+            var result = await _postService.GetAllAsync(page, pageSize, includeDeleted, deletedOnly);
             return Ok(result);
         }
 

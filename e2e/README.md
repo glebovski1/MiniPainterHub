@@ -11,6 +11,21 @@ This suite is isolated from your normal local app data.
 
 Your regular app runs (without these env vars) do not expose the reset endpoint and do not get wiped by E2E.
 
+## Smoke coverage
+
+Current smoke scenarios include:
+
+- auth (valid and invalid login)
+- post create flow
+- comment + like engagement flow
+- profile create/update flow
+- unauthenticated create-post guard
+- create-post validation errors
+- post details unauthenticated comment prompt
+- admin moderation:
+  - hide/restore post using list visibility filters (`Active only`, `Include hidden`, `Hidden only`)
+  - hide/restore comment using comment visibility filters in post details
+
 ## Run
 
 ```powershell

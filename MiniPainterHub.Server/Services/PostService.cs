@@ -29,6 +29,7 @@ namespace MiniPainterHub.Server.Services
         private readonly IImageStore _imageStore;
         private readonly ImagesOptions _imageOptions;
         private readonly ILogger<PostService> _logger;
+        private readonly IAccountRestrictionService? _accountRestrictionService;
 
         public PostService(
             AppDbContext appDbContext,
@@ -36,7 +37,8 @@ namespace MiniPainterHub.Server.Services
             IImageProcessor imageProcessor,
             IImageStore imageStore,
             IOptions<ImagesOptions> imageOptions,
-            ILogger<PostService> logger)
+            ILogger<PostService> logger,
+            IAccountRestrictionService? accountRestrictionService = null)
         {
             _appDbContext = appDbContext ?? throw new ArgumentNullException(nameof(appDbContext));
             _imageService = imageService ?? throw new ArgumentNullException(nameof(imageService));
@@ -44,6 +46,7 @@ namespace MiniPainterHub.Server.Services
             _imageStore = imageStore ?? throw new ArgumentNullException(nameof(imageStore));
             _imageOptions = imageOptions?.Value ?? throw new ArgumentNullException(nameof(imageOptions));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _accountRestrictionService = accountRestrictionService;
         }
         public async Task<PostDto> CreateAsync(string userId, CreatePostDto dto)
         {
@@ -54,6 +57,11 @@ namespace MiniPainterHub.Server.Services
             if (string.IsNullOrWhiteSpace(userId))
             {
                 throw new UnauthorizedAccessException("User must be authenticated to create posts.");
+            }
+
+            if (_accountRestrictionService != null)
+            {
+                await _accountRestrictionService.EnsureCanCreatePostAsync(userId);
             }
 
             var user = await _appDbContext.Users.FindAsync(userId);
@@ -122,12 +130,13 @@ namespace MiniPainterHub.Server.Services
                 throw new NotFoundException("Post not found.");
 
             post.IsDeleted = true;
+            post.SoftDeletedUtc = DateTime.UtcNow;
             post.UpdatedUtc = DateTime.UtcNow;
             await _appDbContext.SaveChangesAsync();
             return true;
         }
 
-        public async Task<PagedResult<PostSummaryDto>> GetAllAsync(int page, int pageSize)
+        public async Task<PagedResult<PostSummaryDto>> GetAllAsync(int page, int pageSize, bool includeDeleted = false, bool deletedOnly = false)
         {
             var errors = new Dictionary<string, string[]>();
 
@@ -146,10 +155,18 @@ namespace MiniPainterHub.Server.Services
                 throw new DomainValidationException("Pagination parameters are invalid.", errors);
             }
 
-            var query = _appDbContext.Posts
-                .AsNoTracking()
-                .Where(p => !p.IsDeleted)
-                .OrderByDescending(p => p.CreatedUtc);
+            var query = _appDbContext.Posts.AsNoTracking();
+
+            if (deletedOnly)
+            {
+                query = query.Where(p => p.IsDeleted);
+            }
+            else if (!includeDeleted)
+            {
+                query = query.Where(p => !p.IsDeleted);
+            }
+
+            query = query.OrderByDescending(p => p.CreatedUtc);
 
             var totalCount = await query.CountAsync();
             var items = await query
@@ -170,7 +187,8 @@ namespace MiniPainterHub.Server.Services
                     AuthorId = p.CreatedById,
                     CreatedAt = p.CreatedUtc,
                     CommentCount = p.Comments.Count,
-                    LikeCount = p.Likes.Count
+                    LikeCount = p.Likes.Count,
+                    IsDeleted = p.IsDeleted
                 })
                 .ToListAsync();
 

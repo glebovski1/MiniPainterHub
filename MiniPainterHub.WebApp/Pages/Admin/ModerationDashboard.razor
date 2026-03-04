@@ -1,0 +1,262 @@
+@page "/admin/moderation"
+@attribute [Authorize(Roles = "Moderator,Admin")]
+@inject Services.Interfaces.IModerationService ModerationService
+
+<PageTitle>Moderation Dashboard</PageTitle>
+
+<h3 class="mb-4">Moderation Dashboard</h3>
+
+<div class="row g-4">
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h4 class="h6 text-uppercase text-muted fw-semibold mb-3">Post moderation</h4>
+
+                <label class="form-label" for="mod-post-id">Post id</label>
+                <input id="mod-post-id" class="form-control mb-3" type="number" min="1" data-testid="mod-post-id" @bind="_postId" />
+                <div class="form-text mb-2">
+                    Tip: the post id is the number in the URL like <code>/posts/944</code>.
+                </div>
+                <button class="btn btn-outline-secondary btn-sm mb-3" type="button" data-testid="mod-post-preview-load" @onclick="LoadPostPreviewAsync" disabled="@_postBusy">
+                    Load post preview
+                </button>
+
+                @if (!string.IsNullOrWhiteSpace(_postPreviewError))
+                {
+                    <div class="alert alert-warning py-2" data-testid="mod-post-preview-error">@_postPreviewError</div>
+                }
+                else if (_postPreview is not null)
+                {
+                    <div class="border rounded p-2 mb-3 bg-light" data-testid="mod-post-preview">
+                        <div class="fw-semibold">@_postPreview.Title</div>
+                        <div class="small text-muted">Author: @_postPreview.CreatedByUserId • Deleted: @_postPreview.IsDeleted</div>
+                        <div class="small mt-1">@_postPreview.ContentSnippet</div>
+                    </div>
+                }
+
+                <label class="form-label" for="mod-post-action">Action</label>
+                <select id="mod-post-action" class="form-select mb-3" data-testid="mod-post-action" @bind="_postAction">
+                    <option value="hide">Hide</option>
+                    <option value="restore">Restore</option>
+                </select>
+
+                <label class="form-label" for="mod-post-reason">Reason</label>
+                <textarea id="mod-post-reason" class="form-control mb-3" rows="3" data-testid="mod-post-reason" @bind="_postReason"></textarea>
+
+                @if (!string.IsNullOrWhiteSpace(_postError))
+                {
+                    <div class="alert alert-danger py-2" data-testid="mod-post-error">@_postError</div>
+                }
+                else if (!string.IsNullOrWhiteSpace(_postResult))
+                {
+                    <div class="alert alert-success py-2" data-testid="mod-post-result">@_postResult</div>
+                }
+
+                <button class="btn btn-primary" type="button" data-testid="mod-post-submit" @onclick="SubmitPostAsync" disabled="@_postBusy">
+                    @(_postBusy ? "Working..." : "Apply to post")
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h4 class="h6 text-uppercase text-muted fw-semibold mb-3">Comment moderation</h4>
+
+                <label class="form-label" for="mod-comment-id">Comment id</label>
+                <input id="mod-comment-id" class="form-control mb-3" type="number" min="1" data-testid="mod-comment-id" @bind="_commentId" />
+                <div class="form-text mb-2">
+                    Tip: comment ids are shown on the post details page for admins/moderators.
+                </div>
+                <button class="btn btn-outline-secondary btn-sm mb-3" type="button" data-testid="mod-comment-preview-load" @onclick="LoadCommentPreviewAsync" disabled="@_commentBusy">
+                    Load comment preview
+                </button>
+
+                @if (!string.IsNullOrWhiteSpace(_commentPreviewError))
+                {
+                    <div class="alert alert-warning py-2" data-testid="mod-comment-preview-error">@_commentPreviewError</div>
+                }
+                else if (_commentPreview is not null)
+                {
+                    <div class="border rounded p-2 mb-3 bg-light" data-testid="mod-comment-preview">
+                        <div class="small text-muted">Post: @_commentPreview.PostId • Author: @_commentPreview.AuthorUserId • Deleted: @_commentPreview.IsDeleted</div>
+                        <div class="small mt-1">@_commentPreview.TextSnippet</div>
+                    </div>
+                }
+
+                <label class="form-label" for="mod-comment-action">Action</label>
+                <select id="mod-comment-action" class="form-select mb-3" data-testid="mod-comment-action" @bind="_commentAction">
+                    <option value="hide">Hide</option>
+                    <option value="restore">Restore</option>
+                </select>
+
+                <label class="form-label" for="mod-comment-reason">Reason</label>
+                <textarea id="mod-comment-reason" class="form-control mb-3" rows="3" data-testid="mod-comment-reason" @bind="_commentReason"></textarea>
+
+                @if (!string.IsNullOrWhiteSpace(_commentError))
+                {
+                    <div class="alert alert-danger py-2" data-testid="mod-comment-error">@_commentError</div>
+                }
+                else if (!string.IsNullOrWhiteSpace(_commentResult))
+                {
+                    <div class="alert alert-success py-2" data-testid="mod-comment-result">@_commentResult</div>
+                }
+
+                <button class="btn btn-primary" type="button" data-testid="mod-comment-submit" @onclick="SubmitCommentAsync" disabled="@_commentBusy">
+                    @(_commentBusy ? "Working..." : "Apply to comment")
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int _postId;
+    private string _postAction = "hide";
+    private string _postReason = string.Empty;
+    private bool _postBusy;
+    private string? _postError;
+    private string? _postResult;
+    private MiniPainterHub.Common.DTOs.ModerationPostPreviewDto? _postPreview;
+    private string? _postPreviewError;
+
+    private int _commentId;
+    private string _commentAction = "hide";
+    private string _commentReason = string.Empty;
+    private bool _commentBusy;
+    private string? _commentError;
+    private string? _commentResult;
+    private MiniPainterHub.Common.DTOs.ModerationCommentPreviewDto? _commentPreview;
+    private string? _commentPreviewError;
+
+    private async Task SubmitPostAsync()
+    {
+        _postError = null;
+        _postResult = null;
+
+        if (_postId <= 0)
+        {
+            _postError = "Post id must be greater than 0.";
+            return;
+        }
+
+        _postBusy = true;
+        try
+        {
+            var request = new MiniPainterHub.Common.DTOs.ModerationActionRequestDto
+            {
+                Reason = NormalizeReason(_postReason)
+            };
+
+            var success = _postAction == "restore"
+                ? await ModerationService.RestorePostAsync(_postId, request)
+                : await ModerationService.HidePostAsync(_postId, request);
+
+            if (!success)
+            {
+                _postError = "Action failed. Please verify permissions and request values.";
+                return;
+            }
+
+            _postResult = _postAction == "restore"
+                ? $"Post {_postId} restored."
+                : $"Post {_postId} hidden.";
+        }
+        finally
+        {
+            _postBusy = false;
+        }
+    }
+
+    private async Task LoadPostPreviewAsync()
+    {
+        _postPreviewError = null;
+        _postPreview = null;
+
+        if (_postId <= 0)
+        {
+            _postPreviewError = "Post id must be greater than 0.";
+            return;
+        }
+
+        var result = await ModerationService.GetPostPreviewAsync(_postId);
+        if (!result.Success || result.Value is null)
+        {
+            _postPreviewError = "Could not load post preview.";
+            return;
+        }
+
+        _postPreview = result.Value;
+    }
+
+    private async Task SubmitCommentAsync()
+    {
+        _commentError = null;
+        _commentResult = null;
+
+        if (_commentId <= 0)
+        {
+            _commentError = "Comment id must be greater than 0.";
+            return;
+        }
+
+        _commentBusy = true;
+        try
+        {
+            var request = new MiniPainterHub.Common.DTOs.ModerationActionRequestDto
+            {
+                Reason = NormalizeReason(_commentReason)
+            };
+
+            var success = _commentAction == "restore"
+                ? await ModerationService.RestoreCommentAsync(_commentId, request)
+                : await ModerationService.HideCommentAsync(_commentId, request);
+
+            if (!success)
+            {
+                _commentError = "Action failed. Please verify permissions and request values.";
+                return;
+            }
+
+            _commentResult = _commentAction == "restore"
+                ? $"Comment {_commentId} restored."
+                : $"Comment {_commentId} hidden.";
+        }
+        finally
+        {
+            _commentBusy = false;
+        }
+    }
+
+    private async Task LoadCommentPreviewAsync()
+    {
+        _commentPreviewError = null;
+        _commentPreview = null;
+
+        if (_commentId <= 0)
+        {
+            _commentPreviewError = "Comment id must be greater than 0.";
+            return;
+        }
+
+        var result = await ModerationService.GetCommentPreviewAsync(_commentId);
+        if (!result.Success || result.Value is null)
+        {
+            _commentPreviewError = "Could not load comment preview.";
+            return;
+        }
+
+        _commentPreview = result.Value;
+    }
+
+    private static string? NormalizeReason(string? reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return null;
+        }
+
+        return reason.Trim();
+    }
+}
