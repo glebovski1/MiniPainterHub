@@ -25,13 +25,15 @@ namespace MiniPainterHub.Server.Controllers
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IConfiguration _config;
         private readonly IProfileService _profileService;
+        private readonly IAccountRestrictionService _accountRestrictionService;
 
-        public AuthController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IProfileService profileService, IConfiguration config)
+        public AuthController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IProfileService profileService, IAccountRestrictionService accountRestrictionService, IConfiguration config)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _config = config;
             _profileService = profileService;
+            _accountRestrictionService = accountRestrictionService;
         }
 
         [HttpPost("register")]
@@ -74,6 +76,8 @@ namespace MiniPainterHub.Server.Controllers
                 throw new UnauthorizedAccessException("Invalid username or password.");
             }
 
+            await _accountRestrictionService.EnsureCanLoginAsync(user);
+
             var result = await _signInManager.PasswordSignInAsync(dto.UserName, dto.Password,
                                                                  isPersistent: false,
                                                                  lockoutOnFailure: false);
@@ -92,11 +96,22 @@ namespace MiniPainterHub.Server.Controllers
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyString));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var claims = new[] {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id),
-                new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            var roles = await _userManager.GetRolesAsync(user);
+
+            var claims = new List<Claim>
+            {
+                new(JwtRegisteredClaimNames.Sub, user.Id),
+                new(JwtRegisteredClaimNames.UniqueName, user.UserName ?? string.Empty),
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new(ClaimTypes.NameIdentifier, user.Id),
+                new(ClaimTypes.Name, user.UserName ?? string.Empty)
             };
+
+            foreach (var role in roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+                claims.Add(new Claim("role", role));
+            }
 
             var token = new JwtSecurityToken(
                                    issuer: issuer,

@@ -12,8 +12,13 @@ namespace MiniPainterHub.Server.Entities
         public DateTime CreatedUtc { get; set; }
         public DateTime UpdatedUtc { get; set; }
         public bool IsDeleted { get; set; }
+        public DateTime? ModeratedUtc { get; set; }
+        public string? ModeratedByUserId { get; set; }
+        public string? ModerationReason { get; set; }
+        public DateTime? SoftDeletedUtc { get; set; }
         // Navigation:
         public Post Post { get; set; }
         public ApplicationUser Author { get; set; }
+        public ApplicationUser? ModeratedByUser { get; set; }
     }
 }

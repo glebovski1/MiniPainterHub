@@ -72,7 +72,43 @@ namespace MiniPainterHub.WebApp.Services
             var jsonBytes = ParseBase64WithoutPadding(payload);
             var keyValuePairs = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes)!;
 
-            return keyValuePairs.Select(kvp => new Claim(kvp.Key, kvp.Value.ToString()!));
+            var claims = new List<Claim>();
+            foreach (var kvp in keyValuePairs)
+            {
+                if (kvp.Key.Equals("role", StringComparison.OrdinalIgnoreCase) && kvp.Value is JsonElement roleElement)
+                {
+                    if (roleElement.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var roleItem in roleElement.EnumerateArray())
+                        {
+                            var role = roleItem.GetString();
+                            if (!string.IsNullOrWhiteSpace(role))
+                            {
+                                claims.Add(new Claim(ClaimTypes.Role, role));
+                                claims.Add(new Claim("role", role));
+                            }
+                        }
+
+                        continue;
+                    }
+
+                    if (roleElement.ValueKind == JsonValueKind.String)
+                    {
+                        var role = roleElement.GetString();
+                        if (!string.IsNullOrWhiteSpace(role))
+                        {
+                            claims.Add(new Claim(ClaimTypes.Role, role));
+                            claims.Add(new Claim("role", role));
+                        }
+
+                        continue;
+                    }
+                }
+
+                claims.Add(new Claim(kvp.Key, kvp.Value.ToString()!));
+            }
+
+            return claims;
         }
 
         private byte[] ParseBase64WithoutPadding(string base64)

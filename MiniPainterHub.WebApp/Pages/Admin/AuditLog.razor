@@ -1,0 +1,29 @@
+@page "/admin/audit"
+@attribute [Authorize(Roles = "Moderator,Admin")]
+@inject Services.Interfaces.IModerationService ModerationService
+
+<h3>Audit Log</h3>
+
+@if (_items is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <ul>
+        @foreach (var item in _items)
+        {
+            <li>@item.CreatedUtc - @item.ActionType - @item.TargetType/@item.TargetId</li>
+        }
+    </ul>
+}
+
+@code {
+    private IEnumerable<MiniPainterHub.Common.DTOs.ModerationAuditDto>? _items;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await ModerationService.GetAuditAsync(new MiniPainterHub.Common.DTOs.ModerationAuditQueryDto { Page = 1, PageSize = 20 });
+        _items = result.Value?.Items ?? new List<MiniPainterHub.Common.DTOs.ModerationAuditDto>();
+    }
+}

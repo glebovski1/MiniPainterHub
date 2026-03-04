@@ -18,6 +18,7 @@ namespace MiniPainterHub.Server.Data
         public DbSet<PostImage> PostImages { get; set; } = default!;
         public DbSet<Comment> Comments { get; set; } = default!;
         public DbSet<Like> Likes { get; set; } = default!;
+        public DbSet<ModerationAuditLog> ModerationAuditLogs { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -65,6 +66,36 @@ namespace MiniPainterHub.Server.Data
                    .WithMany()
                    .HasForeignKey(c => c.AuthorId)
                    .OnDelete(DeleteBehavior.Restrict);
+            builder.Entity<Comment>()
+                   .HasOne(c => c.ModeratedByUser)
+                   .WithMany()
+                   .HasForeignKey(c => c.ModeratedByUserId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Post>()
+                   .HasOne(p => p.ModeratedByUser)
+                   .WithMany()
+                   .HasForeignKey(p => p.ModeratedByUserId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<ApplicationUser>(b =>
+            {
+                b.Property(u => u.SuspensionReason).HasMaxLength(500);
+            });
+
+            builder.Entity<ModerationAuditLog>(b =>
+            {
+                b.Property(m => m.ActorUserId).HasMaxLength(450).IsRequired();
+                b.Property(m => m.ActorRole).HasMaxLength(64).IsRequired();
+                b.Property(m => m.ActionType).HasMaxLength(64).IsRequired();
+                b.Property(m => m.TargetType).HasMaxLength(64).IsRequired();
+                b.Property(m => m.TargetId).HasMaxLength(128).IsRequired();
+                b.Property(m => m.Reason).HasMaxLength(500);
+
+                b.HasIndex(m => m.CreatedUtc);
+                b.HasIndex(m => new { m.TargetType, m.TargetId });
+                b.HasIndex(m => m.ActorUserId);
+            });
 
             // Likes: cascade on Post deletion, restrict on User deletion
             builder.Entity<Like>()

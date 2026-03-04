@@ -16,13 +16,20 @@ namespace MiniPainterHub.Server.Services
 {
     public class CommentService : ICommentService
     {
-        private AppDbContext _appDbContext;
-        public CommentService(AppDbContext appDbContext)
+        private readonly AppDbContext _appDbContext;
+        private readonly IAccountRestrictionService? _accountRestrictionService;
+        public CommentService(AppDbContext appDbContext, IAccountRestrictionService? accountRestrictionService = null)
         {
             _appDbContext = appDbContext;
+            _accountRestrictionService = accountRestrictionService;
         }
         public async Task<CommentDto> CreateAsync(string userId, int postId, CreateCommentDto dto)
         {
+            if (_accountRestrictionService != null)
+            {
+                await _accountRestrictionService.EnsureCanCommentAsync(userId);
+            }
+
             // 1️⃣ Optional: verify the post actually exists
             var postExists = await _appDbContext.Posts.AnyAsync(p => p.Id == postId && !p.IsDeleted);
             if (!postExists)
@@ -66,6 +73,7 @@ namespace MiniPainterHub.Server.Services
                 throw new NotFoundException("Comment not found.");
 
             comment.IsDeleted = true;
+            comment.SoftDeletedUtc = DateTime.UtcNow;
             comment.UpdatedUtc = DateTime.UtcNow;
             await _appDbContext.SaveChangesAsync();
             return true;

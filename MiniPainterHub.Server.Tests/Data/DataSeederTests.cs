@@ -31,9 +31,10 @@ public class DataSeederTests
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         db.Users.Should().HaveCount(2);
-        db.Roles.Should().HaveCount(2);
+        db.Roles.Should().HaveCount(3);
         (await roles.RoleExistsAsync("Admin")).Should().BeTrue();
         (await roles.RoleExistsAsync("User")).Should().BeTrue();
+        (await roles.RoleExistsAsync("Moderator")).Should().BeTrue();
 
         var admin = await users.FindByEmailAsync("admin@local");
         admin.Should().NotBeNull();

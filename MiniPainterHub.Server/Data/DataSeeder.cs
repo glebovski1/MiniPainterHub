@@ -23,11 +23,14 @@ namespace MiniPainterHub.Server.Data
             // Define roles
             var adminRole = "Admin";
             var userRole = "User";
+            var moderatorRole = "Moderator";
 
             if (!await roleManager.RoleExistsAsync(adminRole))
                 await roleManager.CreateAsync(new IdentityRole(adminRole));
             if (!await roleManager.RoleExistsAsync(userRole))
                 await roleManager.CreateAsync(new IdentityRole(userRole));
+            if (!await roleManager.RoleExistsAsync(moderatorRole))
+                await roleManager.CreateAsync(new IdentityRole(moderatorRole));
 
             // Seed admin
             const string adminEmail = "admin@local";

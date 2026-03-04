@@ -175,6 +175,8 @@ public class Program
         builder.Services.AddScoped<IPostService, PostService>();
         builder.Services.AddScoped<ICommentService, CommentService>();
         builder.Services.AddScoped<ILikeService, LikeService>();
+        builder.Services.AddScoped<IAccountRestrictionService, AccountRestrictionService>();
+        builder.Services.AddScoped<IModerationService, ModerationService>();
         builder.Services.AddAuthorization();
 
         var app = builder.Build();

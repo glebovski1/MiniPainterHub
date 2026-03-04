@@ -55,6 +55,7 @@ public class Program
         builder.Services.AddScoped<ICommentService, CommentService>();
         builder.Services.AddScoped<ILikeService, LikeService>();
         builder.Services.AddScoped<IProfileService, ProfileService>();
+        builder.Services.AddScoped<IModerationService, ModerationService>();
 
         builder.Services
             .AddHttpClient<ApiClient>(client => client.BaseAddress = apiBase)

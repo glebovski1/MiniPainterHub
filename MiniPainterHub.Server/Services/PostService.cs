@@ -29,6 +29,7 @@ namespace MiniPainterHub.Server.Services
         private readonly IImageStore _imageStore;
         private readonly ImagesOptions _imageOptions;
         private readonly ILogger<PostService> _logger;
+        private readonly IAccountRestrictionService? _accountRestrictionService;
 
         public PostService(
             AppDbContext appDbContext,
@@ -36,7 +37,8 @@ namespace MiniPainterHub.Server.Services
             IImageProcessor imageProcessor,
             IImageStore imageStore,
             IOptions<ImagesOptions> imageOptions,
-            ILogger<PostService> logger)
+            ILogger<PostService> logger,
+            IAccountRestrictionService? accountRestrictionService = null)
         {
             _appDbContext = appDbContext ?? throw new ArgumentNullException(nameof(appDbContext));
             _imageService = imageService ?? throw new ArgumentNullException(nameof(imageService));
@@ -44,6 +46,7 @@ namespace MiniPainterHub.Server.Services
             _imageStore = imageStore ?? throw new ArgumentNullException(nameof(imageStore));
             _imageOptions = imageOptions?.Value ?? throw new ArgumentNullException(nameof(imageOptions));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _accountRestrictionService = accountRestrictionService;
         }
         public async Task<PostDto> CreateAsync(string userId, CreatePostDto dto)
         {
@@ -54,6 +57,11 @@ namespace MiniPainterHub.Server.Services
             if (string.IsNullOrWhiteSpace(userId))
             {
                 throw new UnauthorizedAccessException("User must be authenticated to create posts.");
+            }
+
+            if (_accountRestrictionService != null)
+            {
+                await _accountRestrictionService.EnsureCanCreatePostAsync(userId);
             }
 
             var user = await _appDbContext.Users.FindAsync(userId);
@@ -122,6 +130,7 @@ namespace MiniPainterHub.Server.Services
                 throw new NotFoundException("Post not found.");
 
             post.IsDeleted = true;
+            post.SoftDeletedUtc = DateTime.UtcNow;
             post.UpdatedUtc = DateTime.UtcNow;
             await _appDbContext.SaveChangesAsync();
             return true;
