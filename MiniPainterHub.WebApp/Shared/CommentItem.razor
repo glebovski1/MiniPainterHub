@@ -1,15 +1,108 @@
-﻿@using MiniPainterHub.Common.DTOs
+@using MiniPainterHub.Common.DTOs
+@inject MiniPainterHub.WebApp.Services.Interfaces.IModerationService ModerationService
 
 <div class="border rounded p-3 mb-2" data-testid="comment-item">
     <div class="d-flex justify-content-between align-items-center">
-        <strong>@Comment.AuthorName</strong>
+        <div class="d-flex align-items-center gap-2">
+            <NavLink class="text-decoration-none" href="@($"/users/{Comment.AuthorId}")">@Comment.AuthorName</NavLink>
+            <AuthorizeView Roles="Moderator,Admin">
+                <Authorized>
+                    <span class="badge text-bg-secondary" data-testid="comment-id-badge">#@Comment.Id</span>
+                </Authorized>
+            </AuthorizeView>
+        </div>
         <small class="text-muted">
             @Comment.CreatedAt.ToLocalTime().ToString("g")
         </small>
     </div>
     <p class="mt-1">@Comment.Content</p>
+    @if (Comment.IsDeleted)
+    {
+        <span class="badge text-bg-warning" data-testid="comment-hidden-badge">Hidden</span>
+    }
+
+    <AuthorizeView Roles="Moderator,Admin">
+        <Authorized>
+            <div class="d-flex flex-wrap gap-2 mt-2" data-testid="comment-inline-moderation-controls">
+                @if (Comment.IsDeleted)
+                {
+                    <button class="btn btn-outline-secondary btn-sm"
+                            type="button"
+                            data-testid="comment-inline-restore"
+                            @onclick="RestoreCommentAsync"
+                            disabled="@_moderationBusy">
+                        Restore comment
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-outline-warning btn-sm"
+                            type="button"
+                            data-testid="comment-inline-hide"
+                            @onclick="HideCommentAsync"
+                            disabled="@_moderationBusy">
+                        Hide comment
+                    </button>
+                }
+            </div>
+        </Authorized>
+    </AuthorizeView>
+
+    @if (!string.IsNullOrWhiteSpace(_moderationError))
+    {
+        <div class="text-danger small mt-2" data-testid="comment-inline-moderation-error">@_moderationError</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_moderationResult))
+    {
+        <div class="text-success small mt-2" data-testid="comment-inline-moderation-result">@_moderationResult</div>
+    }
 </div>
 
 @code {
     [Parameter] public CommentDto Comment { get; set; } = default!;
+    [Parameter] public EventCallback OnModerated { get; set; }
+
+    private bool _moderationBusy;
+    private string? _moderationError;
+    private string? _moderationResult;
+
+    private Task HideCommentAsync() => ModerateCommentAsync(hide: true);
+
+    private Task RestoreCommentAsync() => ModerateCommentAsync(hide: false);
+
+    private async Task ModerateCommentAsync(bool hide)
+    {
+        _moderationError = null;
+        _moderationResult = null;
+
+        _moderationBusy = true;
+        try
+        {
+            var request = new ModerationActionRequestDto
+            {
+                Reason = "Inline moderation from comments list."
+            };
+
+            var success = hide
+                ? await ModerationService.HideCommentAsync(Comment.Id, request)
+                : await ModerationService.RestoreCommentAsync(Comment.Id, request);
+
+            if (!success)
+            {
+                _moderationError = "Moderation action failed.";
+                return;
+            }
+
+            _moderationResult = hide ? "Comment hidden." : "Comment restored.";
+
+            if (OnModerated.HasDelegate)
+            {
+                await OnModerated.InvokeAsync();
+            }
+        }
+        finally
+        {
+            _moderationBusy = false;
+        }
+    }
 }

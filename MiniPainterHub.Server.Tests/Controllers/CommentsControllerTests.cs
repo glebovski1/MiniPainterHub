@@ -35,6 +35,41 @@ public class CommentsControllerTests
         comment.PostId.Should().Be(101);
         comment.Content.Should().Be("First comment");
         comment.AuthorName.Should().Be("comment-user");
+        comment.IsDeleted.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetByPost_WhenAnonymousRequestsHiddenComments_ReturnsForbidden()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await factory.SeedUserAndPostAsync("comment-user", 106);
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/posts/106/comments?page=1&pageSize=10&includeDeleted=true");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task GetByPost_WhenModeratorRequestsHiddenOnly_ReturnsDeletedComments()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await factory.SeedUserAndPostAsync("comment-user", 107);
+        await factory.SeedUserAsync("mod-user", "mod-user");
+        await factory.SeedCommentAsync(801, 107, "comment-user", "Visible comment", isDeleted: false);
+        await factory.SeedCommentAsync(802, 107, "comment-user", "Hidden comment", isDeleted: true);
+        using var client = factory.CreateAuthenticatedClient("mod-user", "mod-user", "Moderator");
+
+        var response = await client.GetAsync("/api/posts/107/comments?page=1&pageSize=10&deletedOnly=true");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<PagedResult<CommentDto>>();
+        body.Should().NotBeNull();
+        body!.Items.Should().ContainSingle();
+        body.Items.Single().Id.Should().Be(802);
+        body.Items.Single().IsDeleted.Should().BeTrue();
     }
 
     [Fact]

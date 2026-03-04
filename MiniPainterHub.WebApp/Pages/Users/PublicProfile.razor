@@ -1,0 +1,299 @@
+@page "/users/{UserId}"
+@attribute [AllowAnonymous]
+@using Microsoft.AspNetCore.Components.Authorization
+@using MiniPainterHub.Common.DTOs
+@using System.Linq
+@inject MiniPainterHub.WebApp.Services.Interfaces.IProfileService Profiles
+@inject MiniPainterHub.WebApp.Services.Interfaces.IModerationService Moderation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Profile</PageTitle>
+
+@if (_loading)
+{
+    <div class="d-flex align-items-center gap-2 text-secondary">
+        <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+        <span>Loading profile…</span>
+    </div>
+}
+else if (!string.IsNullOrWhiteSpace(_loadError))
+{
+    <div class="alert alert-danger" role="alert" data-testid="public-profile-error">@_loadError</div>
+}
+else if (_profile is null)
+{
+    <div class="alert alert-warning" role="alert">Profile not found.</div>
+}
+else
+{
+    <div class="row g-4">
+        <div class="col-12 col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-start justify-content-between gap-2">
+                        <div>
+                            <h2 class="h4 mb-1" data-testid="public-profile-name">@(_profile.DisplayName ?? _profile.UserId)</h2>
+                            <div class="text-muted small" data-testid="public-profile-userid">@_profile.UserId</div>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <div class="d-flex align-items-start gap-3">
+                        <img src="@(_profile.AvatarUrl ?? "/images/avatar-placeholder.png")"
+                             alt="Avatar"
+                             class="rounded-circle border bg-light"
+                             style="width: 72px; height: 72px; object-fit: cover;" />
+                        <div class="flex-grow-1">
+                            <div class="text-muted small mb-1">Bio</div>
+                            <div data-testid="public-profile-bio">@(!string.IsNullOrWhiteSpace(_profile.Bio) ? _profile.Bio : "No bio yet.")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <div class="col-12 col-lg-5">
+                    <div class="card shadow-sm border-warning-subtle">
+                        <div class="card-body">
+                            <h3 class="h6 text-uppercase text-muted fw-semibold mb-3">Admin actions</h3>
+
+                            @if (_statusLoading)
+                            {
+                                <div class="d-flex align-items-center gap-2 text-secondary">
+                                    <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+                                    <span>Loading status…</span>
+                                </div>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(_statusError))
+                            {
+                                <div class="alert alert-warning py-2" role="alert" data-testid="public-profile-status-error">@_statusError</div>
+                            }
+                            else if (_status is not null)
+                            {
+                                <div class="mb-3" data-testid="public-profile-status">
+                                    <div class="small text-muted">Suspension</div>
+                                    @if (_status.IsSuspended)
+                                    {
+                                        <div class="fw-semibold text-danger">Suspended</div>
+                                        @if (_status.SuspendedUntilUtc.HasValue)
+                                        {
+                                            <div class="small text-muted">Until: @_status.SuspendedUntilUtc.Value.ToLocalTime().ToString("g")</div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div class="fw-semibold text-success">Active</div>
+                                    }
+                                </div>
+                            }
+
+                            <label class="form-label" for="admin-suspend-until">Suspend until</label>
+                            <input id="admin-suspend-until"
+                                   type="datetime-local"
+                                   class="form-control mb-2"
+                                   data-testid="public-profile-suspend-until"
+                                   @bind="_suspendUntilLocal" />
+
+                            <label class="form-label" for="admin-reason">Reason</label>
+                            <textarea id="admin-reason"
+                                      class="form-control mb-3"
+                                      rows="3"
+                                      data-testid="public-profile-reason"
+                                      @bind="_reason"></textarea>
+
+                            @if (!string.IsNullOrWhiteSpace(_actionError))
+                            {
+                                <div class="alert alert-danger py-2" role="alert" data-testid="public-profile-action-error">@_actionError</div>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(_actionResult))
+                            {
+                                <div class="alert alert-success py-2" role="alert" data-testid="public-profile-action-result">@_actionResult</div>
+                            }
+
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-warning flex-grow-1"
+                                        type="button"
+                                        data-testid="public-profile-suspend"
+                                        @onclick="SuspendAsync"
+                                        disabled="@_actionBusy">
+                                    @(_actionBusy && _actionBusyName == "suspend" ? "Working..." : (_status?.IsSuspended == true ? "Update suspension" : "Suspend user"))
+                                </button>
+                                <button class="btn btn-outline-secondary flex-grow-1"
+                                        type="button"
+                                        data-testid="public-profile-unsuspend"
+                                        @onclick="UnsuspendAsync"
+                                        disabled="@(_actionBusy || _status?.IsSuspended != true)">
+                                    @(_actionBusy && _actionBusyName == "unsuspend" ? "Working..." : "Unsuspend")
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+}
+
+@code {
+    [Parameter] public string UserId { get; set; } = string.Empty;
+
+    private bool _loading = true;
+    private string? _loadError;
+    private UserProfileDto? _profile;
+
+    private bool _statusLoading;
+    private string? _statusError;
+    private ModerationUserLookupDto? _status;
+
+    private DateTime _suspendUntilLocal = DateTime.UtcNow.AddDays(7).ToLocalTime();
+    private string _reason = string.Empty;
+    private bool _actionBusy;
+    private string? _actionBusyName;
+    private string? _actionError;
+    private string? _actionResult;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _loadError = null;
+        _profile = null;
+
+        _status = null;
+        _statusError = null;
+        _actionError = null;
+        _actionResult = null;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(UserId))
+            {
+                _loadError = "User id is missing.";
+                return;
+            }
+
+            _profile = await Profiles.GetUserProfileById(UserId);
+        }
+        catch
+        {
+            _loadError = "Could not load profile.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        await TryLoadAdminStatusAsync();
+    }
+
+    private async Task TryLoadAdminStatusAsync()
+    {
+        _statusLoading = false;
+        _statusError = null;
+
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            if (user.Identity?.IsAuthenticated != true || !user.IsInRole("Admin"))
+            {
+                return;
+            }
+
+            _statusLoading = true;
+            var result = await Moderation.SearchUsersAsync(UserId, 10);
+            if (!result.Success || result.Value is null)
+            {
+                _statusError = "Could not load admin status.";
+                return;
+            }
+
+            _status = result.Value.FirstOrDefault(u => string.Equals(u.UserId, UserId, StringComparison.Ordinal));
+            if (_status is null && result.Value.Count > 0)
+            {
+                _status = result.Value[0];
+            }
+        }
+        catch
+        {
+            _statusError = "Could not load admin status.";
+        }
+        finally
+        {
+            _statusLoading = false;
+        }
+    }
+
+    private async Task SuspendAsync()
+    {
+        _actionError = null;
+        _actionResult = null;
+
+        _actionBusy = true;
+        _actionBusyName = "suspend";
+        try
+        {
+            var success = await Moderation.SuspendUserAsync(UserId, new SuspendUserRequestDto
+            {
+                SuspendedUntilUtc = _suspendUntilLocal.ToUniversalTime(),
+                Reason = NormalizeReason(_reason)
+            });
+
+            if (!success)
+            {
+                _actionError = "Suspend failed.";
+                return;
+            }
+
+            _actionResult = "User suspended.";
+            await TryLoadAdminStatusAsync();
+        }
+        finally
+        {
+            _actionBusy = false;
+            _actionBusyName = null;
+        }
+    }
+
+    private async Task UnsuspendAsync()
+    {
+        _actionError = null;
+        _actionResult = null;
+
+        _actionBusy = true;
+        _actionBusyName = "unsuspend";
+        try
+        {
+            var success = await Moderation.UnsuspendUserAsync(UserId, new ModerationActionRequestDto
+            {
+                Reason = NormalizeReason(_reason)
+            });
+
+            if (!success)
+            {
+                _actionError = "Unsuspend failed.";
+                return;
+            }
+
+            _actionResult = "User unsuspended.";
+            await TryLoadAdminStatusAsync();
+        }
+        finally
+        {
+            _actionBusy = false;
+            _actionBusyName = null;
+        }
+    }
+
+    private static string? NormalizeReason(string? reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return null;
+        }
+
+        return reason.Trim();
+    }
+}

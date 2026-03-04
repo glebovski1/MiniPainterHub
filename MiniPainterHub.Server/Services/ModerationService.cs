@@ -7,6 +7,7 @@ using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -14,6 +15,7 @@ namespace MiniPainterHub.Server.Services
 {
     public class ModerationService : IModerationService
     {
+        private static readonly string[] ActorRolePriority = { "Admin", "Moderator" };
         private readonly AppDbContext _db;
         private readonly UserManager<ApplicationUser> _userManager;
 
@@ -138,6 +140,22 @@ namespace MiniPainterHub.Server.Services
 
         public async Task<PagedResult<ModerationAuditDto>> GetAuditAsync(ModerationAuditQueryDto query)
         {
+            var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+            if (query.Page <= 0)
+            {
+                errors["page"] = new[] { "Page number must be at least 1." };
+            }
+
+            if (query.PageSize <= 0)
+            {
+                errors["pageSize"] = new[] { "Page size must be greater than 0." };
+            }
+
+            if (errors.Count > 0)
+            {
+                throw new DomainValidationException("Audit query is invalid.", errors);
+            }
+
             var dbq = _db.ModerationAuditLogs.AsNoTracking().AsQueryable();
             if (!string.IsNullOrWhiteSpace(query.TargetType)) dbq = dbq.Where(x => x.TargetType == query.TargetType);
             if (!string.IsNullOrWhiteSpace(query.ActorUserId)) dbq = dbq.Where(x => x.ActorUserId == query.ActorUserId);
@@ -163,11 +181,103 @@ namespace MiniPainterHub.Server.Services
             return new PagedResult<ModerationAuditDto>{ Items=items, TotalCount=total, PageNumber=query.Page, PageSize=query.PageSize };
         }
 
+        public async Task<IReadOnlyList<ModerationUserLookupDto>> SearchUsersAsync(string? query, int limit)
+        {
+            var safeLimit = limit <= 0 ? 10 : Math.Min(limit, 50);
+            var now = DateTime.UtcNow;
+            IQueryable<ApplicationUser> usersQuery = _db.Users.AsNoTracking();
+
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                usersQuery = usersQuery
+                    .Where(u => u.SuspendedUntilUtc.HasValue && u.SuspendedUntilUtc.Value > now)
+                    .OrderByDescending(u => u.SuspendedUntilUtc);
+            }
+            else
+            {
+                var term = query.Trim();
+                usersQuery = usersQuery
+                    .Where(u =>
+                        (u.UserName != null && u.UserName.Contains(term)) ||
+                        (u.Email != null && u.Email.Contains(term)) ||
+                        u.Id.Contains(term))
+                    .OrderBy(u => u.UserName);
+            }
+
+            var users = await usersQuery
+                .Take(safeLimit)
+                .ToListAsync();
+
+            var results = new List<ModerationUserLookupDto>(users.Count);
+            foreach (var user in users)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                results.Add(new ModerationUserLookupDto
+                {
+                    UserId = user.Id,
+                    UserName = user.UserName,
+                    Email = user.Email,
+                    IsSuspended = user.SuspendedUntilUtc.HasValue && user.SuspendedUntilUtc.Value > now,
+                    SuspendedUntilUtc = user.SuspendedUntilUtc,
+                    SuspensionReason = user.SuspensionReason,
+                    Roles = roles.ToArray()
+                });
+            }
+
+            return results;
+        }
+
+        public async Task<ModerationPostPreviewDto> GetPostPreviewAsync(int postId)
+        {
+            var post = await _db.Posts
+                .AsNoTracking()
+                .Where(p => p.Id == postId)
+                .Select(p => new ModerationPostPreviewDto
+                {
+                    PostId = p.Id,
+                    Title = p.Title,
+                    ContentSnippet = p.Content.Length > 240 ? p.Content.Substring(0, 240) + "..." : p.Content,
+                    CreatedByUserId = p.CreatedById,
+                    IsDeleted = p.IsDeleted,
+                    CreatedUtc = p.CreatedUtc,
+                    UpdatedUtc = p.UpdatedUtc,
+                    ModeratedByUserId = p.ModeratedByUserId,
+                    ModeratedUtc = p.ModeratedUtc,
+                    ModerationReason = p.ModerationReason
+                })
+                .FirstOrDefaultAsync();
+
+            return post ?? throw new NotFoundException("Post not found.");
+        }
+
+        public async Task<ModerationCommentPreviewDto> GetCommentPreviewAsync(int commentId)
+        {
+            var comment = await _db.Comments
+                .AsNoTracking()
+                .Where(c => c.Id == commentId)
+                .Select(c => new ModerationCommentPreviewDto
+                {
+                    CommentId = c.Id,
+                    PostId = c.PostId,
+                    AuthorUserId = c.AuthorId,
+                    TextSnippet = c.Text.Length > 240 ? c.Text.Substring(0, 240) + "..." : c.Text,
+                    IsDeleted = c.IsDeleted,
+                    CreatedUtc = c.CreatedUtc,
+                    UpdatedUtc = c.UpdatedUtc,
+                    ModeratedByUserId = c.ModeratedByUserId,
+                    ModeratedUtc = c.ModeratedUtc,
+                    ModerationReason = c.ModerationReason
+                })
+                .FirstOrDefaultAsync();
+
+            return comment ?? throw new NotFoundException("Comment not found.");
+        }
+
         private async Task AddAuditAsync(string actorUserId, string actionType, string targetType, string targetId, string? reason)
         {
             var actor = await _userManager.FindByIdAsync(actorUserId) ?? throw new UnauthorizedAccessException("Actor not found.");
             var roles = await _userManager.GetRolesAsync(actor);
-            var role = roles.FirstOrDefault() ?? "Unknown";
+            var role = ResolveAuditActorRole(roles);
             _db.ModerationAuditLogs.Add(new ModerationAuditLog
             {
                 CreatedUtc = DateTime.UtcNow,
@@ -178,6 +288,31 @@ namespace MiniPainterHub.Server.Services
                 TargetId = targetId,
                 Reason = reason
             });
+        }
+
+        private static string ResolveAuditActorRole(IList<string> roles)
+        {
+            if (roles.Count == 0)
+            {
+                return "Unknown";
+            }
+
+            foreach (var prioritizedRole in ActorRolePriority)
+            {
+                var match = roles.FirstOrDefault(role =>
+                    string.Equals(role, prioritizedRole, StringComparison.OrdinalIgnoreCase));
+
+                if (!string.IsNullOrWhiteSpace(match))
+                {
+                    return match;
+                }
+            }
+
+            return roles
+                .Where(role => !string.IsNullOrWhiteSpace(role))
+                .OrderBy(role => role, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault()
+                ?? "Unknown";
         }
     }
 }

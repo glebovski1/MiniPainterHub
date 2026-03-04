@@ -43,6 +43,7 @@ Configured middleware (in order):
 Development-only:
 - Swagger UI
 - WebAssembly debugging
+- Relational DB startup uses `Database.MigrateAsync()`, with guarded recovery for legacy local schemas where Identity tables already exist but migration history does not. When this specific conflict is detected, Development recreates the DB and reapplies migrations (`Database:RecreateOnSchemaConflict`, default `true`).
 - `DataSeeder.SeedAsync(...)`
 
 Production-only:
@@ -59,6 +60,8 @@ Registered scoped domain services:
 - `IPostService -> PostService`
 - `ICommentService -> CommentService`
 - `ILikeService -> LikeService`
+- `IAccountRestrictionService -> AccountRestrictionService`
+- `IModerationService -> ModerationService`
 
 Image infrastructure:
 - `IImageProcessor -> ImageProcessor`
@@ -89,6 +92,7 @@ Domain DbSets:
 - `PostImages`
 - `Comments`
 - `Likes`
+- `ModerationAuditLogs`
 
 Entity relationships (configured in `OnModelCreating`):
 - `Profile` one-to-one with `ApplicationUser` (shared PK/FK `UserId`).
@@ -100,6 +104,7 @@ Entity relationships (configured in `OnModelCreating`):
 Soft-delete behavior:
 - `Post.IsDeleted` and `Comment.IsDeleted` are used by services to hide deleted records.
 - `DeleteAsync` in post/comment services marks records deleted instead of physical removal.
+- Moderation adds `ModeratedByUserId`, `ModeratedUtc`, and `ModerationReason` to preserve audit context.
 
 ## 4) API Surface (Current Controllers)
 
@@ -110,6 +115,7 @@ Main controllers under `MiniPainterHub.Server/Controllers`:
   - `POST /login`
 - `PostsController` (`/api/posts`)
   - `GET /`
+    - Supports visibility query options for moderation roles: `includeDeleted` and `deletedOnly`.
   - `GET /{id}`
   - `POST /` (JSON post create)
   - `POST /with-image` (multipart upload)
@@ -130,7 +136,18 @@ Main controllers under `MiniPainterHub.Server/Controllers`:
   - `POST /me`
   - `PUT /me`
   - `POST /me/avatar`
-  - `GET /{id}`
+  - `GET /{id}` (allow anonymous; public profile read)
+- `ModerationController` (`/api/moderation`)
+  - `POST /posts/{postId}/hide`
+  - `POST /posts/{postId}/restore`
+  - `POST /comments/{commentId}/hide`
+  - `POST /comments/{commentId}/restore`
+  - `POST /users/{userId}/suspend`
+  - `POST /users/{userId}/unsuspend`
+  - `GET /audit`
+  - `GET /users/lookup`
+  - `GET /posts/{postId}/preview`
+  - `GET /comments/{commentId}/preview`
 
 ## 5) Image Processing and Storage
 
@@ -172,6 +189,16 @@ The WebApp is a Blazor WebAssembly SPA:
   - notification handling
 
 Service clients in `MiniPainterHub.WebApp/Services` mirror server domains (`AuthService`, `PostService`, `CommentService`, `LikeService`, `ProfileService`).
+Service clients also include moderation flows (`ModerationService`) and keep query DTO/filter parity with the server API.
+
+Admin UX composition:
+- Left collapsible user panel (`Layout/MainLayout.razor` + `Shared/UserPanelContent.razor`) is the primary entry for admin actions.
+- `Moderator` and `Admin` see moderation + audit links.
+- `Admin` additionally sees user suspension tools.
+- Admin pages currently live under:
+  - `Pages/Admin/ModerationDashboard.razor`
+  - `Pages/Admin/AuditLog.razor`
+  - `Pages/Admin/UserSuspensions.razor`
 
 ## 8) Testing Strategy
 

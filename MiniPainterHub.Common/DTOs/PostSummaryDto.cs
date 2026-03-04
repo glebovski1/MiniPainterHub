@@ -27,5 +27,6 @@ namespace MiniPainterHub.Common.DTOs
         public DateTime CreatedAt { get; set; }
         public int CommentCount { get; set; }
         public int LikeCount { get; set; }
+        public bool IsDeleted { get; set; }
     }
 }

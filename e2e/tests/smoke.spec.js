@@ -25,6 +25,14 @@ async function loginAsSeedUser(page) {
   await expect(page.getByTestId("nav-logout")).toBeVisible();
 }
 
+async function loginAsAdmin(page) {
+  await page.goto("/login");
+  await page.getByTestId("login-username").fill("admin");
+  await page.getByTestId("login-password").fill("P@ssw0rd!");
+  await page.getByTestId("login-submit").click();
+  await expect(page.getByTestId("nav-logout")).toBeVisible();
+}
+
 async function createPost(page, suffix) {
   const title = `Smoke title ${suffix}`;
   const content = `Smoke content ${suffix}`;
@@ -151,4 +159,42 @@ test("post details prompt sign-in for comments when session is cleared", async (
   await page.goto(detailsUrl);
 
   await expect(page.getByText("Sign in to join the conversation.")).toBeVisible();
+});
+
+test("admin can hide and restore post using visibility filter and inline actions", async ({ page }) => {
+  await loginAsAdmin(page);
+  const { title } = await createPost(page, "admin-post-moderation");
+
+  await page.getByTestId("post-inline-hide").click();
+
+  await page.goto("/");
+  await page.getByTestId("post-visibility-select").selectOption("hidden");
+
+  const hiddenCard = page.locator(".card", { hasText: title }).first();
+  await expect(hiddenCard.getByTestId("post-hidden-badge")).toBeVisible();
+  await hiddenCard.getByTestId("post-card-restore").click();
+  await expect(page.locator(".card", { hasText: title })).toHaveCount(0);
+  await page.getByTestId("post-visibility-select").selectOption("active");
+  await expect(page.locator(".card", { hasText: title }).first()).toBeVisible();
+});
+
+test("admin can hide and restore comment using comment visibility filter", async ({ page }) => {
+  await loginAsAdmin(page);
+  const { title } = await createPost(page, "admin-comment-moderation");
+  const commentText = "Admin moderation smoke comment";
+
+  await page.getByTestId("comment-input").fill(commentText);
+  await page.getByTestId("comment-submit").click();
+  await expect(page.getByTestId("comment-item").first()).toContainText(commentText);
+
+  await page.getByTestId("comment-inline-hide").first().click();
+  await page.getByTestId("comment-visibility-select").selectOption("hidden");
+
+  const hiddenComment = page.getByTestId("comment-item").first();
+  await expect(hiddenComment).toContainText(commentText);
+  await expect(hiddenComment.getByTestId("comment-hidden-badge")).toBeVisible();
+  await hiddenComment.getByTestId("comment-inline-restore").click();
+
+  await page.getByTestId("comment-visibility-select").selectOption("active");
+  await expect(page.getByTestId("comment-item").first()).toContainText(commentText);
 });

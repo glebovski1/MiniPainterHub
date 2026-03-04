@@ -76,16 +76,14 @@ namespace MiniPainterHub.Server.Controllers
                 throw new UnauthorizedAccessException("Invalid username or password.");
             }
 
-            await _accountRestrictionService.EnsureCanLoginAsync(user);
-
-            var result = await _signInManager.PasswordSignInAsync(dto.UserName, dto.Password,
-                                                                 isPersistent: false,
-                                                                 lockoutOnFailure: false);
+            var result = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: false);
 
             if (!result.Succeeded)
             {
                 throw new UnauthorizedAccessException("Invalid username or password.");
             }
+
+            await _accountRestrictionService.EnsureCanLoginAsync(user);
 
             var jwtSection = _config.GetSection("Jwt");
             var keyString = jwtSection["Key"]!;

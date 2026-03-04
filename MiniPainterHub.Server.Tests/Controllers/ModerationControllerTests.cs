@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http.Json;
@@ -183,6 +184,127 @@ public class ModerationControllerTests
         body.PageNumber.Should().Be(1);
         body.PageSize.Should().Be(1);
         body.Items.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task GetAudit_WhenPaginationIsInvalid_ReturnsBadRequestProblemDetails()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await SeedUserAsync(factory, "mod-4", "mod-4");
+        using var client = factory.CreateAuthenticatedClient("mod-4", "mod-4", "Moderator");
+
+        var response = await client.GetAsync("/api/moderation/audit?page=0&pageSize=-1");
+
+        await ProblemDetailsAssertions.AssertAsync(
+            response,
+            HttpStatusCode.BadRequest,
+            "Validation error",
+            expectedErrorKeys: new[] { "page", "pageSize" });
+    }
+
+    [Fact]
+    public async Task SearchUsers_WhenAdminAuthenticated_ReturnsMatchingUsers()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await SeedUserAsync(factory, "admin-search", "admin-search");
+        await SeedUserAsync(factory, "target-77", "target-user");
+        await SeedUserAsync(factory, "other-1", "other-user");
+
+        using var client = factory.CreateAuthenticatedClient("admin-search", "admin-search", "Admin");
+        var response = await client.GetAsync("/api/moderation/users/lookup?query=target&limit=10");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<IReadOnlyList<ModerationUserLookupDto>>();
+        body.Should().NotBeNull();
+        body!.Should().Contain(u => u.UserId == "target-77");
+    }
+
+    [Fact]
+    public async Task SearchUsers_WhenQueryIsEmpty_ReturnsSuspendedUsersForAdmin()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await SeedUserAsync(factory, "admin-search-empty", "admin-search-empty");
+        await SeedUserAsync(factory, "suspended-1", "suspended-user");
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            var user = await db.Users.SingleAsync(u => u.Id == "suspended-1");
+            user.SuspendedUntilUtc = DateTime.UtcNow.AddDays(2);
+            user.SuspensionReason = "abuse";
+            await db.SaveChangesAsync();
+        });
+
+        using var client = factory.CreateAuthenticatedClient("admin-search-empty", "admin-search-empty", "Admin");
+        var response = await client.GetAsync("/api/moderation/users/lookup?limit=10");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<IReadOnlyList<ModerationUserLookupDto>>();
+        body.Should().NotBeNull();
+        body!.Should().Contain(u => u.UserId == "suspended-1" && u.IsSuspended);
+    }
+
+    [Fact]
+    public async Task SearchUsers_WhenRoleIsNotAdmin_ReturnsForbidden()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await SeedUserAsync(factory, "mod-search", "mod-search");
+
+        using var client = factory.CreateAuthenticatedClient("mod-search", "mod-search", "Moderator");
+        var response = await client.GetAsync("/api/moderation/users/lookup?query=mod&limit=5");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task GetPostPreview_WhenModeratorAuthenticated_ReturnsPreviewData()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await SeedUserAsync(factory, "mod-preview", "mod-preview");
+        await SeedUserAsync(factory, "author-preview", "author-preview");
+        await SeedPostAsync(factory, 944, "author-preview");
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            var post = await db.Posts.SingleAsync(p => p.Id == 944);
+            post.ModeratedByUserId = "mod-preview";
+            post.ModeratedUtc = DateTime.UtcNow;
+            post.ModerationReason = "policy";
+            await db.SaveChangesAsync();
+        });
+
+        using var client = factory.CreateAuthenticatedClient("mod-preview", "mod-preview", "Moderator");
+        var response = await client.GetAsync("/api/moderation/posts/944/preview");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<ModerationPostPreviewDto>();
+        body.Should().NotBeNull();
+        body!.PostId.Should().Be(944);
+        body.CreatedByUserId.Should().Be("author-preview");
+        body.ModeratedByUserId.Should().Be("mod-preview");
+    }
+
+    [Fact]
+    public async Task GetCommentPreview_WhenModeratorAuthenticated_ReturnsPreviewData()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await SeedUserAsync(factory, "mod-preview-c", "mod-preview-c");
+        await SeedUserAsync(factory, "author-preview-c", "author-preview-c");
+        await SeedPostAsync(factory, 945, "author-preview-c");
+        await SeedCommentAsync(factory, 9451, 945, "author-preview-c", isDeleted: false);
+
+        using var client = factory.CreateAuthenticatedClient("mod-preview-c", "mod-preview-c", "Moderator");
+        var response = await client.GetAsync("/api/moderation/comments/9451/preview");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<ModerationCommentPreviewDto>();
+        body.Should().NotBeNull();
+        body!.CommentId.Should().Be(9451);
+        body.PostId.Should().Be(945);
+        body.AuthorUserId.Should().Be("author-preview-c");
     }
 
     private static Task SeedUserAsync(IntegrationTestApplicationFactory factory, string userId, string userName)

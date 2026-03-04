@@ -1,9 +1,28 @@
-﻿@using MiniPainterHub.Common.DTOs
+@using MiniPainterHub.Common.DTOs
 @using MiniPainterHub.WebApp.Services
 @using System.Net
+@using Microsoft.AspNetCore.Components.Authorization
 @inject ICommentService CommentService
 
 <div data-testid="comment-list-container">
+    <AuthorizeView Roles="Moderator,Admin">
+        <Authorized>
+            <div class="d-flex align-items-center gap-2 mb-3" data-testid="comment-visibility-filter">
+                <label class="form-label mb-0" for="comment-visibility-select">Visibility</label>
+                <select id="comment-visibility-select"
+                        class="form-select w-auto"
+                        data-testid="comment-visibility-select"
+                        value="@_visibilityFilter"
+                        @onchange="OnVisibilityFilterChanged"
+                        disabled="@isLoading">
+                    <option value="active">Active only</option>
+                    <option value="all">Include hidden</option>
+                    <option value="hidden">Hidden only</option>
+                </select>
+            </div>
+        </Authorized>
+    </AuthorizeView>
+
     @if (!string.IsNullOrEmpty(_loadError))
     {
         <div class="alert alert-warning d-flex align-items-center" role="alert">
@@ -20,36 +39,33 @@
     }
     else if (_comments == null)
     {
-        <p class="text-muted"><em>Loading comments…</em></p>
+        <p class="text-muted"><em>Loading comments...</em></p>
     }
-    else if (_comments.Items.Count() == 0)
+    else if (!_comments.Items.Any())
     {
         <p class="text-muted"><em>No comments yet.</em></p>
     }
     else
     {
-        @foreach (var c in _comments.Items)
+        @foreach (var comment in _comments.Items)
         {
-            <CommentItem Comment="c" />
+            <CommentItem Comment="comment" OnModerated="ReloadAsync" />
         }
 
         <nav aria-label="Comment pagination">
             <ul class="pagination">
-                <li class="page-item @( _page == 1 ? "disabled" : "" )">
-                    <button class="page-link" @onclick="() => ChangePage(_page - 1)">«</button>
+                <li class="page-item @(_page == 1 ? "disabled" : string.Empty)">
+                    <button class="page-link" @onclick="() => ChangePage(_page - 1)">&lt;&lt;</button>
                 </li>
-                @for (int i = 1; i <= _comments.TotalPages; i++)
+                @for (var pageNumber = 1; pageNumber <= _comments.TotalPages; pageNumber++)
                 {
-                    
-                    int referenceToPageNumber = i;
-                    
-                    <li class="page-item @( i == _page ? "active" : "" )">
-
-                        <button class="page-link" @onclick="() => ChangePage(referenceToPageNumber)">@i</button>
+                    var selectedPage = pageNumber;
+                    <li class="page-item @(pageNumber == _page ? "active" : string.Empty)">
+                        <button class="page-link" @onclick="() => ChangePage(selectedPage)">@selectedPage</button>
                     </li>
                 }
-                <li class="page-item @( _page == _comments.TotalPages ? "disabled" : "" )">
-                    <button class="page-link" @onclick="() => ChangePage(_page + 1)">»</button>
+                <li class="page-item @(_page == _comments.TotalPages ? "disabled" : string.Empty)">
+                    <button class="page-link" @onclick="() => ChangePage(_page + 1)">&gt;&gt;</button>
                 </li>
             </ul>
         </nav>
@@ -64,24 +80,26 @@
     private const int PageSize = 10;
     private string? _loadError;
     private HttpStatusCode? _errorStatus;
+    private string _visibilityFilter = "active";
+    private bool isLoading => _comments == null && string.IsNullOrWhiteSpace(_loadError);
 
     protected override async Task OnParametersSetAsync()
         => await LoadPageAsync();
 
     public async Task ReloadAsync()
     {
-        Console.WriteLine($"ReloadAsync called at {DateTime.Now:hh:mm:ss}");
         await LoadPageAsync();
     }
 
     private async Task LoadPageAsync()
     {
-        Console.WriteLine($"LoadPageAsync hit for PostId={PostId} at {DateTime.Now:hh:mm:ss}");
-
         _loadError = null;
         _errorStatus = null;
 
-        var response = await CommentService.GetByPostAsync(PostId, _page, PageSize);
+        var includeDeleted = _visibilityFilter is "all" or "hidden";
+        var deletedOnly = _visibilityFilter == "hidden";
+
+        var response = await CommentService.GetByPostAsync(PostId, _page, PageSize, includeDeleted, deletedOnly);
 
         if (!response.Success)
         {
@@ -102,10 +120,29 @@
     private async Task ChangePage(int newPage)
     {
         if (newPage < 1 || newPage > (_comments?.TotalPages ?? 1))
+        {
             return;
+        }
 
         _page = newPage;
         await LoadPageAsync();
-        StateHasChanged();
+    }
+
+    private async Task OnVisibilityFilterChanged(ChangeEventArgs args)
+    {
+        var selectedValue = args.Value?.ToString();
+        if (selectedValue is not "active" and not "all" and not "hidden")
+        {
+            return;
+        }
+
+        if (string.Equals(_visibilityFilter, selectedValue, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _visibilityFilter = selectedValue;
+        _page = 1;
+        await LoadPageAsync();
     }
 }

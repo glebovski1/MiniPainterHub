@@ -1,6 +1,7 @@
 ﻿
 @using System.Net
 @using MiniPainterHub.Common.DTOs
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IPostService PostService
 
 @if (!string.IsNullOrEmpty(loadError))
@@ -26,15 +27,51 @@ else if (isLoading)
 }
 else if (!posts.Any())
 {
+    <AuthorizeView Roles="Moderator,Admin">
+        <Authorized>
+            <div class="d-flex align-items-center gap-2 mb-3" data-testid="post-visibility-filter">
+                <label class="form-label mb-0" for="post-visibility-select">Visibility</label>
+                <select id="post-visibility-select"
+                        class="form-select w-auto"
+                        data-testid="post-visibility-select"
+                        value="@_visibilityFilter"
+                        @onchange="OnVisibilityFilterChanged"
+                        disabled="@isLoading">
+                    <option value="active">Active only</option>
+                    <option value="all">Include hidden</option>
+                    <option value="hidden">Hidden only</option>
+                </select>
+            </div>
+        </Authorized>
+    </AuthorizeView>
+
     <p class="text-muted">No posts yet.</p>
 }
 else
 {
+    <AuthorizeView Roles="Moderator,Admin">
+        <Authorized>
+            <div class="d-flex align-items-center gap-2 mb-3" data-testid="post-visibility-filter">
+                <label class="form-label mb-0" for="post-visibility-select">Visibility</label>
+                <select id="post-visibility-select"
+                        class="form-select w-auto"
+                        data-testid="post-visibility-select"
+                        value="@_visibilityFilter"
+                        @onchange="OnVisibilityFilterChanged"
+                        disabled="@isLoading">
+                    <option value="active">Active only</option>
+                    <option value="all">Include hidden</option>
+                    <option value="hidden">Hidden only</option>
+                </select>
+            </div>
+        </Authorized>
+    </AuthorizeView>
+
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
         @foreach (var post in posts)
         {
             <div class="col">
-                <PostCard Post="post" />
+                <PostCard Post="post" OnModerated="ReloadCurrentPageAsync" />
             </div>
         }
     </div>
@@ -95,6 +132,7 @@ else
 
     private int currentPage = 1;
     private int totalPages = 1;
+    private string _visibilityFilter = "active";
 
     private bool hasPreviousPage;
     private bool hasNextPage;
@@ -120,7 +158,10 @@ else
         errorStatus = null;
         await InvokeAsync(StateHasChanged);
 
-        var result = await PostService.GetAllAsync(page, PageSize);
+        var includeDeleted = _visibilityFilter is "all" or "hidden";
+        var deletedOnly = _visibilityFilter == "hidden";
+
+        var result = await PostService.GetAllAsync(page, PageSize, includeDeleted, deletedOnly);
 
         if (!result.Success)
         {
@@ -168,5 +209,24 @@ else
         {
             await ChangePage(page);
         }
+    }
+
+    private Task ReloadCurrentPageAsync() => LoadPosts(currentPage);
+
+    private async Task OnVisibilityFilterChanged(ChangeEventArgs args)
+    {
+        var selectedValue = args.Value?.ToString();
+        if (selectedValue is not "active" and not "all" and not "hidden")
+        {
+            return;
+        }
+
+        if (string.Equals(_visibilityFilter, selectedValue, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _visibilityFilter = selectedValue;
+        await LoadPosts(1);
     }
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace MiniPainterHub.Server.Controllers
@@ -72,6 +73,27 @@ namespace MiniPainterHub.Server.Controllers
         public async Task<ActionResult<PagedResult<ModerationAuditDto>>> GetAudit([FromQuery] ModerationAuditQueryDto query)
         {
             return Ok(await _moderationService.GetAuditAsync(query));
+        }
+
+        [HttpGet("users/lookup")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IReadOnlyList<ModerationUserLookupDto>>> SearchUsers([FromQuery] string? query, [FromQuery] int limit = 10)
+        {
+            return Ok(await _moderationService.SearchUsersAsync(query, limit));
+        }
+
+        [HttpGet("posts/{postId:int}/preview")]
+        [Authorize(Roles = "Moderator,Admin")]
+        public async Task<ActionResult<ModerationPostPreviewDto>> GetPostPreview(int postId)
+        {
+            return Ok(await _moderationService.GetPostPreviewAsync(postId));
+        }
+
+        [HttpGet("comments/{commentId:int}/preview")]
+        [Authorize(Roles = "Moderator,Admin")]
+        public async Task<ActionResult<ModerationCommentPreviewDto>> GetCommentPreview(int commentId)
+        {
+            return Ok(await _moderationService.GetCommentPreviewAsync(commentId));
         }
     }
 }

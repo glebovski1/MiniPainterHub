@@ -136,7 +136,7 @@ namespace MiniPainterHub.Server.Services
             return true;
         }
 
-        public async Task<PagedResult<PostSummaryDto>> GetAllAsync(int page, int pageSize)
+        public async Task<PagedResult<PostSummaryDto>> GetAllAsync(int page, int pageSize, bool includeDeleted = false, bool deletedOnly = false)
         {
             var errors = new Dictionary<string, string[]>();
 
@@ -155,10 +155,18 @@ namespace MiniPainterHub.Server.Services
                 throw new DomainValidationException("Pagination parameters are invalid.", errors);
             }
 
-            var query = _appDbContext.Posts
-                .AsNoTracking()
-                .Where(p => !p.IsDeleted)
-                .OrderByDescending(p => p.CreatedUtc);
+            var query = _appDbContext.Posts.AsNoTracking();
+
+            if (deletedOnly)
+            {
+                query = query.Where(p => p.IsDeleted);
+            }
+            else if (!includeDeleted)
+            {
+                query = query.Where(p => !p.IsDeleted);
+            }
+
+            query = query.OrderByDescending(p => p.CreatedUtc);
 
             var totalCount = await query.CountAsync();
             var items = await query
@@ -179,7 +187,8 @@ namespace MiniPainterHub.Server.Services
                     AuthorId = p.CreatedById,
                     CreatedAt = p.CreatedUtc,
                     CommentCount = p.Comments.Count,
-                    LikeCount = p.Likes.Count
+                    LikeCount = p.Likes.Count,
+                    IsDeleted = p.IsDeleted
                 })
                 .ToListAsync();
 

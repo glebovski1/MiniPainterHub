@@ -119,6 +119,23 @@ public class ProfilesControllerTests
     }
 
     [Fact]
+    public async Task GetUserProfileById_WhenUnauthenticated_ReturnsProfile()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await factory.SeedUserAsync("target-user", "target-user");
+        await factory.SeedProfileAsync("target-user", "Target Name", "Target bio");
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/profiles/target-user");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<UserProfileDto>();
+        body.Should().NotBeNull();
+        body!.UserId.Should().Be("target-user");
+    }
+
+    [Fact]
     public async Task GetUserProfileById_WhenProfileMissing_ReturnsNotFoundProblemDetails()
     {
         using var factory = new IntegrationTestApplicationFactory();

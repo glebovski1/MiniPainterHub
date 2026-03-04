@@ -37,11 +37,12 @@ internal static class IntegrationSeedExtensions
         int commentId,
         int postId,
         string authorId,
-        string? text = null)
+        string? text = null,
+        bool isDeleted = false)
     {
         return factory.ExecuteDbContextAsync(async db =>
         {
-            var comment = TestData.CreateComment(commentId, postId, authorId);
+            var comment = TestData.CreateComment(commentId, postId, authorId, isDeleted);
             if (!string.IsNullOrWhiteSpace(text))
             {
                 comment.Text = text;

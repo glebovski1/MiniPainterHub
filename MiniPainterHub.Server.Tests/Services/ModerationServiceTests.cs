@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services;
@@ -97,6 +98,47 @@ public class ModerationServiceTests
         var ex = await act.Should().ThrowAsync<DomainValidationException>();
         ex.Which.Errors.Should().ContainKey("suspendedUntilUtc");
         userManagerMock.Verify(m => m.FindByIdAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(0, 20, "page")]
+    [InlineData(-1, 20, "page")]
+    [InlineData(1, 0, "pageSize")]
+    [InlineData(1, -5, "pageSize")]
+    public async Task GetAuditAsync_WhenPaginationIsInvalid_ThrowsDomainValidationException(int page, int pageSize, string errorKey)
+    {
+        await using var context = AppDbContextFactory.Create();
+        var service = new ModerationService(context, CreateUserManagerMock().Object);
+
+        var act = async () => await service.GetAuditAsync(new ModerationAuditQueryDto
+        {
+            Page = page,
+            PageSize = pageSize
+        });
+
+        var ex = await act.Should().ThrowAsync<DomainValidationException>();
+        ex.Which.Errors.Should().ContainKey(errorKey);
+    }
+
+    [Fact]
+    public async Task ModeratePostAsync_WhenActorHasMultipleRoles_PrefersAdminInAuditLog()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var post = TestData.CreatePost(12, "author-1", isDeleted: false);
+        await context.Posts.AddAsync(post);
+        await context.SaveChangesAsync();
+
+        var userManager = CreateUserManagerMock();
+        userManager.Setup(m => m.FindByIdAsync("actor-1"))
+            .ReturnsAsync(TestData.CreateUser("actor-1", "actor-1"));
+        userManager.Setup(m => m.GetRolesAsync(It.IsAny<ApplicationUser>()))
+            .ReturnsAsync(["User", "Admin"]);
+        var service = new ModerationService(context, userManager.Object);
+
+        await service.ModeratePostAsync(post.Id, "actor-1", hide: true, reason: "policy");
+
+        var audit = await context.ModerationAuditLogs.SingleAsync();
+        audit.ActorRole.Should().Be("Admin");
     }
 
     private static Mock<UserManager<ApplicationUser>> CreateUserManagerMock()

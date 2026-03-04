@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MiniPainterHub.Server.Identity;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -20,51 +21,28 @@ namespace MiniPainterHub.Server.Data
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-            // Define roles
-            var adminRole = "Admin";
-            var userRole = "User";
-            var moderatorRole = "Moderator";
+            const string adminRole = "Admin";
+            const string userRole = "User";
+            const string moderatorRole = "Moderator";
 
-            if (!await roleManager.RoleExistsAsync(adminRole))
-                await roleManager.CreateAsync(new IdentityRole(adminRole));
-            if (!await roleManager.RoleExistsAsync(userRole))
-                await roleManager.CreateAsync(new IdentityRole(userRole));
-            if (!await roleManager.RoleExistsAsync(moderatorRole))
-                await roleManager.CreateAsync(new IdentityRole(moderatorRole));
+            await EnsureRoleExistsAsync(roleManager, adminRole);
+            await EnsureRoleExistsAsync(roleManager, userRole);
+            await EnsureRoleExistsAsync(roleManager, moderatorRole);
 
-            // Seed admin
-            const string adminEmail = "admin@local";
-            const string adminPass = "P@ssw0rd!";
-            var admin = await userManager.FindByEmailAsync(adminEmail);
-            if (admin == null)
-            {
-                admin = new ApplicationUser
-                {
-                    UserName = "admin",
-                    Email = adminEmail,
-                    EmailConfirmed = true
-                };
-                await userManager.CreateAsync(admin, adminPass);
-                await userManager.AddToRolesAsync(admin, new[] { adminRole, userRole });
-            }
+            await EnsureUserAsync(
+                userManager,
+                userName: "admin",
+                email: "admin@local",
+                password: "P@ssw0rd!",
+                requiredRoles: new[] { adminRole, userRole });
 
-            // Seed ordinary user
-            const string userEmail = "user@local";
-            const string userPass = "User123!";
-            var user = await userManager.FindByEmailAsync(userEmail);
-            if (user == null)
-            {
-                user = new ApplicationUser
-                {
-                    UserName = "user",
-                    Email = userEmail,
-                    EmailConfirmed = true
-                };
-                await userManager.CreateAsync(user, userPass);
-                await userManager.AddToRoleAsync(user, userRole);
-            }
+            await EnsureUserAsync(
+                userManager,
+                userName: "user",
+                email: "user@local",
+                password: "User123!",
+                requiredRoles: new[] { userRole });
         }
-
 
         public static async Task SeedAdminAsync(WebApplication app)
         {
@@ -114,6 +92,100 @@ namespace MiniPainterHub.Server.Data
             // 6) Ensure role assignment
             if (!await users.IsInRoleAsync(user, adminRole))
                 await users.AddToRoleAsync(user, adminRole);
+        }
+
+        private static async Task EnsureRoleExistsAsync(RoleManager<IdentityRole> roleManager, string roleName)
+        {
+            if (await roleManager.RoleExistsAsync(roleName))
+            {
+                return;
+            }
+
+            var result = await roleManager.CreateAsync(new IdentityRole(roleName));
+            if (!result.Succeeded)
+            {
+                throw new Exception($"Failed to create role '{roleName}': {string.Join("; ", result.Errors.Select(e => e.Description))}");
+            }
+        }
+
+        private static async Task EnsureUserAsync(
+            UserManager<ApplicationUser> userManager,
+            string userName,
+            string email,
+            string password,
+            IReadOnlyCollection<string> requiredRoles)
+        {
+            var user = await userManager.FindByNameAsync(userName) ?? await userManager.FindByEmailAsync(email);
+            if (user is null)
+            {
+                user = new ApplicationUser
+                {
+                    UserName = userName,
+                    Email = email,
+                    EmailConfirmed = true
+                };
+
+                var create = await userManager.CreateAsync(user, password);
+                if (!create.Succeeded)
+                {
+                    throw new Exception($"Seed user '{userName}' failed: {string.Join("; ", create.Errors.Select(e => e.Description))}");
+                }
+            }
+            else
+            {
+                var requiresUpdate = false;
+                if (!string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase))
+                {
+                    user.Email = email;
+                    user.NormalizedEmail = userManager.NormalizeEmail(email);
+                    requiresUpdate = true;
+                }
+
+                if (!string.Equals(user.UserName, userName, StringComparison.Ordinal))
+                {
+                    user.UserName = userName;
+                    user.NormalizedUserName = userManager.NormalizeName(userName);
+                    requiresUpdate = true;
+                }
+
+                if (!user.EmailConfirmed)
+                {
+                    user.EmailConfirmed = true;
+                    requiresUpdate = true;
+                }
+
+                if (requiresUpdate)
+                {
+                    var update = await userManager.UpdateAsync(user);
+                    if (!update.Succeeded)
+                    {
+                        throw new Exception($"Seed user '{userName}' update failed: {string.Join("; ", update.Errors.Select(e => e.Description))}");
+                    }
+                }
+
+                var hasExpectedPassword = await userManager.CheckPasswordAsync(user, password);
+                if (!hasExpectedPassword)
+                {
+                    var resetToken = await userManager.GeneratePasswordResetTokenAsync(user);
+                    var reset = await userManager.ResetPasswordAsync(user, resetToken, password);
+                    if (!reset.Succeeded)
+                    {
+                        throw new Exception($"Seed user '{userName}' password reset failed: {string.Join("; ", reset.Errors.Select(e => e.Description))}");
+                    }
+                }
+            }
+
+            foreach (var role in requiredRoles)
+            {
+                if (!await userManager.IsInRoleAsync(user, role))
+                {
+                    var addRole = await userManager.AddToRoleAsync(user, role);
+                    if (!addRole.Succeeded)
+                    {
+                        throw new Exception($"Seed user '{userName}' role assignment failed for '{role}': {string.Join("; ", addRole.Errors.Select(e => e.Description))}");
+                    }
+                }
+            }
         }
     }
 }

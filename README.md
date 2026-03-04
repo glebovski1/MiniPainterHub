@@ -22,6 +22,43 @@ Requesting a comment that does not exist (for example, `GET /api/comments/{id}`)
 
 When deploying MiniPainterHub to Azure App Service, ensure the blob storage settings use the hierarchical configuration keys that the application expects (`ImageStorage:AzureConnectionString` and `ImageStorage:AzureContainer`). If your existing configuration still uses flat keys such as `ImageStorageAzureConnectionString` or `ImageStorageAzureContainer`, update them on the App Service **Configuration → Application settings** blade to the new names (or use the double-underscore form `ImageStorage__AzureConnectionString` and `ImageStorage__AzureContainer` for environment-variable compatibility). Save the configuration and restart the App Service to reload the updated settings.
 
+## Development DB bootstrap note
+
+When running against SQL Server in `Development`, the server applies EF migrations at startup. If the database has Identity tables (for example `AspNetRoles`) but no matching `__EFMigrationsHistory` rows, startup can hit a duplicate-object migration conflict. The app now recovers from this specific local conflict by recreating the development database and retrying migrations.
+
+- Default behavior: enabled (`Database:RecreateOnSchemaConflict` defaults to `true` in Development logic)
+- Opt out: set `Database:RecreateOnSchemaConflict=false`
+
+## Admin functionality test checklist
+
+Use this checklist to validate end-to-end admin capabilities after startup:
+
+1. Start the server and WebApp in `Development`.
+2. Sign in with seeded admin credentials:
+   - Username: `admin`
+   - Password: `P@ssw0rd!`
+3. Confirm the left collapsible panel shows the `Admin` section:
+   - `Moderation`
+   - `Audit log`
+   - `User suspensions`
+4. On `Moderation`:
+   - Load post/comment previews by id.
+   - Hide and restore post/comment with a reason.
+   - In post lists, use the `Visibility` filter (`Active only`, `Include hidden`, `Hidden only`) and restore hidden posts inline.
+   - In post details comments, use the comment `Visibility` filter (`Active only`, `Include hidden`, `Hidden only`) and restore hidden comments inline.
+5. On `User suspensions`:
+   - Use `Find user`, select a user, suspend and unsuspend.
+   - Leave the lookup query empty to list currently suspended users.
+6. On public profiles:
+   - Open `/users/{userId}` (for example from a post/comment author link).
+   - As `Admin`, suspend/unsuspend is available directly on the profile page.
+7. On `Audit log`:
+   - Apply `Target type`, `Actor user id`, and `Action type` filters.
+   - Verify pagination with previous/next controls.
+8. Verify regular user navigation:
+   - `My posts` should not redirect to login for authenticated users.
+   - Post cards should attempt thumbnail first, then full image fallback on image load error.
+
 ## Codex Skills Tooling
 
 This repo now includes helper scripts under `tools/skills`:

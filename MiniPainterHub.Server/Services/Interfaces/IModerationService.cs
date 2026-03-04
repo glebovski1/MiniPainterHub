@@ -1,4 +1,5 @@
 using MiniPainterHub.Common.DTOs;
+using System.Collections.Generic;
 using System;
 using System.Threading.Tasks;
 
@@ -11,5 +12,8 @@ namespace MiniPainterHub.Server.Services.Interfaces
         Task SuspendUserAsync(string targetUserId, string actorUserId, DateTime? suspendedUntilUtc, string? reason);
         Task UnsuspendUserAsync(string targetUserId, string actorUserId, string? reason);
         Task<PagedResult<ModerationAuditDto>> GetAuditAsync(ModerationAuditQueryDto query);
+        Task<IReadOnlyList<ModerationUserLookupDto>> SearchUsersAsync(string? query, int limit);
+        Task<ModerationPostPreviewDto> GetPostPreviewAsync(int postId);
+        Task<ModerationCommentPreviewDto> GetCommentPreviewAsync(int commentId);
     }
 }

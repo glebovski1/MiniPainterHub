@@ -38,6 +38,39 @@ public class PostsControllerTests
     }
 
     [Fact]
+    public async Task GetAll_WhenAnonymousRequestsHiddenPosts_ReturnsForbidden()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/posts?page=1&pageSize=10&includeDeleted=true");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task GetAll_WhenModeratorRequestsHiddenOnly_ReturnsDeletedPosts()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await SeedUserAsync(factory, "mod-user", "mod-user");
+        await SeedUserAsync(factory, "post-user", "post-user");
+        await SeedPostAsync(factory, 304, "post-user", "Visible", "Visible content", isDeleted: false);
+        await SeedPostAsync(factory, 305, "post-user", "Hidden", "Hidden content", isDeleted: true);
+        using var client = factory.CreateAuthenticatedClient("mod-user", "mod-user", "Moderator");
+
+        var response = await client.GetAsync("/api/posts?page=1&pageSize=10&deletedOnly=true");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<PagedResult<PostSummaryDto>>();
+        body.Should().NotBeNull();
+        body!.Items.Should().ContainSingle();
+        body.Items.Single().Id.Should().Be(305);
+        body.Items.Single().IsDeleted.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task GetById_WhenAnonymous_ReturnsPostContract()
     {
         using var factory = new IntegrationTestApplicationFactory();
@@ -152,7 +185,8 @@ public class PostsControllerTests
         int postId,
         string userId,
         string title,
-        string content)
+        string content,
+        bool isDeleted = false)
     {
         return factory.ExecuteDbContextAsync(async db =>
         {
@@ -164,7 +198,7 @@ public class PostsControllerTests
                 CreatedById = userId,
                 CreatedUtc = DateTime.UtcNow,
                 UpdatedUtc = DateTime.UtcNow,
-                IsDeleted = false
+                IsDeleted = isDeleted
             });
             await db.SaveChangesAsync();
         });

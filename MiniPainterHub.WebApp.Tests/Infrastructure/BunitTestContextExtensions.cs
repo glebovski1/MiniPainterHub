@@ -43,6 +43,13 @@ internal static class BunitTestContextExtensions
         return stub;
     }
 
+    public static StubModerationService AddModerationStub(this TestContext context, StubModerationService? stub = null)
+    {
+        stub ??= new StubModerationService();
+        context.Services.AddSingleton<IModerationService>(stub);
+        return stub;
+    }
+
     public static string CurrentPath(this TestContext context)
     {
         var navigationManager = context.Services.GetRequiredService<NavigationManager>();

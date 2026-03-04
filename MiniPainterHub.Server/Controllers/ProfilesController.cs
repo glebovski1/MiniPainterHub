@@ -71,6 +71,7 @@ public sealed class ProfilesController : ControllerBase
 
 
     [HttpGet("{id}")]
+    [AllowAnonymous]
     public async Task<ActionResult<UserProfileDto>> GetUserProfileById(string id)
     {
         var dto = await _profilesService.GetUserProfileById(id);

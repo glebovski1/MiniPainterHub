@@ -215,6 +215,44 @@ public class PostServiceTests
         deletedExists.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task GetAllAsync_WhenIncludeDeletedTrue_ReturnsVisibleAndHiddenPosts()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        var visiblePost = TestData.CreatePost(10, user.Id, isDeleted: false);
+        var hiddenPost = TestData.CreatePost(11, user.Id, isDeleted: true);
+        await context.Users.AddAsync(user);
+        await context.Posts.AddRangeAsync(visiblePost, hiddenPost);
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var result = await service.GetAllAsync(1, 10, includeDeleted: true, deletedOnly: false);
+
+        result.Items.Should().HaveCount(2);
+        result.Items.Should().Contain(item => item.Id == visiblePost.Id && !item.IsDeleted);
+        result.Items.Should().Contain(item => item.Id == hiddenPost.Id && item.IsDeleted);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_WhenDeletedOnlyTrue_ReturnsOnlyHiddenPosts()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        var visiblePost = TestData.CreatePost(20, user.Id, isDeleted: false);
+        var hiddenPost = TestData.CreatePost(21, user.Id, isDeleted: true);
+        await context.Users.AddAsync(user);
+        await context.Posts.AddRangeAsync(visiblePost, hiddenPost);
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var result = await service.GetAllAsync(1, 10, includeDeleted: true, deletedOnly: true);
+
+        result.Items.Should().ContainSingle();
+        result.Items.Single().Id.Should().Be(hiddenPost.Id);
+        result.Items.Single().IsDeleted.Should().BeTrue();
+    }
+
     private static PostService CreateService(AppDbContext context)
     {
         return new PostService(

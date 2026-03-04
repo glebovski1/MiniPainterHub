@@ -8,7 +8,7 @@ namespace MiniPainterHub.Server.Services.Interfaces
     {
         Task<CommentDto> CreateAsync(string userId, int postId, CreateCommentDto dto);
         Task<CommentDto> GetByIdAsync(int id);
-        Task<PagedResult<CommentDto>> GetByPostIdAsync(int postId, int page = 1, int pageSize = 10);
+        Task<PagedResult<CommentDto>> GetByPostIdAsync(int postId, int page = 1, int pageSize = 10, bool includeDeleted = false, bool deletedOnly = false);
         Task<bool> UpdateAsync(int commentId, string userId, UpdateCommentDto dto);
         Task<bool> DeleteAsync(int commentId, string userId, bool isAdmin = false);
 

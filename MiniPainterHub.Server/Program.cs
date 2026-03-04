@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -188,9 +189,10 @@ public class Program
         {
             await using var scope = app.Services.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var startupLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
             if (db.Database.IsRelational())
             {
-                await db.Database.MigrateAsync();
+                await EnsureDevelopmentDatabaseAsync(db, startupLogger, app.Configuration);
             }
             else
             {
@@ -309,4 +311,26 @@ public class Program
 
         app.Run();
     }
+
+    private static async Task EnsureDevelopmentDatabaseAsync(AppDbContext db, ILogger logger, IConfiguration configuration)
+    {
+        try
+        {
+            await db.Database.MigrateAsync();
+        }
+        catch (SqlException ex) when (IsDuplicateIdentitySchemaError(ex) && ShouldRecreateOnSchemaConflict(configuration))
+        {
+            logger.LogWarning(
+                ex,
+                "Detected schema conflict while applying migrations in Development. Recreating database and retrying migration.");
+            await db.Database.EnsureDeletedAsync();
+            await db.Database.MigrateAsync();
+        }
+    }
+
+    private static bool IsDuplicateIdentitySchemaError(SqlException ex) =>
+        ex.Number == 2714 && ex.Message.Contains("AspNetRoles", StringComparison.OrdinalIgnoreCase);
+
+    private static bool ShouldRecreateOnSchemaConflict(IConfiguration configuration) =>
+        configuration.GetValue<bool?>("Database:RecreateOnSchemaConflict") ?? true;
 }

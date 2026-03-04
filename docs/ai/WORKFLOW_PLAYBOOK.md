@@ -28,6 +28,7 @@ Standard:
 
 High-Risk:
 - Full build + server tests.
+- Run `MiniPainterHub.WebApp.Tests` when client service contracts or query composition changed.
 - Targeted endpoint/manual checks for changed flows.
 - Explicitly document residual risks.
 
@@ -44,6 +45,7 @@ When answering or implementing:
 - Keep backwards compatibility unless change requires break.
 - For breaking changes, include migration notes in task summary.
 - Keep test fixtures realistic (valid references and constraints).
+- For auth/data-flow/schema changes, update both code and matching docs (`docs/ARCHITECTURE.md`, and `project_structure.txt` if structure references changed) in the same change.
 
 ## 5) Delivery Template
 
@@ -52,3 +54,11 @@ For each completed task, report:
 - Behavioral impact.
 - Validation commands and outcomes.
 - Follow-ups (if any).
+
+## 6) Phase Gates
+
+When implementing a multi-phase feature or fix:
+- Complete one phase at a time.
+- Run at least one relevant automated test command after each phase before moving on.
+- Prefer narrow test slices first, then broad suite/build gates at the end.
+- If a phase fails validation, fix it before starting the next phase.
