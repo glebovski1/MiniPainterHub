@@ -57,14 +57,18 @@
 
 @code {
     private LoginDto credentials = new();
-    private string error;
+    private string error = string.Empty;
+
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
 
     private async Task HandleLogin()
     {
         var success = await AuthService.LoginAsync(credentials);
         if (success)
         {
-            Nav.NavigateTo("/");
+            var target = string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : ReturnUrl;
+            Nav.NavigateTo(target);
         }
         else
         {

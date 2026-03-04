@@ -39,6 +39,22 @@ public class LoginTests : TestContext
                 .Should().Contain("Invalid username or password."));
     }
 
+
+    [Fact]
+    public async Task Submit_WhenAuthSucceedsAndReturnUrlProvided_NavigatesToReturnUrl()
+    {
+        this.AddAuthStub(new StubAuthService { LoginHandler = _ => Task.FromResult(true) });
+        var nav = Services.GetRequiredService<NavigationManager>();
+        var loginWithReturnUrl = nav.GetUriWithQueryParameter("returnUrl", "/posts/my");
+        nav.NavigateTo(loginWithReturnUrl);
+        var cut = RenderComponent<Login>();
+
+        cut.Find("[data-testid='login-username']").Change("user");
+        cut.Find("[data-testid='login-password']").Change("User123!");
+        await cut.Find("[data-testid='login-form']").SubmitAsync();
+
+        cut.WaitForAssertion(() => nav.Uri.Should().Be("http://localhost/posts/my"));
+    }
     [Fact]
     public async Task Submit_WhenAuthSucceeds_NavigatesToHome()
     {
