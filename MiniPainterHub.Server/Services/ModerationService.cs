@@ -26,12 +26,24 @@ namespace MiniPainterHub.Server.Services
         public async Task ModeratePostAsync(int postId, string actorUserId, bool hide, string? reason)
         {
             var post = await _db.Posts.FirstOrDefaultAsync(p => p.Id == postId) ?? throw new NotFoundException("Post not found.");
+
+            if (!hide && !WasHiddenByModeration(post.IsDeleted, post.ModeratedByUserId, post.ModeratedUtc, post.SoftDeletedUtc))
+            {
+                throw new DomainValidationException(
+                    "Only posts hidden by moderation can be restored.",
+                    new System.Collections.Generic.Dictionary<string, string[]>
+                    {
+                        ["postId"] = new[] { "The post is not currently hidden by moderation." }
+                    });
+            }
+
+            var now = DateTime.UtcNow;
             post.IsDeleted = hide;
-            post.ModeratedUtc = DateTime.UtcNow;
+            post.ModeratedUtc = now;
             post.ModeratedByUserId = actorUserId;
             post.ModerationReason = reason;
-            post.UpdatedUtc = DateTime.UtcNow;
-            post.SoftDeletedUtc = hide ? DateTime.UtcNow : null;
+            post.UpdatedUtc = now;
+            post.SoftDeletedUtc = hide ? now : null;
 
             await AddAuditAsync(actorUserId, hide ? "PostHide" : "PostRestore", "Post", postId.ToString(), reason);
             await _db.SaveChangesAsync();
@@ -40,12 +52,24 @@ namespace MiniPainterHub.Server.Services
         public async Task ModerateCommentAsync(int commentId, string actorUserId, bool hide, string? reason)
         {
             var comment = await _db.Comments.FirstOrDefaultAsync(c => c.Id == commentId) ?? throw new NotFoundException("Comment not found.");
+
+            if (!hide && !WasHiddenByModeration(comment.IsDeleted, comment.ModeratedByUserId, comment.ModeratedUtc, comment.SoftDeletedUtc))
+            {
+                throw new DomainValidationException(
+                    "Only comments hidden by moderation can be restored.",
+                    new System.Collections.Generic.Dictionary<string, string[]>
+                    {
+                        ["commentId"] = new[] { "The comment is not currently hidden by moderation." }
+                    });
+            }
+
+            var now = DateTime.UtcNow;
             comment.IsDeleted = hide;
-            comment.ModeratedUtc = DateTime.UtcNow;
+            comment.ModeratedUtc = now;
             comment.ModeratedByUserId = actorUserId;
             comment.ModerationReason = reason;
-            comment.UpdatedUtc = DateTime.UtcNow;
-            comment.SoftDeletedUtc = hide ? DateTime.UtcNow : null;
+            comment.UpdatedUtc = now;
+            comment.SoftDeletedUtc = hide ? now : null;
 
             await AddAuditAsync(actorUserId, hide ? "CommentHide" : "CommentRestore", "Comment", commentId.ToString(), reason);
             await _db.SaveChangesAsync();
@@ -53,6 +77,16 @@ namespace MiniPainterHub.Server.Services
 
         public async Task SuspendUserAsync(string targetUserId, string actorUserId, DateTime? suspendedUntilUtc, string? reason)
         {
+            if (!suspendedUntilUtc.HasValue || suspendedUntilUtc.Value <= DateTime.UtcNow)
+            {
+                throw new DomainValidationException(
+                    "Suspension expiry must be in the future.",
+                    new System.Collections.Generic.Dictionary<string, string[]>
+                    {
+                        ["suspendedUntilUtc"] = new[] { "Provide a UTC timestamp in the future to suspend a user." }
+                    });
+            }
+
             var target = await _userManager.FindByIdAsync(targetUserId) ?? throw new NotFoundException("User not found.");
             target.SuspendedUntilUtc = suspendedUntilUtc;
             target.SuspensionReason = reason;
@@ -61,6 +95,21 @@ namespace MiniPainterHub.Server.Services
 
             await AddAuditAsync(actorUserId, "UserSuspend", "User", targetUserId, reason);
             await _db.SaveChangesAsync();
+        }
+
+        private static bool WasHiddenByModeration(
+            bool isDeleted,
+            string? moderatedByUserId,
+            DateTime? moderatedUtc,
+            DateTime? softDeletedUtc)
+        {
+            if (!isDeleted || string.IsNullOrWhiteSpace(moderatedByUserId) || !moderatedUtc.HasValue || !softDeletedUtc.HasValue)
+            {
+                return false;
+            }
+
+            var difference = (moderatedUtc.Value - softDeletedUtc.Value).Duration();
+            return difference <= TimeSpan.FromSeconds(1);
         }
 
         public async Task UnsuspendUserAsync(string targetUserId, string actorUserId, string? reason)
