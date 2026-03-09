@@ -73,7 +73,7 @@
                 </NavLink>
 
                 <AuthorizeView Roles="Admin">
-                    <Authorized>
+                    <Authorized Context="adminAuth">
                         <NavLink class="nav-link dashboard-nav-link" href="/admin/suspensions" data-testid="admin-nav-suspensions">
                             <i class="bi bi-person-x" aria-hidden="true"></i>
                             <span>User suspensions</span>

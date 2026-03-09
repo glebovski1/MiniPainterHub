@@ -141,7 +141,8 @@ internal sealed class StubPostService : IPostService
     public Func<int, int, Task<ApiResult<PagedResult<PostSummaryDto>>>> GetAllHandler { get; set; } = (_, _) =>
         Task.FromResult(new ApiResult<PagedResult<PostSummaryDto>>(true, HttpStatusCode.OK, new PagedResult<PostSummaryDto>()));
 
-    public Func<int, int, bool, bool, Task<ApiResult<PagedResult<PostSummaryDto>>>> GetAllWithVisibilityHandler { get; set; } = (_, _, _, _) =>
+    public Func<int, int, bool, bool, Task<ApiResult<PagedResult<PostSummaryDto>>>> GetAllWithVisibilityHandler { get; set; }
+
     public Func<string, int, int, Task<ApiResult<PagedResult<PostSummaryDto>>>> GetByAuthorHandler { get; set; } = (_, _, _) =>
         Task.FromResult(new ApiResult<PagedResult<PostSummaryDto>>(true, HttpStatusCode.OK, new PagedResult<PostSummaryDto>()));
 

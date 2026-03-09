@@ -4,6 +4,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using MiniPainterHub.WebApp.Shared;
+using MiniPainterHub.WebApp.Tests.Infrastructure;
 using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Shared;
@@ -54,6 +55,8 @@ public class UserPanelContentAdminLinksTests : TestContext
 
     private IRenderedFragment RenderPanel()
     {
+        this.AddConversationStub();
+
         return Render(builder =>
         {
             builder.OpenComponent<CascadingAuthenticationState>(0);

@@ -16,6 +16,7 @@ public class FollowingFeedTests : TestContext
     public void RendersPostsFromFollowingFeed()
     {
         this.SetAuthenticatedUser("viewer-user", "viewer");
+        this.AddModerationStub();
         this.AddPostStub(new StubPostService
         {
             GetFollowingFeedHandler = (_, _) => Task.FromResult(
@@ -54,6 +55,7 @@ public class FollowingFeedTests : TestContext
     public void WhenFollowingFeedIsEmpty_RendersEmptyState()
     {
         this.SetAuthenticatedUser("viewer-user", "viewer");
+        this.AddModerationStub();
         this.AddPostStub(new StubPostService
         {
             GetFollowingFeedHandler = (_, _) => Task.FromResult(

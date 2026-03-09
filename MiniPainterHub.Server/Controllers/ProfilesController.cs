@@ -80,7 +80,6 @@ public sealed class ProfilesController : ControllerBase
         return Ok(updated);
     }
 
-    [AllowAnonymous]
     [HttpGet("{id}")]
     [AllowAnonymous]
     public async Task<ActionResult<UserProfileDto>> GetUserProfileById(string id)
