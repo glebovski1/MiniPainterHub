@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MiniPainterHub.Server.Data;
 
@@ -11,9 +12,11 @@ using MiniPainterHub.Server.Data;
 namespace MiniPainterHub.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260309160305_AddSocialFeatures")]
+    partial class AddSocialFeatures
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -102,10 +105,12 @@ namespace MiniPainterHub.Server.Migrations
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
                     b.Property<string>("LoginProvider")
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("ProviderKey")
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("ProviderDisplayName")
                         .HasColumnType("nvarchar(max)");
@@ -142,10 +147,12 @@ namespace MiniPainterHub.Server.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("LoginProvider")
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("Name")
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("Value")
                         .HasColumnType("nvarchar(max)");
@@ -173,20 +180,8 @@ namespace MiniPainterHub.Server.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<string>("ModeratedByUserId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime?>("ModeratedUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ModerationReason")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<int>("PostId")
                         .HasColumnType("int");
-
-                    b.Property<DateTime?>("SoftDeletedUtc")
-                        .HasColumnType("datetime2");
 
                     b.Property<string>("Text")
                         .IsRequired()
@@ -198,8 +193,6 @@ namespace MiniPainterHub.Server.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AuthorId");
-
-                    b.HasIndex("ModeratedByUserId");
 
                     b.HasIndex("PostId");
 
@@ -326,60 +319,6 @@ namespace MiniPainterHub.Server.Migrations
                     b.ToTable("Likes");
                 });
 
-            modelBuilder.Entity("MiniPainterHub.Server.Entities.ModerationAuditLog", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("ActionType")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.Property<string>("ActorRole")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.Property<string>("ActorUserId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime>("CreatedUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("MetadataJson")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Reason")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("TargetId")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
-                    b.Property<string>("TargetType")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ActorUserId");
-
-                    b.HasIndex("CreatedUtc");
-
-                    b.HasIndex("TargetType", "TargetId");
-
-                    b.ToTable("ModerationAuditLogs");
-                });
-
             modelBuilder.Entity("MiniPainterHub.Server.Entities.Post", b =>
                 {
                     b.Property<int>("Id")
@@ -402,18 +341,6 @@ namespace MiniPainterHub.Server.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<string>("ModeratedByUserId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime?>("ModeratedUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ModerationReason")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("SoftDeletedUtc")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -424,8 +351,6 @@ namespace MiniPainterHub.Server.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedById");
-
-                    b.HasIndex("ModeratedByUserId");
 
                     b.ToTable("Posts");
                 });
@@ -535,16 +460,6 @@ namespace MiniPainterHub.Server.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("SuspendedUntilUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("SuspensionReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime?>("SuspensionUpdatedUtc")
-                        .HasColumnType("datetime2");
-
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
 
@@ -624,11 +539,6 @@ namespace MiniPainterHub.Server.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("MiniPainterHub.Server.Identity.ApplicationUser", "ModeratedByUser")
-                        .WithMany()
-                        .HasForeignKey("ModeratedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("MiniPainterHub.Server.Entities.Post", "Post")
                         .WithMany("Comments")
                         .HasForeignKey("PostId")
@@ -636,8 +546,6 @@ namespace MiniPainterHub.Server.Migrations
                         .IsRequired();
 
                     b.Navigation("Author");
-
-                    b.Navigation("ModeratedByUser");
 
                     b.Navigation("Post");
                 });
@@ -726,14 +634,7 @@ namespace MiniPainterHub.Server.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("MiniPainterHub.Server.Identity.ApplicationUser", "ModeratedByUser")
-                        .WithMany()
-                        .HasForeignKey("ModeratedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("CreatedBy");
-
-                    b.Navigation("ModeratedByUser");
                 });
 
             modelBuilder.Entity("MiniPainterHub.Server.Entities.PostImage", b =>

@@ -1,0 +1,94 @@
+@page "/connections"
+@attribute [Authorize]
+@using MiniPainterHub.Common.DTOs
+@inject IFollowService Follows
+
+<PageTitle>Connections</PageTitle>
+
+<h1 class="mb-4">Connections</h1>
+
+@if (_loading)
+{
+    <div class="d-flex align-items-center gap-2 text-secondary">
+        <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+        <span>Loading connections...</span>
+    </div>
+}
+else
+{
+    <div class="row g-4">
+        <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5 mb-3">Followers</h2>
+                    @RenderUsers(_followers, "No followers yet.")
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5 mb-3">Following</h2>
+                    @RenderUsers(_following, "You are not following anyone yet.")
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<UserListItemDto> _followers = Array.Empty<UserListItemDto>();
+    private IReadOnlyList<UserListItemDto> _following = Array.Empty<UserListItemDto>();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _followers = await Follows.GetFollowersAsync();
+        _following = await Follows.GetFollowingAsync();
+        _loading = false;
+    }
+
+    private RenderFragment RenderUsers(IReadOnlyList<UserListItemDto> users, string emptyText) => builder =>
+    {
+        if (users.Count == 0)
+        {
+            builder.OpenElement(0, "p");
+            builder.AddAttribute(1, "class", "text-muted mb-0");
+            builder.AddContent(2, emptyText);
+            builder.CloseElement();
+            return;
+        }
+
+        var seq = 10;
+        builder.OpenElement(seq++, "div");
+        builder.AddAttribute(seq++, "class", "list-group list-group-flush");
+        foreach (var user in users)
+        {
+            builder.OpenElement(seq++, "a");
+            builder.AddAttribute(seq++, "class", "list-group-item list-group-item-action d-flex align-items-center gap-3");
+            builder.AddAttribute(seq++, "href", $"/users/{user.UserId}");
+
+            builder.OpenElement(seq++, "img");
+            builder.AddAttribute(seq++, "src", user.AvatarUrl ?? "/images/avatar-placeholder.png");
+            builder.AddAttribute(seq++, "alt", "User avatar");
+            builder.AddAttribute(seq++, "class", "rounded-circle border");
+            builder.AddAttribute(seq++, "style", "width: 48px; height: 48px; object-fit: cover;");
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "div");
+            builder.OpenElement(seq++, "div");
+            builder.AddAttribute(seq++, "class", "fw-semibold");
+            builder.AddContent(seq++, user.DisplayName);
+            builder.CloseElement();
+            builder.OpenElement(seq++, "div");
+            builder.AddAttribute(seq++, "class", "small text-muted");
+            builder.AddContent(seq++, "@" + user.UserName);
+            builder.CloseElement();
+            builder.CloseElement();
+
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+    };
+}

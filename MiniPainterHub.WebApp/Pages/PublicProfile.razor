@@ -1,0 +1,168 @@
+@page "/users/{UserId}"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using MiniPainterHub.Common.DTOs
+@using MiniPainterHub.WebApp.Services.Http
+@inject IProfileService Profiles
+@inject IFollowService Follows
+@inject IConversationService Conversations
+@inject IPostService Posts
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+
+<PageTitle>User profile</PageTitle>
+
+@if (_loading)
+{
+    <div class="d-flex align-items-center gap-2 text-secondary">
+        <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+        <span>Loading profile...</span>
+    </div>
+}
+else if (!string.IsNullOrWhiteSpace(_error))
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else if (_profile is null)
+{
+    <div class="alert alert-warning">Profile not found.</div>
+}
+else
+{
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex flex-column flex-lg-row gap-4 align-items-lg-center">
+                        <img src="@(_profile.AvatarUrl ?? "/images/avatar-placeholder.png")"
+                             alt="Profile avatar"
+                             class="rounded-circle border"
+                             style="width: 112px; height: 112px; object-fit: cover;" />
+
+                        <div class="flex-grow-1">
+                            <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+                                <div>
+                                    <h1 class="h3 mb-1">@(_profile.DisplayName ?? _profile.UserName)</h1>
+                                    <div class="text-muted">@("@")@_profile.UserName</div>
+                                    <div class="small text-muted mt-2">Joined @_profile.DateJoined.ToLocalTime().ToString("MMM dd, yyyy")</div>
+                                </div>
+
+                                <div class="d-flex flex-wrap gap-2">
+                                    @if (_isOwner)
+                                    {
+                                        <button class="btn btn-outline-primary" @onclick='() => Nav.NavigateTo("/profile")'>Edit profile</button>
+                                        <button class="btn btn-outline-secondary" @onclick='() => Nav.NavigateTo("/connections")'>Connections</button>
+                                    }
+                                    else if (_isAuthenticated)
+                                    {
+                                        <button class="btn btn-primary" data-testid="profile-follow-toggle" @onclick="ToggleFollowAsync" disabled="@_busy">
+                                            @(_profile.IsFollowing ? "Unfollow" : "Follow")
+                                        </button>
+                                        <button class="btn btn-outline-secondary" data-testid="profile-message" @onclick="StartConversationAsync" disabled="@_busy">
+                                            Message
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(_profile.Bio))
+                            {
+                                <p class="mt-3 mb-0">@_profile.Bio</p>
+                            }
+
+                            <div class="d-flex gap-4 mt-3 small">
+                                <div><strong>@_profile.FollowerCount</strong> followers</div>
+                                <div><strong>@_profile.FollowingCount</strong> following</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <h2 class="h4 mb-3">Posts by @(_profile.DisplayName ?? _profile.UserName)</h2>
+            <CardList LoadPostsHandler="LoadPosts"></CardList>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string UserId { get; set; } = string.Empty;
+
+    private UserProfileDto? _profile;
+    private bool _loading = true;
+    private bool _busy;
+    private bool _isAuthenticated;
+    private bool _isOwner;
+    private string? _error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var currentUserId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        _isAuthenticated = authState.User.Identity?.IsAuthenticated == true;
+        _isOwner = string.Equals(currentUserId, UserId, StringComparison.Ordinal);
+
+        try
+        {
+            _profile = await Profiles.GetUserProfileById(UserId);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            _profile = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private Task<ApiResult<PagedResult<PostSummaryDto>>> LoadPosts(int page, int pageSize)
+        => Posts.GetByAuthorAsync(UserId, page, pageSize);
+
+    private async Task ToggleFollowAsync()
+    {
+        if (_profile is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            if (_profile.IsFollowing)
+            {
+                await Follows.UnfollowAsync(UserId);
+            }
+            else
+            {
+                await Follows.FollowAsync(UserId);
+            }
+
+            _profile = await Profiles.GetUserProfileById(UserId);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task StartConversationAsync()
+    {
+        _busy = true;
+        try
+        {
+            var conversation = await Conversations.OpenDirectConversationAsync(UserId);
+            Nav.NavigateTo($"/messages/{conversation.Id}");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

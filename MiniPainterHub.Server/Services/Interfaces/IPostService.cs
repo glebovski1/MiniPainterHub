@@ -10,6 +10,8 @@ namespace MiniPainterHub.Server.Services.Interfaces
         Task<bool> ExistsAsync(int postId);
         Task<PostDto> CreateAsync(string userId, CreatePostDto dto);
         Task<PagedResult<PostSummaryDto>> GetAllAsync(int page, int pageSize, bool includeDeleted = false, bool deletedOnly = false);
+        Task<PagedResult<PostSummaryDto>> GetByAuthorAsync(string authorUserId, int page, int pageSize);
+        Task<PagedResult<PostSummaryDto>> GetFollowingFeedAsync(string userId, int page, int pageSize);
         Task<PostDto> GetByIdAsync(int postId);
         Task<bool> UpdateAsync(int postId, string userId, UpdatePostDto dto);
         Task<bool> DeleteAsync(int postId, string userId);

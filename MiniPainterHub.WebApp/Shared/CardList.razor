@@ -1,7 +1,7 @@
-﻿
 @using System.Net
-@using MiniPainterHub.Common.DTOs
 @using Microsoft.AspNetCore.Components.Authorization
+@using MiniPainterHub.Common.DTOs
+@using MiniPainterHub.WebApp.Services.Http
 @inject IPostService PostService
 
 @if (!string.IsNullOrEmpty(loadError))
@@ -99,16 +99,13 @@ else
                 <select id="pageSelector" class="form-select w-auto" @onchange="OnPageSelected" disabled="@isLoading">
                     @for (var page = 1; page <= totalPages; page++)
                     {
-
                         var selectPage = page;
                         if (page == currentPage)
                         {
-
                             <option value="@selectPage" selected>@selectPage </option>
                         }
                         else
                         {
-
                             <option value="@selectPage">@selectPage </option>
                         }
                     }
@@ -120,36 +117,35 @@ else
 }
 
 @code {
-    // The flat list your foreach iterates over
     private List<PostSummaryDto> posts = new();
-
-    // Simple loading flag for the spinner
     private bool isLoading = true;
-
     private const int PageSize = 9;
     private string? loadError;
     private HttpStatusCode? errorStatus;
-
     private int currentPage = 1;
     private int totalPages = 1;
     private string _visibilityFilter = "active";
-
     private bool hasPreviousPage;
     private bool hasNextPage;
 
     [Parameter]
-    public Func<IEnumerable<PostSummaryDto>, IEnumerable<PostSummaryDto>>? Query { get; set; } = (source) => source;
+    public Func<IEnumerable<PostSummaryDto>, IEnumerable<PostSummaryDto>>? Query { get; set; } = source => source;
+
+    [Parameter]
+    public Func<int, int, Task<ApiResult<PagedResult<PostSummaryDto>>>>? LoadPostsHandler { get; set; }
 
     protected override async Task OnParametersSetAsync()
     {
-        if (previousQuery != Query)
+        if (previousQuery != Query || previousLoader != LoadPostsHandler)
         {
             previousQuery = Query;
+            previousLoader = LoadPostsHandler;
             await LoadPosts();
         }
     }
 
     private Func<IEnumerable<PostSummaryDto>, IEnumerable<PostSummaryDto>>? previousQuery;
+    private Func<int, int, Task<ApiResult<PagedResult<PostSummaryDto>>>>? previousLoader;
 
     private async Task LoadPosts(int page = 1)
     {
@@ -158,10 +154,13 @@ else
         errorStatus = null;
         await InvokeAsync(StateHasChanged);
 
-        var includeDeleted = _visibilityFilter is "all" or "hidden";
-        var deletedOnly = _visibilityFilter == "hidden";
-
-        var result = await PostService.GetAllAsync(page, PageSize, includeDeleted, deletedOnly);
+        var result = LoadPostsHandler == null
+            ? await PostService.GetAllAsync(
+                page,
+                PageSize,
+                includeDeleted: _visibilityFilter is "all" or "hidden",
+                deletedOnly: _visibilityFilter == "hidden")
+            : await LoadPostsHandler(page, PageSize);
 
         if (!result.Success)
         {
@@ -182,7 +181,8 @@ else
         hasPreviousPage = pageResult.HasPreviousPage && totalPages > 1;
         hasNextPage = pageResult.HasNextPage && totalPages > 1;
 
-        var items = Query != null ? Query.Invoke(pageResult.Items) : pageResult.Items;
+        var pageItems = pageResult.Items ?? Array.Empty<PostSummaryDto>();
+        var items = Query != null ? (Query.Invoke(pageItems) ?? Array.Empty<PostSummaryDto>()) : pageItems;
         posts = items.ToList();
 
         isLoading = false;
@@ -215,6 +215,11 @@ else
 
     private async Task OnVisibilityFilterChanged(ChangeEventArgs args)
     {
+        if (LoadPostsHandler != null)
+        {
+            return;
+        }
+
         var selectedValue = args.Value?.ToString();
         if (selectedValue is not "active" and not "all" and not "hidden")
         {

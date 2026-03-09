@@ -54,6 +54,17 @@ namespace MiniPainterHub.Server.Controllers
             return Ok(dto);
         }
 
+        [HttpGet("by-user/{userId}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<PagedResult<PostSummaryDto>>> GetByAuthor(
+            string userId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var result = await _postService.GetByAuthorAsync(userId, page, pageSize);
+            return Ok(result);
+        }
+
         // POST: api/posts
         // JSON-only create
         [HttpPost]

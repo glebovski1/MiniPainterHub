@@ -49,5 +49,25 @@ namespace MiniPainterHub.Common.DTOs
         /// When the user first registered.
         /// </summary>
         public DateTime DateJoined { get; set; }
+
+        /// <summary>
+        /// Total number of followers for this user.
+        /// </summary>
+        public int FollowerCount { get; set; }
+
+        /// <summary>
+        /// Total number of users this user is following.
+        /// </summary>
+        public int FollowingCount { get; set; }
+
+        /// <summary>
+        /// Whether the current viewer follows this user.
+        /// </summary>
+        public bool IsFollowing { get; set; }
+
+        /// <summary>
+        /// Whether the current viewer can start a direct conversation with this user.
+        /// </summary>
+        public bool CanMessage { get; set; }
     }
 }

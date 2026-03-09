@@ -69,12 +69,24 @@ public sealed class ProfilesController : ControllerBase
         return Ok(updated);
     }
 
+    [HttpDelete("me/avatar")]
+    public async Task<ActionResult<UserProfileDto>> RemoveAvatar()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            throw new UnauthorizedAccessException("User is not authenticated.");
 
+        var updated = await _profilesService.RemoveAvatarAsync(userId);
+        return Ok(updated);
+    }
+
+    [AllowAnonymous]
     [HttpGet("{id}")]
     [AllowAnonymous]
     public async Task<ActionResult<UserProfileDto>> GetUserProfileById(string id)
     {
-        var dto = await _profilesService.GetUserProfileById(id);
+        var viewerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var dto = await _profilesService.GetUserProfileById(id, viewerUserId);
         return Ok(dto);
     }
 }

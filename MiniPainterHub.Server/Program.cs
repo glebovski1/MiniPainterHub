@@ -17,6 +17,7 @@ using MiniPainterHub.Server.ErrorHandling;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.OpenAPIOperationFilter;
 using MiniPainterHub.Server.Options;
+using MiniPainterHub.Server.Realtime;
 using MiniPainterHub.Server.Services;
 using MiniPainterHub.Server.Services.Images;
 using MiniPainterHub.Server.Services.Interfaces;
@@ -87,9 +88,24 @@ public class Program
                 IssuerSigningKey = new SymmetricSecurityKey(key),
                 ValidateIssuerSigningKey = true
             };
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    var accessToken = context.Request.Query["access_token"];
+                    var path = context.HttpContext.Request.Path;
+                    if (!string.IsNullOrWhiteSpace(accessToken) && path.StartsWithSegments("/hubs/chat"))
+                    {
+                        context.Token = accessToken;
+                    }
+
+                    return Task.CompletedTask;
+                }
+            };
         });
 
         builder.Services.AddControllers();
+        builder.Services.AddSignalR();
 
         builder.Services.AddProblemDetails(o =>
         {
@@ -178,6 +194,9 @@ public class Program
         builder.Services.AddScoped<ILikeService, LikeService>();
         builder.Services.AddScoped<IAccountRestrictionService, AccountRestrictionService>();
         builder.Services.AddScoped<IModerationService, ModerationService>();
+        builder.Services.AddScoped<IFollowService, FollowService>();
+        builder.Services.AddScoped<IConversationService, ConversationService>();
+        builder.Services.AddSingleton<IChatNotifier, SignalRChatNotifier>();
         builder.Services.AddAuthorization();
 
         var app = builder.Build();
@@ -252,6 +271,7 @@ public class Program
         app.UseAuthorization();
 
         app.MapControllers();
+        app.MapHub<ChatHub>("/hubs/chat");
 
         app.MapFallbackToFile("index.html"); // 🟢 Route everything else to Blazor
 

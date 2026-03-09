@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -63,12 +64,88 @@ internal sealed class StubProfileService : IProfileService
     public Task<UserProfileDto> GetUserProfileById(string id) => GetByIdHandler(id);
 }
 
+internal sealed class StubFollowService : IFollowService
+{
+    public Func<string, Task> FollowHandler { get; set; } = _ => Task.CompletedTask;
+    public Func<string, Task> UnfollowHandler { get; set; } = _ => Task.CompletedTask;
+    public Func<Task<IReadOnlyList<UserListItemDto>>> GetFollowersHandler { get; set; } = () =>
+        Task.FromResult<IReadOnlyList<UserListItemDto>>(Array.Empty<UserListItemDto>());
+    public Func<Task<IReadOnlyList<UserListItemDto>>> GetFollowingHandler { get; set; } = () =>
+        Task.FromResult<IReadOnlyList<UserListItemDto>>(Array.Empty<UserListItemDto>());
+
+    public Task FollowAsync(string userId) => FollowHandler(userId);
+    public Task UnfollowAsync(string userId) => UnfollowHandler(userId);
+    public Task<IReadOnlyList<UserListItemDto>> GetFollowersAsync() => GetFollowersHandler();
+    public Task<IReadOnlyList<UserListItemDto>> GetFollowingAsync() => GetFollowingHandler();
+}
+
+internal sealed class StubConversationService : IConversationService
+{
+    private IReadOnlyList<ConversationSummaryDto> _conversations = Array.Empty<ConversationSummaryDto>();
+
+    public event Action? OnChange;
+    public event Action<DirectMessageDto>? MessageReceived;
+    public event Action<ConversationReadDto>? ConversationRead;
+
+    public Func<bool, Task<IReadOnlyList<ConversationSummaryDto>>> GetConversationsHandler { get; set; } = _ =>
+        Task.FromResult<IReadOnlyList<ConversationSummaryDto>>(Array.Empty<ConversationSummaryDto>());
+    public Func<string, Task<ConversationSummaryDto>> OpenDirectConversationHandler { get; set; } = userId =>
+        Task.FromResult(new ConversationSummaryDto
+        {
+            Id = 1,
+            OtherUser = new UserListItemDto { UserId = userId, UserName = userId, DisplayName = userId }
+        });
+    public Func<int, int?, int, Task<PagedResult<DirectMessageDto>>> GetMessagesHandler { get; set; } = (_, _, pageSize) =>
+        Task.FromResult(new PagedResult<DirectMessageDto> { Items = new List<DirectMessageDto>(), PageNumber = 1, PageSize = pageSize, TotalCount = 0 });
+    public Func<int, CreateDirectMessageDto, Task<DirectMessageDto>> SendMessageHandler { get; set; } = (conversationId, dto) =>
+        Task.FromResult(new DirectMessageDto { Id = 1, ConversationId = conversationId, Body = dto.Body, SenderUserId = "stub-user", SenderDisplayName = "Stub User", IsMine = true, SentUtc = DateTime.UtcNow });
+    public Func<int, Task> MarkReadHandler { get; set; } = _ => Task.CompletedTask;
+    public Func<Task> EnsureRealtimeHandler { get; set; } = () => Task.CompletedTask;
+    public Func<int, Task> JoinConversationHandler { get; set; } = _ => Task.CompletedTask;
+    public Func<int, Task> LeaveConversationHandler { get; set; } = _ => Task.CompletedTask;
+
+    public int UnreadConversationCount => _conversations.Count(c => c.UnreadCount > 0);
+
+    public async Task<IReadOnlyList<ConversationSummaryDto>> GetConversationsAsync(bool forceRefresh = false)
+    {
+        if (!forceRefresh && _conversations.Count > 0)
+        {
+            return _conversations;
+        }
+
+        _conversations = await GetConversationsHandler(forceRefresh);
+        OnChange?.Invoke();
+        return _conversations;
+    }
+
+    public Task<ConversationSummaryDto> OpenDirectConversationAsync(string userId) => OpenDirectConversationHandler(userId);
+    public Task<PagedResult<DirectMessageDto>> GetMessagesAsync(int conversationId, int? beforeMessageId = null, int pageSize = 50) => GetMessagesHandler(conversationId, beforeMessageId, pageSize);
+    public Task<DirectMessageDto> SendMessageAsync(int conversationId, CreateDirectMessageDto dto) => SendMessageHandler(conversationId, dto);
+    public Task MarkReadAsync(int conversationId) => MarkReadHandler(conversationId);
+    public Task EnsureRealtimeAsync() => EnsureRealtimeHandler();
+    public Task JoinConversationAsync(int conversationId) => JoinConversationHandler(conversationId);
+    public Task LeaveConversationAsync(int conversationId) => LeaveConversationHandler(conversationId);
+
+    public void SetConversations(IReadOnlyList<ConversationSummaryDto> conversations)
+    {
+        _conversations = conversations;
+    }
+
+    public void RaiseChanged() => OnChange?.Invoke();
+    public void RaiseMessageReceived(DirectMessageDto dto) => MessageReceived?.Invoke(dto);
+    public void RaiseConversationRead(ConversationReadDto dto) => ConversationRead?.Invoke(dto);
+}
+
 internal sealed class StubPostService : IPostService
 {
     public Func<int, int, Task<ApiResult<PagedResult<PostSummaryDto>>>> GetAllHandler { get; set; } = (_, _) =>
         Task.FromResult(new ApiResult<PagedResult<PostSummaryDto>>(true, HttpStatusCode.OK, new PagedResult<PostSummaryDto>()));
 
     public Func<int, int, bool, bool, Task<ApiResult<PagedResult<PostSummaryDto>>>> GetAllWithVisibilityHandler { get; set; } = (_, _, _, _) =>
+    public Func<string, int, int, Task<ApiResult<PagedResult<PostSummaryDto>>>> GetByAuthorHandler { get; set; } = (_, _, _) =>
+        Task.FromResult(new ApiResult<PagedResult<PostSummaryDto>>(true, HttpStatusCode.OK, new PagedResult<PostSummaryDto>()));
+
+    public Func<int, int, Task<ApiResult<PagedResult<PostSummaryDto>>>> GetFollowingFeedHandler { get; set; } = (_, _) =>
         Task.FromResult(new ApiResult<PagedResult<PostSummaryDto>>(true, HttpStatusCode.OK, new PagedResult<PostSummaryDto>()));
 
     public Func<int, Task<PostDto>> GetByIdHandler { get; set; } = id =>
@@ -90,6 +167,8 @@ internal sealed class StubPostService : IPostService
 
     public Task<ApiResult<PagedResult<PostSummaryDto>>> GetAllAsync(int page, int pageSize, bool includeDeleted = false, bool deletedOnly = false) =>
         GetAllWithVisibilityHandler(page, pageSize, includeDeleted, deletedOnly);
+    public Task<ApiResult<PagedResult<PostSummaryDto>>> GetByAuthorAsync(string userId, int page, int pageSize) => GetByAuthorHandler(userId, page, pageSize);
+    public Task<ApiResult<PagedResult<PostSummaryDto>>> GetFollowingFeedAsync(int page, int pageSize) => GetFollowingFeedHandler(page, pageSize);
     public Task<IEnumerable<PostSummaryDto>> GetTopPosts(int count, TimeSpan timeOffcet) => GetTopPostsHandler(count, timeOffcet);
     public Task<PostDto> GetByIdAsync(int id) => GetByIdHandler(id);
     public Task<PostDto> CreateAsync(CreatePostDto dto) => CreateHandler(dto);

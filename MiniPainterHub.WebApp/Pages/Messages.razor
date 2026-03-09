@@ -1,0 +1,269 @@
+@page "/messages"
+@page "/messages/{ConversationId:int}"
+@attribute [Authorize]
+@implements IDisposable
+@using MiniPainterHub.Common.DTOs
+@inject IConversationService Conversations
+@inject NavigationManager Nav
+
+<PageTitle>Messages</PageTitle>
+
+<div class="row g-4">
+    <div class="col-12 col-lg-4 @(ConversationId.HasValue ? "d-none d-lg-block" : string.Empty)">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h1 class="h4 mb-0">Messages</h1>
+                    @if (_loadingConversations)
+                    {
+                        <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+                    }
+                </div>
+
+                @if (_conversations.Count == 0 && !_loadingConversations)
+                {
+                    <p class="text-muted mb-0">No conversations yet.</p>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush">
+                        @foreach (var conversation in _conversations)
+                        {
+                            <button type="button"
+                                    class="list-group-item list-group-item-action text-start @(ConversationId == conversation.Id ? "active" : string.Empty)"
+                                    @onclick="@(() => OpenConversation(conversation.Id))">
+                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <div>
+                                        <div class="fw-semibold">@conversation.OtherUser.DisplayName</div>
+                                        <div class="small @(ConversationId == conversation.Id ? "text-white-50" : "text-muted")">
+                                            @(string.IsNullOrWhiteSpace(conversation.LatestMessagePreview) ? "No messages yet." : conversation.LatestMessagePreview)
+                                        </div>
+                                    </div>
+                                    @if (conversation.UnreadCount > 0)
+                                    {
+                                        <span class="badge text-bg-primary rounded-pill">@conversation.UnreadCount</span>
+                                    }
+                                </div>
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-8">
+        <div class="card shadow-sm h-100">
+            <div class="card-body d-flex flex-column" style="min-height: 70vh;">
+                @if (!ConversationId.HasValue)
+                {
+                    <div class="m-auto text-center text-muted">
+                        <h2 class="h5">Select a conversation</h2>
+                        <p class="mb-0">Open a profile and start messaging another painter.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <button type="button" class="btn btn-outline-secondary btn-sm d-lg-none" @onclick='() => Nav.NavigateTo("/messages")'>
+                            Back
+                        </button>
+                        <div>
+                            <h2 class="h5 mb-0">@(_activeConversation?.OtherUser.DisplayName ?? "Conversation")</h2>
+                            @if (_activeConversation is not null)
+                            {
+                                <div class="small text-muted">@("@")@_activeConversation.OtherUser.UserName</div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="border rounded p-3 flex-grow-1 overflow-auto bg-body-tertiary">
+                        @if (_loadingMessages)
+                        {
+                            <div class="d-flex align-items-center gap-2 text-secondary">
+                                <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+                                <span>Loading messages...</span>
+                            </div>
+                        }
+                        else if (_messages.Count == 0)
+                        {
+                            <p class="text-muted mb-0">No messages yet. Say hello.</p>
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-column gap-3">
+                                @foreach (var message in _messages)
+                                {
+                                    <div class="d-flex @(message.IsMine ? "justify-content-end" : "justify-content-start")">
+                                        <div class="rounded-3 px-3 py-2 @(message.IsMine ? "bg-primary text-white" : "bg-white border")" style="max-width: 75%;">
+                                            <div class="small fw-semibold mb-1">@message.SenderDisplayName</div>
+                                            <div>@message.Body</div>
+                                            <div class="small mt-1 @(message.IsMine ? "text-white-50" : "text-muted")">
+                                                @message.SentUtc.ToLocalTime().ToString("MMM dd, HH:mm")
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <EditForm Model="_draft" OnValidSubmit="SendAsync" class="mt-3">
+                        <DataAnnotationsValidator />
+                        <div class="input-group">
+                            <InputText class="form-control" @bind-Value="_draft.Body" placeholder="Write a message..." />
+                            <button type="submit" class="btn btn-primary" disabled="@_sending">Send</button>
+                        </div>
+                    </EditForm>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int? ConversationId { get; set; }
+
+    private IReadOnlyList<ConversationSummaryDto> _conversations = Array.Empty<ConversationSummaryDto>();
+    private ConversationSummaryDto? _activeConversation;
+    private readonly List<DirectMessageDto> _messages = new();
+    private CreateDirectMessageDto _draft = new();
+    private bool _loadingConversations = true;
+    private bool _loadingMessages;
+    private bool _sending;
+    private int? _joinedConversationId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Conversations.OnChange += HandleConversationStateChanged;
+        Conversations.MessageReceived += HandleMessageReceived;
+        Conversations.ConversationRead += HandleConversationRead;
+
+        await Conversations.EnsureRealtimeAsync();
+        await ReloadConversationsAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await ReloadConversationsAsync();
+        await LoadActiveConversationAsync();
+    }
+
+    private async Task ReloadConversationsAsync()
+    {
+        _loadingConversations = true;
+        _conversations = await Conversations.GetConversationsAsync(forceRefresh: true);
+        _activeConversation = ConversationId.HasValue
+            ? _conversations.FirstOrDefault(c => c.Id == ConversationId.Value)
+            : null;
+        _loadingConversations = false;
+    }
+
+    private async Task LoadActiveConversationAsync()
+    {
+        if (!ConversationId.HasValue)
+        {
+            if (_joinedConversationId.HasValue)
+            {
+                await Conversations.LeaveConversationAsync(_joinedConversationId.Value);
+                _joinedConversationId = null;
+            }
+
+            _messages.Clear();
+            return;
+        }
+
+        if (_joinedConversationId.HasValue && _joinedConversationId.Value != ConversationId.Value)
+        {
+            await Conversations.LeaveConversationAsync(_joinedConversationId.Value);
+        }
+
+        _joinedConversationId = ConversationId.Value;
+        _loadingMessages = true;
+        await Conversations.JoinConversationAsync(ConversationId.Value);
+
+        var page = await Conversations.GetMessagesAsync(ConversationId.Value);
+        _messages.Clear();
+        _messages.AddRange(page.Items);
+        await Conversations.MarkReadAsync(ConversationId.Value);
+
+        _activeConversation = _conversations.FirstOrDefault(c => c.Id == ConversationId.Value);
+        _loadingMessages = false;
+    }
+
+    private void OpenConversation(int conversationId)
+        => Nav.NavigateTo($"/messages/{conversationId}");
+
+    private async Task SendAsync()
+    {
+        if (!ConversationId.HasValue || string.IsNullOrWhiteSpace(_draft.Body))
+        {
+            return;
+        }
+
+        _sending = true;
+        try
+        {
+            var message = await Conversations.SendMessageAsync(ConversationId.Value, _draft);
+            if (_messages.All(existing => existing.Id != message.Id))
+            {
+                _messages.Add(message);
+            }
+
+            _draft = new CreateDirectMessageDto();
+            await Conversations.MarkReadAsync(ConversationId.Value);
+        }
+        finally
+        {
+            _sending = false;
+        }
+    }
+
+    private void HandleConversationStateChanged()
+    {
+        _ = InvokeAsync(async () =>
+        {
+            _conversations = await Conversations.GetConversationsAsync();
+            _activeConversation = ConversationId.HasValue
+                ? _conversations.FirstOrDefault(c => c.Id == ConversationId.Value)
+                : null;
+            StateHasChanged();
+        });
+    }
+
+    private void HandleMessageReceived(DirectMessageDto message)
+    {
+        if (!ConversationId.HasValue || message.ConversationId != ConversationId.Value)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            if (_messages.All(existing => existing.Id != message.Id))
+            {
+                _messages.Add(message);
+            }
+
+            await Conversations.MarkReadAsync(message.ConversationId);
+            StateHasChanged();
+        });
+    }
+
+    private void HandleConversationRead(ConversationReadDto payload)
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Conversations.OnChange -= HandleConversationStateChanged;
+        Conversations.MessageReceived -= HandleMessageReceived;
+        Conversations.ConversationRead -= HandleConversationRead;
+
+        if (_joinedConversationId.HasValue)
+        {
+            _ = Conversations.LeaveConversationAsync(_joinedConversationId.Value);
+        }
+    }
+}

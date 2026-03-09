@@ -96,7 +96,7 @@
 
                 <p class="text-muted small mb-3">
                     <i class="bi bi-person me-1"></i>
-                    <NavLink class="text-decoration-none" href="@($"/users/{post.CreatedById}")"><strong>@post.AuthorName</strong></NavLink>
+                    <NavLink class="fw-semibold text-decoration-none" href="@($"/users/{post.CreatedById}")">@post.AuthorName</NavLink>
                     <span class="mx-2">•</span>
                     <i class="bi bi-calendar3 me-1"></i>
                     @post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")

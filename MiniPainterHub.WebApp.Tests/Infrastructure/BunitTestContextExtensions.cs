@@ -1,5 +1,6 @@
 using System;
 using Bunit;
+using Bunit.TestDoubles;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using MiniPainterHub.WebApp.Services.Interfaces;
@@ -29,6 +30,20 @@ internal static class BunitTestContextExtensions
         return stub;
     }
 
+    public static StubFollowService AddFollowStub(this TestContext context, StubFollowService? stub = null)
+    {
+        stub ??= new StubFollowService();
+        context.Services.AddSingleton<IFollowService>(stub);
+        return stub;
+    }
+
+    public static StubConversationService AddConversationStub(this TestContext context, StubConversationService? stub = null)
+    {
+        stub ??= new StubConversationService();
+        context.Services.AddSingleton<IConversationService>(stub);
+        return stub;
+    }
+
     public static StubCommentService AddCommentStub(this TestContext context, StubCommentService? stub = null)
     {
         stub ??= new StubCommentService();
@@ -54,5 +69,14 @@ internal static class BunitTestContextExtensions
     {
         var navigationManager = context.Services.GetRequiredService<NavigationManager>();
         return new Uri(navigationManager.Uri).AbsolutePath;
+    }
+
+    public static void SetAuthenticatedUser(this TestContext context, string userId, string userName)
+    {
+        var auth = context.AddTestAuthorization();
+        auth.SetAuthorized(userName);
+        auth.SetClaims(
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, userId),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, userName));
     }
 }

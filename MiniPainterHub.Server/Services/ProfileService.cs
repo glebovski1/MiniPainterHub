@@ -32,45 +32,53 @@ public class ProfileService : IProfileService
         _imageService = imageService;
     }
 
-    private IQueryable<UserProfileDto> ProjectProfiles() =>
+    private IQueryable<UserProfileDto> ProjectProfiles(string? viewerUserId) =>
         _dbContext.Profiles
-                  .AsNoTracking()
-                  .Select(p => new UserProfileDto
-                  {
-                      UserId = p.UserId,
-                      DisplayName = p.DisplayName,
-                      Bio = p.Bio,
-                      AvatarUrl = p.AvatarUrl,
-                      UserName = p.User.UserName!,
-                      Email = p.User.Email!,
-                      DateJoined = p.User.DateJoined
-                  });
+            .AsNoTracking()
+            .Select(p => new UserProfileDto
+            {
+                UserId = p.UserId,
+                DisplayName = p.DisplayName,
+                Bio = p.Bio,
+                AvatarUrl = p.AvatarUrl,
+                UserName = p.User.UserName ?? string.Empty,
+                Email = p.User.Email ?? string.Empty,
+                DateJoined = p.User.DateJoined,
+                FollowerCount = _dbContext.Follows.Count(f => f.FollowedUserId == p.UserId),
+                FollowingCount = _dbContext.Follows.Count(f => f.FollowerUserId == p.UserId),
+                IsFollowing = !string.IsNullOrWhiteSpace(viewerUserId)
+                    && viewerUserId != p.UserId
+                    && _dbContext.Follows.Any(f => f.FollowerUserId == viewerUserId && f.FollowedUserId == p.UserId),
+                CanMessage = !string.IsNullOrWhiteSpace(viewerUserId) && viewerUserId != p.UserId
+            });
 
     public async Task<UserProfileDto> CreateAsync(string userId, CreateUserProfileDto dto)
     {
         Validate(dto.DisplayName, dto.Bio);
 
         if (await _dbContext.Profiles.AnyAsync(p => p.UserId == userId))
+        {
             throw new ConflictException("Profile already exists for this user.");
+        }
 
         var profile = new Profile
         {
             UserId = userId,
             DisplayName = dto.DisplayName.Trim(),
             Bio = string.IsNullOrWhiteSpace(dto.Bio) ? null : dto.Bio.Trim(),
-            AvatarUrl = null // always null on create
+            AvatarUrl = null
         };
 
         _dbContext.Profiles.Add(profile);
         await _dbContext.SaveChangesAsync();
 
-        return await ProjectProfiles()
+        return await ProjectProfiles(userId)
             .FirstAsync(p => p.UserId == profile.UserId);
     }
 
     public async Task<UserProfileDto?> GetByUserIdAsync(string userId)
     {
-        return await ProjectProfiles()
+        return await ProjectProfiles(userId)
             .FirstOrDefaultAsync(p => p.UserId == userId);
     }
 
@@ -79,28 +87,31 @@ public class ProfileService : IProfileService
         Validate(dto.DisplayName, dto.Bio);
 
         var profile = await _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == userId)
-                      ?? throw new NotFoundException("Profile not found.");
+            ?? throw new NotFoundException("Profile not found.");
 
         profile.DisplayName = dto.DisplayName.Trim();
         profile.Bio = string.IsNullOrWhiteSpace(dto.Bio) ? null : dto.Bio.Trim();
 
         await _dbContext.SaveChangesAsync();
 
-        return await ProjectProfiles()
+        return await ProjectProfiles(userId)
             .FirstAsync(p => p.UserId == profile.UserId);
     }
 
     public async Task<UserProfileDto> SetAvatarUrlAsync(string userId, string? avatarUrl)
     {
         var profile = await _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == userId)
-                      ?? throw new NotFoundException("Profile not found.");
+            ?? throw new NotFoundException("Profile not found.");
 
-        profile.AvatarUrl = avatarUrl; // controller ensures same URL each time
+        profile.AvatarUrl = avatarUrl;
         await _dbContext.SaveChangesAsync();
 
-        return await ProjectProfiles()
+        return await ProjectProfiles(userId)
             .FirstAsync(p => p.UserId == profile.UserId);
     }
+
+    public async Task<UserProfileDto> RemoveAvatarAsync(string userId)
+        => await SetAvatarUrlAsync(userId, null);
 
     public async Task<UserProfileDto> UploadAvatarAsync(string userId, IFormFile file)
     {
@@ -151,9 +162,9 @@ public class ProfileService : IProfileService
         return await SetAvatarUrlAsync(userId, publicUrl);
     }
 
-    public async Task<UserProfileDto> GetUserProfileById(string userId)
+    public async Task<UserProfileDto> GetUserProfileById(string userId, string? viewerUserId = null)
     {
-        return await ProjectProfiles()
+        return await ProjectProfiles(viewerUserId)
             .FirstOrDefaultAsync(p => p.UserId == userId)
             ?? throw new NotFoundException("Profile not found.");
     }

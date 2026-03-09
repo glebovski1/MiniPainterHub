@@ -26,6 +26,26 @@ namespace MiniPainterHub.WebApp.Services
             };
         }
 
+        public async Task<ApiResult<PagedResult<PostSummaryDto>>> GetByAuthorAsync(string userId, int page, int pageSize)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/posts/by-user/{Uri.EscapeDataString(userId)}?page={page}&pageSize={pageSize}");
+            var result = await _api.SendForResultAsync<PagedResult<PostSummaryDto>>(request);
+            return result with
+            {
+                Value = result.Value ?? new PagedResult<PostSummaryDto>()
+            };
+        }
+
+        public async Task<ApiResult<PagedResult<PostSummaryDto>>> GetFollowingFeedAsync(int page, int pageSize)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/feed/following?page={page}&pageSize={pageSize}");
+            var result = await _api.SendForResultAsync<PagedResult<PostSummaryDto>>(request);
+            return result with
+            {
+                Value = result.Value ?? new PagedResult<PostSummaryDto>()
+            };
+        }
+
         public async Task<PostDto> GetByIdAsync(int id)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/posts/{id}");

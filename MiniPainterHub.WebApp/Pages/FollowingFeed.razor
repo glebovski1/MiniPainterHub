@@ -1,0 +1,17 @@
+@page "/feed/following"
+@attribute [Authorize]
+@using MiniPainterHub.Common.DTOs
+@using MiniPainterHub.WebApp.Services.Http
+@inject IPostService PostService
+
+<PageTitle>Following feed</PageTitle>
+
+<h1 class="mb-4">Following feed</h1>
+<p class="text-muted">New posts from painters you follow.</p>
+
+<CardList LoadPostsHandler="LoadPosts"></CardList>
+
+@code {
+    private Task<ApiResult<PagedResult<PostSummaryDto>>> LoadPosts(int page, int pageSize)
+        => PostService.GetFollowingFeedAsync(page, pageSize);
+}

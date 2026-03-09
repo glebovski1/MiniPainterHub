@@ -4,10 +4,10 @@
 @inject IPostService PostService
 @inject NavigationManager Nav
 @using MiniPainterHub.WebApp.Shared
-@using System.Linq
-@using System.Collections.Generic
+@using MiniPainterHub.WebApp.Services.Http
+
 <h1 class="mb-4">@UserName</h1>
-<CardList Query="(source) => source.Where(post => post.AuthorId == UserId)"></CardList>
+<CardList LoadPostsHandler="LoadPosts"></CardList>
 
 
 @code {
@@ -17,5 +17,7 @@
 
     [Parameter]
     public string? UserName { get; set; } = string.Empty;
-        
+
+    private Task<ApiResult<PagedResult<PostSummaryDto>>> LoadPosts(int page, int pageSize)
+        => PostService.GetByAuthorAsync(UserId, page, pageSize);
 }

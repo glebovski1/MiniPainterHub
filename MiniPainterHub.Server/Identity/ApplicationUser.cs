@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using MiniPainterHub.Server.Entities;
 using System;
+using System.Collections.Generic;
 
 namespace MiniPainterHub.Server.Identity
 {
@@ -19,5 +20,13 @@ namespace MiniPainterHub.Server.Identity
         public DateTime? SuspensionUpdatedUtc { get; set; }
 
         public Profile? Profile { get; set; }
+
+        public ICollection<Follow> Followers { get; set; } = new List<Follow>();
+
+        public ICollection<Follow> Following { get; set; } = new List<Follow>();
+
+        public ICollection<ConversationParticipant> ConversationParticipants { get; set; } = new List<ConversationParticipant>();
+
+        public ICollection<DirectMessage> SentMessages { get; set; } = new List<DirectMessage>();
     }
 }
