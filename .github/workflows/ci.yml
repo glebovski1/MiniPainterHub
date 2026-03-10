@@ -13,6 +13,7 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,10 +40,10 @@ jobs:
         run: dotnet build MiniPainterHub.sln --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=server-tests.trx" --collect:"XPlat Code Coverage" --results-directory artifacts/test-results
+        run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=server-tests.trx" --collect:"XPlat Code Coverage" --blame-hang-timeout 5m --results-directory artifacts/test-results
 
       - name: Test WebApp components
-        run: dotnet test MiniPainterHub.WebApp.Tests/MiniPainterHub.WebApp.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=webapp-tests.trx" --collect:"XPlat Code Coverage" --results-directory artifacts/test-results
+        run: dotnet test MiniPainterHub.WebApp.Tests/MiniPainterHub.WebApp.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=webapp-tests.trx" --collect:"XPlat Code Coverage" --blame-hang-timeout 5m --results-directory artifacts/test-results
 
       - name: Detect test file changes for anti-flake rerun
         if: github.event_name == 'pull_request'
@@ -59,11 +60,11 @@ jobs:
 
       - name: Anti-flake rerun server tests
         if: github.event_name == 'pull_request' && steps.test_changes.outputs.tests_changed == 'true'
-        run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=server-tests-rerun.trx" --results-directory artifacts/test-results
+        run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=server-tests-rerun.trx" --blame-hang-timeout 5m --results-directory artifacts/test-results
 
       - name: Anti-flake rerun WebApp tests
         if: github.event_name == 'pull_request' && steps.test_changes.outputs.tests_changed == 'true'
-        run: dotnet test MiniPainterHub.WebApp.Tests/MiniPainterHub.WebApp.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=webapp-tests-rerun.trx" --results-directory artifacts/test-results
+        run: dotnet test MiniPainterHub.WebApp.Tests/MiniPainterHub.WebApp.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=webapp-tests-rerun.trx" --blame-hang-timeout 5m --results-directory artifacts/test-results
 
       - name: Upload test results
         if: always()
@@ -76,6 +77,7 @@ jobs:
   hard-tests:
     name: Hard Tests (master/main push + release publish)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: |
       github.event_name == 'release' ||
       (github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'))
@@ -99,7 +101,7 @@ jobs:
         run: dotnet restore MiniPainterHub.sln
 
       - name: Run server tests with coverage (hard gate)
-        run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-restore --logger "trx;LogFileName=server-tests-hard.trx" --collect:"XPlat Code Coverage" --results-directory artifacts/test-results
+        run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-restore --logger "trx;LogFileName=server-tests-hard.trx" --collect:"XPlat Code Coverage" --blame-hang-timeout 5m --results-directory artifacts/test-results
 
       - name: Install npm dependencies
         working-directory: e2e
