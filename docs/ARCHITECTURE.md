@@ -45,6 +45,9 @@ Development-only:
 - WebAssembly debugging
 - Relational DB startup uses `Database.MigrateAsync()`, with guarded recovery for legacy local schemas where Identity tables already exist but migration history does not. When this specific conflict is detected, Development recreates the DB and reapplies migrations (`Database:RecreateOnSchemaConflict`, default `true`).
 - `DataSeeder.SeedAsync(...)`
+- Explicit maintenance commands in `Program.cs`:
+  - `--seed-dev-content --avatars-dir <path>` resets the development DB/local image storage and recreates seeded users, profiles, posts, and avatars through `DevelopmentContentSeeder`.
+  - `--generate-dev-avatars --avatars-dir <path>` refreshes only the seed avatar assets and existing seed-user avatar URLs without reseeding the rest of the database.
 
 Production-only:
 - HSTS
@@ -62,6 +65,7 @@ Registered scoped domain services:
 - `ILikeService -> LikeService`
 - `IAccountRestrictionService -> AccountRestrictionService`
 - `IModerationService -> ModerationService`
+- `DevelopmentContentSeeder` for explicit development-only sample content/avatar maintenance commands
 
 Image infrastructure:
 - `IImageProcessor -> ImageProcessor`

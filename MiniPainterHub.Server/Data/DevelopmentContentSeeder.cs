@@ -19,6 +19,8 @@ namespace MiniPainterHub.Server.Data;
 
 public sealed class DevelopmentContentSeeder
 {
+    private const string SeedAvatarFilePrefix = "seed-avatar-";
+
     private static readonly IReadOnlyList<DevelopmentSeedUser> SeedUsers =
     [
         new(
@@ -169,30 +171,21 @@ public sealed class DevelopmentContentSeeder
 
     public async Task<DevelopmentSeedResult> ResetAndSeedAsync(string avatarsDirectory, CancellationToken ct = default)
     {
-        if (!_environment.IsDevelopment())
-        {
-            throw new InvalidOperationException("Development content seeding is only supported in the Development environment.");
-        }
-
-        if (string.IsNullOrWhiteSpace(avatarsDirectory))
-        {
-            throw new ArgumentException("An avatar source directory is required.", nameof(avatarsDirectory));
-        }
-
+        EnsureDevelopmentEnvironment();
         var avatarFiles = GetAvatarFiles(avatarsDirectory);
 
         await ResetDatabaseAsync(ct);
-        PurgeLocalImageStorage();
+        PrepareLocalImageStorage(clearAllFiles: true);
         await EnsureRolesAsync();
 
         var now = DateTime.UtcNow;
-        var avatarUrls = await UploadAvatarsAsync(avatarFiles, ct);
+        var avatars = await ImportAvatarsAsync(avatarFiles, ct);
         var usersByUserName = new Dictionary<string, ApplicationUser>(StringComparer.OrdinalIgnoreCase);
 
         for (var i = 0; i < SeedUsers.Count; i++)
         {
             var seedUser = SeedUsers[i];
-            var avatarUrl = avatarUrls[i];
+            var avatarUrl = avatars[i].AvatarUrl;
             var joinedUtc = now.AddDays(-(SeedUsers.Count - i) * 6);
 
             var user = new ApplicationUser
@@ -242,14 +235,43 @@ public sealed class DevelopmentContentSeeder
             "Seeded {UserCount} development users, {PostCount} posts, and {AvatarCount} avatars from {AvatarDirectory}",
             SeedUsers.Count,
             posts.Count,
-            avatarUrls.Count,
+            avatars.Count,
             avatarsDirectory);
 
         return new DevelopmentSeedResult(
             SeedUsers.Count,
             posts.Count,
-            avatarUrls.Count,
+            avatars.Count,
             SeedUsers.Select(u => new SeededUserCredential(u.UserName, u.Password, u.Email, u.Roles)).ToList());
+    }
+
+    public async Task<DevelopmentAvatarGenerationResult> GenerateAvatarsOnlyAsync(string avatarsDirectory, CancellationToken ct = default)
+    {
+        EnsureDevelopmentEnvironment();
+        var avatarFiles = GetAvatarFiles(avatarsDirectory);
+
+        PrepareLocalImageStorage(clearAllFiles: false);
+        var avatars = await ImportAvatarsAsync(avatarFiles, ct);
+        var existingUsersUpdated = await ApplyAvatarsToExistingSeedUsersAsync(avatars, ct);
+
+        _logger.LogInformation(
+            "Generated {AvatarCount} development avatars from {AvatarDirectory}; updated {UpdatedUserCount} existing seed users.",
+            avatars.Count,
+            avatarsDirectory,
+            existingUsersUpdated);
+
+        return new DevelopmentAvatarGenerationResult(
+            avatars.Count,
+            existingUsersUpdated,
+            avatars);
+    }
+
+    private void EnsureDevelopmentEnvironment()
+    {
+        if (!_environment.IsDevelopment())
+        {
+            throw new InvalidOperationException("Development content seeding is only supported in the Development environment.");
+        }
     }
 
     private async Task ResetDatabaseAsync(CancellationToken ct)
@@ -265,15 +287,27 @@ public sealed class DevelopmentContentSeeder
         await _dbContext.Database.EnsureCreatedAsync(ct);
     }
 
-    private void PurgeLocalImageStorage()
+    private void PrepareLocalImageStorage(bool clearAllFiles)
     {
         var location = LocalImageStoragePaths.Resolve(_environment, _configuration);
-        if (Directory.Exists(location.PhysicalPath))
+
+        if (clearAllFiles)
         {
-            Directory.Delete(location.PhysicalPath, recursive: true);
+            if (Directory.Exists(location.PhysicalPath))
+            {
+                Directory.Delete(location.PhysicalPath, recursive: true);
+            }
+
+            Directory.CreateDirectory(location.PhysicalPath);
+            return;
         }
 
         Directory.CreateDirectory(location.PhysicalPath);
+
+        foreach (var file in Directory.EnumerateFiles(location.PhysicalPath, $"{SeedAvatarFilePrefix}*", SearchOption.TopDirectoryOnly))
+        {
+            File.Delete(file);
+        }
     }
 
     private async Task EnsureRolesAsync()
@@ -294,9 +328,9 @@ public sealed class DevelopmentContentSeeder
         }
     }
 
-    private async Task<IReadOnlyList<string>> UploadAvatarsAsync(IReadOnlyList<string> avatarFiles, CancellationToken ct)
+    private async Task<IReadOnlyList<SeededAvatarAsset>> ImportAvatarsAsync(IReadOnlyList<string> avatarFiles, CancellationToken ct)
     {
-        var urls = new List<string>(SeedUsers.Count);
+        var avatars = new List<SeededAvatarAsset>(SeedUsers.Count);
 
         for (var i = 0; i < SeedUsers.Count; i++)
         {
@@ -305,17 +339,69 @@ public sealed class DevelopmentContentSeeder
             var seedUser = SeedUsers[i];
             var avatarFile = avatarFiles[i];
             var extension = Path.GetExtension(avatarFile);
-            var uploadFileName = $"seed-avatar-{i + 1:00}-{seedUser.UserName}{extension}";
+            var uploadFileName = $"{SeedAvatarFilePrefix}{i + 1:00}-{seedUser.UserName}{extension}";
 
             await using var stream = File.OpenRead(avatarFile);
-            urls.Add(await _imageService.UploadAsync(stream, uploadFileName));
+            var avatarUrl = await _imageService.UploadAsync(stream, uploadFileName);
+            avatars.Add(new SeededAvatarAsset(
+                seedUser.UserName,
+                seedUser.DisplayName,
+                Path.GetFileName(avatarFile),
+                avatarUrl));
         }
 
-        return urls;
+        return avatars;
+    }
+
+    private async Task<int> ApplyAvatarsToExistingSeedUsersAsync(IReadOnlyList<SeededAvatarAsset> avatars, CancellationToken ct)
+    {
+        var userNames = avatars.Select(avatar => avatar.UserName).ToArray();
+        var users = await _dbContext.Users
+            .OfType<ApplicationUser>()
+            .Where(user => user.UserName != null && userNames.Contains(user.UserName))
+            .ToListAsync(ct);
+
+        if (users.Count == 0)
+        {
+            return 0;
+        }
+
+        var userIds = users.Select(user => user.Id).ToArray();
+        var profiles = await _dbContext.Profiles
+            .Where(profile => userIds.Contains(profile.UserId))
+            .ToListAsync(ct);
+
+        var usersByUserName = users.ToDictionary(user => user.UserName!, StringComparer.OrdinalIgnoreCase);
+        var profilesByUserId = profiles.ToDictionary(profile => profile.UserId, StringComparer.Ordinal);
+        var updatedUsers = 0;
+
+        foreach (var avatar in avatars)
+        {
+            if (!usersByUserName.TryGetValue(avatar.UserName, out var user))
+            {
+                continue;
+            }
+
+            updatedUsers++;
+            user.AvatarUrl = avatar.AvatarUrl;
+
+            if (profilesByUserId.TryGetValue(user.Id, out var profile))
+            {
+                profile.AvatarUrl = avatar.AvatarUrl;
+            }
+        }
+
+        await _dbContext.SaveChangesAsync(ct);
+        return updatedUsers;
     }
 
     private static IReadOnlyList<string> GetAvatarFiles(string avatarsDirectory)
     {
+        if (string.IsNullOrWhiteSpace(avatarsDirectory))
+        {
+            throw new ArgumentException("An avatar source directory is required.", nameof(avatarsDirectory));
+        }
+
         var fullPath = Path.GetFullPath(avatarsDirectory);
         if (!Directory.Exists(fullPath))
         {
@@ -374,11 +460,22 @@ public sealed record DevelopmentSeedResult(
     int AvatarsImported,
     IReadOnlyList<SeededUserCredential> Credentials);
 
+public sealed record DevelopmentAvatarGenerationResult(
+    int AvatarsImported,
+    int ExistingUsersUpdated,
+    IReadOnlyList<SeededAvatarAsset> Avatars);
+
 public sealed record SeededUserCredential(
     string UserName,
     string Password,
     string Email,
     IReadOnlyList<string> Roles);
+
+public sealed record SeededAvatarAsset(
+    string UserName,
+    string DisplayName,
+    string SourceFileName,
+    string AvatarUrl);
 
 internal sealed record DevelopmentSeedUser(
     string UserName,

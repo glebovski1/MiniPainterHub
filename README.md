@@ -29,6 +29,18 @@ When running against SQL Server in `Development`, the server applies EF migratio
 - Default behavior: enabled (`Database:RecreateOnSchemaConflict` defaults to `true` in Development logic)
 - Opt out: set `Database:RecreateOnSchemaConflict=false`
 
+## Development content commands
+
+Use explicit one-off commands when working with seeded dev avatars and sample content:
+
+```powershell
+dotnet run --project MiniPainterHub.Server -- --seed-dev-content --avatars-dir C:\path\to\avatars
+dotnet run --project MiniPainterHub.Server -- --generate-dev-avatars --avatars-dir C:\path\to\avatars
+```
+
+- `--seed-dev-content`: destructive reset of the development database and local image storage, then recreates the seeded users, profiles, posts, and avatar assignments.
+- `--generate-dev-avatars`: imports just the seed-avatar files, refreshes avatar URLs for any existing seeded users/profiles, and leaves all other development data untouched so it is safe to rerun.
+
 ## Admin functionality test checklist
 
 Use this checklist to validate end-to-end admin capabilities after startup:
