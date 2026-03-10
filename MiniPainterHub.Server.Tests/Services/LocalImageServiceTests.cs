@@ -166,7 +166,8 @@ public class LocalImageServiceTests
             var config = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["ImageStorage:LocalPath"] = "images"
+                    ["ImageStorage:LocalPath"] = tempRoot,
+                    ["ImageStorage:RequestPath"] = "/images"
                 })
                 .Build();
 
@@ -175,7 +176,7 @@ public class LocalImageServiceTests
                 config,
                 Microsoft.Extensions.Options.Options.Create(options ?? new ImagesOptions()));
 
-            await assertion(service, Path.Combine(tempRoot, "images"));
+            await assertion(service, tempRoot);
         }
         finally
         {

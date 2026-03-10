@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -25,6 +26,8 @@ using System.Net;
 using System.Security.Cryptography;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -35,6 +38,7 @@ public class Program
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+        var developmentSeedCommand = TryParseDevelopmentSeedCommand(args);
 
         // ------------------------------------------------------------------
         // 1️⃣  Services
@@ -192,6 +196,7 @@ public class Program
         builder.Services.AddScoped<IPostService, PostService>();
         builder.Services.AddScoped<ICommentService, CommentService>();
         builder.Services.AddScoped<ILikeService, LikeService>();
+        builder.Services.AddScoped<DevelopmentContentSeeder>();
         builder.Services.AddScoped<IAccountRestrictionService, AccountRestrictionService>();
         builder.Services.AddScoped<IModerationService, ModerationService>();
         builder.Services.AddScoped<IFollowService, FollowService>();
@@ -200,6 +205,12 @@ public class Program
         builder.Services.AddAuthorization();
 
         var app = builder.Build();
+
+        if (developmentSeedCommand is not null)
+        {
+            await RunDevelopmentSeedAsync(app, developmentSeedCommand);
+            return;
+        }
 
         // ------------------------------------------------------------------
         // 2️⃣  Seed test data
@@ -265,6 +276,18 @@ public class Program
 
         app.UseHttpsRedirection();
         app.UseBlazorFrameworkFiles();  // 🟡 Serve WASM framework files
+
+        if (app.Environment.IsDevelopment())
+        {
+            var localImageStorage = LocalImageStoragePaths.Resolve(app.Environment, app.Configuration);
+            Directory.CreateDirectory(localImageStorage.PhysicalPath);
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(localImageStorage.PhysicalPath),
+                RequestPath = localImageStorage.RequestPath
+            });
+        }
+
         app.UseStaticFiles();
 
         app.UseAuthentication();
@@ -353,4 +376,67 @@ public class Program
 
     private static bool ShouldRecreateOnSchemaConflict(IConfiguration configuration) =>
         configuration.GetValue<bool?>("Database:RecreateOnSchemaConflict") ?? true;
+
+    private static DevelopmentSeedCommand? TryParseDevelopmentSeedCommand(string[] args)
+    {
+        if (!args.Contains("--seed-dev-content", StringComparer.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        string? avatarsDirectory = null;
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (!string.Equals(args[i], "--avatars-dir", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (i + 1 >= args.Length)
+            {
+                throw new InvalidOperationException("The --avatars-dir option requires a value.");
+            }
+
+            avatarsDirectory = args[i + 1];
+            i++;
+        }
+
+        if (string.IsNullOrWhiteSpace(avatarsDirectory))
+        {
+            throw new InvalidOperationException("The --seed-dev-content command requires --avatars-dir <path>.");
+        }
+
+        return new DevelopmentSeedCommand(avatarsDirectory);
+    }
+
+    private static async Task RunDevelopmentSeedAsync(WebApplication app, DevelopmentSeedCommand command)
+    {
+        if (!app.Environment.IsDevelopment())
+        {
+            throw new InvalidOperationException("The --seed-dev-content command can only run in Development.");
+        }
+
+        await using var scope = app.Services.CreateAsyncScope();
+        var seeder = scope.ServiceProvider.GetRequiredService<DevelopmentContentSeeder>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        var result = await seeder.ResetAndSeedAsync(command.AvatarsDirectory);
+
+        logger.LogInformation(
+            "Development seed complete. Users: {Users}, posts: {Posts}, avatars: {Avatars}.",
+            result.UsersCreated,
+            result.PostsCreated,
+            result.AvatarsImported);
+
+        foreach (var credential in result.Credentials)
+        {
+            logger.LogInformation(
+                "Seeded user {UserName} ({Email}) roles [{Roles}] password {Password}",
+                credential.UserName,
+                credential.Email,
+                string.Join(", ", credential.Roles),
+                credential.Password);
+        }
+    }
+
+    private sealed record DevelopmentSeedCommand(string AvatarsDirectory);
 }

@@ -20,10 +20,10 @@ namespace MiniPainterHub.Server.Services
 
         public LocalImageService(IWebHostEnvironment env, IConfiguration config, IOptions<ImagesOptions> options)
         {
-            var relative = config["ImageStorage:LocalPath"] ?? "uploads/images";
-            _basePath = Path.Combine(env.WebRootPath, relative);
+            var location = LocalImageStoragePaths.Resolve(env, config);
+            _basePath = location.PhysicalPath;
             Directory.CreateDirectory(_basePath);
-            _requestPrefix = "/" + relative.Replace("\\", "/");
+            _requestPrefix = location.RequestPath;
             _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         }
 

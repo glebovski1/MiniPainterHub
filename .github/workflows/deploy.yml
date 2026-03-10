@@ -1,0 +1,75 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: production
+        type: choice
+        options:
+          - staging
+          - production
+      ref:
+        description: 'Git ref to deploy (branch, tag, or SHA)'
+        required: true
+        default: master
+        type: string
+
+concurrency:
+  group: deploy-${{ github.event.inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout selected ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore MiniPainterHub.sln
+
+      - name: Publish server artifact
+        run: dotnet publish MiniPainterHub.Server/MiniPainterHub.Server.csproj --configuration Release --no-restore --output artifacts/publish/server
+
+      - name: Upload publish artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-publish-${{ github.run_id }}
+          path: artifacts/publish/server
+          retention-days: 7
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: package
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Download publish artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: server-publish-${{ github.run_id }}
+          path: artifacts/publish/server
+
+      - name: Deploy to Azure Web App
+        if: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE != '' && secrets.AZURE_WEBAPP_NAME != '' }}
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: artifacts/publish/server
+
+      - name: Deployment configuration missing
+        if: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE == '' || secrets.AZURE_WEBAPP_NAME == '' }}
+        run: |
+          echo "Azure deployment secrets are not configured."
+          echo "Please set AZURE_WEBAPP_NAME and AZURE_WEBAPP_PUBLISH_PROFILE in repository or environment secrets."
+          exit 1
