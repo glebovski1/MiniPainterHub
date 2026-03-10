@@ -36,10 +36,13 @@ Use explicit one-off commands when working with seeded dev avatars and sample co
 ```powershell
 dotnet run --project MiniPainterHub.Server -- --seed-dev-content --avatars-dir C:\path\to\avatars
 dotnet run --project MiniPainterHub.Server -- --generate-dev-avatars --avatars-dir C:\path\to\avatars
+dotnet run --project MiniPainterHub.Server -- --seed-dev-content --avatars-dir C:\path\to\avatars --post-images-dir C:\path\to\post-images
 ```
 
 - `--seed-dev-content`: destructive reset of the development database and local image storage, then recreates the seeded users, profiles, posts, and avatar assignments.
+- `--seed-dev-content --post-images-dir <path>`: optional addition that attaches one seeded image to each seeded post. If the folder contains fewer than 20 images, files are reused in sorted order until all posts have an image.
 - `--generate-dev-avatars`: imports just the seed-avatar files, refreshes avatar URLs for any existing seeded users/profiles, and leaves all other development data untouched so it is safe to rerun.
+- Seeded social data: `--seed-dev-content` also creates follow relationships and direct-message conversations so the following feed, public-profile follow counts, and `/messages` UI have immediate development data.
 
 ## Admin functionality test checklist
 

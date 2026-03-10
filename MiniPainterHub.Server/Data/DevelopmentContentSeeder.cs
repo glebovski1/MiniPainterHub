@@ -20,6 +20,7 @@ namespace MiniPainterHub.Server.Data;
 public sealed class DevelopmentContentSeeder
 {
     private const string SeedAvatarFilePrefix = "seed-avatar-";
+    private const string SeedPostImageFilePrefix = "seed-post-";
 
     private static readonly IReadOnlyList<DevelopmentSeedUser> SeedUsers =
     [
@@ -135,7 +136,63 @@ public sealed class DevelopmentContentSeeder
             ])
     ];
 
-    private static readonly HashSet<string> AllowedAvatarExtensions = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly IReadOnlyList<DevelopmentSeedFollow> SeedFollows =
+    [
+        new("admin", "user"),
+        new("admin", "studiomod"),
+        new("admin", "velvetwash"),
+        new("user", "admin"),
+        new("user", "oakpigment"),
+        new("user", "ashenreed"),
+        new("studiomod", "admin"),
+        new("studiomod", "user"),
+        new("studiomod", "velvetwash"),
+        new("cinderfox", "inkandiron"),
+        new("lumenforge", "velvetwash"),
+        new("brasslantern", "admin")
+    ];
+
+    private static readonly IReadOnlyList<DevelopmentSeedConversation> SeedConversations =
+    [
+        new(
+            "admin",
+            "user",
+            [
+                new("admin", "Your snow basing note worked well for the winter challenge. Do you have a good photo of the squad?"),
+                new("user", "Yes, and I finally got the crushed-glass sparkle under control. I can post the recipe tonight."),
+                new("admin", "Perfect. I want something in the seed inbox that looks like real hobby chatter."),
+                new("user", "Then leave this one unread on your side so the badge has something to show.")
+            ],
+            UnreadForUserNames: ["admin"]),
+        new(
+            "admin",
+            "studiomod",
+            [
+                new("studiomod", "I drafted the weekly palette challenge prompt. Want me to pin it after the evening post rush?"),
+                new("admin", "Yes. Keep the brief tight and make the accent-color rule obvious."),
+                new("studiomod", "Done. I will queue it after I answer a couple of feedback threads.")
+            ],
+            UnreadForUserNames: ["admin"]),
+        new(
+            "user",
+            "studiomod",
+            [
+                new("user", "Could you take a look at my cloak blend before I varnish it?"),
+                new("studiomod", "The transitions are good. Push one more midtone glaze across the shoulder and stop there.")
+            ],
+            UnreadForUserNames: ["user"]),
+        new(
+            "velvetwash",
+            "lumenforge",
+            [
+                new("velvetwash", "Your moonlit skin recipe made me rethink my shadow colors."),
+                new("lumenforge", "Try cooling the midtone, not just the recesses. It keeps the face from going chalky."),
+                new("velvetwash", "That should work on the burgundy hero too. I will test it on the next cape.")
+            ],
+            UnreadForUserNames: [])
+    ];
+
+    private static readonly HashSet<string> AllowedSeedImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".png",
         ".jpg",
@@ -169,10 +226,14 @@ public sealed class DevelopmentContentSeeder
         _logger = logger;
     }
 
-    public async Task<DevelopmentSeedResult> ResetAndSeedAsync(string avatarsDirectory, CancellationToken ct = default)
+    public async Task<DevelopmentSeedResult> ResetAndSeedAsync(
+        string avatarsDirectory,
+        string? postImagesDirectory = null,
+        CancellationToken ct = default)
     {
         EnsureDevelopmentEnvironment();
         var avatarFiles = GetAvatarFiles(avatarsDirectory);
+        var postImageFiles = GetPostImageFiles(postImagesDirectory);
 
         await ResetDatabaseAsync(ct);
         PrepareLocalImageStorage(clearAllFiles: true);
@@ -230,18 +291,37 @@ public sealed class DevelopmentContentSeeder
         var posts = CreatePosts(usersByUserName, now);
         _dbContext.Posts.AddRange(posts);
         await _dbContext.SaveChangesAsync(ct);
+        var followsCreated = CreateFollows(usersByUserName, now);
+        _dbContext.Follows.AddRange(followsCreated);
+        var socialSeedResult = CreateConversations(usersByUserName, now);
+        _dbContext.Conversations.AddRange(socialSeedResult.Conversations);
+        await _dbContext.SaveChangesAsync(ct);
+        var postImagesImported = await ImportPostImagesAsync(posts, postImageFiles, ct);
+
+        if (postImagesImported > 0)
+        {
+            await _dbContext.SaveChangesAsync(ct);
+        }
 
         _logger.LogInformation(
-            "Seeded {UserCount} development users, {PostCount} posts, and {AvatarCount} avatars from {AvatarDirectory}",
+            "Seeded {UserCount} development users, {PostCount} posts, {AvatarCount} avatars, {FollowCount} follow relationships, {ConversationCount} conversations, {MessageCount} direct messages, and {PostImageCount} post images from avatar source {AvatarDirectory}{PostImageSuffix}",
             SeedUsers.Count,
             posts.Count,
             avatars.Count,
-            avatarsDirectory);
+            followsCreated.Count,
+            socialSeedResult.Conversations.Count,
+            socialSeedResult.MessageCount,
+            postImagesImported,
+            avatarsDirectory,
+            string.IsNullOrWhiteSpace(postImagesDirectory)
+                ? string.Empty
+                : $" using post image source {postImagesDirectory}");
 
         return new DevelopmentSeedResult(
             SeedUsers.Count,
             posts.Count,
             avatars.Count,
+            postImagesImported,
             SeedUsers.Select(u => new SeededUserCredential(u.UserName, u.Password, u.Email, u.Roles)).ToList());
     }
 
@@ -353,6 +433,36 @@ public sealed class DevelopmentContentSeeder
         return avatars;
     }
 
+    private async Task<int> ImportPostImagesAsync(IReadOnlyList<Post> posts, IReadOnlyList<string> postImageFiles, CancellationToken ct)
+    {
+        if (postImageFiles.Count == 0)
+        {
+            return 0;
+        }
+
+        for (var i = 0; i < posts.Count; i++)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var post = posts[i];
+            var postImageFile = postImageFiles[i % postImageFiles.Count];
+            var extension = Path.GetExtension(postImageFile);
+            var uploadFileName = $"{SeedPostImageFilePrefix}{i + 1:00}-{CreateFileSlug(post.Title)}{extension}";
+
+            await using var stream = File.OpenRead(postImageFile);
+            var imageUrl = await _imageService.UploadAsync(stream, uploadFileName);
+            post.Images.Add(new PostImage
+            {
+                PostId = post.Id,
+                ImageUrl = imageUrl,
+                PreviewUrl = imageUrl,
+                ThumbnailUrl = imageUrl
+            });
+        }
+
+        return posts.Count;
+    }
+
     private async Task<int> ApplyAvatarsToExistingSeedUsersAsync(IReadOnlyList<SeededAvatarAsset> avatars, CancellationToken ct)
     {
         var userNames = avatars.Select(avatar => avatar.UserName).ToArray();
@@ -409,7 +519,7 @@ public sealed class DevelopmentContentSeeder
         }
 
         var files = Directory.EnumerateFiles(fullPath)
-            .Where(file => AllowedAvatarExtensions.Contains(Path.GetExtension(file)))
+            .Where(file => AllowedSeedImageExtensions.Contains(Path.GetExtension(file)))
             .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -420,6 +530,66 @@ public sealed class DevelopmentContentSeeder
         }
 
         return files.Take(SeedUsers.Count).ToList();
+    }
+
+    private static IReadOnlyList<string> GetPostImageFiles(string? postImagesDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(postImagesDirectory))
+        {
+            return Array.Empty<string>();
+        }
+
+        var fullPath = Path.GetFullPath(postImagesDirectory);
+        if (!Directory.Exists(fullPath))
+        {
+            throw new DirectoryNotFoundException($"Post image source directory '{fullPath}' was not found.");
+        }
+
+        var files = Directory.EnumerateFiles(fullPath)
+            .Where(file => AllowedSeedImageExtensions.Contains(Path.GetExtension(file)))
+            .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (files.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"Post image source directory '{fullPath}' must contain at least one PNG/JPG/WEBP file.");
+        }
+
+        return files;
+    }
+
+    private static string CreateFileSlug(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "untitled";
+        }
+
+        var buffer = new char[value.Length];
+        var length = 0;
+        var pendingDash = false;
+
+        foreach (var character in value)
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                if (pendingDash && length > 0)
+                {
+                    buffer[length++] = '-';
+                    pendingDash = false;
+                }
+
+                buffer[length++] = char.ToLowerInvariant(character);
+                continue;
+            }
+
+            pendingDash = length > 0;
+        }
+
+        return length == 0
+            ? "untitled"
+            : new string(buffer, 0, length);
     }
 
     private static List<Post> CreatePosts(
@@ -452,12 +622,114 @@ public sealed class DevelopmentContentSeeder
 
         return posts;
     }
+
+    private static List<Follow> CreateFollows(
+        IReadOnlyDictionary<string, ApplicationUser> usersByUserName,
+        DateTime now)
+    {
+        var follows = new List<Follow>(SeedFollows.Count);
+
+        for (var i = 0; i < SeedFollows.Count; i++)
+        {
+            var seedFollow = SeedFollows[i];
+            follows.Add(new Follow
+            {
+                FollowerUserId = usersByUserName[seedFollow.FollowerUserName].Id,
+                FollowedUserId = usersByUserName[seedFollow.FollowedUserName].Id,
+                CreatedUtc = now.AddHours(-((SeedFollows.Count - i) * 4))
+            });
+        }
+
+        return follows;
+    }
+
+    private static SeededConversationBatch CreateConversations(
+        IReadOnlyDictionary<string, ApplicationUser> usersByUserName,
+        DateTime now)
+    {
+        var conversations = new List<Conversation>(SeedConversations.Count);
+        var totalMessages = 0;
+
+        for (var i = 0; i < SeedConversations.Count; i++)
+        {
+            var seedConversation = SeedConversations[i];
+            var firstUser = usersByUserName[seedConversation.FirstUserName];
+            var secondUser = usersByUserName[seedConversation.SecondUserName];
+            var baseUtc = now.AddHours(-((SeedConversations.Count - i) * 6));
+
+            var conversation = new Conversation
+            {
+                CreatedUtc = baseUtc,
+                UpdatedUtc = baseUtc,
+                Participants = new List<ConversationParticipant>
+                {
+                    new()
+                    {
+                        UserId = firstUser.Id,
+                        JoinedUtc = baseUtc,
+                        LastReadMessageUtc = null
+                    },
+                    new()
+                    {
+                        UserId = secondUser.Id,
+                        JoinedUtc = baseUtc,
+                        LastReadMessageUtc = null
+                    }
+                },
+                Messages = new List<DirectMessage>()
+            };
+
+            DateTime? lastMessageUtc = null;
+            var lastMessageByUserName = new Dictionary<string, DateTime?>(StringComparer.OrdinalIgnoreCase)
+            {
+                [seedConversation.FirstUserName] = null,
+                [seedConversation.SecondUserName] = null
+            };
+
+            for (var messageIndex = 0; messageIndex < seedConversation.Messages.Count; messageIndex++)
+            {
+                var seedMessage = seedConversation.Messages[messageIndex];
+                var sender = usersByUserName[seedMessage.SenderUserName];
+                var sentUtc = baseUtc.AddMinutes((messageIndex + 1) * 9);
+                var message = new DirectMessage
+                {
+                    SenderUserId = sender.Id,
+                    Body = seedMessage.Body,
+                    SentUtc = sentUtc
+                };
+
+                conversation.Messages.Add(message);
+                conversation.UpdatedUtc = sentUtc;
+                lastMessageUtc = sentUtc;
+                lastMessageByUserName[seedMessage.SenderUserName] = sentUtc;
+                totalMessages++;
+            }
+
+            foreach (var participant in conversation.Participants)
+            {
+                var participantUserName = string.Equals(participant.UserId, firstUser.Id, StringComparison.Ordinal)
+                    ? seedConversation.FirstUserName
+                    : seedConversation.SecondUserName;
+
+                participant.LastReadMessageUtc = seedConversation.UnreadForUserNames.Contains(participantUserName, StringComparer.OrdinalIgnoreCase)
+                    ? lastMessageByUserName.TryGetValue(participantUserName, out var ownLastMessageUtc)
+                        ? ownLastMessageUtc
+                        : null
+                    : lastMessageUtc;
+            }
+
+            conversations.Add(conversation);
+        }
+
+        return new SeededConversationBatch(conversations, totalMessages);
+    }
 }
 
 public sealed record DevelopmentSeedResult(
     int UsersCreated,
     int PostsCreated,
     int AvatarsImported,
+    int PostImagesImported,
     IReadOnlyList<SeededUserCredential> Credentials);
 
 public sealed record DevelopmentAvatarGenerationResult(
@@ -487,3 +759,15 @@ internal sealed record DevelopmentSeedUser(
     IReadOnlyList<DevelopmentSeedPost> Posts);
 
 internal sealed record DevelopmentSeedPost(string Title, string Content);
+
+internal sealed record DevelopmentSeedFollow(string FollowerUserName, string FollowedUserName);
+
+internal sealed record DevelopmentSeedConversation(
+    string FirstUserName,
+    string SecondUserName,
+    IReadOnlyList<DevelopmentSeedMessage> Messages,
+    IReadOnlyList<string> UnreadForUserNames);
+
+internal sealed record DevelopmentSeedMessage(string SenderUserName, string Body);
+
+internal sealed record SeededConversationBatch(IReadOnlyList<Conversation> Conversations, int MessageCount);

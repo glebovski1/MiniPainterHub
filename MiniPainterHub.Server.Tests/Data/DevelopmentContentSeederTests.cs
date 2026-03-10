@@ -1,8 +1,10 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Identity;
+using MiniPainterHub.Server.Services.Interfaces;
 using MiniPainterHub.Server.Tests.Infrastructure;
 using System;
 using System.Collections.Generic;
@@ -41,13 +43,121 @@ public class DevelopmentContentSeederTests
             result.UsersCreated.Should().Be(10);
             result.PostsCreated.Should().Be(20);
             result.AvatarsImported.Should().Be(10);
+            result.PostImagesImported.Should().Be(0);
             db.Users.Should().HaveCount(10);
             db.Profiles.Should().HaveCount(10);
             db.Posts.Should().HaveCount(20);
+            db.Follows.Should().HaveCount(12);
+            db.Conversations.Should().HaveCount(4);
+            db.DirectMessages.Should().HaveCount(12);
 
             db.Users.Select(u => u.UserName).Should().Contain(new[] { "admin", "user", "studiomod" });
             db.Users.OfType<ApplicationUser>().All(u => !string.IsNullOrWhiteSpace(u.AvatarUrl)).Should().BeTrue();
             Directory.GetFiles(imageRoot).Should().HaveCount(10);
+        }
+        finally
+        {
+            if (Directory.Exists(testRoot))
+            {
+                Directory.Delete(testRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ResetAndSeedAsync_WithPostImageSource_AttachesOneSeedImageToEachPost_ReusingFilesAsNeeded()
+    {
+        var testRoot = Path.Combine(Path.GetTempPath(), "MiniPainterHub.SeedTests", Guid.NewGuid().ToString("N"));
+        var imageRoot = Path.Combine(testRoot, "storage");
+        var avatarSource = Path.Combine(testRoot, "avatars");
+        var postImageSource = Path.Combine(testRoot, "post-images");
+        Directory.CreateDirectory(imageRoot);
+
+        try
+        {
+            await CreateAvatarSourceAsync(avatarSource, ".png");
+            await CreatePostImageSourceAsync(postImageSource, 5, ".jpg");
+
+            using var factory = new IntegrationTestApplicationFactory(new Dictionary<string, string?>
+            {
+                ["ImageStorage:LocalPath"] = imageRoot,
+                ["ImageStorage:RequestPath"] = "/uploads/images"
+            });
+
+            using var scope = factory.Services.CreateScope();
+            var seeder = scope.ServiceProvider.GetRequiredService<DevelopmentContentSeeder>();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var result = await seeder.ResetAndSeedAsync(avatarSource, postImageSource);
+
+            result.UsersCreated.Should().Be(10);
+            result.PostsCreated.Should().Be(20);
+            result.AvatarsImported.Should().Be(10);
+            result.PostImagesImported.Should().Be(20);
+
+            db.Posts.Include(post => post.Images).Should().OnlyContain(post => post.Images.Count == 1);
+            db.PostImages.Should().HaveCount(20);
+            db.PostImages.Select(image => image.ImageUrl).Should().OnlyContain(url => !string.IsNullOrWhiteSpace(url));
+            db.PostImages.Select(image => image.ThumbnailUrl).Should().OnlyContain(url => !string.IsNullOrWhiteSpace(url));
+            db.PostImages.Select(image => image.PreviewUrl).Should().OnlyContain(url => !string.IsNullOrWhiteSpace(url));
+            Directory.GetFiles(imageRoot).Should().HaveCount(30);
+            Directory.GetFiles(imageRoot, "seed-post-*").Should().HaveCount(20);
+        }
+        finally
+        {
+            if (Directory.Exists(testRoot))
+            {
+                Directory.Delete(testRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ResetAndSeedAsync_SeedsFollowAndConversationData_ForMessagingAndFollowerTesting()
+    {
+        var testRoot = Path.Combine(Path.GetTempPath(), "MiniPainterHub.SeedTests", Guid.NewGuid().ToString("N"));
+        var imageRoot = Path.Combine(testRoot, "storage");
+        var avatarSource = Path.Combine(testRoot, "avatars");
+        Directory.CreateDirectory(imageRoot);
+
+        try
+        {
+            await CreateAvatarSourceAsync(avatarSource, ".png");
+
+            using var factory = new IntegrationTestApplicationFactory(new Dictionary<string, string?>
+            {
+                ["ImageStorage:LocalPath"] = imageRoot,
+                ["ImageStorage:RequestPath"] = "/uploads/images"
+            });
+
+            using var scope = factory.Services.CreateScope();
+            var seeder = scope.ServiceProvider.GetRequiredService<DevelopmentContentSeeder>();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var follows = scope.ServiceProvider.GetRequiredService<IFollowService>();
+            var conversations = scope.ServiceProvider.GetRequiredService<IConversationService>();
+
+            await seeder.ResetAndSeedAsync(avatarSource);
+
+            var adminId = db.Users.OfType<ApplicationUser>().Single(user => user.UserName == "admin").Id;
+            var userId = db.Users.OfType<ApplicationUser>().Single(user => user.UserName == "user").Id;
+            var studiomodId = db.Users.OfType<ApplicationUser>().Single(user => user.UserName == "studiomod").Id;
+
+            var adminFollowing = await follows.GetFollowingAsync(adminId);
+            var adminFollowers = await follows.GetFollowersAsync(adminId);
+            var adminConversations = await conversations.GetConversationsAsync(adminId);
+            var adminToUserConversation = adminConversations.Single(conversation => conversation.OtherUser.UserId == userId);
+            var adminMessages = await conversations.GetMessagesAsync(adminId, adminToUserConversation.Id, beforeMessageId: null, pageSize: 20);
+            var studiomodConversations = await conversations.GetConversationsAsync(studiomodId);
+
+            adminFollowing.Select(profile => profile.UserId).Should().Contain(new[] { userId, studiomodId });
+            adminFollowers.Select(profile => profile.UserId).Should().Contain(new[] { userId, studiomodId });
+            adminConversations.Should().HaveCount(2);
+            adminConversations.Should().Contain(conversation => conversation.OtherUser.UserId == studiomodId);
+            adminConversations.Should().Contain(conversation => conversation.UnreadCount > 0);
+            adminToUserConversation.UnreadCount.Should().Be(1);
+            adminMessages.Items.Should().HaveCount(4);
+            adminMessages.Items.Last().Body.Should().Contain("badge");
+            studiomodConversations.Should().Contain(conversation => conversation.OtherUser.UserId == adminId);
+            studiomodConversations.Should().Contain(conversation => conversation.OtherUser.UserId == userId);
         }
         finally
         {
@@ -198,6 +308,18 @@ public class DevelopmentContentSeederTests
             await File.WriteAllBytesAsync(
                 Path.Combine(avatarSource, $"avatar-{i:00}{extension}"),
                 CreateAvatarBytes(extension, i));
+        }
+    }
+
+    private static async Task CreatePostImageSourceAsync(string postImageSource, int fileCount, string extension)
+    {
+        Directory.CreateDirectory(postImageSource);
+
+        for (var i = 1; i <= fileCount; i++)
+        {
+            await File.WriteAllBytesAsync(
+                Path.Combine(postImageSource, $"post-image-{i:00}{extension}"),
+                CreateAvatarBytes(extension, i + 32));
         }
     }
 

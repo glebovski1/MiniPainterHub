@@ -393,20 +393,31 @@ public class Program
         }
 
         string? avatarsDirectory = null;
+        string? postImagesDirectory = null;
         for (var i = 0; i < args.Length; i++)
         {
-            if (!string.Equals(args[i], "--avatars-dir", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(args[i], "--avatars-dir", StringComparison.OrdinalIgnoreCase))
             {
+                if (i + 1 >= args.Length)
+                {
+                    throw new InvalidOperationException("The --avatars-dir option requires a value.");
+                }
+
+                avatarsDirectory = args[i + 1];
+                i++;
                 continue;
             }
 
-            if (i + 1 >= args.Length)
+            if (string.Equals(args[i], "--post-images-dir", StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException("The --avatars-dir option requires a value.");
-            }
+                if (i + 1 >= args.Length)
+                {
+                    throw new InvalidOperationException("The --post-images-dir option requires a value.");
+                }
 
-            avatarsDirectory = args[i + 1];
-            i++;
+                postImagesDirectory = args[i + 1];
+                i++;
+            }
         }
 
         if (string.IsNullOrWhiteSpace(avatarsDirectory))
@@ -415,11 +426,16 @@ public class Program
             throw new InvalidOperationException($"The {commandName} command requires --avatars-dir <path>.");
         }
 
+        if (generateDevAvatars && !string.IsNullOrWhiteSpace(postImagesDirectory))
+        {
+            throw new InvalidOperationException("The --generate-dev-avatars command does not support --post-images-dir.");
+        }
+
         var commandKind = seedDevContent
             ? DevelopmentCommandKind.SeedContent
             : DevelopmentCommandKind.GenerateAvatarsOnly;
 
-        return new DevelopmentCommand(commandKind, avatarsDirectory);
+        return new DevelopmentCommand(commandKind, avatarsDirectory, postImagesDirectory);
     }
 
     private static async Task RunDevelopmentCommandAsync(WebApplication app, DevelopmentCommand command)
@@ -436,13 +452,14 @@ public class Program
         {
             case DevelopmentCommandKind.SeedContent:
             {
-                var result = await seeder.ResetAndSeedAsync(command.AvatarsDirectory);
+                var result = await seeder.ResetAndSeedAsync(command.AvatarsDirectory, command.PostImagesDirectory);
 
                 logger.LogInformation(
-                    "Development seed complete. Users: {Users}, posts: {Posts}, avatars: {Avatars}.",
+                    "Development seed complete. Users: {Users}, posts: {Posts}, avatars: {Avatars}, post images: {PostImages}.",
                     result.UsersCreated,
                     result.PostsCreated,
-                    result.AvatarsImported);
+                    result.AvatarsImported,
+                    result.PostImagesImported);
 
                 foreach (var credential in result.Credentials)
                 {
@@ -494,5 +511,5 @@ public class Program
         GenerateAvatarsOnly
     }
 
-    private sealed record DevelopmentCommand(DevelopmentCommandKind Kind, string AvatarsDirectory);
+    private sealed record DevelopmentCommand(DevelopmentCommandKind Kind, string AvatarsDirectory, string? PostImagesDirectory);
 }
