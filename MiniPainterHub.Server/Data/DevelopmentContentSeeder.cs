@@ -192,6 +192,26 @@ public sealed class DevelopmentContentSeeder
             UnreadForUserNames: [])
     ];
 
+    private static readonly IReadOnlyList<DevelopmentSeedComment> SeedComments =
+    [
+        new("admin", "Studio kickoff: 2026 painting goals", "user", "That swamp warband lineup looks strong already. The desk reset is going to pay off."),
+        new("admin", "Studio kickoff: 2026 painting goals", "studiomod", "The basing plan sounds good. Post the final recipe once you lock the mud tones in."),
+        new("admin", "WIP: rusted sentinel captain", "inkandiron", "The copper undercoat is doing exactly what it should here. The corrosion reads much better."),
+        new("user", "First squad done this month", "oakpigment", "Keeping the greens tight was the right move. The unit reads like one campaign formation."),
+        new("user", "Snow basing experiment", "admin", "The cold blue note is subtle but it lands. This would photograph well as a feature post."),
+        new("user", "Snow basing experiment", "ashenreed", "The snow texture looks clean. I would leave it exactly this restrained."),
+        new("studiomod", "Quick tip: smoother cloaks", "velvetwash", "This is the kind of reminder people need before they overwork a blend."),
+        new("studiomod", "Palette challenge thread idea", "cinderfox", "One accent color plus one texture goal is a good constraint. I would join that thread."),
+        new("inkandiron", "Hazard stripes on boarding shields", "cinderfox", "Masked stripes always win on units. The repetition makes the whole group feel sharper."),
+        new("inkandiron", "Neon lens recipe", "lumenforge", "That white core keeps the glow crisp. It is much cleaner than broad drybrushed light."),
+        new("velvetwash", "Burgundy cloak progression", "studiomod", "The muted rose highlight keeps it rich without turning pink. Strong call."),
+        new("brasslantern", "Mud mix that survived varnish", "admin", "The sheen survived exactly enough. It still reads like terrain instead of resin gloss."),
+        new("ashenreed", "Photo backdrop upgrade", "user", "Warm grey card really does fix half the battle with phone photos."),
+        new("cinderfox", "Orange spot color test", "studiomod", "This is a perfect readability example. The accent carries from across the table."),
+        new("oakpigment", "Command stand complete", "user", "Keeping the officer cleaner was enough. The eye lands there without breaking the palette."),
+        new("lumenforge", "Runes with less chalkiness", "velvetwash", "Thin glazes over a white base are slower, but the effect looks much more deliberate.")
+    ];
+
     private static readonly HashSet<string> AllowedSeedImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".png",
@@ -291,6 +311,8 @@ public sealed class DevelopmentContentSeeder
         var posts = CreatePosts(usersByUserName, now);
         _dbContext.Posts.AddRange(posts);
         await _dbContext.SaveChangesAsync(ct);
+        var commentsCreated = CreateComments(posts, usersByUserName);
+        _dbContext.Comments.AddRange(commentsCreated);
         var followsCreated = CreateFollows(usersByUserName, now);
         _dbContext.Follows.AddRange(followsCreated);
         var socialSeedResult = CreateConversations(usersByUserName, now);
@@ -304,9 +326,10 @@ public sealed class DevelopmentContentSeeder
         }
 
         _logger.LogInformation(
-            "Seeded {UserCount} development users, {PostCount} posts, {AvatarCount} avatars, {FollowCount} follow relationships, {ConversationCount} conversations, {MessageCount} direct messages, and {PostImageCount} post images from avatar source {AvatarDirectory}{PostImageSuffix}",
+            "Seeded {UserCount} development users, {PostCount} posts, {CommentCount} comments, {AvatarCount} avatars, {FollowCount} follow relationships, {ConversationCount} conversations, {MessageCount} direct messages, and {PostImageCount} post images from avatar source {AvatarDirectory}{PostImageSuffix}",
             SeedUsers.Count,
             posts.Count,
+            commentsCreated.Count,
             avatars.Count,
             followsCreated.Count,
             socialSeedResult.Conversations.Count,
@@ -320,6 +343,7 @@ public sealed class DevelopmentContentSeeder
         return new DevelopmentSeedResult(
             SeedUsers.Count,
             posts.Count,
+            commentsCreated.Count,
             avatars.Count,
             postImagesImported,
             SeedUsers.Select(u => new SeededUserCredential(u.UserName, u.Password, u.Email, u.Roles)).ToList());
@@ -623,6 +647,48 @@ public sealed class DevelopmentContentSeeder
         return posts;
     }
 
+    private static List<Comment> CreateComments(
+        IReadOnlyList<Post> posts,
+        IReadOnlyDictionary<string, ApplicationUser> usersByUserName)
+    {
+        var comments = new List<Comment>(SeedComments.Count);
+
+        for (var i = 0; i < SeedComments.Count; i++)
+        {
+            var seedComment = SeedComments[i];
+            var postOwner = usersByUserName[seedComment.PostOwnerUserName];
+            var author = usersByUserName[seedComment.CommentAuthorUserName];
+            var post = posts.SingleOrDefault(candidate =>
+                string.Equals(candidate.CreatedById, postOwner.Id, StringComparison.Ordinal)
+                && string.Equals(candidate.Title, seedComment.PostTitle, StringComparison.Ordinal));
+
+            if (post is null)
+            {
+                throw new InvalidOperationException(
+                    $"Seed comment target post '{seedComment.PostTitle}' for '{seedComment.PostOwnerUserName}' was not created.");
+            }
+
+            if (string.Equals(post.CreatedById, author.Id, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Seed comment author '{seedComment.CommentAuthorUserName}' cannot comment on their own seeded post '{seedComment.PostTitle}'.");
+            }
+
+            var createdUtc = post.CreatedUtc.AddMinutes((i % 3 + 1) * 11);
+            comments.Add(new Comment
+            {
+                PostId = post.Id,
+                AuthorId = author.Id,
+                Text = seedComment.Text,
+                CreatedUtc = createdUtc,
+                UpdatedUtc = createdUtc,
+                IsDeleted = false
+            });
+        }
+
+        return comments;
+    }
+
     private static List<Follow> CreateFollows(
         IReadOnlyDictionary<string, ApplicationUser> usersByUserName,
         DateTime now)
@@ -728,6 +794,7 @@ public sealed class DevelopmentContentSeeder
 public sealed record DevelopmentSeedResult(
     int UsersCreated,
     int PostsCreated,
+    int CommentsCreated,
     int AvatarsImported,
     int PostImagesImported,
     IReadOnlyList<SeededUserCredential> Credentials);
@@ -769,5 +836,11 @@ internal sealed record DevelopmentSeedConversation(
     IReadOnlyList<string> UnreadForUserNames);
 
 internal sealed record DevelopmentSeedMessage(string SenderUserName, string Body);
+
+internal sealed record DevelopmentSeedComment(
+    string PostOwnerUserName,
+    string PostTitle,
+    string CommentAuthorUserName,
+    string Text);
 
 internal sealed record SeededConversationBatch(IReadOnlyList<Conversation> Conversations, int MessageCount);

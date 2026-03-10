@@ -18,7 +18,7 @@ namespace MiniPainterHub.Server.Tests.Data;
 public class DevelopmentContentSeederTests
 {
     [Fact]
-    public async Task ResetAndSeedAsync_CreatesTenUsersProfilesPostsAndAvatars()
+    public async Task ResetAndSeedAsync_CreatesTenUsersProfilesPostsCommentsAndAvatars()
     {
         var testRoot = Path.Combine(Path.GetTempPath(), "MiniPainterHub.SeedTests", Guid.NewGuid().ToString("N"));
         var imageRoot = Path.Combine(testRoot, "storage");
@@ -42,11 +42,13 @@ public class DevelopmentContentSeederTests
 
             result.UsersCreated.Should().Be(10);
             result.PostsCreated.Should().Be(20);
+            result.CommentsCreated.Should().Be(16);
             result.AvatarsImported.Should().Be(10);
             result.PostImagesImported.Should().Be(0);
             db.Users.Should().HaveCount(10);
             db.Profiles.Should().HaveCount(10);
             db.Posts.Should().HaveCount(20);
+            db.Comments.Should().HaveCount(16);
             db.Follows.Should().HaveCount(12);
             db.Conversations.Should().HaveCount(4);
             db.DirectMessages.Should().HaveCount(12);
@@ -158,6 +160,60 @@ public class DevelopmentContentSeederTests
             adminMessages.Items.Last().Body.Should().Contain("badge");
             studiomodConversations.Should().Contain(conversation => conversation.OtherUser.UserId == adminId);
             studiomodConversations.Should().Contain(conversation => conversation.OtherUser.UserId == userId);
+        }
+        finally
+        {
+            if (Directory.Exists(testRoot))
+            {
+                Directory.Delete(testRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ResetAndSeedAsync_SeedsCrossUserComments_OnOtherUsersPosts()
+    {
+        var testRoot = Path.Combine(Path.GetTempPath(), "MiniPainterHub.SeedTests", Guid.NewGuid().ToString("N"));
+        var imageRoot = Path.Combine(testRoot, "storage");
+        var avatarSource = Path.Combine(testRoot, "avatars");
+        Directory.CreateDirectory(imageRoot);
+
+        try
+        {
+            await CreateAvatarSourceAsync(avatarSource, ".png");
+
+            using var factory = new IntegrationTestApplicationFactory(new Dictionary<string, string?>
+            {
+                ["ImageStorage:LocalPath"] = imageRoot,
+                ["ImageStorage:RequestPath"] = "/uploads/images"
+            });
+
+            using var scope = factory.Services.CreateScope();
+            var seeder = scope.ServiceProvider.GetRequiredService<DevelopmentContentSeeder>();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var comments = scope.ServiceProvider.GetRequiredService<ICommentService>();
+
+            await seeder.ResetAndSeedAsync(avatarSource);
+
+            var seededComments = db.Comments
+                .Include(comment => comment.Author)
+                .Include(comment => comment.Post)
+                .ToList();
+            var rustedSentinelPostId = db.Posts.Single(post => post.Title == "WIP: rusted sentinel captain").Id;
+            var rustedSentinelComments = await comments.GetByPostIdAsync(rustedSentinelPostId, page: 1, pageSize: 10);
+
+            seededComments.Should().HaveCount(16);
+            seededComments.Should().OnlyContain(comment => comment.AuthorId != comment.Post.CreatedById);
+            seededComments
+                .Select(comment => comment.Author.UserName)
+                .Where(userName => !string.IsNullOrWhiteSpace(userName))
+                .Distinct()
+                .Count()
+                .Should()
+                .BeGreaterOrEqualTo(8);
+            rustedSentinelComments.Items.Should().ContainSingle(comment =>
+                comment.AuthorName == "inkandiron"
+                && comment.Content.Contains("copper undercoat", StringComparison.Ordinal));
         }
         finally
         {

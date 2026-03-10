@@ -455,9 +455,10 @@ public class Program
                 var result = await seeder.ResetAndSeedAsync(command.AvatarsDirectory, command.PostImagesDirectory);
 
                 logger.LogInformation(
-                    "Development seed complete. Users: {Users}, posts: {Posts}, avatars: {Avatars}, post images: {PostImages}.",
+                    "Development seed complete. Users: {Users}, posts: {Posts}, comments: {Comments}, avatars: {Avatars}, post images: {PostImages}.",
                     result.UsersCreated,
                     result.PostsCreated,
+                    result.CommentsCreated,
                     result.AvatarsImported,
                     result.PostImagesImported);
 
