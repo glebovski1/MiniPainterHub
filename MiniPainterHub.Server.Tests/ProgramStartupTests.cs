@@ -154,7 +154,8 @@ public class ProgramStartupTests
 
         seededPosts.Should().Contain(post => post.Title == "Seeded: glazing check");
         seededPosts.Should().OnlyContain(post => post.PostTags.Count > 0);
-        seededPosts.Single(post => post.Title == "Seeded: glazing check").Images.Should().ContainSingle();
+        seededPosts.Where(post => post.Images.Count > 0).Should().HaveCount(2);
+        seededPosts.Where(post => post.Images.Count > 0).Should().OnlyContain(post => post.PostTags.Count > 0);
     }
 
     private static IntegrationTestApplicationFactory CreateResetEnabledFactory(IPAddress remoteIp)

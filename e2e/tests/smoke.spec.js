@@ -88,10 +88,15 @@ test("seeded post with image and tags renders on feed and details", async ({ pag
   await page.goto("/");
 
   const seededCard = page.locator(".card", { hasText: "Seeded: glazing check" }).first();
+  const weatheringCard = page.locator(".card", { hasText: "Seeded: weathering notes" }).first();
   await expect(seededCard).toBeVisible();
+  await expect(weatheringCard).toBeVisible();
   await expect(seededCard.getByTestId("post-card-image")).toBeVisible();
   await expect(seededCard.getByTestId("post-card-tags")).toContainText("#glazing");
   await expect(seededCard.getByTestId("post-card-tags")).toContainText("#nmm");
+  await expect(weatheringCard.getByTestId("post-card-image")).toBeVisible();
+  await expect(weatheringCard.getByTestId("post-card-tags")).toContainText("#weathering");
+  await expect(weatheringCard.getByTestId("post-card-tags")).toContainText("#battle-damage");
 
   await seededCard.getByRole("link", { name: "Seeded: glazing check" }).click();
 

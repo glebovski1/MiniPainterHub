@@ -28,14 +28,14 @@ namespace MiniPainterHub.Server.Data
                 "admin",
                 "Seeded: glazing check",
                 "Baseline seeded post to verify tag rendering on the home feed.",
-                ["glazing", "nmm", "seeded"],
+                ["glazing", "nmm", "display", "seeded"],
                 "seeded-glazing-check.png"),
             new(
                 "user",
                 "Seeded: weathering notes",
                 "Second baseline seeded post for search and tag aggregation checks.",
-                ["weathering", "battle-damage", "seeded"],
-                null)
+                ["weathering", "battle-damage", "grimdark", "seeded"],
+                "seeded-weathering-notes.png")
         ];
 
         public static async Task SeedAsync(IServiceProvider services)
@@ -227,6 +227,8 @@ namespace MiniPainterHub.Server.Data
             UserManager<ApplicationUser> userManager,
             IImageService imageService)
         {
+            ValidateSeedPosts();
+
             var existingTags = await db.Tags.ToListAsync();
             var tagsByNormalizedName = existingTags.ToDictionary(tag => tag.NormalizedName, StringComparer.OrdinalIgnoreCase);
             var usedSlugs = existingTags.Select(tag => tag.Slug).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -354,6 +356,24 @@ namespace MiniPainterHub.Server.Data
             }
 
             return candidate;
+        }
+
+        private static void ValidateSeedPosts()
+        {
+            foreach (var seedPost in SeedPosts)
+            {
+                var validTags = seedPost.Tags
+                    .Where(tag => !string.IsNullOrWhiteSpace(tag))
+                    .ToList();
+
+                if (validTags.Count == 0)
+                {
+                    throw new InvalidOperationException(
+                        string.IsNullOrWhiteSpace(seedPost.ImageFileName)
+                            ? $"Seed post '{seedPost.Title}' must define at least one tag."
+                            : $"Image-backed seed post '{seedPost.Title}' must define at least one tag.");
+                }
+            }
         }
 
         private static async Task SyncPostImageAsync(

@@ -252,6 +252,7 @@ public sealed class DevelopmentContentSeeder
         CancellationToken ct = default)
     {
         EnsureDevelopmentEnvironment();
+        ValidateSeedPostsHaveTags();
         var avatarFiles = GetAvatarFiles(avatarsDirectory);
         var postImageFiles = GetPostImageFiles(postImagesDirectory);
 
@@ -352,6 +353,7 @@ public sealed class DevelopmentContentSeeder
     public async Task<DevelopmentAvatarGenerationResult> GenerateAvatarsOnlyAsync(string avatarsDirectory, CancellationToken ct = default)
     {
         EnsureDevelopmentEnvironment();
+        ValidateSeedPostsHaveTags();
         var avatarFiles = GetAvatarFiles(avatarsDirectory);
 
         PrepareLocalImageStorage(clearAllFiles: false);
@@ -375,6 +377,25 @@ public sealed class DevelopmentContentSeeder
         if (!_environment.IsDevelopment())
         {
             throw new InvalidOperationException("Development content seeding is only supported in the Development environment.");
+        }
+    }
+
+    private static void ValidateSeedPostsHaveTags()
+    {
+        foreach (var seedUser in SeedUsers)
+        {
+            foreach (var seedPost in seedUser.Posts)
+            {
+                var validTags = seedPost.Tags
+                    .Where(tag => !string.IsNullOrWhiteSpace(tag))
+                    .ToList();
+
+                if (validTags.Count == 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Development seed post '{seedPost.Title}' for '{seedUser.UserName}' must define at least one tag.");
+                }
+            }
         }
     }
 

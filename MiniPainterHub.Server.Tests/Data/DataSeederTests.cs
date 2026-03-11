@@ -34,9 +34,9 @@ public class DataSeederTests
         db.Users.Should().HaveCount(2);
         db.Roles.Should().HaveCount(3);
         db.Posts.Should().HaveCount(2);
-        db.PostImages.Should().HaveCount(1);
-        db.Tags.Should().HaveCount(5);
-        db.PostTags.Should().HaveCount(6);
+        db.PostImages.Should().HaveCount(2);
+        db.Tags.Should().HaveCount(7);
+        db.PostTags.Should().HaveCount(8);
         (await roles.RoleExistsAsync("Admin")).Should().BeTrue();
         (await roles.RoleExistsAsync("User")).Should().BeTrue();
         (await roles.RoleExistsAsync("Moderator")).Should().BeTrue();
@@ -50,17 +50,24 @@ public class DataSeederTests
         normalUser.Should().NotBeNull();
         (await users.IsInRoleAsync(normalUser!, "User")).Should().BeTrue();
 
-        var glazingPost = await db.Posts
+        var imageBackedPosts = await db.Posts
             .Include(post => post.Images)
             .Include(post => post.PostTags)
             .ThenInclude(postTag => postTag.Tag)
-            .SingleAsync(post => post.Title == "Seeded: glazing check");
-        glazingPost.Images.Should().ContainSingle();
-        glazingPost.Images[0].ImageUrl.Should().StartWith("/uploads/images/");
+            .Where(post => post.Images.Any())
+            .ToListAsync();
+
+        imageBackedPosts.Should().HaveCount(2);
+        imageBackedPosts.Should().OnlyContain(post => post.PostTags.Count > 0);
+        imageBackedPosts.SelectMany(post => post.Images)
+            .Should()
+            .OnlyContain(image => image.ImageUrl.StartsWith("/uploads/images/", StringComparison.Ordinal));
+
+        var glazingPost = imageBackedPosts.Single(post => post.Title == "Seeded: glazing check");
         glazingPost.PostTags
             .Select(postTag => postTag.Tag.DisplayName)
             .Should()
-            .BeEquivalentTo("glazing", "nmm", "seeded");
+            .BeEquivalentTo("glazing", "nmm", "display", "seeded");
     }
 
     [Fact]

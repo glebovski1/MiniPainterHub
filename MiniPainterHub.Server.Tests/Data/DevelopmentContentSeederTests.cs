@@ -149,6 +149,11 @@ public class DevelopmentContentSeederTests
             result.PostImagesImported.Should().Be(20);
 
             db.Posts.Include(post => post.Images).Should().OnlyContain(post => post.Images.Count == 1);
+            db.Posts
+                .Include(post => post.Images)
+                .Include(post => post.PostTags)
+                .Should()
+                .OnlyContain(post => post.Images.Count == 1 && post.PostTags.Count > 0);
             db.PostImages.Should().HaveCount(20);
             db.PostImages.Select(image => image.ImageUrl).Should().OnlyContain(url => !string.IsNullOrWhiteSpace(url));
             db.PostImages.Select(image => image.ThumbnailUrl).Should().OnlyContain(url => !string.IsNullOrWhiteSpace(url));
