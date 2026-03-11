@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
@@ -15,19 +16,36 @@ namespace MiniPainterHub.Server.Services
     {
         private readonly AppDbContext _dbContext;
         private readonly IChatNotifier _chatNotifier;
+        private readonly ILogger<ConversationService> _logger;
 
-        public ConversationService(AppDbContext dbContext, IChatNotifier chatNotifier)
+        public ConversationService(AppDbContext dbContext, IChatNotifier chatNotifier, ILogger<ConversationService> logger)
         {
             _dbContext = dbContext;
             _chatNotifier = chatNotifier;
+            _logger = logger;
         }
 
         public async Task<IReadOnlyList<ConversationSummaryDto>> GetConversationsAsync(string userId)
         {
             var memberships = await LoadConversationMembershipsAsync(userId);
+            var summaries = new List<ConversationSummaryDto>(memberships.Count);
 
-            return memberships
-                .Select(cp => MapSummary(cp, userId))
+            foreach (var membership in memberships)
+            {
+                if (TryMapSummary(membership, userId, out var summary))
+                {
+                    summaries.Add(summary);
+                    continue;
+                }
+
+                _logger.LogWarning(
+                    "Skipping malformed conversation {ConversationId} for user {UserId}. Participant count: {ParticipantCount}",
+                    membership.ConversationId,
+                    userId,
+                    membership.Conversation.Participants.Count);
+            }
+
+            return summaries
                 .OrderByDescending(summary => summary.LatestMessageSentUtc ?? DateTime.MinValue)
                 .ToList();
         }
@@ -59,7 +77,9 @@ namespace MiniPainterHub.Server.Services
             {
                 var existingMembership = await LoadMembershipAsync(userId, existingConversationId)
                     ?? throw new NotFoundException("Conversation not found.");
-                return MapSummary(existingMembership, userId);
+                return TryMapSummary(existingMembership, userId, out var existingSummary)
+                    ? existingSummary
+                    : throw new ConflictException("Conversation data is invalid.");
             }
 
             var utcNow = DateTime.UtcNow;
@@ -80,7 +100,9 @@ namespace MiniPainterHub.Server.Services
             var membership = await LoadMembershipAsync(userId, conversation.Id)
                 ?? throw new NotFoundException("Conversation not found.");
 
-            return MapSummary(membership, userId);
+            return TryMapSummary(membership, userId, out var createdSummary)
+                ? createdSummary
+                : throw new ConflictException("Conversation data is invalid.");
         }
 
         public async Task<PagedResult<DirectMessageDto>> GetMessagesAsync(string userId, int conversationId, int? beforeMessageId, int pageSize)
@@ -281,9 +303,15 @@ namespace MiniPainterHub.Server.Services
                 .FirstOrDefaultAsync();
         }
 
-        private static ConversationSummaryDto MapSummary(ConversationParticipant membership, string currentUserId)
+        private static bool TryMapSummary(ConversationParticipant membership, string currentUserId, out ConversationSummaryDto summary)
         {
-            var otherParticipant = membership.Conversation.Participants.First(p => p.UserId != currentUserId);
+            var otherParticipant = membership.Conversation.Participants.FirstOrDefault(p => p.UserId != currentUserId);
+            if (otherParticipant?.User is null)
+            {
+                summary = default!;
+                return false;
+            }
+
             var latestMessage = membership.Conversation.Messages
                 .OrderByDescending(m => m.SentUtc)
                 .FirstOrDefault();
@@ -292,7 +320,7 @@ namespace MiniPainterHub.Server.Services
                 m.SenderUserId != currentUserId
                 && (!membership.LastReadMessageUtc.HasValue || m.SentUtc > membership.LastReadMessageUtc.Value));
 
-            return new ConversationSummaryDto
+            summary = new ConversationSummaryDto
             {
                 Id = membership.ConversationId,
                 OtherUser = new UserListItemDto
@@ -306,11 +334,13 @@ namespace MiniPainterHub.Server.Services
                         ? otherParticipant.User.Profile.AvatarUrl
                         : otherParticipant.User.AvatarUrl
                 },
-                LatestMessagePreview = latestMessage == null ? null : TrimPreview(latestMessage.Body),
+                LatestMessagePreview = string.IsNullOrWhiteSpace(latestMessage?.Body) ? null : TrimPreview(latestMessage.Body),
                 LatestMessageSenderUserId = latestMessage?.SenderUserId,
                 LatestMessageSentUtc = latestMessage?.SentUtc,
                 UnreadCount = unreadCount
             };
+
+            return true;
         }
 
         private static string TrimPreview(string body)
