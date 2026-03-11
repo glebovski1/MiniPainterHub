@@ -227,6 +227,7 @@ public class Program
             await using var scope = app.Services.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var startupLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            LogDatabaseTarget(db, startupLogger);
             if (db.Database.IsRelational())
             {
                 await EnsureDevelopmentDatabaseAsync(db, startupLogger, app.Configuration);
@@ -383,6 +384,24 @@ public class Program
 
     private static bool ShouldRecreateOnSchemaConflict(IConfiguration configuration) =>
         configuration.GetValue<bool?>("Database:RecreateOnSchemaConflict") ?? true;
+
+    private static void LogDatabaseTarget(AppDbContext db, ILogger logger)
+    {
+        var providerName = db.Database.ProviderName ?? "unknown";
+
+        if (!db.Database.IsRelational())
+        {
+            logger.LogInformation("Using database provider {Provider}.", providerName);
+            return;
+        }
+
+        var connection = db.Database.GetDbConnection();
+        logger.LogInformation(
+            "Using database provider {Provider}. DataSource={DataSource}; Database={Database}",
+            providerName,
+            connection.DataSource,
+            connection.Database);
+    }
 
     private static DevelopmentCommand? TryParseDevelopmentCommand(string[] args)
     {
