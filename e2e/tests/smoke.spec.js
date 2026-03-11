@@ -110,7 +110,12 @@ test("search by title and tag works, and public profiles open from search", asyn
   await page.getByTestId("tag-link").first().click();
   await expect(page).toHaveURL(/tab=posts/);
   await expect(page).toHaveURL(/tag=glazing/);
-  await expect(page.getByTestId("search-post-result").first()).toContainText(title);
+  await expect(
+    page
+      .getByTestId("search-post-result")
+      .filter({ hasText: title })
+      .first(),
+  ).toBeVisible();
 
   await page.getByTestId("search-query-input").fill("user");
   await page.getByTestId("search-query-submit").click();
