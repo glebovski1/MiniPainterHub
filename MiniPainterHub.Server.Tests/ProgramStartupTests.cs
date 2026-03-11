@@ -142,6 +142,16 @@ public class ProgramStartupTests
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         json.RootElement.GetProperty("ok").GetBoolean().Should().BeTrue();
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var seededPosts = await db.Posts
+            .Include(post => post.PostTags)
+            .ThenInclude(postTag => postTag.Tag)
+            .ToListAsync();
+
+        seededPosts.Should().Contain(post => post.Title == "Seeded: glazing check");
+        seededPosts.Should().OnlyContain(post => post.PostTags.Count > 0);
     }
 
     private static IntegrationTestApplicationFactory CreateResetEnabledFactory(IPAddress remoteIp)

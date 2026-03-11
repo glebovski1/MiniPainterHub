@@ -1,8 +1,11 @@
-﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Identity;
+using MiniPainterHub.Server.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,15 +14,30 @@ using System.Threading.Tasks;
 namespace MiniPainterHub.Server.Data
 {
     /// <summary>
-    /// Encapsulates database seeding logic for default users and roles.
+    /// Encapsulates database seeding logic for default users, roles, and baseline posts.
     /// </summary>
     public static class DataSeeder
     {
+        private static readonly IReadOnlyList<SeedPostDefinition> SeedPosts =
+        [
+            new(
+                "admin",
+                "Seeded: glazing check",
+                "Baseline seeded post to verify tag rendering on the home feed.",
+                ["glazing", "nmm", "seeded"]),
+            new(
+                "user",
+                "Seeded: weathering notes",
+                "Second baseline seeded post for search and tag aggregation checks.",
+                ["weathering", "battle-damage", "seeded"])
+        ];
+
         public static async Task SeedAsync(IServiceProvider services)
         {
             using var scope = services.CreateScope();
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
             const string adminRole = "Admin";
             const string userRole = "User";
@@ -42,6 +60,8 @@ namespace MiniPainterHub.Server.Data
                 email: "user@local",
                 password: "User123!",
                 requiredRoles: new[] { userRole });
+
+            await EnsurePostsAsync(db, userManager);
         }
 
         public static async Task SeedAdminAsync(WebApplication app)
@@ -51,30 +71,34 @@ namespace MiniPainterHub.Server.Data
             var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-            // 1) Hard off by default — you flip this on in Azure App Settings (or Key Vault-backed config)
-            if (!cfg.GetValue<bool>("SeedAdmin:Enabled")) return;
+            if (!cfg.GetValue<bool>("SeedAdmin:Enabled"))
+            {
+                return;
+            }
 
-            // 2) If any user is already in Admin, bail (prevents re-runs without extra tables)
             var adminRole = cfg["SeedAdmin:Role"] ?? "Admin";
             if (await roles.RoleExistsAsync(adminRole))
             {
-                // quick check: if the role has at least one user, we're done
                 var anyAdmin = (await users.GetUsersInRoleAsync(adminRole)).Any();
-                if (anyAdmin) return;
+                if (anyAdmin)
+                {
+                    return;
+                }
             }
 
-            // 3) Read email/password from configuration (never hard-code)
             var email = cfg["SeedAdmin:Email"];
             var pwd = cfg["SeedAdmin:Password"];
 
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(pwd))
-                return; // missing config → skip safely
+            {
+                return;
+            }
 
-            // 4) Ensure role exists
             if (!await roles.RoleExistsAsync(adminRole))
+            {
                 await roles.CreateAsync(new IdentityRole(adminRole));
+            }
 
-            // 5) Ensure user exists
             var user = await users.FindByEmailAsync(email);
             if (user is null)
             {
@@ -86,12 +110,15 @@ namespace MiniPainterHub.Server.Data
                 };
                 var create = await users.CreateAsync(user, pwd);
                 if (!create.Succeeded)
+                {
                     throw new Exception("Admin seed failed: " + string.Join("; ", create.Errors.Select(e => e.Description)));
+                }
             }
 
-            // 6) Ensure role assignment
             if (!await users.IsInRoleAsync(user, adminRole))
+            {
                 await users.AddToRoleAsync(user, adminRole);
+            }
         }
 
         private static async Task EnsureRoleExistsAsync(RoleManager<IdentityRole> roleManager, string roleName)
@@ -187,5 +214,136 @@ namespace MiniPainterHub.Server.Data
                 }
             }
         }
+
+        private static async Task EnsurePostsAsync(AppDbContext db, UserManager<ApplicationUser> userManager)
+        {
+            var existingTags = await db.Tags.ToListAsync();
+            var tagsByNormalizedName = existingTags.ToDictionary(tag => tag.NormalizedName, StringComparer.OrdinalIgnoreCase);
+            var usedSlugs = existingTags.Select(tag => tag.Slug).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var seedPost in SeedPosts)
+            {
+                var user = await userManager.FindByNameAsync(seedPost.UserName);
+                if (user is null)
+                {
+                    throw new Exception($"Seed post user '{seedPost.UserName}' was not found.");
+                }
+
+                var post = await db.Posts
+                    .Include(candidate => candidate.PostTags)
+                    .ThenInclude(postTag => postTag.Tag)
+                    .FirstOrDefaultAsync(candidate =>
+                        candidate.CreatedById == user.Id
+                        && candidate.Title == seedPost.Title);
+
+                if (post is null)
+                {
+                    post = new Post
+                    {
+                        CreatedById = user.Id,
+                        Title = seedPost.Title,
+                        Content = seedPost.Content,
+                        CreatedUtc = DateTime.UtcNow,
+                        UpdatedUtc = DateTime.UtcNow,
+                        IsDeleted = false
+                    };
+                    db.Posts.Add(post);
+                }
+                else
+                {
+                    post.Content = seedPost.Content;
+                    post.IsDeleted = false;
+                    post.SoftDeletedUtc = null;
+                    post.UpdatedUtc = DateTime.UtcNow;
+                }
+
+                SyncPostTags(db, post, seedPost.Tags, tagsByNormalizedName, usedSlugs);
+            }
+
+            await db.SaveChangesAsync();
+        }
+
+        private static void SyncPostTags(
+            AppDbContext db,
+            Post post,
+            IReadOnlyList<string> tagNames,
+            IDictionary<string, Tag> tagsByNormalizedName,
+            ISet<string> usedSlugs)
+        {
+            var desiredNormalizedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var tagName in tagNames)
+            {
+                if (string.IsNullOrWhiteSpace(tagName))
+                {
+                    continue;
+                }
+
+                var displayName = TagTextUtilities.CollapseWhitespace(tagName);
+                var normalizedName = TagTextUtilities.NormalizeText(displayName);
+                if (!desiredNormalizedNames.Add(normalizedName))
+                {
+                    continue;
+                }
+
+                if (!tagsByNormalizedName.TryGetValue(normalizedName, out var tag))
+                {
+                    var baseSlug = TagTextUtilities.CreateSlug(displayName);
+                    if (string.IsNullOrWhiteSpace(baseSlug))
+                    {
+                        continue;
+                    }
+
+                    var slug = ResolveUniqueSlug(baseSlug, usedSlugs);
+                    tag = new Tag
+                    {
+                        DisplayName = displayName,
+                        NormalizedName = normalizedName,
+                        Slug = slug,
+                        CreatedUtc = DateTime.UtcNow
+                    };
+
+                    tagsByNormalizedName[normalizedName] = tag;
+                    usedSlugs.Add(slug);
+                }
+
+                var alreadyLinked = post.PostTags.Any(postTag =>
+                    string.Equals(postTag.Tag.NormalizedName, normalizedName, StringComparison.OrdinalIgnoreCase));
+                if (alreadyLinked)
+                {
+                    continue;
+                }
+
+                post.PostTags.Add(new PostTag
+                {
+                    Post = post,
+                    Tag = tag
+                });
+            }
+
+            var toRemove = post.PostTags
+                .Where(postTag => !desiredNormalizedNames.Contains(postTag.Tag.NormalizedName))
+                .ToList();
+            foreach (var postTag in toRemove)
+            {
+                post.PostTags.Remove(postTag);
+                db.PostTags.Remove(postTag);
+            }
+        }
+
+        private static string ResolveUniqueSlug(string baseSlug, ISet<string> usedSlugs)
+        {
+            var candidate = baseSlug;
+            var suffix = 2;
+            while (usedSlugs.Contains(candidate))
+            {
+                candidate = $"{baseSlug}-{suffix}";
+                suffix++;
+            }
+
+            return candidate;
+        }
+
+        private sealed record SeedPostDefinition(string UserName, string Title, string Content, IReadOnlyList<string> Tags);
     }
 }
