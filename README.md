@@ -20,7 +20,9 @@ Requesting a comment that does not exist (for example, `GET /api/comments/{id}`)
 
 ## Azure App Service configuration
 
-When deploying MiniPainterHub to Azure App Service, ensure the blob storage settings use the hierarchical configuration keys that the application expects (`ImageStorage:AzureConnectionString` and `ImageStorage:AzureContainer`). If your existing configuration still uses flat keys such as `ImageStorageAzureConnectionString` or `ImageStorageAzureContainer`, update them on the App Service **Configuration → Application settings** blade to the new names (or use the double-underscore form `ImageStorage__AzureConnectionString` and `ImageStorage__AzureContainer` for environment-variable compatibility). Save the configuration and restart the App Service to reload the updated settings.
+When deploying MiniPainterHub to Azure App Service, publish only `MiniPainterHub.Server`. The app expects hierarchical production settings such as `ConnectionStrings__DefaultConnection`, `Jwt__Key`, `Jwt__Issuer`, `Jwt__Audience`, `ImageStorage__AzureConnectionString`, and `ImageStorage__AzureContainer`. If your App Service still uses flat blob-storage keys such as `ImageStorageAzureConnectionString` or `ImageStorageAzureContainer`, rename them on the App Service Configuration > Application settings blade, save, and restart the app.
+
+The server now fails fast during non-development startup if those Azure settings are missing or still using the legacy flat names. Visual Studio publish profiles are treated as local machine state and are no longer stored in the repo.
 
 For the full deployment flow, required production settings, and GitHub Actions setup, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
@@ -43,7 +45,7 @@ dotnet run --project MiniPainterHub.Server -- --seed-dev-content --avatars-dir C
 
 - `--seed-dev-content`: destructive reset of the development database and local image storage, then recreates the seeded users, profiles, posts, comments, and avatar assignments.
 - `--seed-dev-content --post-images-dir <path>`: optional addition that attaches one seeded image to each seeded post. If the folder contains fewer than 20 images, files are reused in sorted order until all posts have an image.
-- `--generate-dev-avatars`: imports just the seed-avatar files, refreshes avatar URLs for any existing seeded users/profiles, and leaves all other development data untouched so it is safe to rerun.
+- `--generate-dev-avatars`: imports just the seed-avatar files, refreshes avatar URLs for any existing seeded users or profiles, and leaves all other development data untouched so it is safe to rerun.
 - Seeded social data: `--seed-dev-content` also creates cross-user comments, follow relationships, and direct-message conversations so post threads, the following feed, public-profile follow counts, and `/messages` have immediate development data.
 
 ## Admin functionality test checklist
@@ -59,19 +61,19 @@ Use this checklist to validate end-to-end admin capabilities after startup:
    - `Audit log`
    - `User suspensions`
 4. On `Moderation`:
-   - Load post/comment previews by id.
-   - Hide and restore post/comment with a reason.
+   - Load post or comment previews by id.
+   - Hide and restore post or comment with a reason.
    - In post lists, use the `Visibility` filter (`Active only`, `Include hidden`, `Hidden only`) and restore hidden posts inline.
    - In post details comments, use the comment `Visibility` filter (`Active only`, `Include hidden`, `Hidden only`) and restore hidden comments inline.
 5. On `User suspensions`:
    - Use `Find user`, select a user, suspend and unsuspend.
    - Leave the lookup query empty to list currently suspended users.
 6. On public profiles:
-   - Open `/users/{userId}` (for example from a post/comment author link).
-   - As `Admin`, suspend/unsuspend is available directly on the profile page.
+   - Open `/users/{userId}` (for example from a post or comment author link).
+   - As `Admin`, suspend or unsuspend is available directly on the profile page.
 7. On `Audit log`:
    - Apply `Target type`, `Actor user id`, and `Action type` filters.
-   - Verify pagination with previous/next controls.
+   - Verify pagination with previous or next controls.
 8. Verify regular user navigation:
    - `My posts` should not redirect to login for authenticated users.
    - Post cards should attempt thumbnail first, then full image fallback on image load error.
@@ -96,7 +98,7 @@ Targets:
 
 - `repo`: `./.agents/skills`
 - `global`: `%CODEX_HOME%/skills` (defaults to `~/.codex/skills`)
-- `both`: install/create in both locations
+- `both`: install or create in both locations
 
 ### Install a skill from GitHub
 
@@ -107,4 +109,4 @@ python tools/skills/install-skill-from-github.py `
   --target both
 ```
 
-You can also pass `--url https://github.com/<owner>/<repo>/tree/<ref>/<path>` instead of `--repo` + `--path`.
+You can also pass `--url https://github.com/<owner>/<repo>/tree/<ref>/<path>` instead of `--repo` plus `--path`.

@@ -47,10 +47,15 @@ public class Program
                 optional: true,
                 reloadOnChange: true);
 
+        var hostedStartupConfiguration = builder.Environment.IsDevelopment()
+            ? null
+            : HostedStartupConfigurationValidator.Validate(builder.Configuration, builder.Environment.EnvironmentName);
+
         // ------------------------------------------------------------------
         // 1️⃣  Services
         // ------------------------------------------------------------------
-        var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnection");
+        var defaultConnection = hostedStartupConfiguration?.DefaultConnectionString
+            ?? builder.Configuration.GetConnectionString("DefaultConnection");
         var useInMemoryDatabase =
             builder.Environment.IsDevelopment()
             && OperatingSystem.IsLinux()
@@ -79,8 +84,8 @@ public class Program
         .AddSignInManager();
 
         // JWT
-        var jwt = builder.Configuration.GetSection("Jwt");
-        var key = Encoding.UTF8.GetBytes(jwt["Key"]!);
+        var jwt = hostedStartupConfiguration?.Jwt;
+        var key = Encoding.UTF8.GetBytes(jwt?.Key ?? builder.Configuration["Jwt:Key"]!);
 
         builder.Services.AddAuthentication(options =>
         {
@@ -92,9 +97,9 @@ public class Program
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
-                ValidIssuer = jwt["Issuer"],
+                ValidIssuer = jwt?.Issuer ?? builder.Configuration["Jwt:Issuer"],
                 ValidateAudience = true,
-                ValidAudience = jwt["Audience"],
+                ValidAudience = jwt?.Audience ?? builder.Configuration["Jwt:Audience"],
                 ValidateLifetime = true,
                 IssuerSigningKey = new SymmetricSecurityKey(key),
                 ValidateIssuerSigningKey = true
@@ -184,15 +189,12 @@ public class Program
         }
         else
         {
-            builder.Services.AddSingleton(provider =>
+            var azureBlobStorage = hostedStartupConfiguration!.AzureBlobStorage;
+            builder.Services.AddSingleton(_ =>
             {
-                var config = provider.GetRequiredService<IConfiguration>();
-                var connection = config["ImageStorage:AzureConnectionString"]
-                    ?? throw new InvalidOperationException("Azure connection string is not configured.");
-                var containerName = config["ImageStorage:AzureContainer"]
-                    ?? throw new InvalidOperationException("Azure container name is not configured.");
-
-                var container = new BlobContainerClient(connection, containerName);
+                var container = new BlobContainerClient(
+                    azureBlobStorage.ConnectionString,
+                    azureBlobStorage.ContainerName);
                 container.CreateIfNotExists();
                 return container;
             });
@@ -247,6 +249,13 @@ public class Program
         }
 
         var logger = app.Services.GetRequiredService<ILogger<Program>>();
+        if (hostedStartupConfiguration is not null)
+        {
+            HostedStartupConfigurationValidator.LogSummary(
+                logger,
+                hostedStartupConfiguration,
+                app.Environment.EnvironmentName);
+        }
 
         if (app.Environment.IsProduction())
         {
