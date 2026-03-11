@@ -13,9 +13,11 @@ namespace MiniPainterHub.WebApp.Services
         private readonly ApiClient _api;
         private readonly NavigationManager _navigation;
         private readonly IJSRuntime _jsRuntime;
+        private readonly object _conversationLoadLock = new();
         private HubConnection? _hubConnection;
         private readonly HashSet<int> _joinedConversations = new();
         private IReadOnlyList<ConversationSummaryDto> _conversations = Array.Empty<ConversationSummaryDto>();
+        private Task<IReadOnlyList<ConversationSummaryDto>>? _loadConversationsTask;
 
         public ConversationService(ApiClient api, NavigationManager navigation, IJSRuntime jsRuntime)
         {
@@ -30,20 +32,26 @@ namespace MiniPainterHub.WebApp.Services
 
         public int UnreadConversationCount => _conversations.Count(c => c.UnreadCount > 0);
 
-        public async Task<IReadOnlyList<ConversationSummaryDto>> GetConversationsAsync(bool forceRefresh = false)
+        public Task<IReadOnlyList<ConversationSummaryDto>> GetConversationsAsync(bool forceRefresh = false)
         {
             if (!forceRefresh && _conversations.Count > 0)
             {
-                return _conversations;
+                return Task.FromResult(_conversations);
             }
 
-            using var request = new HttpRequestMessage(HttpMethod.Get, "api/conversations");
-            var result = await _api.SendAsync<List<ConversationSummaryDto>>(request);
-            _conversations = (result ?? new List<ConversationSummaryDto>())
-                .OrderByDescending(c => c.LatestMessageSentUtc ?? DateTime.MinValue)
-                .ToList();
-            OnChange?.Invoke();
-            return _conversations;
+            Task<IReadOnlyList<ConversationSummaryDto>> loadTask;
+            lock (_conversationLoadLock)
+            {
+                if (!forceRefresh && _conversations.Count > 0)
+                {
+                    return Task.FromResult(_conversations);
+                }
+
+                _loadConversationsTask ??= LoadConversationsAsync();
+                loadTask = _loadConversationsTask;
+            }
+
+            return AwaitConversationLoadAsync(loadTask);
         }
 
         public async Task<ConversationSummaryDto> OpenDirectConversationAsync(string userId)
@@ -163,6 +171,35 @@ namespace MiniPainterHub.WebApp.Services
         private async Task RefreshAsync()
         {
             await GetConversationsAsync(forceRefresh: true);
+        }
+
+        private async Task<IReadOnlyList<ConversationSummaryDto>> LoadConversationsAsync()
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "api/conversations");
+            var result = await _api.SendAsync<List<ConversationSummaryDto>>(request);
+            _conversations = (result ?? new List<ConversationSummaryDto>())
+                .OrderByDescending(c => c.LatestMessageSentUtc ?? DateTime.MinValue)
+                .ToList();
+            OnChange?.Invoke();
+            return _conversations;
+        }
+
+        private async Task<IReadOnlyList<ConversationSummaryDto>> AwaitConversationLoadAsync(Task<IReadOnlyList<ConversationSummaryDto>> loadTask)
+        {
+            try
+            {
+                return await loadTask;
+            }
+            finally
+            {
+                lock (_conversationLoadLock)
+                {
+                    if (ReferenceEquals(_loadConversationsTask, loadTask))
+                    {
+                        _loadConversationsTask = null;
+                    }
+                }
+            }
         }
 
         public async ValueTask DisposeAsync()
