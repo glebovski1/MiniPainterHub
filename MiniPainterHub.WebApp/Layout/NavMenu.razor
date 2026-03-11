@@ -42,6 +42,20 @@
         </div>
 
         <div class="collapse navbar-collapse align-items-center" id="navbarNav">
+            <form class="d-flex gap-2 me-lg-3 my-3 my-lg-0" role="search" @onsubmit="SubmitSearchAsync">
+                <input class="form-control"
+                       type="search"
+                       placeholder="Search posts, users, tags"
+                       aria-label="Search"
+                       data-testid="nav-search-input"
+                       @bind="_searchQuery" />
+                <button class="btn btn-outline-primary"
+                        type="submit"
+                        data-testid="nav-search-submit">
+                    Search
+                </button>
+            </form>
+
             <ul class="navbar-nav mb-2 mb-lg-0">
                 <li>
                     <NavLink class="nav-link" href="/home">Home</NavLink>
@@ -91,9 +105,28 @@
 </nav>
 
 @code {
+    private string _searchQuery = string.Empty;
+
     private void ToggleDesktopPanel()
     {
         UserPanel.ToggleDesktopCollapsed();
+    }
+
+    private Task SubmitSearchAsync()
+    {
+        var query = string.IsNullOrWhiteSpace(_searchQuery) ? null : _searchQuery.Trim();
+        Nav.NavigateTo(BuildSearchUri(query));
+        return Task.CompletedTask;
+    }
+
+    private static string BuildSearchUri(string? query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return "/search";
+        }
+
+        return $"/search?q={Uri.EscapeDataString(query)}";
     }
 
     private async Task Logout()

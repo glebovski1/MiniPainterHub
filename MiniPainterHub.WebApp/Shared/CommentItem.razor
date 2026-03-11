@@ -21,6 +21,11 @@
         <span class="badge text-bg-warning" data-testid="comment-hidden-badge">Hidden</span>
     }
 
+    <ReportAction TargetType="@ReportTargetTypes.Comment"
+                  TargetId="@Comment.Id.ToString()"
+                  OwnerUserId="@Comment.AuthorId"
+                  TestIdPrefix="comment-report" />
+
     <AuthorizeView Roles="Moderator,Admin">
         <Authorized>
             <div class="d-flex flex-wrap gap-2 mt-2" data-testid="comment-inline-moderation-controls">

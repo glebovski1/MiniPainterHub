@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using MiniPainterHub.Common.Auth;
 using MiniPainterHub.Common.DTOs;
@@ -26,14 +27,16 @@ namespace MiniPainterHub.Server.Controllers
         private readonly IConfiguration _config;
         private readonly IProfileService _profileService;
         private readonly IAccountRestrictionService _accountRestrictionService;
+        private readonly IMaintenanceBypassService _maintenanceBypassService;
 
-        public AuthController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IProfileService profileService, IAccountRestrictionService accountRestrictionService, IConfiguration config)
+        public AuthController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IProfileService profileService, IAccountRestrictionService accountRestrictionService, IMaintenanceBypassService maintenanceBypassService, IConfiguration config)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _config = config;
             _profileService = profileService;
             _accountRestrictionService = accountRestrictionService;
+            _maintenanceBypassService = maintenanceBypassService;
         }
 
         [HttpPost("register")]
@@ -125,6 +128,28 @@ namespace MiniPainterHub.Server.Controllers
                 IsSuccess = true,
                 Token = tokenString
             });
+        }
+
+        [HttpPost("maintenance-bypass")]
+        [Authorize(Roles = "Admin")]
+        public IActionResult EnableMaintenanceBypass()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                throw new UnauthorizedAccessException("User is not authenticated.");
+            }
+
+            _maintenanceBypassService.AppendCookie(Response, userId);
+            return NoContent();
+        }
+
+        [HttpDelete("maintenance-bypass")]
+        [AllowAnonymous]
+        public IActionResult DisableMaintenanceBypass()
+        {
+            _maintenanceBypassService.ClearCookie(Response);
+            return NoContent();
         }
 
         private Dictionary<string, string[]> CreateModelStateErrors()

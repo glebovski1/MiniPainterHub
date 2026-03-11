@@ -56,6 +56,8 @@ public class Program
         builder.Services.AddScoped<ILikeService, LikeService>();
         builder.Services.AddScoped<IProfileService, ProfileService>();
         builder.Services.AddScoped<IModerationService, ModerationService>();
+        builder.Services.AddScoped<ISearchService, SearchService>();
+        builder.Services.AddScoped<IReportService, ReportService>();
         builder.Services.AddScoped<IFollowService, FollowService>();
         builder.Services.AddScoped<IConversationService, ConversationService>();
 

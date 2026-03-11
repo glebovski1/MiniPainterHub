@@ -1,0 +1,177 @@
+@using System.Security.Claims
+@using MiniPainterHub.Common.DTOs
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject MiniPainterHub.WebApp.Services.Interfaces.IReportService ReportService
+
+@if (_canReport)
+{
+    <div class="mt-3" data-testid="@($"{TestIdPrefix}-container")">
+        <button class="@ButtonClass"
+                type="button"
+                data-testid="@($"{TestIdPrefix}-toggle")"
+                @onclick="ToggleOpen"
+                disabled="@_busy">
+            Report
+        </button>
+
+        @if (!string.IsNullOrWhiteSpace(_result))
+        {
+            <div class="alert alert-success py-2 mt-2" data-testid="@($"{TestIdPrefix}-result")">@_result</div>
+        }
+
+        @if (_open)
+        {
+            <div class="border rounded p-3 bg-light mt-2">
+                <div class="mb-3">
+                    <label class="form-label" for="@($"{TestIdPrefix}-reason")">Reason</label>
+                    <select id="@($"{TestIdPrefix}-reason")"
+                            class="form-select"
+                            data-testid="@($"{TestIdPrefix}-reason")"
+                            @bind="_reasonCode">
+                        @foreach (var reason in ReportReasonCodes.All)
+                        {
+                            <option value="@reason">@reason</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="@($"{TestIdPrefix}-details")">Details</label>
+                    <textarea id="@($"{TestIdPrefix}-details")"
+                              class="form-control"
+                              rows="3"
+                              data-testid="@($"{TestIdPrefix}-details")"
+                              @bind="_details"></textarea>
+                    <div class="form-text">
+                        Optional unless you choose <code>@ReportReasonCodes.Other</code>.
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <div class="alert alert-danger py-2" data-testid="@($"{TestIdPrefix}-error")">@_error</div>
+                }
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-danger btn-sm"
+                            type="button"
+                            data-testid="@($"{TestIdPrefix}-submit")"
+                            @onclick="SubmitAsync"
+                            disabled="@_busy">
+                        @(_busy ? "Submitting..." : "Submit report")
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm"
+                            type="button"
+                            data-testid="@($"{TestIdPrefix}-cancel")"
+                            @onclick="Close"
+                            disabled="@_busy">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public string TargetType { get; set; } = default!;
+    [Parameter] public string TargetId { get; set; } = default!;
+    [Parameter] public string? OwnerUserId { get; set; }
+    [Parameter] public string TestIdPrefix { get; set; } = "report";
+    [Parameter] public string ButtonClass { get; set; } = "btn btn-outline-danger btn-sm";
+
+    private bool _canReport;
+    private bool _open;
+    private bool _busy;
+    private string _reasonCode = ReportReasonCodes.Spam;
+    private string? _details;
+    private string? _error;
+    private string? _result;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var currentUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        _canReport = user.Identity?.IsAuthenticated == true
+            && !string.IsNullOrWhiteSpace(TargetType)
+            && !string.IsNullOrWhiteSpace(TargetId)
+            && !string.Equals(currentUserId, OwnerUserId, StringComparison.Ordinal);
+    }
+
+    private void ToggleOpen()
+    {
+        _error = null;
+        _result = null;
+        _open = !_open;
+    }
+
+    private void Close()
+    {
+        _open = false;
+        _error = null;
+        _result = null;
+    }
+
+    private async Task SubmitAsync()
+    {
+        _busy = true;
+        _error = null;
+        _result = null;
+
+        try
+        {
+            if (string.Equals(_reasonCode, ReportReasonCodes.Other, StringComparison.Ordinal)
+                && string.IsNullOrWhiteSpace(_details))
+            {
+                _error = "Details are required when choosing Other.";
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(_details) && _details.Trim().Length > 1000)
+            {
+                _error = "Details must be 1000 characters or fewer.";
+                return;
+            }
+
+            var request = new CreateReportRequestDto
+            {
+                ReasonCode = _reasonCode,
+                Details = string.IsNullOrWhiteSpace(_details) ? null : _details.Trim()
+            };
+
+            bool success;
+            if (string.Equals(TargetType, ReportTargetTypes.Post, StringComparison.Ordinal))
+            {
+                success = int.TryParse(TargetId, out var postId) && await ReportService.ReportPostAsync(postId, request);
+            }
+            else if (string.Equals(TargetType, ReportTargetTypes.Comment, StringComparison.Ordinal))
+            {
+                success = int.TryParse(TargetId, out var commentId) && await ReportService.ReportCommentAsync(commentId, request);
+            }
+            else if (string.Equals(TargetType, ReportTargetTypes.User, StringComparison.Ordinal))
+            {
+                success = await ReportService.ReportUserAsync(TargetId, request);
+            }
+            else
+            {
+                success = false;
+            }
+
+            if (!success)
+            {
+                _error = "Report submission failed.";
+                return;
+            }
+
+            _result = "Report submitted.";
+            _reasonCode = ReportReasonCodes.Spam;
+            _details = null;
+            _open = false;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

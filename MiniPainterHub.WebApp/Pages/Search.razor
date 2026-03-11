@@ -1,0 +1,469 @@
+@page "/search"
+@using Microsoft.AspNetCore.Components
+@using MiniPainterHub.Common.DTOs
+@inject NavigationManager Nav
+@inject MiniPainterHub.WebApp.Services.Interfaces.ISearchService SearchService
+
+<PageTitle>Search</PageTitle>
+
+<div class="container py-4">
+    <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-4">
+        <div>
+            <h1 class="mb-1">Search</h1>
+            <p class="text-muted mb-0">Find painters, posts, and technique tags.</p>
+        </div>
+
+        <form class="d-flex gap-2 w-100 w-lg-auto" @onsubmit="SubmitAsync">
+            <input class="form-control"
+                   type="search"
+                   placeholder="Search posts, users, tags"
+                   data-testid="search-query-input"
+                   @bind="_draftQuery" />
+            <button class="btn btn-primary"
+                    type="submit"
+                    data-testid="search-query-submit">
+                Search
+            </button>
+        </form>
+    </div>
+
+    @if (!HasRunnableQuery)
+    {
+        <div class="alert alert-light border" data-testid="search-empty-query">
+            Enter at least 2 characters to search across posts, users, and tags.
+        </div>
+    }
+    else
+    {
+        <ul class="nav nav-pills gap-2 mb-4" data-testid="search-tabs">
+            <li class="nav-item">
+                <button class="@GetTabClass("all")" type="button" data-testid="search-tab-all" @onclick='() => NavigateToTab("all")'>All</button>
+            </li>
+            <li class="nav-item">
+                <button class="@GetTabClass("posts")" type="button" data-testid="search-tab-posts" @onclick='() => NavigateToTab("posts")'>Posts</button>
+            </li>
+            <li class="nav-item">
+                <button class="@GetTabClass("users")" type="button" data-testid="search-tab-users" @onclick='() => NavigateToTab("users")'>Users</button>
+            </li>
+            <li class="nav-item">
+                <button class="@GetTabClass("tags")" type="button" data-testid="search-tab-tags" @onclick='() => NavigateToTab("tags")'>Tags</button>
+            </li>
+        </ul>
+
+        @if (_loading)
+        {
+            <div class="d-flex align-items-center gap-2 text-secondary" data-testid="search-loading">
+                <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+                <span>Searching...</span>
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <div class="alert alert-danger" data-testid="search-error">@_error</div>
+        }
+        else if (CurrentTab == "all")
+        {
+            <div class="row g-4" data-testid="search-overview-results">
+                <div class="col-12">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h2 class="h4 mb-0">Posts</h2>
+                        <button class="btn btn-link p-0" type="button" data-testid="search-overview-view-posts" @onclick='() => NavigateToTab("posts")'>View all</button>
+                    </div>
+
+                    @if (_overview.Posts.Count == 0)
+                    {
+                        <p class="text-muted mb-0" data-testid="search-overview-posts-empty">No posts matched.</p>
+                    }
+                    else
+                    {
+                        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+                            @foreach (var post in _overview.Posts)
+                            {
+                                <div class="col" data-testid="search-post-result">
+                                    <PostCard Post="post" />
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="col-12 col-lg-6">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h2 class="h4 mb-0">Users</h2>
+                        <button class="btn btn-link p-0" type="button" data-testid="search-overview-view-users" @onclick='() => NavigateToTab("users")'>View all</button>
+                    </div>
+
+                    @if (_overview.Users.Count == 0)
+                    {
+                        <p class="text-muted mb-0" data-testid="search-overview-users-empty">No users matched.</p>
+                    }
+                    else
+                    {
+                        <div class="list-group" data-testid="search-overview-users">
+                            @foreach (var user in _overview.Users)
+                            {
+                                <NavLink class="list-group-item list-group-item-action" data-testid="search-user-result" href="@($"/users/{user.UserId}")">
+                                    <div class="fw-semibold">@user.DisplayName</div>
+                                    <div class="small text-muted">@("@")@user.UserName</div>
+                                </NavLink>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="col-12 col-lg-6">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h2 class="h4 mb-0">Tags</h2>
+                        <button class="btn btn-link p-0" type="button" data-testid="search-overview-view-tags" @onclick='() => NavigateToTab("tags")'>View all</button>
+                    </div>
+
+                    @if (_overview.Tags.Count == 0)
+                    {
+                        <p class="text-muted mb-0" data-testid="search-overview-tags-empty">No tags matched.</p>
+                    }
+                    else
+                    {
+                        <div class="list-group" data-testid="search-overview-tags">
+                            @foreach (var tag in _overview.Tags)
+                            {
+                                <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" type="button" @onclick="@(() => NavigateToTag(tag))">
+                                    <span>#@tag.Name</span>
+                                    <span class="badge text-bg-secondary rounded-pill">@tag.PostCount</span>
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else if (CurrentTab == "posts")
+        {
+            <div data-testid="search-posts-results">
+                @if (!string.IsNullOrWhiteSpace(ActiveTag))
+                {
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="badge text-bg-secondary rounded-pill">Tag filter: @ActiveTag</span>
+                        <button class="btn btn-link btn-sm p-0" type="button" @onclick="ClearTagFilterAsync">Clear</button>
+                    </div>
+                }
+
+                @if (!_postResults.Items.Any())
+                {
+                    <p class="text-muted mb-0" data-testid="search-posts-empty">No posts matched.</p>
+                }
+                else
+                {
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+                        @foreach (var post in _postResults.Items)
+                        {
+                            <div class="col" data-testid="search-post-result">
+                                <PostCard Post="post" />
+                            </div>
+                        }
+                    </div>
+                }
+
+                @RenderPager(_postResults.TotalCount, _postResults.HasPreviousPage, _postResults.HasNextPage)
+            </div>
+        }
+        else if (CurrentTab == "users")
+        {
+            <div data-testid="search-users-results">
+                @if (!_userResults.Items.Any())
+                {
+                    <p class="text-muted mb-0" data-testid="search-users-empty">No users matched.</p>
+                }
+                else
+                {
+                    <div class="list-group">
+                        @foreach (var user in _userResults.Items)
+                        {
+                            <NavLink class="list-group-item list-group-item-action d-flex align-items-center gap-3" data-testid="search-user-result" href="@($"/users/{user.UserId}")">
+                                <img src="@(string.IsNullOrWhiteSpace(user.AvatarUrl) ? "/images/avatar-placeholder.png" : user.AvatarUrl)"
+                                     alt="Avatar"
+                                     class="rounded-circle border"
+                                     style="width: 48px; height: 48px; object-fit: cover;" />
+                                <div>
+                                    <div class="fw-semibold">@user.DisplayName</div>
+                                    <div class="small text-muted">@("@")@user.UserName</div>
+                                </div>
+                            </NavLink>
+                        }
+                    </div>
+                }
+
+                @RenderPager(_userResults.TotalCount, _userResults.HasPreviousPage, _userResults.HasNextPage)
+            </div>
+        }
+        else
+        {
+            <div data-testid="search-tags-results">
+                @if (!_tagResults.Items.Any())
+                {
+                    <p class="text-muted mb-0" data-testid="search-tags-empty">No tags matched.</p>
+                }
+                else
+                {
+                    <div class="list-group">
+                        @foreach (var tag in _tagResults.Items)
+                        {
+                            <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                                    type="button"
+                                    data-testid="search-tag-result"
+                                    @onclick="@(() => NavigateToTag(tag))">
+                                <span>#@tag.Name</span>
+                                <span class="badge text-bg-secondary rounded-pill">@tag.PostCount</span>
+                            </button>
+                        }
+                    </div>
+                }
+
+                @RenderPager(_tagResults.TotalCount, _tagResults.HasPreviousPage, _tagResults.HasNextPage)
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private const int SearchPageSize = 9;
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? Query { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? Tab { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "page")]
+    public int? Page { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "tag")]
+    public string? Tag { get; set; }
+
+    private string _draftQuery = string.Empty;
+    private bool _loading;
+    private string? _error;
+    private SearchOverviewDto _overview = new();
+    private PagedResult<PostSummaryDto> _postResults = EmptyPage<PostSummaryDto>();
+    private PagedResult<UserListItemDto> _userResults = EmptyPage<UserListItemDto>();
+    private PagedResult<SearchTagResultDto> _tagResults = EmptyPage<SearchTagResultDto>();
+
+    private string NormalizedQuery => string.IsNullOrWhiteSpace(Query) ? string.Empty : Query.Trim();
+    private string CurrentTab => Tab?.Trim().ToLowerInvariant() switch
+    {
+        "posts" => "posts",
+        "users" => "users",
+        "tags" => "tags",
+        _ => "all"
+    };
+    private int CurrentPage => Page.GetValueOrDefault() > 0 ? Page!.Value : 1;
+    private string? ActiveTag => string.IsNullOrWhiteSpace(Tag) ? null : Tag.Trim();
+    private bool HasRunnableQuery => NormalizedQuery.Length >= 2;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _draftQuery = Query ?? string.Empty;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = false;
+        _error = null;
+        _overview = new SearchOverviewDto();
+        _postResults = EmptyPage<PostSummaryDto>();
+        _userResults = EmptyPage<UserListItemDto>();
+        _tagResults = EmptyPage<SearchTagResultDto>();
+
+        if (!HasRunnableQuery)
+        {
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            if (CurrentTab == "all")
+            {
+                var result = await SearchService.GetOverviewAsync(NormalizedQuery);
+                if (!result.Success || result.Value is null)
+                {
+                    _error = "Search failed. Please try again.";
+                    return;
+                }
+
+                _overview = result.Value;
+                return;
+            }
+
+            if (CurrentTab == "posts")
+            {
+                var result = await SearchService.SearchPostsAsync(NormalizedQuery, ActiveTag, CurrentPage, SearchPageSize);
+                if (!result.Success || result.Value is null)
+                {
+                    _error = "Post search failed. Please try again.";
+                    return;
+                }
+
+                _postResults = result.Value;
+                return;
+            }
+
+            if (CurrentTab == "users")
+            {
+                var result = await SearchService.SearchUsersAsync(NormalizedQuery, CurrentPage, SearchPageSize);
+                if (!result.Success || result.Value is null)
+                {
+                    _error = "User search failed. Please try again.";
+                    return;
+                }
+
+                _userResults = result.Value;
+                return;
+            }
+
+            var tagResult = await SearchService.SearchTagsAsync(NormalizedQuery, CurrentPage, SearchPageSize);
+            if (!tagResult.Success || tagResult.Value is null)
+            {
+                _error = "Tag search failed. Please try again.";
+                return;
+            }
+
+            _tagResults = tagResult.Value;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private Task SubmitAsync()
+    {
+        var nextQuery = string.IsNullOrWhiteSpace(_draftQuery) ? null : _draftQuery.Trim();
+        Nav.NavigateTo(BuildUri(nextQuery, CurrentTab, 1, CurrentTab == "posts" ? ActiveTag : null));
+        return Task.CompletedTask;
+    }
+
+    private void NavigateToTab(string tab)
+    {
+        var nextTag = string.Equals(tab, "posts", StringComparison.Ordinal) ? ActiveTag : null;
+        Nav.NavigateTo(BuildUri(NormalizedQuery, tab, 1, nextTag));
+    }
+
+    private void NavigateToTag(SearchTagResultDto tag)
+    {
+        Nav.NavigateTo(BuildUri(tag.Name, "posts", 1, tag.Slug));
+    }
+
+    private Task ClearTagFilterAsync()
+    {
+        Nav.NavigateTo(BuildUri(NormalizedQuery, "posts", 1, null));
+        return Task.CompletedTask;
+    }
+
+    private void ChangePage(int page)
+    {
+        if (page < 1)
+        {
+            return;
+        }
+
+        var nextTag = CurrentTab == "posts" ? ActiveTag : null;
+        Nav.NavigateTo(BuildUri(NormalizedQuery, CurrentTab, page, nextTag));
+    }
+
+    private string GetTabClass(string tab) =>
+        string.Equals(CurrentTab, tab, StringComparison.Ordinal)
+            ? "nav-link active"
+            : "nav-link";
+
+    private string BuildUri(string? query, string tab, int page, string? tag)
+    {
+        var values = new Dictionary<string, string?>();
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            values["q"] = query;
+        }
+
+        if (!string.Equals(tab, "all", StringComparison.Ordinal))
+        {
+            values["tab"] = tab;
+        }
+
+        if (page > 1)
+        {
+            values["page"] = page.ToString();
+        }
+
+        if (string.Equals(tab, "posts", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(tag))
+        {
+            values["tag"] = tag;
+        }
+
+        if (values.Count == 0)
+        {
+            return "/search";
+        }
+
+        var queryString = string.Join("&", values
+            .Where(pair => !string.IsNullOrWhiteSpace(pair.Value))
+            .Select(pair => $"{pair.Key}={Uri.EscapeDataString(pair.Value!)}"));
+
+        return string.IsNullOrWhiteSpace(queryString) ? "/search" : $"/search?{queryString}";
+    }
+
+    private RenderFragment RenderPager(int totalCount, bool hasPreviousPage, bool hasNextPage) => builder =>
+    {
+        if (totalCount <= SearchPageSize)
+        {
+            return;
+        }
+
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "d-flex align-items-center gap-2 mt-4");
+
+        builder.OpenElement(2, "button");
+        builder.AddAttribute(3, "class", "btn btn-outline-secondary");
+        builder.AddAttribute(4, "type", "button");
+        builder.AddAttribute(5, "data-testid", "search-page-prev");
+        if (!hasPreviousPage)
+        {
+            builder.AddAttribute(6, "disabled", true);
+        }
+        builder.AddAttribute(7, "onclick", EventCallback.Factory.Create(this, () => ChangePage(CurrentPage - 1)));
+        builder.AddContent(8, "Previous");
+        builder.CloseElement();
+
+        builder.OpenElement(9, "button");
+        builder.AddAttribute(10, "class", "btn btn-outline-secondary");
+        builder.AddAttribute(11, "type", "button");
+        builder.AddAttribute(12, "data-testid", "search-page-next");
+        if (!hasNextPage)
+        {
+            builder.AddAttribute(13, "disabled", true);
+        }
+        builder.AddAttribute(14, "onclick", EventCallback.Factory.Create(this, () => ChangePage(CurrentPage + 1)));
+        builder.AddContent(15, "Next");
+        builder.CloseElement();
+
+        builder.OpenElement(16, "span");
+        builder.AddAttribute(17, "class", "text-muted");
+        builder.AddAttribute(18, "data-testid", "search-page-state");
+        builder.AddContent(19, $"Page {CurrentPage}");
+        builder.CloseElement();
+
+        builder.CloseElement();
+    };
+
+    private static PagedResult<T> EmptyPage<T>() =>
+        new()
+        {
+            Items = Array.Empty<T>(),
+            PageNumber = 1,
+            PageSize = SearchPageSize,
+            TotalCount = 0
+        };
+}

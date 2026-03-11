@@ -33,19 +33,23 @@ async function loginAsAdmin(page) {
   await expect(page.getByTestId("nav-logout")).toBeVisible();
 }
 
-async function createPost(page, suffix) {
+async function createPost(page, suffix, options = {}) {
   const title = `Smoke title ${suffix}`;
   const content = `Smoke content ${suffix}`;
+  const tags = options.tags || "";
 
   await page.goto("/posts/new");
   await page.getByTestId("create-post-title").fill(title);
   await page.getByTestId("create-post-content").fill(content);
+  if (tags) {
+    await page.getByTestId("create-post-tags").fill(tags);
+  }
   await page.getByTestId("create-post-submit").click();
 
   await expect(page).toHaveURL(/\/posts\/\d+$/);
   await expect(page.getByTestId("post-title")).toHaveText(title);
 
-  return { title, content };
+  return { title, content, tags };
 }
 
 test.beforeEach(async ({ page, request }) => {
@@ -91,6 +95,29 @@ test("comment and like flow works on post details", async ({ page }) => {
 
   await likeButton.click();
   await expect(likeCount).toHaveText(String(initial));
+});
+
+test("search by title and tag works, and public profiles open from search", async ({ page }) => {
+  await loginAsSeedUser(page);
+  const { title } = await createPost(page, "search", { tags: "glazing" });
+
+  await page.getByTestId("nav-search-input").fill(title);
+  await page.getByTestId("nav-search-submit").click();
+
+  await expect(page).toHaveURL(/\/search\?q=/);
+  await expect(page.getByTestId("search-post-result").first()).toContainText(title);
+
+  await page.getByTestId("tag-link").first().click();
+  await expect(page).toHaveURL(/tab=posts/);
+  await expect(page).toHaveURL(/tag=glazing/);
+  await expect(page.getByTestId("search-post-result").first()).toContainText(title);
+
+  await page.getByTestId("search-query-input").fill("user");
+  await page.getByTestId("search-query-submit").click();
+  await page.getByTestId("search-tab-users").click();
+  await expect(page.getByTestId("search-user-result").first()).toBeVisible();
+  await page.getByTestId("search-user-result").first().click();
+  await expect(page).toHaveURL(/\/users\//);
 });
 
 test("profile create and update flow persists values", async ({ page }) => {
@@ -197,4 +224,27 @@ test("admin can hide and restore comment using comment visibility filter", async
 
   await page.getByTestId("comment-visibility-select").selectOption("active");
   await expect(page.getByTestId("comment-item").first()).toContainText(commentText);
+});
+
+test("user can submit a report and admin can resolve it", async ({ page }) => {
+  await loginAsAdmin(page);
+  const { title } = await createPost(page, "report-target");
+  const postUrl = page.url();
+
+  await clearAuth(page);
+  await loginAsSeedUser(page);
+  await page.goto(postUrl);
+
+  await page.getByTestId("post-report-toggle").click();
+  await page.getByTestId("post-report-submit").click();
+  await expect(page.getByTestId("post-report-result")).toContainText("Report submitted");
+
+  await clearAuth(page);
+  await loginAsAdmin(page);
+  await page.goto("/admin/reports");
+
+  await expect(page.getByTestId("reports-row").first()).toContainText(title);
+  await page.getByTestId("report-resolution-note").first().fill("Handled in smoke test.");
+  await page.getByTestId("report-resolve-reviewed").first().click();
+  await expect(page.getByTestId("reports-empty")).toBeVisible();
 });

@@ -206,6 +206,71 @@ namespace MiniPainterHub.Server.Migrations
                     b.ToTable("Comments");
                 });
 
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.ContentReport", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Details")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("ReasonCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("ReporterUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ResolutionNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ReviewedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("ReviewedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("TargetId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("TargetType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status", "CreatedUtc");
+
+                    b.HasIndex("TargetType", "TargetId", "Status");
+
+                    b.HasIndex("ReporterUserId", "TargetType", "TargetId", "Status");
+
+                    b.ToTable("ContentReports");
+                });
+
             modelBuilder.Entity("MiniPainterHub.Server.Entities.Conversation", b =>
                 {
                     b.Property<int>("Id")
@@ -458,6 +523,21 @@ namespace MiniPainterHub.Server.Migrations
                     b.ToTable("PostImages");
                 });
 
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.PostTag", b =>
+                {
+                    b.Property<int>("PostId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TagId")
+                        .HasColumnType("int");
+
+                    b.HasKey("PostId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.ToTable("PostTags");
+                });
+
             modelBuilder.Entity("MiniPainterHub.Server.Entities.Profile", b =>
                 {
                     b.Property<string>("UserId")
@@ -479,6 +559,43 @@ namespace MiniPainterHub.Server.Migrations
                     b.HasKey("UserId");
 
                     b.ToTable("Profiles");
+                });
+
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.Tag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique();
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("Tags");
                 });
 
             modelBuilder.Entity("MiniPainterHub.Server.Identity.ApplicationUser", b =>
@@ -747,6 +864,25 @@ namespace MiniPainterHub.Server.Migrations
                     b.Navigation("Post");
                 });
 
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.PostTag", b =>
+                {
+                    b.HasOne("MiniPainterHub.Server.Entities.Post", "Post")
+                        .WithMany("PostTags")
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MiniPainterHub.Server.Entities.Tag", "Tag")
+                        .WithMany("PostTags")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Post");
+
+                    b.Navigation("Tag");
+                });
+
             modelBuilder.Entity("MiniPainterHub.Server.Entities.Profile", b =>
                 {
                     b.HasOne("MiniPainterHub.Server.Identity.ApplicationUser", "User")
@@ -772,6 +908,13 @@ namespace MiniPainterHub.Server.Migrations
                     b.Navigation("Images");
 
                     b.Navigation("Likes");
+
+                    b.Navigation("PostTags");
+                });
+
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.Tag", b =>
+                {
+                    b.Navigation("PostTags");
                 });
 
             modelBuilder.Entity("MiniPainterHub.Server.Identity.ApplicationUser", b =>

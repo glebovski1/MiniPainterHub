@@ -10,7 +10,6 @@ using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Imaging;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services.Interfaces;
-using MiniPainterHub.Server.Services.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -98,6 +97,7 @@ namespace MiniPainterHub.Server.Services
             }
 
             _appDbContext.Posts.Add(newPost);
+            await SyncTagsAsync(newPost, dto.Tags);
             await _appDbContext.SaveChangesAsync();
 
             return new PostDto
@@ -115,7 +115,15 @@ namespace MiniPainterHub.Server.Services
                     ImageUrl = i.ImageUrl,
                     PreviewUrl = i.PreviewUrl,
                     ThumbnailUrl = i.ThumbnailUrl
-                }).ToList()
+                }).ToList(),
+                Tags = newPost.PostTags
+                    .OrderBy(pt => pt.Tag.DisplayName)
+                    .Select(pt => new TagDto
+                    {
+                        Name = pt.Tag.DisplayName,
+                        Slug = pt.Tag.Slug
+                    })
+                    .ToList()
             };
         }
 
@@ -152,11 +160,11 @@ namespace MiniPainterHub.Server.Services
             return GetPagedPostsAsync(query, page, pageSize);
         }
 
-        public Task<PagedResult<PostSummaryDto>> GetByAuthorAsync(string authorUserId, int page, int pageSize)
-            => GetPagedPostsAsync(ActivePosts().Where(p => p.CreatedById == authorUserId), page, pageSize);
+        public Task<PagedResult<PostSummaryDto>> GetByAuthorAsync(string authorUserId, int page, int pageSize) =>
+            GetPagedPostsAsync(ActivePosts().Where(p => p.CreatedById == authorUserId), page, pageSize);
 
-        public Task<PagedResult<PostSummaryDto>> GetFollowingFeedAsync(string userId, int page, int pageSize)
-            => GetPagedPostsAsync(
+        public Task<PagedResult<PostSummaryDto>> GetFollowingFeedAsync(string userId, int page, int pageSize) =>
+            GetPagedPostsAsync(
                 ActivePosts().Where(p =>
                     _appDbContext.Follows.Any(f => f.FollowerUserId == userId && f.FollowedUserId == p.CreatedById)),
                 page,
@@ -187,7 +195,15 @@ namespace MiniPainterHub.Server.Services
                         ImageUrl = i.ImageUrl,
                         PreviewUrl = i.PreviewUrl,
                         ThumbnailUrl = i.ThumbnailUrl
-                    }).ToList()
+                    }).ToList(),
+                    Tags = p.PostTags
+                        .OrderBy(pt => pt.Tag.DisplayName)
+                        .Select(pt => new TagDto
+                        {
+                            Name = pt.Tag.DisplayName,
+                            Slug = pt.Tag.Slug
+                        })
+                        .ToList()
                 })
                 .FirstOrDefaultAsync();
 
@@ -201,7 +217,11 @@ namespace MiniPainterHub.Server.Services
 
         public async Task<bool> UpdateAsync(int postId, string userId, UpdatePostDto dto)
         {
+            ArgumentNullException.ThrowIfNull(dto);
+
             var post = await _appDbContext.Posts
+                .Include(p => p.PostTags)
+                .ThenInclude(pt => pt.Tag)
                 .FirstOrDefaultAsync(p => p.Id == postId && p.CreatedById == userId && !p.IsDeleted);
 
             if (post == null)
@@ -213,6 +233,7 @@ namespace MiniPainterHub.Server.Services
             post.Content = dto.Content;
             post.UpdatedUtc = DateTime.UtcNow;
 
+            await SyncTagsAsync(post, dto.Tags);
             await _appDbContext.SaveChangesAsync();
             return true;
         }
@@ -233,7 +254,8 @@ namespace MiniPainterHub.Server.Services
             var created = await CreateAsync(userId, new CreatePostDto
             {
                 Title = dto.Title,
-                Content = dto.Content
+                Content = dto.Content,
+                Tags = dto.Tags
             });
 
             if (dto.Images is null || dto.Images.Count == 0)
@@ -298,11 +320,11 @@ namespace MiniPainterHub.Server.Services
                 .ToListAsync();
         }
 
-        public Task<bool> ExistsAsync(int postId)
-            => _appDbContext.Posts.AnyAsync(post => post.Id == postId && !post.IsDeleted);
+        public Task<bool> ExistsAsync(int postId) =>
+            _appDbContext.Posts.AnyAsync(post => post.Id == postId && !post.IsDeleted);
 
-        private IQueryable<Post> ActivePosts()
-            => _appDbContext.Posts
+        private IQueryable<Post> ActivePosts() =>
+            _appDbContext.Posts
                 .AsNoTracking()
                 .Where(p => !p.IsDeleted);
 
@@ -328,7 +350,15 @@ namespace MiniPainterHub.Server.Services
                     CreatedAt = p.CreatedUtc,
                     CommentCount = p.Comments.Count,
                     LikeCount = p.Likes.Count,
-                    IsDeleted = p.IsDeleted
+                    IsDeleted = p.IsDeleted,
+                    Tags = p.PostTags
+                        .OrderBy(pt => pt.Tag.DisplayName)
+                        .Select(pt => new TagDto
+                        {
+                            Name = pt.Tag.DisplayName,
+                            Slug = pt.Tag.Slug
+                        })
+                        .ToList()
                 })
                 .ToListAsync();
 
@@ -339,6 +369,161 @@ namespace MiniPainterHub.Server.Services
                 PageNumber = page,
                 PageSize = pageSize
             };
+        }
+
+        private async Task SyncTagsAsync(Post post, IEnumerable<string>? requestedTags)
+        {
+            var normalizedTags = NormalizeTags(requestedTags);
+
+            if (post.PostTags.Count > 0)
+            {
+                var existingNormalized = normalizedTags
+                    .Select(t => t.NormalizedName)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var toRemove = post.PostTags
+                    .Where(pt => !existingNormalized.Contains(pt.Tag.NormalizedName))
+                    .ToList();
+
+                if (toRemove.Count > 0)
+                {
+                    _appDbContext.PostTags.RemoveRange(toRemove);
+                    foreach (var postTag in toRemove)
+                    {
+                        post.PostTags.Remove(postTag);
+                    }
+                }
+            }
+
+            if (normalizedTags.Count == 0)
+            {
+                return;
+            }
+
+            var tags = await ResolveTagsAsync(normalizedTags);
+            var desiredNormalized = tags
+                .Select(t => t.NormalizedName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var existingPostTags = post.PostTags
+                .Select(pt => pt.Tag.NormalizedName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var tag in tags.Where(t => !existingPostTags.Contains(t.NormalizedName)))
+            {
+                post.PostTags.Add(new PostTag
+                {
+                    Post = post,
+                    Tag = tag
+                });
+            }
+        }
+
+        private async Task<List<Tag>> ResolveTagsAsync(IReadOnlyList<NormalizedTagRequest> normalizedTags)
+        {
+            if (normalizedTags.Count == 0)
+            {
+                return new List<Tag>();
+            }
+
+            var normalizedNames = normalizedTags.Select(t => t.NormalizedName).ToList();
+            var existingTags = await _appDbContext.Tags
+                .Where(t => normalizedNames.Contains(t.NormalizedName))
+                .ToListAsync();
+            var tagByNormalizedName = existingTags.ToDictionary(t => t.NormalizedName, StringComparer.OrdinalIgnoreCase);
+            var usedSlugs = (await _appDbContext.Tags
+                .AsNoTracking()
+                .Select(t => t.Slug)
+                .ToListAsync())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var normalizedTag in normalizedTags)
+            {
+                if (tagByNormalizedName.ContainsKey(normalizedTag.NormalizedName))
+                {
+                    continue;
+                }
+
+                var slug = ResolveUniqueSlug(normalizedTag.Slug, usedSlugs);
+                var tag = new Tag
+                {
+                    DisplayName = normalizedTag.DisplayName,
+                    NormalizedName = normalizedTag.NormalizedName,
+                    Slug = slug,
+                    CreatedUtc = DateTime.UtcNow
+                };
+
+                _appDbContext.Tags.Add(tag);
+                tagByNormalizedName[normalizedTag.NormalizedName] = tag;
+                usedSlugs.Add(slug);
+            }
+
+            return normalizedTags
+                .Select(t => tagByNormalizedName[t.NormalizedName])
+                .ToList();
+        }
+
+        private static IReadOnlyList<NormalizedTagRequest> NormalizeTags(IEnumerable<string>? requestedTags)
+        {
+            if (requestedTags is null)
+            {
+                return Array.Empty<NormalizedTagRequest>();
+            }
+
+            var normalized = new List<NormalizedTagRequest>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var rawTag in requestedTags)
+            {
+                if (string.IsNullOrWhiteSpace(rawTag))
+                {
+                    continue;
+                }
+
+                var displayName = TagTextUtilities.CollapseWhitespace(rawTag);
+                if (displayName.Length > TagRules.MaxTagLength)
+                {
+                    throw new DomainValidationException("Invalid post tags.", new Dictionary<string, string[]>
+                    {
+                        ["Tags"] = new[] { $"Tags must be {TagRules.MaxTagLength} characters or fewer." }
+                    });
+                }
+
+                var normalizedName = TagTextUtilities.NormalizeText(displayName);
+                var slug = TagTextUtilities.CreateSlug(displayName);
+                if (string.IsNullOrWhiteSpace(slug))
+                {
+                    throw new DomainValidationException("Invalid post tags.", new Dictionary<string, string[]>
+                    {
+                        ["Tags"] = new[] { "Tags must include at least one letter or number." }
+                    });
+                }
+
+                if (seen.Add(normalizedName))
+                {
+                    normalized.Add(new NormalizedTagRequest(displayName, normalizedName, slug));
+                }
+            }
+
+            if (normalized.Count > TagRules.MaxTagsPerPost)
+            {
+                throw new DomainValidationException("Invalid post tags.", new Dictionary<string, string[]>
+                {
+                    ["Tags"] = new[] { $"A maximum of {TagRules.MaxTagsPerPost} tags is allowed." }
+                });
+            }
+
+            return normalized;
+        }
+
+        private static string ResolveUniqueSlug(string baseSlug, ISet<string> usedSlugs)
+        {
+            var candidate = baseSlug;
+            var suffix = 2;
+            while (usedSlugs.Contains(candidate))
+            {
+                candidate = $"{baseSlug}-{suffix}";
+                suffix++;
+            }
+
+            return candidate;
         }
 
         private static void ValidatePaging(int page, int pageSize)
@@ -374,7 +559,6 @@ namespace MiniPainterHub.Server.Services
                 ct.ThrowIfCancellationRequested();
 
                 var image = images[i];
-
                 if (image.Length > MaxUploadBytes)
                 {
                     throw new ImageTooLargeException(image.FileName, image.Length, MaxUploadBytes);
@@ -420,7 +604,6 @@ namespace MiniPainterHub.Server.Services
                 ct.ThrowIfCancellationRequested();
 
                 var image = images[i];
-
                 if (image.Length > MaxUploadBytes)
                 {
                     throw new ImageTooLargeException(image.FileName, image.Length, MaxUploadBytes);
@@ -448,8 +631,8 @@ namespace MiniPainterHub.Server.Services
             return results;
         }
 
-        private static Guid ConvertToStorageGuid(int postId)
-            => new(postId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        private static Guid ConvertToStorageGuid(int postId) =>
+            new(postId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
         private static string ResolveContentType(IFormFile file)
         {
@@ -469,7 +652,9 @@ namespace MiniPainterHub.Server.Services
             return string.Empty;
         }
 
-        private static string ResolveDisplayName(string? userName, string? profileDisplayName)
-            => string.IsNullOrWhiteSpace(profileDisplayName) ? (userName ?? string.Empty) : profileDisplayName;
+        private static string ResolveDisplayName(string? userName, string? profileDisplayName) =>
+            string.IsNullOrWhiteSpace(profileDisplayName) ? (userName ?? string.Empty) : profileDisplayName;
+
+        private sealed record NormalizedTagRequest(string DisplayName, string NormalizedName, string Slug);
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace MiniPainterHub.Common.DTOs
@@ -11,5 +12,8 @@ namespace MiniPainterHub.Common.DTOs
         [Required]
         [StringLength(4000)]
         public string Content { get; set; } = default!;
+
+        [MaxLength(TagRules.MaxTagsPerPost)]
+        public List<string> Tags { get; set; } = new();
     }
 }

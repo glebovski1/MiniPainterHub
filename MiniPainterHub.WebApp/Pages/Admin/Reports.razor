@@ -1,0 +1,322 @@
+@page "/admin/reports"
+@attribute [Authorize(Roles = "Moderator,Admin")]
+@using MiniPainterHub.Common.DTOs
+@inject MiniPainterHub.WebApp.Services.Interfaces.IReportService ReportService
+
+<PageTitle>Reports</PageTitle>
+
+<h3 class="mb-4">Reports Queue</h3>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h4 class="h6 text-uppercase text-muted fw-semibold mb-3">Filters</h4>
+
+        <div class="row g-3">
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="reports-status">Status</label>
+                <select id="reports-status" class="form-select" data-testid="reports-filter-status" @bind="_status">
+                    <option value="">All</option>
+                    <option value="@ReportStatuses.Open">Open</option>
+                    <option value="@ReportStatuses.Reviewed">Reviewed</option>
+                    <option value="@ReportStatuses.Actioned">Actioned</option>
+                    <option value="@ReportStatuses.Dismissed">Dismissed</option>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="reports-target-type">Target type</label>
+                <select id="reports-target-type" class="form-select" data-testid="reports-filter-target-type" @bind="_targetType">
+                    <option value="">All</option>
+                    <option value="@ReportTargetTypes.Post">Post</option>
+                    <option value="@ReportTargetTypes.Comment">Comment</option>
+                    <option value="@ReportTargetTypes.User">User</option>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="reports-reason">Reason</label>
+                <select id="reports-reason" class="form-select" data-testid="reports-filter-reason" @bind="_reasonCode">
+                    <option value="">All</option>
+                    @foreach (var reason in ReportReasonCodes.All)
+                    {
+                        <option value="@reason">@reason</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="reports-page-size">Page size</label>
+                <select id="reports-page-size" class="form-select" data-testid="reports-filter-page-size" @bind="_pageSize">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                </select>
+            </div>
+        </div>
+
+        <button class="btn btn-primary mt-3"
+                type="button"
+                data-testid="reports-apply-filters"
+                @onclick="ApplyFiltersAsync"
+                disabled="@_loading">
+            @(_loading ? "Loading..." : "Apply filters")
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <div class="alert alert-danger" data-testid="reports-error">@_error</div>
+}
+else if (_loading)
+{
+    <div class="d-flex align-items-center gap-2 text-secondary" data-testid="reports-loading">
+        <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+        <span>Loading reports...</span>
+    </div>
+}
+else if (_items.Count == 0)
+{
+    <div class="alert alert-light border" data-testid="reports-empty">No reports matched the current filters.</div>
+}
+else
+{
+    <div class="d-flex flex-column gap-3">
+        @foreach (var item in _items)
+        {
+            <div class="card shadow-sm" data-testid="reports-row">
+                <div class="card-body">
+                    <div class="d-flex flex-column flex-lg-row align-items-lg-start justify-content-between gap-3">
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span class="badge text-bg-secondary">#@item.Id</span>
+                                <span class="@GetStatusBadgeClass(item.Status)">@item.Status</span>
+                                <span class="text-muted small">@item.CreatedUtc.ToLocalTime().ToString("g")</span>
+                            </div>
+
+                            <div class="mb-1">
+                                <strong>@item.TargetType</strong>:
+                                <NavLink class="text-decoration-none" href="@item.TargetUrl">@item.TargetSummary</NavLink>
+                            </div>
+                            <div class="small text-muted">Reporter: @item.ReporterUserName (@item.ReporterUserId)</div>
+                            @if (!string.IsNullOrWhiteSpace(item.ReviewedByUserName))
+                            {
+                                <div class="small text-muted">Reviewed by: @item.ReviewedByUserName</div>
+                            }
+                        </div>
+
+                        <div class="text-lg-end">
+                            <div><strong>Reason:</strong> @item.ReasonCode</div>
+                            <div class="small text-muted">Target id: @item.TargetId</div>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(item.Details))
+                    {
+                        <div class="mt-3">
+                            <div class="small text-uppercase text-muted fw-semibold mb-1">Details</div>
+                            <div>@item.Details</div>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(item.ResolutionNote))
+                    {
+                        <div class="mt-3">
+                            <div class="small text-uppercase text-muted fw-semibold mb-1">Resolution note</div>
+                            <div>@item.ResolutionNote</div>
+                        </div>
+                    }
+
+                    @if (string.Equals(item.Status, ReportStatuses.Open, StringComparison.Ordinal))
+                    {
+                        <div class="mt-3">
+                            <label class="form-label" for="@($"report-note-{item.Id}")">Resolution note</label>
+                            <textarea id="@($"report-note-{item.Id}")"
+                                      class="form-control mb-3"
+                                      rows="2"
+                                      data-testid="report-resolution-note"
+                                      value="@GetResolutionNote(item.Id)"
+                                      @onchange="args => SetResolutionNote(item.Id, args.Value?.ToString())"></textarea>
+
+                            <div class="d-flex flex-wrap gap-2">
+                                <button class="btn btn-outline-secondary btn-sm"
+                                        type="button"
+                                        data-testid="report-resolve-reviewed"
+                                        @onclick="@(() => ResolveAsync(item.Id, ReportStatuses.Reviewed))"
+                                        disabled="@_resolving">
+                                    Mark reviewed
+                                </button>
+                                <button class="btn btn-outline-warning btn-sm"
+                                        type="button"
+                                        data-testid="report-resolve-actioned"
+                                        @onclick="@(() => ResolveAsync(item.Id, ReportStatuses.Actioned))"
+                                        disabled="@_resolving">
+                                    Mark actioned
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm"
+                                        type="button"
+                                        data-testid="report-resolve-dismissed"
+                                        @onclick="@(() => ResolveAsync(item.Id, ReportStatuses.Dismissed))"
+                                        disabled="@_resolving">
+                                    Dismiss
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="d-flex align-items-center gap-2 mt-4">
+        <button class="btn btn-outline-secondary"
+                type="button"
+                data-testid="reports-prev"
+                @onclick="LoadPreviousPageAsync"
+                disabled="@(!_hasPreviousPage || _loading)">
+            Previous
+        </button>
+        <button class="btn btn-outline-secondary"
+                type="button"
+                data-testid="reports-next"
+                @onclick="LoadNextPageAsync"
+                disabled="@(!_hasNextPage || _loading)">
+            Next
+        </button>
+        <span class="text-muted" data-testid="reports-page-state">Page @_page of @_totalPages</span>
+    </div>
+}
+
+@code {
+    private readonly List<ReportQueueItemDto> _items = new();
+    private readonly Dictionary<long, string?> _resolutionNotes = new();
+
+    private bool _loading;
+    private bool _resolving;
+    private string? _error;
+    private int _page = 1;
+    private int _pageSize = 10;
+    private int _totalPages = 1;
+    private string _status = ReportStatuses.Open;
+    private string _targetType = string.Empty;
+    private string _reasonCode = string.Empty;
+
+    private bool _hasPreviousPage => _page > 1;
+    private bool _hasNextPage => _page < _totalPages;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task ApplyFiltersAsync()
+    {
+        _page = 1;
+        await LoadAsync();
+    }
+
+    private async Task LoadPreviousPageAsync()
+    {
+        if (!_hasPreviousPage)
+        {
+            return;
+        }
+
+        _page--;
+        await LoadAsync();
+    }
+
+    private async Task LoadNextPageAsync()
+    {
+        if (!_hasNextPage)
+        {
+            return;
+        }
+
+        _page++;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            var result = await ReportService.GetQueueAsync(new ReportQueueQueryDto
+            {
+                Page = _page,
+                PageSize = _pageSize,
+                Status = NormalizeOptional(_status),
+                TargetType = NormalizeOptional(_targetType),
+                ReasonCode = NormalizeOptional(_reasonCode)
+            });
+
+            if (!result.Success || result.Value is null)
+            {
+                _items.Clear();
+                _totalPages = 1;
+                _error = "Could not load reports. Please try again.";
+                return;
+            }
+
+            _items.Clear();
+            _items.AddRange(result.Value.Items);
+            _page = result.Value.PageNumber;
+            _pageSize = result.Value.PageSize;
+            _totalPages = Math.Max(result.Value.TotalPages, 1);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ResolveAsync(long reportId, string status)
+    {
+        _resolving = true;
+        _error = null;
+
+        try
+        {
+            var success = await ReportService.ResolveAsync(reportId, new ResolveReportRequestDto
+            {
+                Status = status,
+                ResolutionNote = NormalizeOptional(GetResolutionNote(reportId))
+            });
+
+            if (!success)
+            {
+                _error = "Could not resolve the report.";
+                return;
+            }
+
+            _resolutionNotes.Remove(reportId);
+            await LoadAsync();
+        }
+        finally
+        {
+            _resolving = false;
+        }
+    }
+
+    private string? GetResolutionNote(long reportId) =>
+        _resolutionNotes.TryGetValue(reportId, out var note) ? note : null;
+
+    private void SetResolutionNote(long reportId, string? note)
+    {
+        _resolutionNotes[reportId] = note;
+    }
+
+    private static string GetStatusBadgeClass(string status) => status switch
+    {
+        ReportStatuses.Open => "badge text-bg-warning",
+        ReportStatuses.Actioned => "badge text-bg-danger",
+        ReportStatuses.Dismissed => "badge text-bg-secondary",
+        _ => "badge text-bg-success"
+    };
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}

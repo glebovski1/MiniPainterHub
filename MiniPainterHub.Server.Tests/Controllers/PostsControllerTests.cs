@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http.Json;
@@ -76,7 +77,7 @@ public class PostsControllerTests
         using var factory = new IntegrationTestApplicationFactory();
         await factory.ResetDatabaseAsync();
         await SeedUserAsync(factory, "post-user", "post-user");
-        await SeedPostAsync(factory, 301, "post-user", "Portrait", "Painted portrait");
+        await SeedPostAsync(factory, 301, "post-user", "Portrait", "Painted portrait", tags: new[] { "display", "airbrush" });
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/api/posts/301");
@@ -88,6 +89,7 @@ public class PostsControllerTests
         body.Title.Should().Be("Portrait");
         body.CreatedById.Should().Be("post-user");
         body.AuthorName.Should().Be("post-user");
+        body.Tags.Select(t => t.Name).Should().Equal("airbrush", "display");
     }
 
     [Fact]
@@ -101,7 +103,8 @@ public class PostsControllerTests
         var response = await client.PostAsJsonAsync("/api/posts", new CreatePostDto
         {
             Title = "New post title",
-            Content = "New post content"
+            Content = "New post content",
+            Tags = new List<string> { "Glazing", "NMM" }
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -109,12 +112,16 @@ public class PostsControllerTests
         body.Should().NotBeNull();
         body!.Title.Should().Be("New post title");
         body.CreatedById.Should().Be("post-user");
+        body.Tags.Select(t => t.Name).Should().Equal("Glazing", "NMM");
 
         await factory.ExecuteDbContextAsync(async db =>
         {
             (await db.Posts.CountAsync()).Should().Be(1);
             var post = await db.Posts.SingleAsync();
             post.Title.Should().Be("New post title");
+            var postTags = await db.PostTags.Include(pt => pt.Tag).ToListAsync();
+            postTags.Should().HaveCount(2);
+            postTags.Select(pt => pt.Tag.DisplayName).Should().Equal("Glazing", "NMM");
         });
     }
 
@@ -186,11 +193,12 @@ public class PostsControllerTests
         string userId,
         string title,
         string content,
-        bool isDeleted = false)
+        bool isDeleted = false,
+        IEnumerable<string>? tags = null)
     {
         return factory.ExecuteDbContextAsync(async db =>
         {
-            await db.Posts.AddAsync(new Post
+            var post = new Post
             {
                 Id = postId,
                 Title = title,
@@ -199,7 +207,33 @@ public class PostsControllerTests
                 CreatedUtc = DateTime.UtcNow,
                 UpdatedUtc = DateTime.UtcNow,
                 IsDeleted = isDeleted
-            });
+            };
+
+            await db.Posts.AddAsync(post);
+            await db.SaveChangesAsync();
+
+            if (tags is null)
+            {
+                return;
+            }
+
+            foreach (var tagName in tags)
+            {
+                var trimmed = tagName.Trim();
+                var normalized = trimmed.ToLowerInvariant();
+                var tag = new Tag
+                {
+                    DisplayName = trimmed,
+                    NormalizedName = normalized,
+                    Slug = normalized.Replace(' ', '-'),
+                    CreatedUtc = DateTime.UtcNow
+                };
+
+                await db.Tags.AddAsync(tag);
+                await db.SaveChangesAsync();
+                await db.PostTags.AddAsync(new PostTag { PostId = postId, TagId = tag.Id });
+            }
+
             await db.SaveChangesAsync();
         });
     }

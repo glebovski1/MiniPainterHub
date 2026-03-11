@@ -32,5 +32,7 @@ namespace MiniPainterHub.Common.DTOs
         public string? ImageUrl { get; set; }
 
         public List<PostImageDto> Images { get; set; } = new();
+
+        public List<TagDto> Tags { get; set; } = new();
     }
 }

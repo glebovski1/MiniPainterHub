@@ -15,6 +15,9 @@ namespace MiniPainterHub.Common.DTOs
         [StringLength(4000)]
         public string Content { get; set; } = default!;
 
+        [FromForm(Name = "tags")]
+        public List<string> Tags { get; set; } = new();
+
         // Bound from multipart/form-data under the "images" field
         [FromForm(Name = "images")]
         public List<IFormFile>? Images { get; set; }

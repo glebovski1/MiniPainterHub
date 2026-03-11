@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Net;
 using Microsoft.JSInterop;
 using MiniPainterHub.Common.Auth;
 using MiniPainterHub.WebApp.Services.Http;
@@ -50,6 +51,14 @@ namespace MiniPainterHub.WebApp.Services
 
         public async Task LogoutAsync()
         {
+            await _api.SendAsync(
+                new HttpRequestMessage(HttpMethod.Delete, "api/auth/maintenance-bypass"),
+                new ApiRequestOptions
+                {
+                    SuppressErrorNotifications = true,
+                    SuppressedStatusCodes = new HashSet<HttpStatusCode> { HttpStatusCode.ServiceUnavailable }
+                });
+
             await _js.InvokeVoidAsync("localStorage.removeItem", "authToken");
             _authStateProvider.NotifyUserAuthentication(null);
         }

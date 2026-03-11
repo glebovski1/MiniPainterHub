@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace MiniPainterHub.Common.DTOs
@@ -28,5 +29,6 @@ namespace MiniPainterHub.Common.DTOs
         public int CommentCount { get; set; }
         public int LikeCount { get; set; }
         public bool IsDeleted { get; set; }
+        public List<TagDto> Tags { get; set; } = new();
     }
 }

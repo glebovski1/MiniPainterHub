@@ -72,6 +72,11 @@
                     <span>Audit log</span>
                 </NavLink>
 
+                <NavLink class="nav-link dashboard-nav-link" href="/admin/reports" data-testid="admin-nav-reports">
+                    <i class="bi bi-flag" aria-hidden="true"></i>
+                    <span>Reports</span>
+                </NavLink>
+
                 <AuthorizeView Roles="Admin">
                     <Authorized Context="adminAuth">
                         <NavLink class="nav-link dashboard-nav-link" href="/admin/suspensions" data-testid="admin-nav-suspensions">

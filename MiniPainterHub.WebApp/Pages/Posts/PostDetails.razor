@@ -44,7 +44,7 @@
     {
         <div class="card shadow-lg p-4">
 
-            @* 🔳 Image/Gallery Section *@
+            @* Image/Gallery Section *@
             @if (HasImages)
             {
                 <div class="bg-light border rounded p-3 mb-4">
@@ -83,7 +83,7 @@
                 </div>
             }
 
-            @* 📝 Post Content *@
+            @* Post Content *@
             <div class="card-body p-0">
                 <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
                     <h2 class="card-title mb-0" data-testid="post-title">@post.Title</h2>
@@ -97,7 +97,7 @@
                 <p class="text-muted small mb-3">
                     <i class="bi bi-person me-1"></i>
                     <NavLink class="fw-semibold text-decoration-none" href="@($"/users/{post.CreatedById}")">@post.AuthorName</NavLink>
-                    <span class="mx-2">•</span>
+                    <span class="mx-2">&bull;</span>
                     <i class="bi bi-calendar3 me-1"></i>
                     @post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
                 </p>
@@ -106,12 +106,19 @@
                     @post.Content
                 </div>
 
+                <TagBadgeList Tags="post.Tags" TestId="post-details-tags" />
+
+                <ReportAction TargetType="@ReportTargetTypes.Post"
+                              TargetId="@PostId.ToString()"
+                              OwnerUserId="@post.CreatedById"
+                              TestIdPrefix="post-report" />
+
                 <div class="d-flex align-items-center gap-3 mb-4">
                     <LikeButton PostId="@PostId" TestId="post-like-toggle" />
 
                     <button class="btn btn-outline-secondary btn-sm ms-auto"
                             @onclick='() => Nav.NavigateTo("/")'>
-                        ← Back
+                        Back
                     </button>
                 </div>
 
@@ -166,7 +173,7 @@
     }
 </div>
 
-@* 🔍 Zoom Modal *@
+@* Zoom Modal *@
 @if (showModal)
 {
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6);" tabindex="-1">
@@ -418,4 +425,6 @@
             : $"{Nav.BaseUri.TrimEnd('/')}{url}";
     }
 }
+
+
 

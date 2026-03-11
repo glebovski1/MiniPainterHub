@@ -16,6 +16,7 @@ using Microsoft.OpenApi.Models;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.ErrorHandling;
 using MiniPainterHub.Server.Identity;
+using MiniPainterHub.Server.Middleware;
 using MiniPainterHub.Server.OpenAPIOperationFilter;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Realtime;
@@ -108,6 +109,7 @@ public class Program
             };
         });
 
+        builder.Services.AddDataProtection();
         builder.Services.AddControllers();
         builder.Services.AddSignalR();
 
@@ -163,6 +165,8 @@ public class Program
             .Bind(builder.Configuration.GetSection("Images"))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+        builder.Services.AddOptions<MaintenanceOptions>()
+            .Bind(builder.Configuration.GetSection("Maintenance"));
 
         builder.Services.AddScoped<IImageProcessor, ImageProcessor>();
 
@@ -199,8 +203,11 @@ public class Program
         builder.Services.AddScoped<DevelopmentContentSeeder>();
         builder.Services.AddScoped<IAccountRestrictionService, AccountRestrictionService>();
         builder.Services.AddScoped<IModerationService, ModerationService>();
+        builder.Services.AddScoped<ISearchService, SearchService>();
+        builder.Services.AddScoped<IReportService, ReportService>();
         builder.Services.AddScoped<IFollowService, FollowService>();
         builder.Services.AddScoped<IConversationService, ConversationService>();
+        builder.Services.AddSingleton<IMaintenanceBypassService, MaintenanceBypassService>();
         builder.Services.AddSingleton<IChatNotifier, SignalRChatNotifier>();
         builder.Services.AddAuthorization();
 
@@ -275,6 +282,8 @@ public class Program
         app.UseExceptionHandler();
 
         app.UseHttpsRedirection();
+        app.UseAuthentication();
+        app.UseMiddleware<MaintenanceModeMiddleware>();
         app.UseBlazorFrameworkFiles();  // 🟡 Serve WASM framework files
 
         if (app.Environment.IsDevelopment())
@@ -289,8 +298,6 @@ public class Program
         }
 
         app.UseStaticFiles();
-
-        app.UseAuthentication();
         app.UseAuthorization();
 
         app.MapControllers();

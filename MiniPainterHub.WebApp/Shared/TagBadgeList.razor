@@ -1,0 +1,27 @@
+@using MiniPainterHub.Common.DTOs
+@inject NavigationManager Navigation
+
+@if (Tags is { Count: > 0 })
+{
+    <div class="d-flex flex-wrap gap-2" data-testid="@TestId">
+        @foreach (var tag in Tags)
+        {
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary rounded-pill"
+                    data-testid="tag-link"
+                    @onclick="@(() => NavigateToTag(tag))">
+                #@tag.Name
+            </button>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<TagDto>? Tags { get; set; }
+    [Parameter] public string TestId { get; set; } = "tag-badge-list";
+
+    private void NavigateToTag(TagDto tag)
+    {
+        Navigation.NavigateTo($"/search?q={Uri.EscapeDataString(tag.Name)}&tab=posts&tag={Uri.EscapeDataString(tag.Slug)}");
+    }
+}

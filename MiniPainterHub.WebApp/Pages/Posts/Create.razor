@@ -23,6 +23,26 @@
     </div>
 
     <div class="mb-3">
+        <label for="post-tags" class="form-label">Tags</label>
+        <input id="post-tags"
+               class="form-control"
+               data-testid="create-post-tags"
+               @bind="tagInput"
+               @bind:event="oninput"
+               placeholder="glazing, nmm, osl" />
+        <div class="form-text">Comma-separated technique tags. Up to @MiniPainterHub.Common.DTOs.TagRules.MaxTagsPerPost tags.</div>
+        @if (ParsedTags.Count > 0)
+        {
+            <div class="d-flex flex-wrap gap-2 mt-2" data-testid="create-post-tags-preview">
+                @foreach (var tag in ParsedTags)
+                {
+                    <span class="badge rounded-pill text-bg-secondary" data-testid="create-post-tag-chip">#@tag</span>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="mb-3">
         <label for="post-images" class="form-label">Images</label>
         <InputFile id="post-images" class="form-control" OnChange="OnFilesSelected" multiple />
         @if (previewUrls.Count > 0)
@@ -47,7 +67,14 @@
     private CreatePostDto newPost = new();
     private IReadOnlyList<IBrowserFile> selectedFiles = Array.Empty<IBrowserFile>();
     private List<string> previewUrls = new();
+    private string tagInput = string.Empty;
     private string errorMessage = string.Empty;
+    private List<string> ParsedTags => tagInput
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Where(tag => !string.IsNullOrWhiteSpace(tag))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Take(MiniPainterHub.Common.DTOs.TagRules.MaxTagsPerPost)
+        .ToList();
 
     private void OnFilesSelected(InputFileChangeEventArgs e)
     {
@@ -67,6 +94,7 @@
         errorMessage = "";
         try
         {
+            newPost.Tags = ParsedTags.ToList();
             if (selectedFiles.Count > 0)
             {
                 var content = new MultipartFormDataContent
@@ -80,6 +108,11 @@
                     var stremaContent = new StreamContent(file.OpenReadStream(5 * 1024 * 1024));
                     stremaContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
                     content.Add(stremaContent, "Images", file.Name);
+                }
+
+                foreach (var tag in newPost.Tags)
+                {
+                    content.Add(new StringContent(tag), "tags");
                 }
 
                 var created = await PostService.CreateWithImageAsync(content);

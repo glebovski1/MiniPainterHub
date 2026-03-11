@@ -14,9 +14,12 @@ namespace MiniPainterHub.Server.Data
         public DbSet<Profile> Profiles { get; set; } = default!;
         public DbSet<Post> Posts { get; set; } = default!;
         public DbSet<PostImage> PostImages { get; set; } = default!;
+        public DbSet<Tag> Tags { get; set; } = default!;
+        public DbSet<PostTag> PostTags { get; set; } = default!;
         public DbSet<Comment> Comments { get; set; } = default!;
         public DbSet<Like> Likes { get; set; } = default!;
         public DbSet<ModerationAuditLog> ModerationAuditLogs { get; set; } = default!;
+        public DbSet<ContentReport> ContentReports { get; set; } = default!;
         public DbSet<Follow> Follows { get; set; } = default!;
         public DbSet<Conversation> Conversations { get; set; } = default!;
         public DbSet<ConversationParticipant> ConversationParticipants { get; set; } = default!;
@@ -53,6 +56,31 @@ namespace MiniPainterHub.Server.Data
                 .WithMany(p => p.Images)
                 .HasForeignKey(pi => pi.PostId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<PostTag>(b =>
+            {
+                b.HasKey(pt => new { pt.PostId, pt.TagId });
+
+                b.HasOne(pt => pt.Post)
+                    .WithMany(p => p.PostTags)
+                    .HasForeignKey(pt => pt.PostId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasOne(pt => pt.Tag)
+                    .WithMany(t => t.PostTags)
+                    .HasForeignKey(pt => pt.TagId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<Tag>(b =>
+            {
+                b.Property(t => t.DisplayName).HasMaxLength(MiniPainterHub.Common.DTOs.TagRules.MaxTagLength).IsRequired();
+                b.Property(t => t.NormalizedName).HasMaxLength(MiniPainterHub.Common.DTOs.TagRules.MaxTagLength).IsRequired();
+                b.Property(t => t.Slug).HasMaxLength(64).IsRequired();
+
+                b.HasIndex(t => t.NormalizedName).IsUnique();
+                b.HasIndex(t => t.Slug).IsUnique();
+            });
 
             builder.Entity<Comment>()
                 .HasOne(c => c.Post)
@@ -94,6 +122,22 @@ namespace MiniPainterHub.Server.Data
                 b.HasIndex(m => m.CreatedUtc);
                 b.HasIndex(m => new { m.TargetType, m.TargetId });
                 b.HasIndex(m => m.ActorUserId);
+            });
+
+            builder.Entity<ContentReport>(b =>
+            {
+                b.Property(r => r.ReporterUserId).HasMaxLength(450).IsRequired();
+                b.Property(r => r.TargetType).HasMaxLength(64).IsRequired();
+                b.Property(r => r.TargetId).HasMaxLength(128).IsRequired();
+                b.Property(r => r.ReasonCode).HasMaxLength(32).IsRequired();
+                b.Property(r => r.Details).HasMaxLength(1000);
+                b.Property(r => r.Status).HasMaxLength(32).IsRequired();
+                b.Property(r => r.ReviewedByUserId).HasMaxLength(450);
+                b.Property(r => r.ResolutionNote).HasMaxLength(500);
+
+                b.HasIndex(r => new { r.TargetType, r.TargetId, r.Status });
+                b.HasIndex(r => new { r.ReporterUserId, r.TargetType, r.TargetId, r.Status });
+                b.HasIndex(r => new { r.Status, r.CreatedUtc });
             });
 
             builder.Entity<Like>()

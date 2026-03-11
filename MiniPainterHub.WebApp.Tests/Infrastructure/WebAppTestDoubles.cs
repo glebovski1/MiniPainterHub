@@ -247,3 +247,60 @@ internal sealed class StubModerationService : IModerationService
     public Task<ApiResult<ModerationPostPreviewDto?>> GetPostPreviewAsync(int postId) => GetPostPreviewHandler(postId);
     public Task<ApiResult<ModerationCommentPreviewDto?>> GetCommentPreviewAsync(int commentId) => GetCommentPreviewHandler(commentId);
 }
+
+internal sealed class StubSearchService : ISearchService
+{
+    public Func<string?, Task<ApiResult<SearchOverviewDto?>>> GetOverviewHandler { get; set; } = _ =>
+        Task.FromResult(new ApiResult<SearchOverviewDto?>(true, HttpStatusCode.OK, new SearchOverviewDto()));
+    public Func<string?, string?, int, int, Task<ApiResult<PagedResult<PostSummaryDto>?>>> SearchPostsHandler { get; set; } = (_, _, page, pageSize) =>
+        Task.FromResult(new ApiResult<PagedResult<PostSummaryDto>?>(true, HttpStatusCode.OK, new PagedResult<PostSummaryDto>
+        {
+            Items = Array.Empty<PostSummaryDto>(),
+            PageNumber = page,
+            PageSize = pageSize,
+            TotalCount = 0
+        }));
+    public Func<string?, int, int, Task<ApiResult<PagedResult<UserListItemDto>?>>> SearchUsersHandler { get; set; } = (_, page, pageSize) =>
+        Task.FromResult(new ApiResult<PagedResult<UserListItemDto>?>(true, HttpStatusCode.OK, new PagedResult<UserListItemDto>
+        {
+            Items = Array.Empty<UserListItemDto>(),
+            PageNumber = page,
+            PageSize = pageSize,
+            TotalCount = 0
+        }));
+    public Func<string?, int, int, Task<ApiResult<PagedResult<SearchTagResultDto>?>>> SearchTagsHandler { get; set; } = (_, page, pageSize) =>
+        Task.FromResult(new ApiResult<PagedResult<SearchTagResultDto>?>(true, HttpStatusCode.OK, new PagedResult<SearchTagResultDto>
+        {
+            Items = Array.Empty<SearchTagResultDto>(),
+            PageNumber = page,
+            PageSize = pageSize,
+            TotalCount = 0
+        }));
+
+    public Task<ApiResult<SearchOverviewDto?>> GetOverviewAsync(string? query) => GetOverviewHandler(query);
+    public Task<ApiResult<PagedResult<PostSummaryDto>?>> SearchPostsAsync(string? query, string? tag, int page, int pageSize) => SearchPostsHandler(query, tag, page, pageSize);
+    public Task<ApiResult<PagedResult<UserListItemDto>?>> SearchUsersAsync(string? query, int page, int pageSize) => SearchUsersHandler(query, page, pageSize);
+    public Task<ApiResult<PagedResult<SearchTagResultDto>?>> SearchTagsAsync(string? query, int page, int pageSize) => SearchTagsHandler(query, page, pageSize);
+}
+
+internal sealed class StubReportService : IReportService
+{
+    public Func<int, CreateReportRequestDto, Task<bool>> ReportPostHandler { get; set; } = (_, _) => Task.FromResult(true);
+    public Func<int, CreateReportRequestDto, Task<bool>> ReportCommentHandler { get; set; } = (_, _) => Task.FromResult(true);
+    public Func<string, CreateReportRequestDto, Task<bool>> ReportUserHandler { get; set; } = (_, _) => Task.FromResult(true);
+    public Func<ReportQueueQueryDto, Task<ApiResult<PagedResult<ReportQueueItemDto>?>>> GetQueueHandler { get; set; } = query =>
+        Task.FromResult(new ApiResult<PagedResult<ReportQueueItemDto>?>(true, HttpStatusCode.OK, new PagedResult<ReportQueueItemDto>
+        {
+            Items = Array.Empty<ReportQueueItemDto>(),
+            PageNumber = query.Page,
+            PageSize = query.PageSize,
+            TotalCount = 0
+        }));
+    public Func<long, ResolveReportRequestDto, Task<bool>> ResolveHandler { get; set; } = (_, _) => Task.FromResult(true);
+
+    public Task<bool> ReportPostAsync(int postId, CreateReportRequestDto request) => ReportPostHandler(postId, request);
+    public Task<bool> ReportCommentAsync(int commentId, CreateReportRequestDto request) => ReportCommentHandler(commentId, request);
+    public Task<bool> ReportUserAsync(string userId, CreateReportRequestDto request) => ReportUserHandler(userId, request);
+    public Task<ApiResult<PagedResult<ReportQueueItemDto>?>> GetQueueAsync(ReportQueueQueryDto query) => GetQueueHandler(query);
+    public Task<bool> ResolveAsync(long reportId, ResolveReportRequestDto request) => ResolveHandler(reportId, request);
+}

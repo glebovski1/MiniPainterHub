@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Bunit;
 using Bunit.TestDoubles;
 using Microsoft.AspNetCore.Components;
@@ -9,6 +10,16 @@ namespace MiniPainterHub.WebApp.Tests.Infrastructure;
 
 internal static class BunitTestContextExtensions
 {
+    private static void EnsureReportStub(this TestContext context)
+    {
+        if (context.Services.Any(service => service.ServiceType == typeof(IReportService)))
+        {
+            return;
+        }
+
+        context.Services.AddSingleton<IReportService>(new StubReportService());
+    }
+
     public static StubAuthService AddAuthStub(this TestContext context, StubAuthService? stub = null)
     {
         stub ??= new StubAuthService();
@@ -18,6 +29,7 @@ internal static class BunitTestContextExtensions
 
     public static StubProfileService AddProfileStub(this TestContext context, StubProfileService? stub = null)
     {
+        context.EnsureReportStub();
         stub ??= new StubProfileService();
         context.Services.AddSingleton<IProfileService>(stub);
         return stub;
@@ -25,6 +37,7 @@ internal static class BunitTestContextExtensions
 
     public static StubPostService AddPostStub(this TestContext context, StubPostService? stub = null)
     {
+        context.EnsureReportStub();
         stub ??= new StubPostService();
         context.Services.AddSingleton<IPostService>(stub);
         return stub;
@@ -46,6 +59,7 @@ internal static class BunitTestContextExtensions
 
     public static StubCommentService AddCommentStub(this TestContext context, StubCommentService? stub = null)
     {
+        context.EnsureReportStub();
         stub ??= new StubCommentService();
         context.Services.AddSingleton<ICommentService>(stub);
         return stub;
@@ -60,8 +74,23 @@ internal static class BunitTestContextExtensions
 
     public static StubModerationService AddModerationStub(this TestContext context, StubModerationService? stub = null)
     {
+        context.EnsureReportStub();
         stub ??= new StubModerationService();
         context.Services.AddSingleton<IModerationService>(stub);
+        return stub;
+    }
+
+    public static StubSearchService AddSearchStub(this TestContext context, StubSearchService? stub = null)
+    {
+        stub ??= new StubSearchService();
+        context.Services.AddSingleton<ISearchService>(stub);
+        return stub;
+    }
+
+    public static StubReportService AddReportStub(this TestContext context, StubReportService? stub = null)
+    {
+        stub ??= new StubReportService();
+        context.Services.AddSingleton<IReportService>(stub);
         return stub;
     }
 

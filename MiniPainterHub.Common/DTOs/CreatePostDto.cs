@@ -13,6 +13,9 @@ namespace MiniPainterHub.Common.DTOs
         [StringLength(4000)]
         public string Content { get; set; } = default!;
 
+        [MaxLength(TagRules.MaxTagsPerPost)]
+        public List<string> Tags { get; set; } = new();
+
         [MaxLength(5)]
         public List<PostImageDto>? Images { get; set; }
     }

@@ -1,39 +1,49 @@
-@using MiniPainterHub.Common.DTOs
 @using Microsoft.AspNetCore.Components.Authorization
+@using MiniPainterHub.Common.DTOs
 @inject NavigationManager Navigation
 @inject MiniPainterHub.WebApp.Services.Interfaces.IModerationService ModerationService
 
 <div class="card h-100 shadow-sm">
-    <NavLink class="text-decoration-none text-dark" href="@($"/posts/{Post.Id}")">
-        @if (!string.IsNullOrEmpty(Post.ImageUrl))
-        {
+    @if (!string.IsNullOrEmpty(Post.ImageUrl))
+    {
+        <NavLink class="text-decoration-none" href="@($"/posts/{Post.Id}")">
             <img src="@DisplayImageUrl"
                  class="card-img-top bg-light"
                  alt="Post image"
                  @onerror="HandleImageError"
                  loading="lazy"
                  style="height: 180px; object-fit: contain;" />
-        }
-        <div class="card-body">
-            <div class="d-flex align-items-start justify-content-between gap-2">
+        </NavLink>
+    }
+
+    <div class="card-body">
+        <div class="d-flex align-items-start justify-content-between gap-2">
+            <NavLink class="text-decoration-none text-dark flex-grow-1" href="@($"/posts/{Post.Id}")">
                 <h5 class="card-title mb-0">@Post.Title</h5>
-                <AuthorizeView Roles="Moderator,Admin">
-                    <Authorized>
-                        <span class="badge text-bg-secondary flex-shrink-0" data-testid="post-id-badge">#@Post.Id</span>
-                    </Authorized>
-                </AuthorizeView>
-            </div>
-            <p class="card-text text-truncate">@Post.Snippet</p>
-            @if (Post.IsDeleted)
-            {
-                <span class="badge text-bg-warning mt-2" data-testid="post-hidden-badge">Hidden</span>
-            }
+            </NavLink>
+            <AuthorizeView Roles="Moderator,Admin">
+                <Authorized>
+                    <span class="badge text-bg-secondary flex-shrink-0" data-testid="post-id-badge">#@Post.Id</span>
+                </Authorized>
+            </AuthorizeView>
         </div>
-    </NavLink>
+
+        <NavLink class="text-decoration-none text-dark" href="@($"/posts/{Post.Id}")">
+            <p class="card-text text-truncate">@Post.Snippet</p>
+        </NavLink>
+
+        <TagBadgeList Tags="Post.Tags" TestId="post-card-tags" />
+
+        @if (Post.IsDeleted)
+        {
+            <span class="badge text-bg-warning mt-2" data-testid="post-hidden-badge">Hidden</span>
+        }
+    </div>
+
     <div class="card-footer d-flex justify-content-between align-items-center mt-auto">
         <small class="text-muted">
             <NavLink class="text-decoration-none" href="@($"/users/{Post.AuthorId}")">@Post.AuthorName</NavLink>
-            • @Post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
+            <span class="mx-1">&bull;</span> @Post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
         </small>
         <div>
             <span class="me-2"><i class="bi bi-chat-left-text"></i> @Post.CommentCount</span>
@@ -90,12 +100,11 @@
     private string? _moderationResult;
 
     private string FullImageUrl => MakeAbsoluteUrl(Post.ImageUrl);
-
     private string ThumbImageUrl => MakeAbsoluteUrl(ReplaceVariantSuffix(Post.ImageUrl, "_thumb."));
     private string DisplayImageUrl => _useFullImage ? FullImageUrl : ThumbImageUrl;
 
-    private string MakeAbsoluteUrl(string? url)
-        => string.IsNullOrEmpty(url)
+    private string MakeAbsoluteUrl(string? url) =>
+        string.IsNullOrEmpty(url)
             ? string.Empty
             : url.StartsWith("http", StringComparison.OrdinalIgnoreCase)
                 ? url
@@ -124,7 +133,6 @@
     }
 
     private Task HideAsync() => ModerateAsync(hide: true);
-
     private Task RestoreAsync() => ModerateAsync(hide: false);
 
     private async Task ModerateAsync(bool hide)

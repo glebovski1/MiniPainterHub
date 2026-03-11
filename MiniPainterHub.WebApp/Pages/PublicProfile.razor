@@ -74,6 +74,11 @@ else
                                 <div><strong>@_profile.FollowerCount</strong> followers</div>
                                 <div><strong>@_profile.FollowingCount</strong> following</div>
                             </div>
+
+                            <ReportAction TargetType="@ReportTargetTypes.User"
+                                          TargetId="@UserId"
+                                          OwnerUserId="@UserId"
+                                          TestIdPrefix="profile-report" />
                         </div>
                     </div>
                 </div>

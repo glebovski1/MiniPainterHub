@@ -62,6 +62,43 @@ public class CreateTests : TestContext
     }
 
     [Fact]
+    public async Task Submit_WithTags_PreviewsDistinctTagsAndSendsThemToTheApi()
+    {
+        CreatePostDto? captured = null;
+        this.AddPostStub(new StubPostService
+        {
+            CreateHandler = dto =>
+            {
+                captured = dto;
+                return Task.FromResult(new PostDto
+                {
+                    Id = 124,
+                    Title = dto.Title,
+                    Content = dto.Content,
+                    CreatedById = "user-1"
+                });
+            }
+        });
+
+        var cut = RenderComponent<Create>();
+
+        cut.Find("[data-testid='create-post-title']").Change("Tagged title");
+        cut.Find("[data-testid='create-post-content']").Change("Tagged content");
+        cut.Find("[data-testid='create-post-tags']").Input("glazing, NMM, glazing");
+
+        cut.WaitForAssertion(() =>
+            cut.FindAll("[data-testid='create-post-tag-chip']").Should().HaveCount(2));
+
+        await cut.Find("[data-testid='create-post-form']").SubmitAsync();
+
+        cut.WaitForAssertion(() =>
+        {
+            captured.Should().NotBeNull();
+            captured!.Tags.Should().Equal("glazing", "NMM");
+        });
+    }
+
+    [Fact]
     public async Task Submit_WhenServiceThrows_ShowsErrorMessage()
     {
         this.AddPostStub(new StubPostService

@@ -33,12 +33,14 @@ Configured middleware (in order):
 
 1. Exception handling (`UseExceptionHandler`)
 2. HTTPS redirection
-3. Static file and Blazor framework files
-4. Authentication (`UseAuthentication`)
-5. Authorization (`UseAuthorization`)
-6. API controller mapping (`MapControllers`)
-7. SPA fallback (`MapFallbackToFile("index.html")`)
-8. Health endpoint (`/healthz`)
+3. Authentication (`UseAuthentication`)
+4. Maintenance gate (`UseMiddleware<MaintenanceModeMiddleware>`)
+5. Static file and Blazor framework files
+6. Authorization (`UseAuthorization`)
+7. API controller mapping (`MapControllers`)
+8. SignalR hub mapping (`MapHub<ChatHub>("/hubs/chat")`)
+9. SPA fallback (`MapFallbackToFile("index.html")`)
+10. Health endpoint (`/healthz`)
 
 Development-only:
 - Swagger UI
@@ -67,6 +69,11 @@ Registered scoped domain services:
 - `ILikeService -> LikeService`
 - `IAccountRestrictionService -> AccountRestrictionService`
 - `IModerationService -> ModerationService`
+- `ISearchService -> SearchService`
+- `IReportService -> ReportService`
+- `IFollowService -> FollowService`
+- `IConversationService -> ConversationService`
+- `IMaintenanceBypassService -> MaintenanceBypassService` (singleton, cookie issuance/validation)
 - `DevelopmentContentSeeder` for explicit development-only sample content/avatar maintenance commands
 
 Image infrastructure:
@@ -96,16 +103,27 @@ Domain DbSets:
 - `Profiles`
 - `Posts`
 - `PostImages`
+- `Tags`
+- `PostTags`
 - `Comments`
 - `Likes`
 - `ModerationAuditLogs`
+- `ContentReports`
+- `Follows`
+- `Conversations`
+- `ConversationParticipants`
+- `DirectMessages`
 
 Entity relationships (configured in `OnModelCreating`):
 - `Profile` one-to-one with `ApplicationUser` (shared PK/FK `UserId`).
 - `Post` -> `ApplicationUser` (creator) with `DeleteBehavior.Restrict`.
 - `PostImage` -> `Post` with cascade delete.
+- `Tag` <-> `Post` through `PostTag` join table.
 - `Comment` -> `Post` with cascade delete; `Comment` -> `Author` with restrict delete.
 - `Like` -> `Post` with cascade delete; `Like` -> `User` with restrict delete.
+- `ContentReport` stores moderation queue state for post/comment/user reports.
+- `Follow` models the social graph between `ApplicationUser` rows.
+- `Conversation`/`ConversationParticipant`/`DirectMessage` model direct messaging.
 
 Soft-delete behavior:
 - `Post.IsDeleted` and `Comment.IsDeleted` are used by services to hide deleted records.
@@ -119,6 +137,8 @@ Main controllers under `MiniPainterHub.Server/Controllers`:
 - `AuthController` (`/api/auth`)
   - `POST /register`
   - `POST /login`
+  - `POST /maintenance-bypass`
+  - `DELETE /maintenance-bypass`
 - `PostsController` (`/api/posts`)
   - `GET /`
     - Supports visibility query options for moderation roles: `includeDeleted` and `deletedOnly`.
@@ -127,6 +147,11 @@ Main controllers under `MiniPainterHub.Server/Controllers`:
   - `POST /with-image` (multipart upload)
   - `PUT /{id}`
   - `DELETE /{id}`
+- `SearchController` (`/api/search`)
+  - `GET /overview`
+  - `GET /posts`
+  - `GET /users`
+  - `GET /tags`
 - `CommentsController`
   - `GET /api/posts/{postId}/comments`
   - `POST /api/posts/{postId}/comments`
@@ -154,6 +179,14 @@ Main controllers under `MiniPainterHub.Server/Controllers`:
   - `GET /users/lookup`
   - `GET /posts/{postId}/preview`
   - `GET /comments/{commentId}/preview`
+- `ReportsController` (`/api/reports`)
+  - `POST /posts/{postId}`
+  - `POST /comments/{commentId}`
+  - `POST /users/{userId}`
+  - `GET /`
+  - `POST /{reportId}/resolve`
+- `FollowsController` and `FeedController` for social graph and following feed
+- `ConversationsController` for direct messaging
 
 ## 5) Image Processing and Storage
 
@@ -194,17 +227,24 @@ The WebApp is a Blazor WebAssembly SPA:
   - standardized error parsing
   - notification handling
 
-Service clients in `MiniPainterHub.WebApp/Services` mirror server domains (`AuthService`, `PostService`, `CommentService`, `LikeService`, `ProfileService`).
+Service clients in `MiniPainterHub.WebApp/Services` mirror server domains (`AuthService`, `PostService`, `CommentService`, `LikeService`, `ProfileService`, `SearchService`, `ReportService`, `FollowService`, `ConversationService`).
 Service clients also include moderation flows (`ModerationService`) and keep query DTO/filter parity with the server API.
 
 Admin UX composition:
 - Left collapsible user panel (`Layout/MainLayout.razor` + `Shared/UserPanelContent.razor`) is the primary entry for admin actions.
 - `Moderator` and `Admin` see moderation + audit links.
+- `Moderator` and `Admin` also see the reports queue.
 - `Admin` additionally sees user suspension tools.
 - Admin pages currently live under:
   - `Pages/Admin/ModerationDashboard.razor`
   - `Pages/Admin/AuditLog.razor`
+  - `Pages/Admin/Reports.razor`
   - `Pages/Admin/UserSuspensions.razor`
+
+Search and reporting UX composition:
+- Global nav search routes into `Pages/Search.razor`.
+- Post cards/details render technique tags through `Shared/TagBadgeList.razor`.
+- Posts, comments, and public profiles expose inline reporting through `Shared/ReportAction.razor`.
 
 ## 8) Testing Strategy
 
