@@ -67,6 +67,58 @@ public class DevelopmentContentSeederTests
     }
 
     [Fact]
+    public async Task ResetAndSeedAsync_AssignsTagsToEverySeededPost_ForTagDiscoverySurfaces()
+    {
+        var testRoot = Path.Combine(Path.GetTempPath(), "MiniPainterHub.SeedTests", Guid.NewGuid().ToString("N"));
+        var imageRoot = Path.Combine(testRoot, "storage");
+        var avatarSource = Path.Combine(testRoot, "avatars");
+        Directory.CreateDirectory(imageRoot);
+
+        try
+        {
+            await CreateAvatarSourceAsync(avatarSource, ".png");
+
+            using var factory = new IntegrationTestApplicationFactory(new Dictionary<string, string?>
+            {
+                ["ImageStorage:LocalPath"] = imageRoot,
+                ["ImageStorage:RequestPath"] = "/uploads/images"
+            });
+
+            using var scope = factory.Services.CreateScope();
+            var seeder = scope.ServiceProvider.GetRequiredService<DevelopmentContentSeeder>();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            await seeder.ResetAndSeedAsync(avatarSource);
+
+            var posts = db.Posts
+                .Include(post => post.PostTags)
+                .ThenInclude(postTag => postTag.Tag)
+                .ToList();
+            var weatheringTag = db.Tags
+                .Include(tag => tag.PostTags)
+                .Single(tag => tag.Slug == "weathering");
+            var snowPost = posts.Single(post => post.Title == "Snow basing experiment");
+
+            db.Tags.Should().NotBeEmpty();
+            db.PostTags.Should().NotBeEmpty();
+            posts.Should().HaveCount(20);
+            posts.Should().OnlyContain(post => post.PostTags.Count > 0);
+            weatheringTag.PostTags.Count.Should().BeGreaterThan(1);
+            snowPost.PostTags
+                .Select(postTag => postTag.Tag.DisplayName)
+                .Should()
+                .BeEquivalentTo("basing", "snow", "winter");
+        }
+        finally
+        {
+            if (Directory.Exists(testRoot))
+            {
+                Directory.Delete(testRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task ResetAndSeedAsync_WithPostImageSource_AttachesOneSeedImageToEachPost_ReusingFilesAsNeeded()
     {
         var testRoot = Path.Combine(Path.GetTempPath(), "MiniPainterHub.SeedTests", Guid.NewGuid().ToString("N"));

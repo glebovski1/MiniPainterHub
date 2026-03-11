@@ -32,8 +32,8 @@ public sealed class DevelopmentContentSeeder
             new[] { "Admin", "User" },
             "Display painter and studio founder documenting grimdark armies and bright skirmish bands.",
             [
-                new("Studio kickoff: 2026 painting goals", "Resetting the hobby desk this week with a focus on cleaner blends, faster basing, and finally finishing the swamp warband."),
-                new("WIP: rusted sentinel captain", "Tried a warmer copper undercoat before the turquoise weathering pass. The contrast is much stronger than my last attempt.")
+                new("Studio kickoff: 2026 painting goals", "Resetting the hobby desk this week with a focus on cleaner blends, faster basing, and finally finishing the swamp warband.", ["goals", "basing", "grimdark"]),
+                new("WIP: rusted sentinel captain", "Tried a warmer copper undercoat before the turquoise weathering pass. The contrast is much stronger than my last attempt.", ["weathering", "verdigris", "grimdark"])
             ]),
         new(
             "user",
@@ -43,8 +43,8 @@ public sealed class DevelopmentContentSeeder
             new[] { "User" },
             "Weekend hobbyist painting historical infantry, terrain scatter, and anything with a weathered coat.",
             [
-                new("First squad done this month", "Batch painting is finally clicking. I limited the palette to three greens and it kept the whole unit cohesive."),
-                new("Snow basing experiment", "Used crushed glass, matte medium, and a tiny bit of blue wash. It reads colder in person than in the reference photos.")
+                new("First squad done this month", "Batch painting is finally clicking. I limited the palette to three greens and it kept the whole unit cohesive.", ["batch-painting", "tabletop", "greens"]),
+                new("Snow basing experiment", "Used crushed glass, matte medium, and a tiny bit of blue wash. It reads colder in person than in the reference photos.", ["basing", "snow", "winter"])
             ]),
         new(
             "studiomod",
@@ -54,8 +54,8 @@ public sealed class DevelopmentContentSeeder
             new[] { "Moderator", "User" },
             "Community moderator focused on clean tutorials, readable color recipes, and approachable feedback.",
             [
-                new("Quick tip: smoother cloaks", "Thin the midtone one step more than you think you need, then glaze shadows back in instead of trying to nail the blend in one pass."),
-                new("Palette challenge thread idea", "Thinking about a weekly prompt built around one accent color and one texture goal. Could be a good way to keep posts focused.")
+                new("Quick tip: smoother cloaks", "Thin the midtone one step more than you think you need, then glaze shadows back in instead of trying to nail the blend in one pass.", ["glazing", "tutorial", "cloth"]),
+                new("Palette challenge thread idea", "Thinking about a weekly prompt built around one accent color and one texture goal. Could be a good way to keep posts focused.", ["challenge", "community", "palette"])
             ]),
         new(
             "inkandiron",
@@ -65,8 +65,8 @@ public sealed class DevelopmentContentSeeder
             new[] { "User" },
             "Paints battered sci-fi crews with lots of oil streaking, sponge chipping, and fluorescent lenses.",
             [
-                new("Hazard stripes on boarding shields", "Masked the stripes instead of freehanding them. Slower setup, but the end result is crisp enough for close-up shots."),
-                new("Neon lens recipe", "White ink dot, magenta glaze, then a final hot pink edge. It pops even under flat desk lighting.")
+                new("Hazard stripes on boarding shields", "Masked the stripes instead of freehanding them. Slower setup, but the end result is crisp enough for close-up shots.", ["hazard-stripes", "masking", "sci-fi"]),
+                new("Neon lens recipe", "White ink dot, magenta glaze, then a final hot pink edge. It pops even under flat desk lighting.", ["osl", "lenses", "sci-fi"])
             ]),
         new(
             "velvetwash",
@@ -76,8 +76,8 @@ public sealed class DevelopmentContentSeeder
             new[] { "User" },
             "Loves rich velvets, jewel tones, and display-scale fantasy heroes with dramatic capes.",
             [
-                new("Burgundy cloak progression", "Started from a deep brown-red and pushed highlights with muted rose instead of pure red. The fabric looks heavier now."),
-                new("Display plinth thoughts", "Simple black plinth, matte finish, no nameplate. The miniature needed breathing room more than extra decoration.")
+                new("Burgundy cloak progression", "Started from a deep brown-red and pushed highlights with muted rose instead of pure red. The fabric looks heavier now.", ["cloak", "blending", "display"]),
+                new("Display plinth thoughts", "Simple black plinth, matte finish, no nameplate. The miniature needed breathing room more than extra decoration.", ["display", "plinth", "presentation"])
             ]),
         new(
             "brasslantern",
@@ -87,8 +87,8 @@ public sealed class DevelopmentContentSeeder
             new[] { "User" },
             "Terrain builder mixing scratch-built ruins, resin debris, and muddy pigments for campaign boards.",
             [
-                new("Ruined archway ready for primer", "I added one more broken beam to make the silhouette less symmetrical. It feels more believable now."),
-                new("Mud mix that survived varnish", "Pigment plus acrylic paste plus a drop of gloss medium. It kept the wet look after sealing.")
+                new("Ruined archway ready for primer", "I added one more broken beam to make the silhouette less symmetrical. It feels more believable now.", ["terrain", "scratchbuild", "ruins"]),
+                new("Mud mix that survived varnish", "Pigment plus acrylic paste plus a drop of gloss medium. It kept the wet look after sealing.", ["terrain", "mud", "weathering"])
             ]),
         new(
             "ashenreed",
@@ -98,8 +98,8 @@ public sealed class DevelopmentContentSeeder
             new[] { "User" },
             "Focuses on desaturated fantasy palettes, muted leathers, and soft atmospheric photography.",
             [
-                new("Muted ranger palette", "Greens, greys, and dusty bone with almost no saturated accents. The whole piece feels quieter, which suits the sculpt."),
-                new("Photo backdrop upgrade", "Swapped the bright paper backdrop for warm grey card. It fixes a lot of the color cast in phone photos.")
+                new("Muted ranger palette", "Greens, greys, and dusty bone with almost no saturated accents. The whole piece feels quieter, which suits the sculpt.", ["desaturated", "fantasy", "leather"]),
+                new("Photo backdrop upgrade", "Swapped the bright paper backdrop for warm grey card. It fixes a lot of the color cast in phone photos.", ["photography", "backdrop", "display"])
             ]),
         new(
             "cinderfox",
@@ -109,8 +109,8 @@ public sealed class DevelopmentContentSeeder
             new[] { "User" },
             "Paints fast-moving skirmish warbands with bold spot colors and readable tabletop contrast.",
             [
-                new("Warband sprint update", "Finished six models in four evenings by locking the recipe early and refusing to chase tiny corrections."),
-                new("Orange spot color test", "A single saturated orange sash did more for model readability than another pass of edge highlights.")
+                new("Warband sprint update", "Finished six models in four evenings by locking the recipe early and refusing to chase tiny corrections.", ["skirmish", "speedpaint", "tabletop"]),
+                new("Orange spot color test", "A single saturated orange sash did more for model readability than another pass of edge highlights.", ["spot-color", "contrast", "tabletop"])
             ]),
         new(
             "oakpigment",
@@ -120,8 +120,8 @@ public sealed class DevelopmentContentSeeder
             new[] { "User" },
             "Historical painter obsessed with worn canvas, dusty boots, and believable campaign grime.",
             [
-                new("Campaign dust on greatcoats", "Used a soft tan pigment around hems and elbows, then fixed it lightly so the folds stayed visible."),
-                new("Command stand complete", "Kept the officer cleaner than the rank-and-file so the eye lands there first without needing a brighter uniform.")
+                new("Campaign dust on greatcoats", "Used a soft tan pigment around hems and elbows, then fixed it lightly so the folds stayed visible.", ["historical", "pigments", "weathering"]),
+                new("Command stand complete", "Kept the officer cleaner than the rank-and-file so the eye lands there first without needing a brighter uniform.", ["historical", "composition", "display"])
             ]),
         new(
             "lumenforge",
@@ -131,8 +131,8 @@ public sealed class DevelopmentContentSeeder
             new[] { "User" },
             "Builds luminous magical effects, moonlit skin tones, and glowing runes for fantasy showcase pieces.",
             [
-                new("Moonlit skin experiment", "Mixed a touch of blue into the midtone instead of only the shadows. It shifted the whole model into night lighting."),
-                new("Runes with less chalkiness", "Stopped drybrushing the glow. Thin glazes over a tight white base are cleaner and easier to control.")
+                new("Moonlit skin experiment", "Mixed a touch of blue into the midtone instead of only the shadows. It shifted the whole model into night lighting.", ["moonlight", "skin", "fantasy"]),
+                new("Runes with less chalkiness", "Stopped drybrushing the glow. Thin glazes over a tight white base are cleaner and easier to control.", ["runes", "osl", "glazing"])
             ])
     ];
 
@@ -621,6 +621,8 @@ public sealed class DevelopmentContentSeeder
         DateTime now)
     {
         var posts = new List<Post>(SeedUsers.Sum(user => user.Posts.Count));
+        var tagsByNormalizedName = new Dictionary<string, Tag>(StringComparer.OrdinalIgnoreCase);
+        var usedSlugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         for (var userIndex = 0; userIndex < SeedUsers.Count; userIndex++)
         {
@@ -629,22 +631,74 @@ public sealed class DevelopmentContentSeeder
 
             for (var postIndex = 0; postIndex < seedUser.Posts.Count; postIndex++)
             {
+                var seedPost = seedUser.Posts[postIndex];
                 var offsetHours = ((SeedUsers.Count - userIndex) * 9) + (postIndex * 3);
                 var createdUtc = now.AddHours(-offsetHours);
-
-                posts.Add(new Post
+                var post = new Post
                 {
                     CreatedById = user.Id,
-                    Title = seedUser.Posts[postIndex].Title,
-                    Content = seedUser.Posts[postIndex].Content,
+                    Title = seedPost.Title,
+                    Content = seedPost.Content,
                     CreatedUtc = createdUtc,
                     UpdatedUtc = createdUtc,
                     IsDeleted = false
-                });
+                };
+
+                AttachTags(post, seedPost.Tags, tagsByNormalizedName, usedSlugs, createdUtc);
+                posts.Add(post);
             }
         }
 
         return posts;
+    }
+
+    private static void AttachTags(
+        Post post,
+        IReadOnlyList<string> tagNames,
+        IDictionary<string, Tag> tagsByNormalizedName,
+        ISet<string> usedSlugs,
+        DateTime createdUtc)
+    {
+        foreach (var tagName in tagNames)
+        {
+            var displayName = TagTextUtilities.CollapseWhitespace(tagName);
+            var normalizedName = TagTextUtilities.NormalizeText(displayName);
+
+            if (!tagsByNormalizedName.TryGetValue(normalizedName, out var tag))
+            {
+                var baseSlug = TagTextUtilities.CreateSlug(displayName);
+                var slug = ResolveUniqueSlug(baseSlug, usedSlugs);
+                tag = new Tag
+                {
+                    DisplayName = displayName,
+                    NormalizedName = normalizedName,
+                    Slug = slug,
+                    CreatedUtc = createdUtc
+                };
+
+                tagsByNormalizedName[normalizedName] = tag;
+                usedSlugs.Add(slug);
+            }
+
+            post.PostTags.Add(new PostTag
+            {
+                Post = post,
+                Tag = tag
+            });
+        }
+    }
+
+    private static string ResolveUniqueSlug(string baseSlug, ISet<string> usedSlugs)
+    {
+        var candidate = baseSlug;
+        var suffix = 2;
+        while (usedSlugs.Contains(candidate))
+        {
+            candidate = $"{baseSlug}-{suffix}";
+            suffix++;
+        }
+
+        return candidate;
     }
 
     private static List<Comment> CreateComments(
@@ -825,7 +879,7 @@ internal sealed record DevelopmentSeedUser(
     string Bio,
     IReadOnlyList<DevelopmentSeedPost> Posts);
 
-internal sealed record DevelopmentSeedPost(string Title, string Content);
+internal sealed record DevelopmentSeedPost(string Title, string Content, IReadOnlyList<string> Tags);
 
 internal sealed record DevelopmentSeedFollow(string FollowerUserName, string FollowedUserName);
 
