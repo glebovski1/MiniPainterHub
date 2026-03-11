@@ -22,7 +22,7 @@ public class PostsControllerTests
         using var factory = new IntegrationTestApplicationFactory();
         await factory.ResetDatabaseAsync();
         await SeedUserAsync(factory, "post-user", "post-user");
-        await SeedPostAsync(factory, 300, "post-user", "Landscape", "Painted mountain");
+        await SeedPostAsync(factory, 300, "post-user", "Landscape", "Painted mountain", tags: new[] { "glazing", "display" });
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/api/posts?page=1&pageSize=10");
@@ -36,6 +36,7 @@ public class PostsControllerTests
         body.Items.Should().ContainSingle();
         body.Items.Single().Title.Should().Be("Landscape");
         body.Items.Single().AuthorId.Should().Be("post-user");
+        body.Items.Single().Tags.Select(t => t.Name).Should().Equal("display", "glazing");
     }
 
     [Fact]

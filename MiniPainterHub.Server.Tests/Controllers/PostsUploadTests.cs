@@ -81,6 +81,43 @@ public class PostsUploadTests : IClassFixture<PostsUploadTests.TestApplicationFa
     }
 
     [Fact]
+    public async Task UploadEndpoint_WhenTagsProvided_PersistsAndReturnsTags()
+    {
+        await _factory.ResetAsync();
+        await SeedUserAsync();
+
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Test");
+
+        using var imageStream = await CreateImageAsync(1200, 800);
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent("Tagged title"), "Title");
+        form.Add(new StringContent("Tagged body"), "Content");
+        form.Add(new StringContent("glazing"), "tags");
+        form.Add(new StringContent("nmm"), "tags");
+
+        var imageContent = new StreamContent(imageStream);
+        imageContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+        form.Add(imageContent, "images", "photo.jpg");
+
+        var response = await client.PostAsync("/api/Posts/with-image", form);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var dto = await response.Content.ReadFromJsonAsync<PostDto>(new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        dto.Should().NotBeNull();
+        dto!.Tags.Select(tag => tag.Name).Should().Equal("glazing", "nmm");
+
+        using var scope = _factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var post = await context.Posts
+            .Include(p => p.PostTags)
+            .ThenInclude(pt => pt.Tag)
+            .SingleAsync();
+
+        post.PostTags.Select(pt => pt.Tag.DisplayName).Should().Equal("glazing", "nmm");
+    }
+
+    [Fact]
     public async Task UploadEndpoint_RejectsUnsupportedMimeType()
     {
         await _factory.ResetAsync();

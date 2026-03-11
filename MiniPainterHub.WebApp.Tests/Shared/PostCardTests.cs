@@ -65,6 +65,34 @@ public class PostCardTests : TestContext
     }
 
     [Fact]
+    public void WhenPostHasTags_RendersTagBadges()
+    {
+        var auth = this.AddTestAuthorization();
+        auth.SetAuthorized("reader");
+        this.AddModerationStub();
+
+        var post = new PostSummaryDto
+        {
+            Id = 9,
+            Title = "Title",
+            Snippet = "Snippet",
+            AuthorName = "author",
+            AuthorId = "author-1",
+            CreatedAt = DateTime.UtcNow,
+            Tags = new()
+            {
+                new TagDto { Name = "glazing", Slug = "glazing" },
+                new TagDto { Name = "nmm", Slug = "nmm" }
+            }
+        };
+
+        var cut = RenderWithAuth(post);
+
+        cut.Find("[data-testid='post-card-tags']").TextContent.Should().Contain("#glazing");
+        cut.Find("[data-testid='post-card-tags']").TextContent.Should().Contain("#nmm");
+    }
+
+    [Fact]
     public void WhenHiddenPost_RendersHiddenBadge()
     {
         var auth = this.AddTestAuthorization();

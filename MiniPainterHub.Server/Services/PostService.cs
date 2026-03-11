@@ -172,47 +172,15 @@ namespace MiniPainterHub.Server.Services
 
         public async Task<PostDto> GetByIdAsync(int postId)
         {
-            var dto = await ActivePosts()
-                .Where(p => p.Id == postId)
-                .Select(p => new PostDto
-                {
-                    Id = p.Id,
-                    CreatedById = p.CreatedById,
-                    Title = p.Title,
-                    Content = p.Content,
-                    CreatedAt = p.CreatedUtc,
-                    AuthorName = p.CreatedBy.Profile != null && p.CreatedBy.Profile.DisplayName != null
-                        ? p.CreatedBy.Profile.DisplayName
-                        : (p.CreatedBy.UserName ?? string.Empty),
-                    ImageUrl = p.Images
-                        .OrderBy(i => i.Id)
-                        .Where(i => !string.IsNullOrEmpty(i.ImageUrl))
-                        .Select(i => i.ImageUrl)
-                        .FirstOrDefault(),
-                    Images = p.Images.Select(i => new PostImageDto
-                    {
-                        Id = i.Id,
-                        ImageUrl = i.ImageUrl,
-                        PreviewUrl = i.PreviewUrl,
-                        ThumbnailUrl = i.ThumbnailUrl
-                    }).ToList(),
-                    Tags = p.PostTags
-                        .OrderBy(pt => pt.Tag.DisplayName)
-                        .Select(pt => new TagDto
-                        {
-                            Name = pt.Tag.DisplayName,
-                            Slug = pt.Tag.Slug
-                        })
-                        .ToList()
-                })
-                .FirstOrDefaultAsync();
+            var post = await BuildPostGraphQuery()
+                .FirstOrDefaultAsync(p => p.Id == postId && !p.IsDeleted);
 
-            if (dto is null)
+            if (post is null)
             {
                 throw new NotFoundException("Post not found.");
             }
 
-            return dto;
+            return MapPostDto(post);
         }
 
         public async Task<bool> UpdateAsync(int postId, string userId, UpdatePostDto dto)
@@ -334,33 +302,34 @@ namespace MiniPainterHub.Server.Services
 
             var ordered = query.OrderByDescending(p => p.CreatedUtc);
             var totalCount = await ordered.CountAsync();
-            var items = await ordered
+            var pageItems = await ordered
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(p => new PostSummaryDto
-                {
-                    Id = p.Id,
-                    Title = p.Title,
-                    Snippet = p.Content.Length > 100 ? p.Content.Substring(0, 100) + "..." : p.Content,
-                    ImageUrl = p.Images.OrderBy(i => i.Id).Select(i => i.ImageUrl).FirstOrDefault(),
-                    AuthorName = p.CreatedBy.Profile != null && p.CreatedBy.Profile.DisplayName != null
-                        ? p.CreatedBy.Profile.DisplayName
-                        : (p.CreatedBy.UserName ?? string.Empty),
-                    AuthorId = p.CreatedById,
-                    CreatedAt = p.CreatedUtc,
-                    CommentCount = p.Comments.Count,
-                    LikeCount = p.Likes.Count,
-                    IsDeleted = p.IsDeleted,
-                    Tags = p.PostTags
-                        .OrderBy(pt => pt.Tag.DisplayName)
-                        .Select(pt => new TagDto
-                        {
-                            Name = pt.Tag.DisplayName,
-                            Slug = pt.Tag.Slug
-                        })
-                        .ToList()
-                })
+                .Select(p => new PostSummaryPageItem(
+                    p.Id,
+                    p.Comments.Count,
+                    p.Likes.Count))
                 .ToListAsync();
+
+            if (pageItems.Count == 0)
+            {
+                return new PagedResult<PostSummaryDto>
+                {
+                    Items = Array.Empty<PostSummaryDto>(),
+                    TotalCount = totalCount,
+                    PageNumber = page,
+                    PageSize = pageSize
+                };
+            }
+
+            var pageIds = pageItems.Select(item => item.Id).ToList();
+            var posts = await BuildPostGraphQuery()
+                .Where(p => pageIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id);
+            var items = pageItems
+                .Where(item => posts.ContainsKey(item.Id))
+                .Select(item => MapPostSummaryDto(posts[item.Id], item.CommentCount, item.LikeCount))
+                .ToList();
 
             return new PagedResult<PostSummaryDto>
             {
@@ -652,9 +621,74 @@ namespace MiniPainterHub.Server.Services
             return string.Empty;
         }
 
+        private IQueryable<Post> BuildPostGraphQuery() =>
+            _appDbContext.Posts
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(p => p.CreatedBy)
+                .ThenInclude(u => u.Profile)
+                .Include(p => p.Images)
+                .Include(p => p.PostTags)
+                .ThenInclude(pt => pt.Tag);
+
+        private static PostDto MapPostDto(Post post) =>
+            new()
+            {
+                Id = post.Id,
+                CreatedById = post.CreatedById,
+                Title = post.Title,
+                Content = post.Content,
+                CreatedAt = post.CreatedUtc,
+                AuthorName = ResolveDisplayName(post.CreatedBy?.UserName, post.CreatedBy?.Profile?.DisplayName),
+                ImageUrl = post.Images
+                    .OrderBy(i => i.Id)
+                    .Where(i => !string.IsNullOrEmpty(i.ImageUrl))
+                    .Select(i => i.ImageUrl)
+                    .FirstOrDefault(),
+                Images = post.Images
+                    .OrderBy(i => i.Id)
+                    .Select(i => new PostImageDto
+                    {
+                        Id = i.Id,
+                        ImageUrl = i.ImageUrl,
+                        PreviewUrl = i.PreviewUrl,
+                        ThumbnailUrl = i.ThumbnailUrl
+                    })
+                    .ToList(),
+                Tags = MapTags(post.PostTags)
+            };
+
+        private static PostSummaryDto MapPostSummaryDto(Post post, int commentCount, int likeCount) =>
+            new()
+            {
+                Id = post.Id,
+                Title = post.Title,
+                Snippet = post.Content.Length > 100 ? post.Content.Substring(0, 100) + "..." : post.Content,
+                ImageUrl = post.Images.OrderBy(i => i.Id).Select(i => i.ImageUrl).FirstOrDefault(),
+                AuthorName = ResolveDisplayName(post.CreatedBy?.UserName, post.CreatedBy?.Profile?.DisplayName),
+                AuthorId = post.CreatedById,
+                CreatedAt = post.CreatedUtc,
+                CommentCount = commentCount,
+                LikeCount = likeCount,
+                IsDeleted = post.IsDeleted,
+                Tags = MapTags(post.PostTags)
+            };
+
+        private static List<TagDto> MapTags(IEnumerable<PostTag> postTags) =>
+            postTags
+                .OrderBy(pt => pt.Tag.DisplayName)
+                .Select(pt => new TagDto
+                {
+                    Name = pt.Tag.DisplayName,
+                    Slug = pt.Tag.Slug
+                })
+                .ToList();
+
         private static string ResolveDisplayName(string? userName, string? profileDisplayName) =>
             string.IsNullOrWhiteSpace(profileDisplayName) ? (userName ?? string.Empty) : profileDisplayName;
 
         private sealed record NormalizedTagRequest(string DisplayName, string NormalizedName, string Slug);
+
+        private sealed record PostSummaryPageItem(int Id, int CommentCount, int LikeCount);
     }
 }
