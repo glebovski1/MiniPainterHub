@@ -55,7 +55,7 @@ public class DevelopmentContentSeederTests
 
             db.Users.Select(u => u.UserName).Should().Contain(new[] { "admin", "user", "studiomod" });
             db.Users.OfType<ApplicationUser>().All(u => !string.IsNullOrWhiteSpace(u.AvatarUrl)).Should().BeTrue();
-            Directory.GetFiles(imageRoot).Should().HaveCount(10);
+            Directory.GetFiles(imageRoot, "seed-avatar-*").Should().HaveCount(10);
         }
         finally
         {
@@ -320,7 +320,7 @@ public class DevelopmentContentSeederTests
             db.Users.Should().HaveCount(initialUserCount);
             db.Profiles.Should().HaveCount(initialProfileCount);
             db.Posts.Should().HaveCount(initialPostCount);
-            Directory.GetFiles(imageRoot).Should().HaveCount(10);
+            Directory.GetFiles(imageRoot, "seed-avatar-*").Should().HaveCount(10);
             db.Users.OfType<ApplicationUser>()
                 .AsEnumerable()
                 .Where(user => firstResult.Avatars.Any(avatar => string.Equals(avatar.UserName, user.UserName, StringComparison.OrdinalIgnoreCase)))
