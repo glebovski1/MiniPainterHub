@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -146,12 +147,14 @@ public class ProgramStartupTests
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var seededPosts = await db.Posts
+            .Include(post => post.Images)
             .Include(post => post.PostTags)
             .ThenInclude(postTag => postTag.Tag)
             .ToListAsync();
 
         seededPosts.Should().Contain(post => post.Title == "Seeded: glazing check");
         seededPosts.Should().OnlyContain(post => post.PostTags.Count > 0);
+        seededPosts.Single(post => post.Title == "Seeded: glazing check").Images.Should().ContainSingle();
     }
 
     private static IntegrationTestApplicationFactory CreateResetEnabledFactory(IPAddress remoteIp)

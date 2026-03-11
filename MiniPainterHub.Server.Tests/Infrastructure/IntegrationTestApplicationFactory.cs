@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Claims;
+using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -26,14 +27,28 @@ public sealed class IntegrationTestApplicationFactory : WebApplicationFactory<Pr
     private readonly string _databaseName = $"tests-{Guid.NewGuid():N}";
     private readonly IReadOnlyDictionary<string, string?> _overrides;
     private readonly IPAddress? _forcedRemoteIp;
+    private readonly string _imageRoot;
 
     public IntegrationTestApplicationFactory(
         IDictionary<string, string?>? configurationOverrides = null,
         IPAddress? forcedRemoteIp = null)
     {
-        _overrides = configurationOverrides is null
-            ? new Dictionary<string, string?>()
-            : new Dictionary<string, string?>(configurationOverrides, StringComparer.OrdinalIgnoreCase);
+        _imageRoot = Path.Combine(Path.GetTempPath(), "MiniPainterHub.Tests", _databaseName, "uploads", "images");
+        var overrides = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ImageStorage:LocalPath"] = _imageRoot,
+            ["ImageStorage:RequestPath"] = "/uploads/images"
+        };
+
+        if (configurationOverrides is not null)
+        {
+            foreach (var pair in configurationOverrides)
+            {
+                overrides[pair.Key] = pair.Value;
+            }
+        }
+
+        _overrides = overrides;
         _forcedRemoteIp = forcedRemoteIp;
     }
 
@@ -91,6 +106,13 @@ public sealed class IntegrationTestApplicationFactory : WebApplicationFactory<Pr
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await db.Database.EnsureDeletedAsync();
         await db.Database.EnsureCreatedAsync();
+
+        if (Directory.Exists(_imageRoot))
+        {
+            Directory.Delete(_imageRoot, recursive: true);
+        }
+
+        Directory.CreateDirectory(_imageRoot);
     }
 
     public async Task ExecuteDbContextAsync(Func<AppDbContext, Task> action)

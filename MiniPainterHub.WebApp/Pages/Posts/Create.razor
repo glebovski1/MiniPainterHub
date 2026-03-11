@@ -44,12 +44,20 @@
 
     <div class="mb-3">
         <label for="post-images" class="form-label">Images</label>
-        <InputFile id="post-images" class="form-control" OnChange="OnFilesSelected" multiple />
+        <InputFile id="post-images"
+                   class="form-control"
+                   data-testid="create-post-images"
+                   OnChange="OnFilesSelected"
+                   multiple />
         @if (previewUrls.Count > 0)
         {
             foreach (var url in previewUrls)
             {
-                <img src="@url" alt="Selected image preview" class="img-fluid rounded mt-2 me-2" style="max-height:200px;" />
+                <img src="@url"
+                     alt="Selected image preview"
+                     data-testid="create-post-image-preview"
+                     class="img-fluid rounded mt-2 me-2"
+                     style="max-height:200px;" />
             }
         }
     </div>

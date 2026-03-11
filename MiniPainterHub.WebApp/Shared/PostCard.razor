@@ -9,6 +9,7 @@
         <NavLink class="text-decoration-none" href="@($"/posts/{Post.Id}")">
             <img src="@DisplayImageUrl"
                  class="card-img-top bg-light"
+                 data-testid="post-card-image"
                  alt="Post image"
                  @onerror="HandleImageError"
                  loading="lazy"

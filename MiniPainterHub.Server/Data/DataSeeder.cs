@@ -6,10 +6,14 @@ using Microsoft.Extensions.DependencyInjection;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services;
+using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace MiniPainterHub.Server.Data
 {
@@ -24,12 +28,14 @@ namespace MiniPainterHub.Server.Data
                 "admin",
                 "Seeded: glazing check",
                 "Baseline seeded post to verify tag rendering on the home feed.",
-                ["glazing", "nmm", "seeded"]),
+                ["glazing", "nmm", "seeded"],
+                "seeded-glazing-check.png"),
             new(
                 "user",
                 "Seeded: weathering notes",
                 "Second baseline seeded post for search and tag aggregation checks.",
-                ["weathering", "battle-damage", "seeded"])
+                ["weathering", "battle-damage", "seeded"],
+                null)
         ];
 
         public static async Task SeedAsync(IServiceProvider services)
@@ -38,6 +44,7 @@ namespace MiniPainterHub.Server.Data
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var imageService = scope.ServiceProvider.GetRequiredService<IImageService>();
 
             const string adminRole = "Admin";
             const string userRole = "User";
@@ -61,7 +68,7 @@ namespace MiniPainterHub.Server.Data
                 password: "User123!",
                 requiredRoles: new[] { userRole });
 
-            await EnsurePostsAsync(db, userManager);
+            await EnsurePostsAsync(db, userManager, imageService);
         }
 
         public static async Task SeedAdminAsync(WebApplication app)
@@ -215,7 +222,10 @@ namespace MiniPainterHub.Server.Data
             }
         }
 
-        private static async Task EnsurePostsAsync(AppDbContext db, UserManager<ApplicationUser> userManager)
+        private static async Task EnsurePostsAsync(
+            AppDbContext db,
+            UserManager<ApplicationUser> userManager,
+            IImageService imageService)
         {
             var existingTags = await db.Tags.ToListAsync();
             var tagsByNormalizedName = existingTags.ToDictionary(tag => tag.NormalizedName, StringComparer.OrdinalIgnoreCase);
@@ -230,6 +240,7 @@ namespace MiniPainterHub.Server.Data
                 }
 
                 var post = await db.Posts
+                    .Include(candidate => candidate.Images)
                     .Include(candidate => candidate.PostTags)
                     .ThenInclude(postTag => postTag.Tag)
                     .FirstOrDefaultAsync(candidate =>
@@ -258,6 +269,7 @@ namespace MiniPainterHub.Server.Data
                 }
 
                 SyncPostTags(db, post, seedPost.Tags, tagsByNormalizedName, usedSlugs);
+                await SyncPostImageAsync(db, post, imageService, seedPost.ImageFileName);
             }
 
             await db.SaveChangesAsync();
@@ -344,6 +356,98 @@ namespace MiniPainterHub.Server.Data
             return candidate;
         }
 
-        private sealed record SeedPostDefinition(string UserName, string Title, string Content, IReadOnlyList<string> Tags);
+        private static async Task SyncPostImageAsync(
+            AppDbContext db,
+            Post post,
+            IImageService imageService,
+            string? imageFileName)
+        {
+            var orderedImages = post.Images
+                .OrderBy(image => image.Id)
+                .ToList();
+
+            if (string.IsNullOrWhiteSpace(imageFileName))
+            {
+                if (orderedImages.Count == 0)
+                {
+                    return;
+                }
+
+                db.PostImages.RemoveRange(orderedImages);
+                post.Images.Clear();
+                return;
+            }
+
+            await using var imageStream = CreateSeedImageStream();
+            var imageUrl = await imageService.UploadAsync(imageStream, imageFileName);
+
+            var primaryImage = orderedImages.FirstOrDefault();
+            if (primaryImage is null)
+            {
+                post.Images.Add(new PostImage
+                {
+                    Post = post,
+                    ImageUrl = imageUrl,
+                    PreviewUrl = imageUrl,
+                    ThumbnailUrl = imageUrl
+                });
+                return;
+            }
+
+            primaryImage.ImageUrl = imageUrl;
+            primaryImage.PreviewUrl = imageUrl;
+            primaryImage.ThumbnailUrl = imageUrl;
+
+            if (orderedImages.Count <= 1)
+            {
+                return;
+            }
+
+            var extraImages = orderedImages.Skip(1).ToList();
+            db.PostImages.RemoveRange(extraImages);
+            foreach (var extraImage in extraImages)
+            {
+                post.Images.Remove(extraImage);
+            }
+        }
+
+        private static MemoryStream CreateSeedImageStream()
+        {
+            const int width = 480;
+            const int height = 320;
+
+            using var image = new Image<Rgba32>(width, height);
+
+            for (var y = 0; y < height; y++)
+            {
+                for (var x = 0; x < width; x++)
+                {
+                    var inCenterPanel =
+                        x >= width / 6 && x <= width * 5 / 6
+                        && y >= height / 5 && y <= height * 4 / 5;
+                    var checker = ((x / 24) + (y / 24)) % 2 == 0;
+
+                    image[x, y] = inCenterPanel
+                        ? checker
+                            ? new Rgba32(230, 179, 82)
+                            : new Rgba32(194, 120, 47)
+                        : checker
+                            ? new Rgba32(46, 84, 158)
+                            : new Rgba32(75, 120, 204);
+                }
+            }
+
+            var stream = new MemoryStream();
+            image.SaveAsPng(stream);
+            stream.Position = 0;
+            return stream;
+        }
+
+        private sealed record SeedPostDefinition(
+            string UserName,
+            string Title,
+            string Content,
+            IReadOnlyList<string> Tags,
+            string? ImageFileName);
     }
 }

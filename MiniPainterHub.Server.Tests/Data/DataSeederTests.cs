@@ -34,6 +34,7 @@ public class DataSeederTests
         db.Users.Should().HaveCount(2);
         db.Roles.Should().HaveCount(3);
         db.Posts.Should().HaveCount(2);
+        db.PostImages.Should().HaveCount(1);
         db.Tags.Should().HaveCount(5);
         db.PostTags.Should().HaveCount(6);
         (await roles.RoleExistsAsync("Admin")).Should().BeTrue();
@@ -50,9 +51,12 @@ public class DataSeederTests
         (await users.IsInRoleAsync(normalUser!, "User")).Should().BeTrue();
 
         var glazingPost = await db.Posts
+            .Include(post => post.Images)
             .Include(post => post.PostTags)
             .ThenInclude(postTag => postTag.Tag)
             .SingleAsync(post => post.Title == "Seeded: glazing check");
+        glazingPost.Images.Should().ContainSingle();
+        glazingPost.Images[0].ImageUrl.Should().StartWith("/uploads/images/");
         glazingPost.PostTags
             .Select(postTag => postTag.Tag.DisplayName)
             .Should()

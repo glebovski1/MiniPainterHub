@@ -1,7 +1,12 @@
 const { test, expect } = require("@playwright/test");
+const path = require("path");
 
 test.describe.configure({ mode: "serial" });
 const RESET_TOKEN = process.env.E2E_RESET_TOKEN || "local-e2e-reset-token";
+const SAMPLE_IMAGE_PATH = path.resolve(
+  __dirname,
+  "../../MiniPainterHub.Server/wwwroot/uploads/images/9_minis1.jpg",
+);
 
 async function resetAppState(request) {
   const response = await request.post("/api/test-support/reset", {
@@ -44,6 +49,9 @@ async function createPost(page, suffix, options = {}) {
   if (tags) {
     await page.getByTestId("create-post-tags").fill(tags);
   }
+  if (options.imagePath) {
+    await page.getByTestId("create-post-images").setInputFiles(options.imagePath);
+  }
   await page.getByTestId("create-post-submit").click();
 
   await expect(page).toHaveURL(/\/posts\/\d+$/);
@@ -74,6 +82,44 @@ test("invalid login shows user-facing error", async ({ page }) => {
 test("create post flow redirects to details and renders content", async ({ page }) => {
   await loginAsSeedUser(page);
   await createPost(page, "create");
+});
+
+test("seeded post with image and tags renders on feed and details", async ({ page }) => {
+  await page.goto("/");
+
+  const seededCard = page.locator(".card", { hasText: "Seeded: glazing check" }).first();
+  await expect(seededCard).toBeVisible();
+  await expect(seededCard.getByTestId("post-card-image")).toBeVisible();
+  await expect(seededCard.getByTestId("post-card-tags")).toContainText("#glazing");
+  await expect(seededCard.getByTestId("post-card-tags")).toContainText("#nmm");
+
+  await seededCard.getByRole("link", { name: "Seeded: glazing check" }).click();
+
+  await expect(page).toHaveURL(/\/posts\/\d+$/);
+  await expect(page.getByTestId("post-title")).toHaveText("Seeded: glazing check");
+  await expect(page.getByTestId("post-details-image")).toBeVisible();
+  await expect(page.getByTestId("post-details-tags")).toContainText("#glazing");
+  await expect(page.getByTestId("post-details-tags")).toContainText("#nmm");
+});
+
+test("create post with image and tags renders on details and latest feed", async ({ page }) => {
+  await loginAsSeedUser(page);
+  const { title } = await createPost(page, "image-tags", {
+    tags: "glazing, showcase",
+    imagePath: SAMPLE_IMAGE_PATH,
+  });
+
+  await expect(page.getByTestId("post-details-image")).toBeVisible();
+  await expect(page.getByTestId("post-details-tags")).toContainText("#glazing");
+  await expect(page.getByTestId("post-details-tags")).toContainText("#showcase");
+
+  await page.goto("/");
+
+  const createdCard = page.locator(".card", { hasText: title }).first();
+  await expect(createdCard).toBeVisible();
+  await expect(createdCard.getByTestId("post-card-image")).toBeVisible();
+  await expect(createdCard.getByTestId("post-card-tags")).toContainText("#glazing");
+  await expect(createdCard.getByTestId("post-card-tags")).toContainText("#showcase");
 });
 
 test("comment and like flow works on post details", async ({ page }) => {
