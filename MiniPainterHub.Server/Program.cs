@@ -40,6 +40,12 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
         var developmentCommand = TryParseDevelopmentCommand(args);
+        builder.Configuration
+            .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
+            .AddJsonFile(
+                $"appsettings.Local.{builder.Environment.EnvironmentName}.json",
+                optional: true,
+                reloadOnChange: true);
 
         // ------------------------------------------------------------------
         // 1️⃣  Services

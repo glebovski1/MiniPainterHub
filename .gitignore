@@ -209,6 +209,8 @@ PublishScripts/
 # Microsoft Azure Build Output
 csx/
 *.build.csdef
+MiniPainterHub.Server/appsettings.Local*.json
+!MiniPainterHub.Server/appsettings.Local*.example.json
 
 # Microsoft Azure Emulator
 ecf/

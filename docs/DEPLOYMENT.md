@@ -53,6 +53,21 @@ Notes:
 - The app seeds the admin account automatically in production startup.
 - Use the hierarchical `ImageStorage__...` keys. Older flat keys are not used by the current app.
 
+### Local production-style repro
+
+To mirror Azure configuration locally without committing secrets:
+
+1. Copy `MiniPainterHub.Server/appsettings.Local.Production.example.json` to `MiniPainterHub.Server/appsettings.Local.Production.json`
+2. Fill the copied file with the same values used in App Service
+3. Run the server with the `ProductionLocal` launch profile
+
+The server now loads optional local override files in this order after the default appsettings files:
+
+- `appsettings.Local.json`
+- `appsettings.Local.{Environment}.json`
+
+For a production-like local run, `appsettings.Local.Production.json` is the useful file. It is gitignored so you can place real local or Azure-matching secrets there safely.
+
 ### 3. Configure GitHub deploy secrets
 
 Set these repository secrets in GitHub:
