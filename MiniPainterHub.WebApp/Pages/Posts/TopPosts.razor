@@ -28,7 +28,8 @@
                     ImageCarousel.Slide slide = new ImageCarousel.Slide
                     (
                         post?.ImageUrl,
-                        NavigationManager.ToAbsoluteUri($"/posts/{post.Id}").ToString()
+                        NavigationManager.ToAbsoluteUri($"/posts/{post.Id}").ToString(),
+                        BuildCaption(post)
                     );
 
                     posts.Add(slide);
@@ -44,5 +45,19 @@
         StateHasChanged();
     }
 
+    private static string BuildCaption(PostSummaryDto post)
+    {
+        var tags = post.Tags
+            .Where(tag => !string.IsNullOrWhiteSpace(tag.Name))
+            .Select(tag => $"#{tag.Name}")
+            .ToList();
+
+        if (tags.Count == 0)
+        {
+            return post.Title;
+        }
+
+        return $"{post.Title} • {string.Join(" ", tags)}";
+    }
 
 }
