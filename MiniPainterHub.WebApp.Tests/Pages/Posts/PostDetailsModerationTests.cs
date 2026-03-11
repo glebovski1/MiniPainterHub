@@ -24,6 +24,41 @@ namespace MiniPainterHub.WebApp.Tests.Pages.Posts;
 public class PostDetailsModerationTests : TestContext
 {
     [Fact]
+    public void WhenPostHasTags_RendersVisibleTagSection()
+    {
+        var auth = this.AddTestAuthorization();
+        auth.SetAuthorized("reader");
+
+        this.AddCommentStub(new StubCommentService
+        {
+            GetByPostHandler = (_, _, _) => Task.FromResult(
+                new ApiResult<PagedResult<CommentDto>>(
+                    true,
+                    HttpStatusCode.OK,
+                    new PagedResult<CommentDto>
+                    {
+                        Items = Array.Empty<CommentDto>(),
+                        PageNumber = 1,
+                        PageSize = 10,
+                        TotalCount = 0
+                    }))
+        });
+        this.AddLikeStub();
+        this.AddModerationStub(new StubModerationService());
+
+        Services.AddSingleton(new ApiClient(CreateHttpClient(), new NoOpNotificationService()));
+
+        var cut = RenderWithAuth(postId: 10);
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='post-details-tag-section']").TextContent.Should().Contain("Tags");
+            cut.Find("[data-testid='post-details-tags']").TextContent.Should().Contain("#glazing");
+            cut.Find("[data-testid='post-details-tags']").TextContent.Should().Contain("#nmm");
+        });
+    }
+
+    [Fact]
     public async Task WhenModeratorClicksHide_CallsModerationServiceAndShowsSuccess()
     {
         var auth = this.AddTestAuthorization();
@@ -120,7 +155,12 @@ public class PostDetailsModerationTests : TestContext
                     Content = "Body",
                     CreatedById = "author-1",
                     AuthorName = "Author",
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    Tags = new List<TagDto>
+                    {
+                        new() { Name = "glazing", Slug = "glazing" },
+                        new() { Name = "nmm", Slug = "nmm" }
+                    }
                 });
 
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)

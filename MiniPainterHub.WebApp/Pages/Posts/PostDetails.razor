@@ -102,11 +102,17 @@
                     @post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
                 </p>
 
+                @if (post.Tags is { Count: > 0 })
+                {
+                    <section class="mb-4" data-testid="post-details-tag-section">
+                        <div class="text-uppercase text-muted fw-semibold small mb-2">Tags</div>
+                        <TagBadgeList Tags="post.Tags" TestId="post-details-tags" />
+                    </section>
+                }
+
                 <div class="card-text mb-4">
                     @post.Content
                 </div>
-
-                <TagBadgeList Tags="post.Tags" TestId="post-details-tags" />
 
                 <ReportAction TargetType="@ReportTargetTypes.Post"
                               TargetId="@PostId.ToString()"
