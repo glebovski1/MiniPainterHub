@@ -22,6 +22,8 @@ Requesting a comment that does not exist (for example, `GET /api/comments/{id}`)
 
 When deploying MiniPainterHub to Azure App Service, ensure the blob storage settings use the hierarchical configuration keys that the application expects (`ImageStorage:AzureConnectionString` and `ImageStorage:AzureContainer`). If your existing configuration still uses flat keys such as `ImageStorageAzureConnectionString` or `ImageStorageAzureContainer`, update them on the App Service **Configuration → Application settings** blade to the new names (or use the double-underscore form `ImageStorage__AzureConnectionString` and `ImageStorage__AzureContainer` for environment-variable compatibility). Save the configuration and restart the App Service to reload the updated settings.
 
+For the full deployment flow, required production settings, and GitHub Actions setup, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ## Development DB bootstrap note
 
 When running against SQL Server in `Development`, the server applies EF migrations at startup. If the database has Identity tables (for example `AspNetRoles`) but no matching `__EFMigrationsHistory` rows, startup can hit a duplicate-object migration conflict. The app now recovers from this specific local conflict by recreating the development database and retrying migrations.
