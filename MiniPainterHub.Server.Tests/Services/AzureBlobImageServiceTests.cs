@@ -7,11 +7,12 @@ using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using FluentAssertions;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services;
+using MiniPainterHub.Server.Services.Interfaces;
 using MiniPainterHub.Server.Services.Models;
 using Moq;
 using Xunit;
@@ -39,35 +40,23 @@ public class AzureBlobImageServiceTests
     }
 
     [Fact]
-    public void Ctor_WhenAzureConnectionStringMissing_ThrowsInvalidOperationException()
+    public void ServiceProvider_CanResolveAzureBlobImageService_FromBlobContainerRegistration()
     {
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ImageStorage:AzureContainer"] = "images"
-            })
-            .Build();
+        var services = new ServiceCollection();
+        services.AddOptions<ImagesOptions>()
+            .Configure(_ => { });
+        services.AddSingleton(Mock.Of<BlobContainerClient>());
+        services.AddSingleton<AzureBlobImageService>();
+        services.AddSingleton<IImageService>(sp => sp.GetRequiredService<AzureBlobImageService>());
+        services.AddSingleton<IImageStore>(sp => sp.GetRequiredService<AzureBlobImageService>());
 
-        var act = () => new AzureBlobImageService(config, Microsoft.Extensions.Options.Options.Create(new ImagesOptions()));
+        using var provider = services.BuildServiceProvider();
 
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("Azure connection string is not configured.");
-    }
+        var imageService = provider.GetRequiredService<IImageService>();
+        var imageStore = provider.GetRequiredService<IImageStore>();
 
-    [Fact]
-    public void Ctor_WhenAzureContainerMissing_ThrowsInvalidOperationException()
-    {
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ImageStorage:AzureConnectionString"] = "UseDevelopmentStorage=true"
-            })
-            .Build();
-
-        var act = () => new AzureBlobImageService(config, Microsoft.Extensions.Options.Options.Create(new ImagesOptions()));
-
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("Azure container name is not configured.");
+        imageService.Should().BeOfType<AzureBlobImageService>();
+        imageStore.Should().BeSameAs(imageService);
     }
 
     [Fact]

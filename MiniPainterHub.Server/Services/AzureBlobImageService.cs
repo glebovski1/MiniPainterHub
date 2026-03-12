@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Options;
@@ -19,11 +18,6 @@ namespace MiniPainterHub.Server.Services
         private readonly BlobContainerClient _container;
         private readonly ImagesOptions _options;
         private static readonly string CacheControl = "public, max-age=31536000, immutable";
-
-        public AzureBlobImageService(IConfiguration config, IOptions<ImagesOptions> options)
-            : this(CreateContainer(config), options)
-        {
-        }
 
         public AzureBlobImageService(BlobContainerClient container, IOptions<ImagesOptions> options)
         {
@@ -82,23 +76,6 @@ namespace MiniPainterHub.Server.Services
         {
             var blob = _container.GetBlobClient(fileName);
             await blob.DeleteIfExistsAsync();
-        }
-
-        private static BlobContainerClient CreateContainer(IConfiguration config)
-        {
-            if (config is null)
-            {
-                throw new ArgumentNullException(nameof(config));
-            }
-
-            var conn = config["ImageStorage:AzureConnectionString"]
-                ?? throw new InvalidOperationException("Azure connection string is not configured.");
-            var containerName = config["ImageStorage:AzureContainer"]
-                ?? throw new InvalidOperationException("Azure container name is not configured.");
-
-            var container = new BlobContainerClient(conn, containerName);
-            container.CreateIfNotExists();
-            return container;
         }
 
         private static string BuildName(Guid imageId, string suffix, string extension)
