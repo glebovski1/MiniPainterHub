@@ -16,9 +16,4 @@ public sealed class ConflictException : System.Exception
         : base(message, inner)
     {
     }
-
-    private ConflictException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
-        : base(info, context)
-    {
-    }
 }

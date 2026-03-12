@@ -27,17 +27,5 @@ public sealed class DomainValidationException : System.Exception
         Errors = new Dictionary<string, string[]>();
     }
 
-    private DomainValidationException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
-        : base(info, context)
-    {
-        Errors = (IDictionary<string, string[]>)info.GetValue(nameof(Errors), typeof(IDictionary<string, string[]>))!;
-    }
-
     public IDictionary<string, string[]> Errors { get; }
-
-    public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
-    {
-        base.GetObjectData(info, context);
-        info.AddValue(nameof(Errors), Errors);
-    }
 }

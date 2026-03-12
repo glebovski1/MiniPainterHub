@@ -16,9 +16,4 @@ public sealed class ForbiddenException : System.Exception
         : base(message, inner)
     {
     }
-
-    private ForbiddenException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
-        : base(info, context)
-    {
-    }
 }

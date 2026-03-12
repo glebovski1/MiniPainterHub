@@ -54,7 +54,7 @@ namespace MiniPainterHub.WebApp.Services
             return SetAndReturnMine(result.Value);
         }
 
-        public async Task<UserProfileDto?> CreateMineAsync(CreateUserProfileDto dto)
+        public async Task<UserProfileDto> CreateMineAsync(CreateUserProfileDto dto)
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "api/profiles/me")
             {
@@ -70,7 +70,7 @@ namespace MiniPainterHub.WebApp.Services
             return SetAndReturnMine(result);
         }
 
-        public async Task<UserProfileDto?> UpdateMineAsync(UpdateUserProfileDto dto)
+        public async Task<UserProfileDto> UpdateMineAsync(UpdateUserProfileDto dto)
         {
             using var request = new HttpRequestMessage(HttpMethod.Put, "api/profiles/me")
             {
@@ -86,7 +86,7 @@ namespace MiniPainterHub.WebApp.Services
             return SetAndReturnMine(result);
         }
 
-        public async Task<UserProfileDto?> UploadAvatarAsync(IBrowserFile file, long maxSizeBytes = 5_000_000)
+        public async Task<UserProfileDto> UploadAvatarAsync(IBrowserFile file, long maxSizeBytes = 5_000_000)
         {
             using var content = new MultipartFormDataContent();
             var stream = file.OpenReadStream(maxAllowedSize: maxSizeBytes);
@@ -117,7 +117,7 @@ namespace MiniPainterHub.WebApp.Services
                 throw new InvalidOperationException("API returned no data when removing the avatar.");
             }
 
-            return SetAndReturnMine(result)!;
+            return SetAndReturnMine(result);
         }
 
         public async Task<UserProfileDto> GetUserProfileById(string id)
@@ -138,7 +138,7 @@ namespace MiniPainterHub.WebApp.Services
             MineChanged?.Invoke(Mine);
         }
 
-        private UserProfileDto? SetAndReturnMine(UserProfileDto userProfileDto)
+        private UserProfileDto SetAndReturnMine(UserProfileDto userProfileDto)
         {
             Mine = userProfileDto;
             MineChanged?.Invoke(Mine);

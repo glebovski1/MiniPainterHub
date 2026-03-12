@@ -16,9 +16,4 @@ public sealed class NotFoundException : System.Exception
         : base(message, inner)
     {
     }
-
-    private NotFoundException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
-        : base(info, context)
-    {
-    }
 }
