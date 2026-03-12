@@ -20,6 +20,7 @@ public class RegistrationTests : TestContext
         var cut = RenderComponent<Registration>();
 
         cut.Find("#reg-username").Should().NotBeNull();
+        cut.Find("#reg-email").Should().NotBeNull();
         cut.Find("#reg-password").Should().NotBeNull();
         cut.Find("button[type='submit']").TextContent.Should().Contain("Create Account");
     }
@@ -41,12 +42,14 @@ public class RegistrationTests : TestContext
         var nav = Services.GetRequiredService<NavigationManager>();
 
         cut.Find("#reg-username").Change("new-user");
+        cut.Find("#reg-email").Change("new-user@example.com");
         cut.Find("#reg-password").Change("ValidPass123!");
         await cut.Find("form").SubmitAsync();
 
         cut.WaitForAssertion(() => nav.Uri.Should().Be("http://localhost/login"));
         captured.Should().NotBeNull();
         captured!.UserName.Should().Be("new-user");
+        captured.Email.Should().Be("new-user@example.com");
         captured.Password.Should().Be("ValidPass123!");
     }
 
@@ -61,10 +64,37 @@ public class RegistrationTests : TestContext
         var cut = RenderComponent<Registration>();
 
         cut.Find("#reg-username").Change("new-user");
+        cut.Find("#reg-email").Change("new-user@example.com");
         cut.Find("#reg-password").Change("bad");
         await cut.Find("form").SubmitAsync();
 
         cut.WaitForAssertion(() =>
             cut.Markup.Should().Contain("Registration failed."));
+    }
+
+    [Fact]
+    public async Task Submit_WhenEmailMissing_DoesNotCallRegister()
+    {
+        var registerCalls = 0;
+        this.AddAuthStub(new StubAuthService
+        {
+            RegisterHandler = _ =>
+            {
+                registerCalls++;
+                return Task.FromResult(true);
+            }
+        });
+
+        var cut = RenderComponent<Registration>();
+
+        cut.Find("#reg-username").Change("new-user");
+        cut.Find("#reg-password").Change("ValidPass123!");
+        await cut.Find("form").SubmitAsync();
+
+        cut.WaitForAssertion(() =>
+        {
+            registerCalls.Should().Be(0);
+            cut.Markup.Should().Contain("The Email field is required.");
+        });
     }
 }

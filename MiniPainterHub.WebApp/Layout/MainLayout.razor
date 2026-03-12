@@ -16,8 +16,8 @@
             <AuthorizeView>
                 <Authorized>
                     <aside class="dashboard-sidebar-column d-none d-lg-block @(UserPanel.IsDesktopCollapsed ? "is-collapsed" : string.Empty)"
-                           hidden="@UserPanel.IsDesktopCollapsed"
-                           aria-hidden="@UserPanel.IsDesktopCollapsed">
+                           aria-hidden="@DesktopPanelAriaHidden"
+                           inert="@DesktopPanelInert">
                         <div class="dashboard-sidebar-shell">
                             <UserPanelContent ShowPanelTitle="true" />
                         </div>
@@ -35,6 +35,8 @@
 @code {
     private const string DesktopPanelPreferenceKey = "userPanelDesktopCollapsed";
     private bool _isRestoringPreference;
+    private string DesktopPanelAriaHidden => UserPanel.IsDesktopCollapsed ? "true" : "false";
+    private string? DesktopPanelInert => UserPanel.IsDesktopCollapsed ? string.Empty : null;
 
     protected override void OnInitialized()
     {
