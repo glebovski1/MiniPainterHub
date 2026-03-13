@@ -1,112 +1,163 @@
 # MiniPainterHub
 
-## Codex Cloud test bootstrap
+MiniPainterHub is a full-stack social platform for miniature painters. It combines image-first post publishing, social discovery, direct messaging, and admin moderation tooling in one .NET 8 application.
 
-If your cloud run reports `dotnet` missing, run:
+This repository is portfolio-oriented as much as it is product-oriented: it shows end-to-end feature work across API design, Blazor UI, authentication, real-time messaging, media handling, moderation workflows, and automated quality gates.
 
-```bash
-bash tools/cloud/bootstrap-dotnet-and-test.sh
-```
+Screenshots in this README were captured with Playwright-MCP against a deterministic seeded development dataset.
 
-The script installs a supported .NET SDK in `$HOME/.dotnet` (user-local, no sudo), then runs restore, Release build, and server tests.
+## What It Demonstrates
 
-## Authentication API Notes
+- Image-backed post publishing with technique tags, comments, and likes
+- JWT authentication with ASP.NET Core Identity
+- Public profiles, following graph, connections, and following feed
+- Cross-entity search for posts, users, and tags
+- Direct messaging with SignalR-backed conversation flows
+- Reporting, moderation, audit logging, and user suspension tools
+- Deterministic development seeding for realistic demo data
+- A test pyramid that spans unit, component, integration, and browser smoke coverage
 
-The authentication endpoints surface validation and credential errors through standard `ProblemDetails` payloads. Registration failures throw `DomainValidationException`, which is translated to a `400 Bad Request` response that includes an `errors` dictionary populated from ASP.NET Identity results. Login failures for bad credentials now raise `UnauthorizedAccessException`, producing a `401 Unauthorized` `ProblemDetails` response with a helpful error message.
+## Screenshot Tour
 
-## Comments API Notes
+### 1. Latest feed
 
-Requesting a comment that does not exist (for example, `GET /api/comments/{id}`) now surfaces a consistent `ProblemDetails` payload. The global exception handler translates the service's `NotFoundException` into a `404 Not Found` response with the title `"Not found"` and a `detail` of `"Comment not found."`, allowing clients to rely on the standardized error contract when comments have been deleted or never existed.
+The home feed surfaces image-first post cards, technique tags, author metadata, and quick engagement counts.
 
-## Azure App Service configuration
+![Latest feed](docs/screenshots/portfolio/01-home-feed.png)
 
-When deploying MiniPainterHub to Azure App Service, publish only `MiniPainterHub.Server`. The app expects hierarchical production settings such as `ConnectionStrings__DefaultConnection`, `Jwt__Key`, `Jwt__Issuer`, `Jwt__Audience`, `ImageStorage__AzureConnectionString`, and `ImageStorage__AzureContainer`. If your App Service still uses flat blob-storage keys such as `ImageStorageAzureConnectionString` or `ImageStorageAzureContainer`, rename them on the App Service Configuration > Application settings blade, save, and restart the app.
+### 2. Post composer
 
-The server now fails fast during non-development startup if those Azure settings are missing or still using the legacy flat names. Visual Studio publish profiles are treated as local machine state and are no longer stored in the repo.
+Posts can be authored with long-form content, uploaded images, and comma-separated technique tags.
 
-For the full deployment flow, required production settings, and GitHub Actions setup, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+![Post composer](docs/screenshots/portfolio/02-create-post.png)
 
-## Development DB bootstrap note
+### 3. Post details and engagement
 
-When running against SQL Server in `Development`, the server applies EF migrations at startup. If the database has Identity tables (for example `AspNetRoles`) but no matching `__EFMigrationsHistory` rows, startup can hit a duplicate-object migration conflict. The app now recovers from this specific local conflict by recreating the development database and retrying migrations.
+Each post has a detail view with media, tags, comments, likes, and reporting actions.
 
-- Default behavior: enabled (`Database:RecreateOnSchemaConflict` defaults to `true` in Development logic)
-- Opt out: set `Database:RecreateOnSchemaConflict=false`
+![Post details](docs/screenshots/portfolio/03-post-details.png)
 
-## Development content commands
+### 4. Discovery search
 
-Use explicit one-off commands when working with seeded dev avatars and sample content:
+Search supports posts, users, and tags, making it easy to move from a technique to the painters using it.
+
+![Search results](docs/screenshots/portfolio/04-search-discovery.png)
+
+### 5. Direct messages
+
+Seeded conversations and SignalR-backed messaging give the platform a real social layer beyond comments.
+
+![Direct messages](docs/screenshots/portfolio/05-messages.png)
+
+### 6. Admin reports queue
+
+Admins can review incoming reports, filter moderation work, and resolve issues from a dedicated queue.
+
+![Reports queue](docs/screenshots/portfolio/06-admin-reports.png)
+
+## Feature Overview
+
+### Painter experience
+
+- Register and sign in with JWT-based authentication
+- Create posts with one or more images
+- Add reusable technique tags for discovery and filtering
+- Comment on posts and like or unlike them
+- Browse public profiles with follower and following counts
+- Follow painters and browse a following-only feed
+- Manage your own profile, display name, bio, and avatar
+- Open direct-message conversations with other users
+- Search across posts, users, and tags from global navigation
+
+### Trust, safety, and admin workflows
+
+- Report posts, comments, and user profiles
+- Review reports from a moderation queue
+- Hide and restore posts and comments without hard deletion
+- Suspend and unsuspend users
+- Inspect an audit log of moderation actions
+- Support maintenance-mode bypass flows for controlled access scenarios
+
+### Engineering and platform capabilities
+
+- ASP.NET Core API + Blazor WebAssembly frontend
+- Entity Framework Core with SQL Server persistence
+- ASP.NET Core Identity for account management
+- JWT bearer auth between the WebAssembly client and the API
+- SignalR for direct-message updates
+- Local image storage in development and Azure Blob storage in non-development environments
+- Development seed commands for realistic users, posts, profiles, follows, comments, avatars, and direct messages
+
+## Architecture
+
+### Stack
+
+- Backend: ASP.NET Core 8, Web API controllers, SignalR, ProblemDetails, Identity
+- Frontend: Blazor WebAssembly, Bootstrap-based UI, typed client services
+- Data: Entity Framework Core, SQL Server, shared DTO contracts in `MiniPainterHub.Common`
+- Media: image processing plus local or Azure-backed storage
+
+### Solution layout
+
+- `MiniPainterHub.Server`: API, auth, SignalR hub, EF Core, seeding, moderation logic
+- `MiniPainterHub.WebApp`: Blazor WebAssembly client and page-level UI flows
+- `MiniPainterHub.Common`: shared DTOs and contracts
+- `MiniPainterHub.Server.Tests`: backend service and API-focused tests
+- `MiniPainterHub.WebApp.Tests`: bUnit and client-service coverage
+- `e2e`: Playwright browser smoke automation
+
+For the full technical breakdown, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Quality
+
+The repository now has automated coverage from basic unit tests through browser automation:
+
+- 324 automated tests across server and WebApp test projects
+- Unit and service-level tests for business logic and HTTP client wrappers
+- bUnit coverage for Blazor pages and shared UI behavior
+- Playwright smoke coverage for login, posting, search, profile flows, moderation, and reports
+- GitHub Actions quality gates for build, tests, coverage, and browser smoke on pull requests
+
+## Local Run
+
+### Prerequisites
+
+- .NET 8 SDK
+- Node.js
+- SQL Server LocalDB or another SQL Server instance
+
+### Start the app
 
 ```powershell
-dotnet run --project MiniPainterHub.Server -- --seed-dev-content --avatars-dir C:\path\to\avatars
-dotnet run --project MiniPainterHub.Server -- --generate-dev-avatars --avatars-dir C:\path\to\avatars
-dotnet run --project MiniPainterHub.Server -- --seed-dev-content --avatars-dir C:\path\to\avatars --post-images-dir C:\path\to\post-images
+dotnet restore MiniPainterHub.sln
+dotnet run --project MiniPainterHub.Server
 ```
 
-- `--seed-dev-content`: destructive reset of the development database and local image storage, then recreates the seeded users, profiles, posts, comments, and avatar assignments.
-- `--seed-dev-content --post-images-dir <path>`: optional addition that attaches one seeded image to each seeded post. If the folder contains fewer than 20 images, files are reused in sorted order until all posts have an image.
-- `--generate-dev-avatars`: imports just the seed-avatar files, refreshes avatar URLs for any existing seeded users or profiles, and leaves all other development data untouched so it is safe to rerun.
-- Seeded social data: `--seed-dev-content` also creates cross-user comments, follow relationships, and direct-message conversations so post threads, the following feed, public-profile follow counts, and `/messages` have immediate development data.
+The server hosts the API and serves the Blazor WebAssembly client.
 
-## Admin functionality test checklist
-
-Use this checklist to validate end-to-end admin capabilities after startup:
-
-1. Start the server and WebApp in `Development`.
-2. Sign in with seeded admin credentials:
-   - Username: `admin`
-   - Password: `P@ssw0rd!`
-3. Confirm the left collapsible panel shows the `Admin` section:
-   - `Moderation`
-   - `Audit log`
-   - `User suspensions`
-4. On `Moderation`:
-   - Load post or comment previews by id.
-   - Hide and restore post or comment with a reason.
-   - In post lists, use the `Visibility` filter (`Active only`, `Include hidden`, `Hidden only`) and restore hidden posts inline.
-   - In post details comments, use the comment `Visibility` filter (`Active only`, `Include hidden`, `Hidden only`) and restore hidden comments inline.
-5. On `User suspensions`:
-   - Use `Find user`, select a user, suspend and unsuspend.
-   - Leave the lookup query empty to list currently suspended users.
-6. On public profiles:
-   - Open `/users/{userId}` (for example from a post or comment author link).
-   - As `Admin`, suspend or unsuspend is available directly on the profile page.
-7. On `Audit log`:
-   - Apply `Target type`, `Actor user id`, and `Action type` filters.
-   - Verify pagination with previous or next controls.
-8. Verify regular user navigation:
-   - `My posts` should not redirect to login for authenticated users.
-   - Post cards should attempt thumbnail first, then full image fallback on image load error.
-
-## Codex Skills Tooling
-
-This repo now includes helper scripts under `tools/skills`:
-
-- `init-skill.py`: scaffold a new skill skeleton.
-- `install-skill-from-github.py`: install a skill from GitHub with target scope support.
-
-### Create a new skill skeleton
+### Seed portfolio-style demo content
 
 ```powershell
-python tools/skills/init-skill.py `
-  --name my-skill `
-  --description "Use when ..." `
-  --target repo
+dotnet run --project MiniPainterHub.Server -- `
+  --seed-dev-content `
+  --avatars-dir .\tmp\imagegen\seed-avatars `
+  --post-images-dir .\tmp\imagegen\seed-post-images
 ```
 
-Targets:
+Useful seeded accounts:
 
-- `repo`: `./.agents/skills`
-- `global`: `%CODEX_HOME%/skills` (defaults to `~/.codex/skills`)
-- `both`: install or create in both locations
+- `admin` / `P@ssw0rd!`
+- `user` / `User123!`
+- `studiomod` / `StudioMod123!`
 
-### Install a skill from GitHub
+## Test Commands
 
 ```powershell
-python tools/skills/install-skill-from-github.py `
-  --repo openai/skills `
-  --path skills/.curated/doc `
-  --target both
+dotnet test .\MiniPainterHub.sln --collect:"XPlat Code Coverage"
+npm --prefix e2e run test:smoke
 ```
 
-You can also pass `--url https://github.com/<owner>/<repo>/tree/<ref>/<path>` instead of `--repo` plus `--path`.
+## Additional Docs
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
