@@ -229,6 +229,13 @@ namespace MiniPainterHub.Server.Data
         {
             ValidateSeedPosts();
 
+            // Preserve richer seeded datasets instead of layering the baseline
+            // smoke-test posts on top and colliding with existing tags.
+            if (await db.Posts.AnyAsync())
+            {
+                return;
+            }
+
             var existingTags = await db.Tags.ToListAsync();
             var tagsByNormalizedName = existingTags.ToDictionary(tag => tag.NormalizedName, StringComparer.OrdinalIgnoreCase);
             var usedSlugs = existingTags.Select(tag => tag.Slug).ToHashSet(StringComparer.OrdinalIgnoreCase);
