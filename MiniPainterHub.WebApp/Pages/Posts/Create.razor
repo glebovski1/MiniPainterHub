@@ -14,12 +14,21 @@
 
     <div class="mb-3">
         <label for="post-title" class="form-label">Title</label>
-        <InputText id="post-title" class="form-control" data-testid="create-post-title" @bind-Value="newPost.Title" />
+        <InputText id="post-title"
+                   class="form-control"
+                   data-testid="create-post-title"
+                   @bind-Value="newPost.Title"
+                   disabled="@_isSubmitting" />
     </div>
 
     <div class="mb-3">
         <label for="post-content" class="form-label">Content</label>
-        <InputTextArea id="post-content" class="form-control" rows="6" data-testid="create-post-content" @bind-Value="newPost.Content" />
+        <InputTextArea id="post-content"
+                       class="form-control"
+                       rows="6"
+                       data-testid="create-post-content"
+                       @bind-Value="newPost.Content"
+                       disabled="@_isSubmitting" />
     </div>
 
     <div class="mb-3">
@@ -29,6 +38,7 @@
                data-testid="create-post-tags"
                @bind="tagInput"
                @bind:event="oninput"
+               disabled="@_isSubmitting"
                placeholder="glazing, nmm, osl" />
         <div class="form-text">Comma-separated technique tags. Up to @MiniPainterHub.Common.DTOs.TagRules.MaxTagsPerPost tags.</div>
         @if (ParsedTags.Count > 0)
@@ -48,6 +58,7 @@
                    class="form-control"
                    data-testid="create-post-images"
                    OnChange="OnFilesSelected"
+                   disabled="@_isSubmitting"
                    multiple />
         @if (previewUrls.Count > 0)
         {
@@ -62,8 +73,10 @@
         }
     </div>
 
-    <button type="submit" class="btn btn-primary" data-testid="create-post-submit">Create</button>
-    <button type="button" class="btn btn-secondary ms-2" @onclick="Cancel">Cancel</button>
+    <button type="submit" class="btn btn-primary" data-testid="create-post-submit" disabled="@_isSubmitting">
+        @(_isSubmitting ? "Creating..." : "Create")
+    </button>
+    <button type="button" class="btn btn-secondary ms-2" data-testid="create-post-cancel" @onclick="Cancel" disabled="@_isSubmitting">Cancel</button>
 </EditForm>
 
 @if (!string.IsNullOrEmpty(errorMessage))
@@ -77,6 +90,7 @@
     private List<string> previewUrls = new();
     private string tagInput = string.Empty;
     private string errorMessage = string.Empty;
+    private bool _isSubmitting;
     private List<string> ParsedTags => tagInput
         .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
         .Where(tag => !string.IsNullOrWhiteSpace(tag))
@@ -99,6 +113,12 @@
 
     private async Task HandleSubmit()
     {
+        if (_isSubmitting)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
         errorMessage = "";
         try
         {
@@ -135,6 +155,10 @@
         catch (Exception ex)
         {
             errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isSubmitting = false;
         }
     }
 

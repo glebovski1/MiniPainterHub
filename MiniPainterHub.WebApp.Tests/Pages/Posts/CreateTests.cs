@@ -117,13 +117,59 @@ public class CreateTests : TestContext
     }
 
     [Fact]
+    public async Task Submit_WhileRequestIsInFlight_DisablesFormAndPreventsDuplicateCreateCalls()
+    {
+        var submitStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseSubmit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var createCalls = 0;
+
+        this.AddPostStub(new StubPostService
+        {
+            CreateHandler = async dto =>
+            {
+                createCalls++;
+                submitStarted.TrySetResult();
+                await releaseSubmit.Task;
+                return new PostDto
+                {
+                    Id = 125,
+                    Title = dto.Title,
+                    Content = dto.Content,
+                    CreatedById = "user-1"
+                };
+            }
+        });
+
+        var cut = RenderComponent<Create>();
+
+        cut.Find("[data-testid='create-post-title']").Change("New title");
+        cut.Find("[data-testid='create-post-content']").Change("New content");
+
+        var firstSubmit = cut.Find("[data-testid='create-post-form']").SubmitAsync();
+        await submitStarted.Task;
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='create-post-submit']").HasAttribute("disabled").Should().BeTrue();
+            cut.Find("[data-testid='create-post-submit']").TextContent.Should().Contain("Creating...");
+            cut.Find("[data-testid='create-post-cancel']").HasAttribute("disabled").Should().BeTrue();
+        });
+
+        await cut.Find("[data-testid='create-post-form']").SubmitAsync();
+        createCalls.Should().Be(1);
+
+        releaseSubmit.TrySetResult();
+        await firstSubmit;
+    }
+
+    [Fact]
     public void CancelButton_NavigatesToHome()
     {
         this.AddPostStub();
         var cut = RenderComponent<Create>();
         var nav = Services.GetRequiredService<NavigationManager>();
 
-        cut.Find("button.btn.btn-secondary").Click();
+        cut.Find("[data-testid='create-post-cancel']").Click();
 
         nav.Uri.Should().Be("http://localhost/");
     }
