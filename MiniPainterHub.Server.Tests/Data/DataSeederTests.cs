@@ -71,6 +71,41 @@ public class DataSeederTests
     }
 
     [Fact]
+    public async Task SeedAsync_WhenPostsAlreadyExist_DoesNotAddBaselineSeedPosts()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.Posts.Add(new MiniPainterHub.Server.Entities.Post
+            {
+                Id = 777,
+                CreatedById = "external-user",
+                Title = "Existing migration content",
+                Content = "Do not overwrite rich datasets.",
+                CreatedUtc = DateTime.UtcNow,
+                UpdatedUtc = DateTime.UtcNow
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        await DataSeeder.SeedAsync(factory.Services);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            db.Posts.Should().ContainSingle(post => post.Title == "Existing migration content");
+            db.Posts.Should().NotContain(post => post.Title == "Seeded: glazing check");
+            db.Posts.Should().NotContain(post => post.Title == "Seeded: weathering notes");
+            db.PostImages.Should().BeEmpty();
+        }
+    }
+
+    [Fact]
     public async Task SeedAdminAsync_WhenDisabled_DoesNothing()
     {
         await using var app = await BuildSeedAdminApp(new Dictionary<string, string?>

@@ -74,7 +74,7 @@ jobs:
           retention-days: 7
 
   browser-smoke:
-    name: Browser Smoke (pull requests)
+    name: ui-smoke
     runs-on: ubuntu-latest
     needs: build-test
     if: github.event_name == 'pull_request'
