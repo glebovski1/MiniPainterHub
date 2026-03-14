@@ -11,6 +11,6 @@ namespace MiniPainterHub.WebApp.Services.Interfaces
         Task<UserProfileDto> UploadAvatarAsync(IBrowserFile file, long maxSizeBytes = 5_000_000);
         Task<UserProfileDto> RemoveAvatarAsync();
 
-        Task<UserProfileDto> GetUserProfileById(string id);
+        Task<PublicUserProfileDto> GetPublicProfileById(string id);
     }
 }

@@ -142,7 +142,7 @@ else
 
     private bool _loading = true;
     private string? _loadError;
-    private UserProfileDto? _profile;
+    private PublicUserProfileDto? _profile;
 
     private bool _statusLoading;
     private string? _statusError;
@@ -174,7 +174,7 @@ else
                 return;
             }
 
-            _profile = await Profiles.GetUserProfileById(UserId);
+            _profile = await Profiles.GetPublicProfileById(UserId);
         }
         catch
         {

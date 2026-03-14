@@ -32,6 +32,25 @@ public class ProfileService : IProfileService
         _imageService = imageService;
     }
 
+    private IQueryable<PublicUserProfileDto> ProjectPublicProfiles(string? viewerUserId) =>
+        _dbContext.Profiles
+            .AsNoTracking()
+            .Select(p => new PublicUserProfileDto
+            {
+                UserId = p.UserId,
+                DisplayName = p.DisplayName,
+                Bio = p.Bio,
+                AvatarUrl = p.AvatarUrl,
+                UserName = p.User.UserName ?? string.Empty,
+                DateJoined = p.User.DateJoined,
+                FollowerCount = _dbContext.Follows.Count(f => f.FollowedUserId == p.UserId),
+                FollowingCount = _dbContext.Follows.Count(f => f.FollowerUserId == p.UserId),
+                IsFollowing = !string.IsNullOrWhiteSpace(viewerUserId)
+                    && viewerUserId != p.UserId
+                    && _dbContext.Follows.Any(f => f.FollowerUserId == viewerUserId && f.FollowedUserId == p.UserId),
+                CanMessage = !string.IsNullOrWhiteSpace(viewerUserId) && viewerUserId != p.UserId
+            });
+
     private IQueryable<UserProfileDto> ProjectProfiles(string? viewerUserId) =>
         _dbContext.Profiles
             .AsNoTracking()
@@ -165,6 +184,13 @@ public class ProfileService : IProfileService
     public async Task<UserProfileDto> GetUserProfileById(string userId, string? viewerUserId = null)
     {
         return await ProjectProfiles(viewerUserId)
+            .FirstOrDefaultAsync(p => p.UserId == userId)
+            ?? throw new NotFoundException("Profile not found.");
+    }
+
+    public async Task<PublicUserProfileDto> GetPublicProfileById(string userId, string? viewerUserId = null)
+    {
+        return await ProjectPublicProfiles(viewerUserId)
             .FirstOrDefaultAsync(p => p.UserId == userId)
             ?? throw new NotFoundException("Profile not found.");
     }

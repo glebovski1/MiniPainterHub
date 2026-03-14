@@ -116,6 +116,78 @@ public class ConversationsControllerTests
     }
 
     [Fact]
+    public async Task GetConversations_WhenMultipleMessagesExist_ReturnsOrderedSummariesWithTrimmedPreviewAndUnreadCounts()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await factory.SeedUserAsync("viewer", "viewer");
+        await factory.SeedUserAsync("other-1", "other-1");
+        await factory.SeedUserAsync("other-2", "other-2");
+        await factory.SeedProfileAsync("other-1", "Other One", null);
+        await factory.SeedProfileAsync("other-2", "Other Two", null);
+
+        var latestBody = new string('x', 130);
+        var now = DateTime.UtcNow;
+
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            db.Conversations.Add(new Conversation
+            {
+                Id = 1,
+                CreatedUtc = now.AddMinutes(-10),
+                UpdatedUtc = now.AddMinutes(-1),
+                Participants =
+                {
+                    new ConversationParticipant { UserId = "viewer", JoinedUtc = now.AddMinutes(-10), LastReadMessageUtc = now.AddMinutes(-4) },
+                    new ConversationParticipant { UserId = "other-1", JoinedUtc = now.AddMinutes(-10) }
+                },
+                Messages =
+                {
+                    new DirectMessage { SenderUserId = "other-1", Body = "Older unread", SentUtc = now.AddMinutes(-5) },
+                    new DirectMessage { SenderUserId = "other-1", Body = latestBody, SentUtc = now.AddMinutes(-1) }
+                }
+            });
+
+            db.Conversations.Add(new Conversation
+            {
+                Id = 2,
+                CreatedUtc = now.AddMinutes(-20),
+                UpdatedUtc = now.AddMinutes(-2),
+                Participants =
+                {
+                    new ConversationParticipant { UserId = "viewer", JoinedUtc = now.AddMinutes(-20), LastReadMessageUtc = now.AddMinutes(-1) },
+                    new ConversationParticipant { UserId = "other-2", JoinedUtc = now.AddMinutes(-20) }
+                },
+                Messages =
+                {
+                    new DirectMessage { SenderUserId = "viewer", Body = "Mine earlier", SentUtc = now.AddMinutes(-2) }
+                }
+            });
+
+            await db.SaveChangesAsync();
+        });
+
+        using var client = factory.CreateAuthenticatedClient("viewer", "viewer");
+
+        var response = await client.GetAsync("/api/conversations");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var summaries = await response.Content.ReadFromJsonAsync<ConversationSummaryDto[]>();
+        summaries.Should().NotBeNull();
+        summaries!.Select(summary => summary.Id).Should().Equal(1, 2);
+
+        summaries[0].OtherUser.DisplayName.Should().Be("Other One");
+        summaries[0].LatestMessagePreview.Should().Be(new string('x', 117) + "...");
+        summaries[0].LatestMessageSenderUserId.Should().Be("other-1");
+        summaries[0].UnreadCount.Should().Be(1);
+
+        summaries[1].OtherUser.DisplayName.Should().Be("Other Two");
+        summaries[1].LatestMessagePreview.Should().Be("Mine earlier");
+        summaries[1].LatestMessageSenderUserId.Should().Be("viewer");
+        summaries[1].UnreadCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task SendMessage_WhenUserIsNotParticipant_ReturnsForbiddenProblemDetails()
     {
         using var factory = new IntegrationTestApplicationFactory();

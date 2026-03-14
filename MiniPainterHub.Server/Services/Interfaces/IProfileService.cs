@@ -13,5 +13,6 @@ namespace MiniPainterHub.Server.Services.Interfaces
         Task<UserProfileDto> UploadAvatarAsync(string userId, IFormFile file);
         Task<UserProfileDto> RemoveAvatarAsync(string userId);
         Task<UserProfileDto> GetUserProfileById(string id, string? viewerUserId = null);
+        Task<PublicUserProfileDto> GetPublicProfileById(string id, string? viewerUserId = null);
     }
 }

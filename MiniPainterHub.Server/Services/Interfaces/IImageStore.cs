@@ -19,4 +19,10 @@ public interface IImageStore
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The storage result including URLs to the saved variants.</returns>
     Task<ImageStoreResult> SaveAsync(Guid postId, Guid imageId, ImageVariants variants, CancellationToken ct);
+
+    /// <summary>
+    /// Deletes the stored image variants for the specified post and image identifiers.
+    /// Missing files should be ignored.
+    /// </summary>
+    Task DeleteAsync(Guid postId, Guid imageId, CancellationToken ct);
 }

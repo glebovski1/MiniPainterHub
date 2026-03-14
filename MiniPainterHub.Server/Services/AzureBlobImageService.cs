@@ -36,7 +36,7 @@ namespace MiniPainterHub.Server.Services
         {
             ArgumentNullException.ThrowIfNull(variants);
 
-            var prefix = $"images/{postId:D}/";
+            var prefix = BuildPrefix(postId);
 
             var maxUrl = await UploadVariantAsync(prefix + BuildName(imageId, "max", variants.Max.Extension), variants.Max, ct);
             var previewUrl = await UploadVariantAsync(prefix + BuildName(imageId, "preview", variants.Preview.Extension), variants.Preview, ct);
@@ -49,6 +49,17 @@ namespace MiniPainterHub.Server.Services
             }
 
             return new ImageStoreResult(maxUrl, previewUrl, thumbUrl, originalUrl);
+        }
+
+        public async Task DeleteAsync(Guid postId, Guid imageId, CancellationToken ct)
+        {
+            var prefix = $"{BuildPrefix(postId)}{imageId:D}_";
+
+            await foreach (var blobItem in _container.GetBlobsAsync(prefix: prefix, cancellationToken: ct))
+            {
+                var blob = _container.GetBlobClient(blobItem.Name);
+                await blob.DeleteIfExistsAsync(cancellationToken: ct);
+            }
         }
 
         public async Task<Stream> DownloadAsync(string fileName)
@@ -80,6 +91,9 @@ namespace MiniPainterHub.Server.Services
 
         private static string BuildName(Guid imageId, string suffix, string extension)
             => $"{imageId:D}_{suffix}.{extension}";
+
+        private static string BuildPrefix(Guid postId)
+            => $"images/{postId:D}/";
 
         private async Task<string> UploadVariantAsync(string name, ImageVariant variant, CancellationToken ct)
         {

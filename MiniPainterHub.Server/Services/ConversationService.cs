@@ -27,22 +27,80 @@ namespace MiniPainterHub.Server.Services
 
         public async Task<IReadOnlyList<ConversationSummaryDto>> GetConversationsAsync(string userId)
         {
-            var memberships = await LoadConversationMembershipsAsync(userId);
-            var summaries = new List<ConversationSummaryDto>(memberships.Count);
+            var projections = await _dbContext.ConversationParticipants
+                .AsNoTracking()
+                .Where(cp => cp.UserId == userId)
+                .Select(cp => new ConversationSummaryProjection(
+                    cp.ConversationId,
+                    cp.Conversation.Participants.Count(),
+                    cp.Conversation.Participants
+                        .Where(p => p.UserId != userId)
+                        .Select(p => p.UserId)
+                        .FirstOrDefault(),
+                    cp.Conversation.Participants
+                        .Where(p => p.UserId != userId)
+                        .Select(p => p.User.UserName ?? string.Empty)
+                        .FirstOrDefault(),
+                    cp.Conversation.Participants
+                        .Where(p => p.UserId != userId)
+                        .Select(p => p.User.Profile != null && p.User.Profile.DisplayName != null
+                            ? p.User.Profile.DisplayName
+                            : (p.User.UserName ?? string.Empty))
+                        .FirstOrDefault(),
+                    cp.Conversation.Participants
+                        .Where(p => p.UserId != userId)
+                        .Select(p => p.User.Profile != null
+                            ? p.User.Profile.AvatarUrl
+                            : p.User.AvatarUrl)
+                        .FirstOrDefault(),
+                    cp.Conversation.Messages
+                        .OrderByDescending(m => m.SentUtc)
+                        .Select(m => m.Body)
+                        .FirstOrDefault(),
+                    cp.Conversation.Messages
+                        .OrderByDescending(m => m.SentUtc)
+                        .Select(m => m.SenderUserId)
+                        .FirstOrDefault(),
+                    cp.Conversation.Messages
+                        .OrderByDescending(m => m.SentUtc)
+                        .Select(m => (DateTime?)m.SentUtc)
+                        .FirstOrDefault(),
+                    cp.Conversation.Messages.Count(m =>
+                        m.SenderUserId != userId
+                        && (!cp.LastReadMessageUtc.HasValue || m.SentUtc > cp.LastReadMessageUtc.Value))))
+                .ToListAsync();
 
-            foreach (var membership in memberships)
+            var summaries = new List<ConversationSummaryDto>(projections.Count);
+
+            foreach (var projection in projections)
             {
-                if (TryMapSummary(membership, userId, out var summary))
+                if (projection.ParticipantCount != 2 || string.IsNullOrWhiteSpace(projection.OtherUserId))
                 {
-                    summaries.Add(summary);
+                    _logger.LogWarning(
+                        "Skipping malformed conversation {ConversationId} for user {UserId}. Participant count: {ParticipantCount}",
+                        projection.ConversationId,
+                        userId,
+                        projection.ParticipantCount);
                     continue;
                 }
 
-                _logger.LogWarning(
-                    "Skipping malformed conversation {ConversationId} for user {UserId}. Participant count: {ParticipantCount}",
-                    membership.ConversationId,
-                    userId,
-                    membership.Conversation.Participants.Count);
+                summaries.Add(new ConversationSummaryDto
+                {
+                    Id = projection.ConversationId,
+                    OtherUser = new UserListItemDto
+                    {
+                        UserId = projection.OtherUserId,
+                        UserName = projection.OtherUserName ?? string.Empty,
+                        DisplayName = string.IsNullOrWhiteSpace(projection.OtherDisplayName)
+                            ? (projection.OtherUserName ?? string.Empty)
+                            : projection.OtherDisplayName,
+                        AvatarUrl = projection.OtherAvatarUrl
+                    },
+                    LatestMessagePreview = string.IsNullOrWhiteSpace(projection.LatestMessageBody) ? null : TrimPreview(projection.LatestMessageBody),
+                    LatestMessageSenderUserId = projection.LatestMessageSenderUserId,
+                    LatestMessageSentUtc = projection.LatestMessageSentUtc,
+                    UnreadCount = projection.UnreadCount
+                });
             }
 
             return summaries
@@ -271,22 +329,6 @@ namespace MiniPainterHub.Server.Services
             }
         }
 
-        private async Task<List<ConversationParticipant>> LoadConversationMembershipsAsync(string userId)
-        {
-            return await _dbContext.ConversationParticipants
-                .Where(cp => cp.UserId == userId)
-                .Include(cp => cp.Conversation)
-                .ThenInclude(c => c.Participants)
-                .ThenInclude(p => p.User)
-                .ThenInclude(u => u.Profile)
-                .Include(cp => cp.Conversation)
-                .ThenInclude(c => c.Messages)
-                .ThenInclude(m => m.SenderUser)
-                .ThenInclude(u => u.Profile)
-                .AsSplitQuery()
-                .ToListAsync();
-        }
-
         private async Task<ConversationParticipant?> LoadMembershipAsync(string userId, int conversationId)
         {
             return await _dbContext.ConversationParticipants
@@ -345,5 +387,17 @@ namespace MiniPainterHub.Server.Services
 
         private static string TrimPreview(string body)
             => body.Length <= 120 ? body : body.Substring(0, 117) + "...";
+
+        private sealed record ConversationSummaryProjection(
+            int ConversationId,
+            int ParticipantCount,
+            string? OtherUserId,
+            string? OtherUserName,
+            string? OtherDisplayName,
+            string? OtherAvatarUrl,
+            string? LatestMessageBody,
+            string? LatestMessageSenderUserId,
+            DateTime? LatestMessageSentUtc,
+            int UnreadCount);
     }
 }

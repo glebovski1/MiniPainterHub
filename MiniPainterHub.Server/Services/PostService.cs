@@ -219,6 +219,8 @@ namespace MiniPainterHub.Server.Services
                 });
             }
 
+            ValidateIncomingImages(dto.Images, dto.Thumbnails);
+
             var created = await CreateAsync(userId, new CreatePostDto
             {
                 Title = dto.Title,
@@ -237,14 +239,32 @@ namespace MiniPainterHub.Server.Services
                 created.Id,
                 _imageOptions.Enabled);
 
-            var imageDtos = _imageOptions.Enabled
-                ? await ProcessWithPipelineAsync(created.Id, dto.Images, ct)
-                : await ProcessWithLegacyAsync(created.Id, dto.Images, dto.Thumbnails, ct);
+            var processedImages = new List<ProcessedImageResult>();
+            try
+            {
+                if (_imageOptions.Enabled)
+                {
+                    await ProcessWithPipelineAsync(created.Id, dto.Images, processedImages, ct);
+                }
+                else
+                {
+                    await ProcessWithLegacyAsync(created.Id, dto.Images, dto.Thumbnails, processedImages, ct);
+                }
 
-            created.Images = await AddImagesAsync(created.Id, imageDtos);
-            created.ImageUrl = created.Images.OrderBy(i => i.Id).Select(i => i.ImageUrl).FirstOrDefault();
+                created.Images = await AddImagesAsync(
+                    created.Id,
+                    processedImages
+                        .Where(result => result.Image is not null)
+                        .Select(result => result.Image!));
+                created.ImageUrl = created.Images.OrderBy(i => i.Id).Select(i => i.ImageUrl).FirstOrDefault();
 
-            return created;
+                return created;
+            }
+            catch
+            {
+                await CleanupFailedCreateWithImagesAsync(created.Id, processedImages);
+                throw;
+            }
         }
 
         public async Task<List<PostImageDto>> AddImagesAsync(int postId, IEnumerable<PostImageDto> images)
@@ -515,89 +535,190 @@ namespace MiniPainterHub.Server.Services
             }
         }
 
-        private async Task<List<PostImageDto>> ProcessWithLegacyAsync(
+        private void ValidateIncomingImages(
+            IReadOnlyList<IFormFile>? images,
+            IReadOnlyList<IFormFile>? thumbnails)
+        {
+            if (images is null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < images.Count && i < MaxImagesPerPost; i++)
+            {
+                var image = images[i];
+                if (image.Length > MaxUploadBytes)
+                {
+                    throw new ImageTooLargeException(image.FileName, image.Length, MaxUploadBytes);
+                }
+
+                if (_imageOptions.Enabled)
+                {
+                    var contentType = ResolveContentType(image);
+                    if (!ImageContentTypes.IsAllowed(contentType))
+                    {
+                        throw new UnsupportedImageContentTypeException(image.FileName, contentType);
+                    }
+                }
+
+                if (_imageOptions.Enabled || thumbnails is null || i >= thumbnails.Count || thumbnails[i] is not { Length: > 0 } thumb)
+                {
+                    continue;
+                }
+
+                if (thumb.Length > MaxUploadBytes)
+                {
+                    throw new ImageTooLargeException(thumb.FileName, thumb.Length, MaxUploadBytes);
+                }
+            }
+        }
+
+        private async Task ProcessWithLegacyAsync(
             int postId,
             IReadOnlyList<IFormFile> images,
             IReadOnlyList<IFormFile>? thumbnails,
+            List<ProcessedImageResult> results,
             CancellationToken ct)
         {
-            var results = new List<PostImageDto>();
-
             for (var i = 0; i < images.Count && i < MaxImagesPerPost; i++)
             {
                 ct.ThrowIfCancellationRequested();
 
                 var image = images[i];
-                if (image.Length > MaxUploadBytes)
+                var uploadedFiles = new List<string>();
+                try
                 {
-                    throw new ImageTooLargeException(image.FileName, image.Length, MaxUploadBytes);
-                }
+                    await using var stream = image.OpenReadStream();
+                    var fileName = $"{postId}_{i}_{image.FileName}";
+                    var url = await _imageService.UploadAsync(stream, fileName);
+                    uploadedFiles.Add(fileName);
 
-                await using var stream = image.OpenReadStream();
-                var fileName = $"{postId}_{i}_{image.FileName}";
-                var url = await _imageService.UploadAsync(stream, fileName);
-
-                string? thumbUrl = null;
-                if (thumbnails != null && i < thumbnails.Count && thumbnails[i] is { Length: > 0 } thumb)
-                {
-                    if (thumb.Length > MaxUploadBytes)
+                    string? thumbUrl = null;
+                    if (thumbnails != null && i < thumbnails.Count && thumbnails[i] is { Length: > 0 } thumb)
                     {
-                        throw new ImageTooLargeException(thumb.FileName, thumb.Length, MaxUploadBytes);
+                        await using var thumbStream = thumb.OpenReadStream();
+                        var thumbFileName = $"{postId}_{i}_thumb_{thumb.FileName}";
+                        thumbUrl = await _imageService.UploadAsync(thumbStream, thumbFileName);
+                        uploadedFiles.Add(thumbFileName);
                     }
 
-                    await using var thumbStream = thumb.OpenReadStream();
-                    var thumbFileName = $"{postId}_{i}_thumb_{thumb.FileName}";
-                    thumbUrl = await _imageService.UploadAsync(thumbStream, thumbFileName);
+                    results.Add(new ProcessedImageResult(
+                        new PostImageDto
+                        {
+                            ImageUrl = url,
+                            PreviewUrl = url,
+                            ThumbnailUrl = thumbUrl
+                        },
+                        null,
+                        uploadedFiles));
                 }
-
-                results.Add(new PostImageDto
+                catch
                 {
-                    ImageUrl = url,
-                    PreviewUrl = url,
-                    ThumbnailUrl = thumbUrl
-                });
+                    results.Add(new ProcessedImageResult(null, null, uploadedFiles));
+                    throw;
+                }
             }
-
-            return results;
         }
 
-        private async Task<List<PostImageDto>> ProcessWithPipelineAsync(
+        private async Task ProcessWithPipelineAsync(
             int postId,
             IReadOnlyList<IFormFile> images,
+            List<ProcessedImageResult> results,
             CancellationToken ct)
         {
-            var results = new List<PostImageDto>();
-
             for (var i = 0; i < images.Count && i < MaxImagesPerPost; i++)
             {
                 ct.ThrowIfCancellationRequested();
 
                 var image = images[i];
-                if (image.Length > MaxUploadBytes)
-                {
-                    throw new ImageTooLargeException(image.FileName, image.Length, MaxUploadBytes);
-                }
-
                 var contentType = ResolveContentType(image);
-                if (!ImageContentTypes.IsAllowed(contentType))
+                var imageId = Guid.NewGuid();
+                try
                 {
-                    throw new UnsupportedImageContentTypeException(image.FileName, contentType);
+                    await using var stream = image.OpenReadStream();
+                    var variants = await _imageProcessor.ProcessAsync(stream, contentType, ct);
+                    var stored = await _imageStore.SaveAsync(ConvertToStorageGuid(postId), imageId, variants, ct);
+
+                    results.Add(new ProcessedImageResult(
+                        new PostImageDto
+                        {
+                            ImageUrl = stored.MaxUrl,
+                            PreviewUrl = stored.PreviewUrl,
+                            ThumbnailUrl = stored.ThumbUrl
+                        },
+                        imageId,
+                        Array.Empty<string>()));
+                }
+                catch
+                {
+                    results.Add(new ProcessedImageResult(null, imageId, Array.Empty<string>()));
+                    throw;
+                }
+            }
+        }
+
+        private async Task CleanupFailedCreateWithImagesAsync(int postId, IReadOnlyList<ProcessedImageResult> processedImages)
+        {
+            var storagePostId = ConvertToStorageGuid(postId);
+
+            foreach (var processedImage in processedImages)
+            {
+                foreach (var fileName in processedImage.UploadedFileNames)
+                {
+                    try
+                    {
+                        await _imageService.DeleteAsync(fileName);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to delete uploaded image artifact {FileName} during rollback for post {PostId}", fileName, postId);
+                    }
                 }
 
-                await using var stream = image.OpenReadStream();
-                var variants = await _imageProcessor.ProcessAsync(stream, contentType, ct);
-                var imageId = Guid.NewGuid();
-                var stored = await _imageStore.SaveAsync(ConvertToStorageGuid(postId), imageId, variants, ct);
-
-                results.Add(new PostImageDto
+                if (!processedImage.StoredImageId.HasValue)
                 {
-                    ImageUrl = stored.MaxUrl,
-                    PreviewUrl = stored.PreviewUrl,
-                    ThumbnailUrl = stored.ThumbUrl
-                });
+                    continue;
+                }
+
+                try
+                {
+                    await _imageStore.DeleteAsync(storagePostId, processedImage.StoredImageId.Value, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to delete stored image variants for post {PostId} image {ImageId} during rollback", postId, processedImage.StoredImageId.Value);
+                }
             }
 
-            return results;
+            try
+            {
+                var post = await _appDbContext.Posts
+                    .Include(p => p.Images)
+                    .Include(p => p.PostTags)
+                    .FirstOrDefaultAsync(p => p.Id == postId);
+
+                if (post is null)
+                {
+                    return;
+                }
+
+                if (post.Images.Count > 0)
+                {
+                    _appDbContext.PostImages.RemoveRange(post.Images);
+                }
+
+                if (post.PostTags.Count > 0)
+                {
+                    _appDbContext.PostTags.RemoveRange(post.PostTags);
+                }
+
+                _appDbContext.Posts.Remove(post);
+                await _appDbContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to remove post {PostId} during image upload rollback", postId);
+            }
         }
 
         private static Guid ConvertToStorageGuid(int postId) =>
@@ -690,5 +811,7 @@ namespace MiniPainterHub.Server.Services
         private sealed record NormalizedTagRequest(string DisplayName, string NormalizedName, string Slug);
 
         private sealed record PostSummaryPageItem(int Id, int CommentCount, int LikeCount);
+
+        private sealed record ProcessedImageResult(PostImageDto? Image, Guid? StoredImageId, IReadOnlyList<string> UploadedFileNames);
     }
 }

@@ -76,6 +76,27 @@ namespace MiniPainterHub.Server.Services
             return Task.FromResult(new ImageStoreResult(maxUrl, previewUrl, thumbUrl, originalUrl));
         }
 
+        public Task DeleteAsync(Guid postId, Guid imageId, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var folder = Path.Combine(_basePath, postId.ToString("D"));
+            if (!Directory.Exists(folder))
+            {
+                return Task.CompletedTask;
+            }
+
+            foreach (var path in Directory.GetFiles(folder, $"{imageId:D}_*.*", SearchOption.TopDirectoryOnly))
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+
+            return Task.CompletedTask;
+        }
+
         private string SaveVariant(string folder, Guid postId, Guid imageId, string suffix, ImageVariant variant)
         {
             var fileName = $"{imageId:D}_{suffix}.{variant.Extension}";

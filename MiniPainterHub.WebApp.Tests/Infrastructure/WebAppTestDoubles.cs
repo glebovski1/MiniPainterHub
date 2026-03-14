@@ -50,7 +50,7 @@ internal sealed class StubProfileService : IProfileService
         DisplayName = "Stub User",
         AvatarUrl = null
     });
-    public Func<string, Task<UserProfileDto>> GetByIdHandler { get; set; } = id => Task.FromResult(new UserProfileDto
+    public Func<string, Task<PublicUserProfileDto>> GetPublicByIdHandler { get; set; } = id => Task.FromResult(new PublicUserProfileDto
     {
         UserId = id,
         DisplayName = $"User {id}"
@@ -61,7 +61,7 @@ internal sealed class StubProfileService : IProfileService
     public Task<UserProfileDto> UpdateMineAsync(UpdateUserProfileDto dto) => UpdateMineHandler(dto);
     public Task<UserProfileDto> UploadAvatarAsync(IBrowserFile file, long maxSizeBytes = 5_000_000) => UploadAvatarHandler(file, maxSizeBytes);
     public Task<UserProfileDto> RemoveAvatarAsync() => RemoveAvatarHandler();
-    public Task<UserProfileDto> GetUserProfileById(string id) => GetByIdHandler(id);
+    public Task<PublicUserProfileDto> GetPublicProfileById(string id) => GetPublicByIdHandler(id);
 }
 
 internal sealed class StubFollowService : IFollowService
