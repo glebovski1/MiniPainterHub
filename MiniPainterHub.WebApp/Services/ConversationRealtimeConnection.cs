@@ -78,7 +78,7 @@ public sealed class HubConversationRealtimeConnection : IConversationRealtimeCon
         => _hubConnection.StartAsync();
 
     public Task InvokeAsync(string methodName, params object[] args)
-        => _hubConnection.InvokeAsync(methodName, args);
+        => _hubConnection.InvokeCoreAsync(methodName, args);
 
     public ValueTask DisposeAsync()
         => _hubConnection.DisposeAsync();
