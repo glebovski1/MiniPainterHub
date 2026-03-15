@@ -11,19 +11,27 @@ namespace MiniPainterHub.WebApp.Services
     public sealed class ConversationService : IConversationService, IAsyncDisposable
     {
         private readonly ApiClient _api;
-        private readonly NavigationManager _navigation;
-        private readonly IJSRuntime _jsRuntime;
+        private readonly IConversationRealtimeConnectionFactory _realtimeConnectionFactory;
         private readonly object _conversationLoadLock = new();
-        private HubConnection? _hubConnection;
+        private readonly object _joinedConversationsLock = new();
+        private IConversationRealtimeConnection? _hubConnection;
         private readonly HashSet<int> _joinedConversations = new();
         private IReadOnlyList<ConversationSummaryDto> _conversations = Array.Empty<ConversationSummaryDto>();
         private Task<IReadOnlyList<ConversationSummaryDto>>? _loadConversationsTask;
 
         public ConversationService(ApiClient api, NavigationManager navigation, IJSRuntime jsRuntime)
+            : this(api, navigation, jsRuntime, new SignalRConversationRealtimeConnectionFactory(navigation, jsRuntime))
+        {
+        }
+
+        public ConversationService(
+            ApiClient api,
+            NavigationManager navigation,
+            IJSRuntime jsRuntime,
+            IConversationRealtimeConnectionFactory realtimeConnectionFactory)
         {
             _api = api;
-            _navigation = navigation;
-            _jsRuntime = jsRuntime;
+            _realtimeConnectionFactory = realtimeConnectionFactory;
         }
 
         public event Action? OnChange;
@@ -105,20 +113,11 @@ namespace MiniPainterHub.WebApp.Services
                 return;
             }
 
-            var token = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", "authToken");
-            if (string.IsNullOrWhiteSpace(token))
+            _hubConnection = await _realtimeConnectionFactory.CreateAsync();
+            if (_hubConnection == null)
             {
                 return;
             }
-
-            _hubConnection = new HubConnectionBuilder()
-                .WithUrl(_navigation.ToAbsoluteUri("/hubs/chat"), options =>
-                {
-                    options.AccessTokenProvider = async () =>
-                        await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", "authToken");
-                })
-                .WithAutomaticReconnect()
-                .Build();
 
             _hubConnection.On<ConversationChangedDto>("ConversationChanged", payload =>
             {
@@ -137,30 +136,53 @@ namespace MiniPainterHub.WebApp.Services
                 _ = RefreshAsync();
             });
 
+            _hubConnection.Reconnected += _ => RejoinJoinedConversationsAsync();
             await _hubConnection.StartAsync();
         }
 
         public async Task JoinConversationAsync(int conversationId)
         {
             await EnsureRealtimeAsync();
-            if (_hubConnection == null || _joinedConversations.Contains(conversationId))
+            if (_hubConnection == null)
             {
                 return;
             }
 
+            lock (_joinedConversationsLock)
+            {
+                if (_joinedConversations.Contains(conversationId))
+                {
+                    return;
+                }
+            }
+
             await _hubConnection.InvokeAsync("JoinConversation", conversationId);
-            _joinedConversations.Add(conversationId);
+            lock (_joinedConversationsLock)
+            {
+                _joinedConversations.Add(conversationId);
+            }
         }
 
         public async Task LeaveConversationAsync(int conversationId)
         {
-            if (_hubConnection == null || !_joinedConversations.Contains(conversationId))
+            if (_hubConnection == null)
             {
                 return;
             }
 
+            lock (_joinedConversationsLock)
+            {
+                if (!_joinedConversations.Contains(conversationId))
+                {
+                    return;
+                }
+            }
+
             await _hubConnection.InvokeAsync("LeaveConversation", conversationId);
-            _joinedConversations.Remove(conversationId);
+            lock (_joinedConversationsLock)
+            {
+                _joinedConversations.Remove(conversationId);
+            }
         }
 
         private async Task HandleConversationChangedAsync(ConversationChangedDto payload)
@@ -171,6 +193,25 @@ namespace MiniPainterHub.WebApp.Services
         private async Task RefreshAsync()
         {
             await GetConversationsAsync(forceRefresh: true);
+        }
+
+        private async Task RejoinJoinedConversationsAsync()
+        {
+            if (_hubConnection == null)
+            {
+                return;
+            }
+
+            int[] joinedConversationIds;
+            lock (_joinedConversationsLock)
+            {
+                joinedConversationIds = _joinedConversations.ToArray();
+            }
+
+            foreach (var conversationId in joinedConversationIds)
+            {
+                await _hubConnection.InvokeAsync("JoinConversation", conversationId);
+            }
         }
 
         private async Task<IReadOnlyList<ConversationSummaryDto>> LoadConversationsAsync()

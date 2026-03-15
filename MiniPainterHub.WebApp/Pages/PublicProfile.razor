@@ -95,7 +95,7 @@ else
 @code {
     [Parameter] public string UserId { get; set; } = string.Empty;
 
-    private UserProfileDto? _profile;
+    private PublicUserProfileDto? _profile;
     private bool _loading = true;
     private bool _busy;
     private bool _isAuthenticated;
@@ -114,7 +114,7 @@ else
 
         try
         {
-            _profile = await Profiles.GetUserProfileById(UserId);
+            _profile = await Profiles.GetPublicProfileById(UserId);
         }
         catch (Exception ex)
         {
@@ -149,7 +149,7 @@ else
                 await Follows.FollowAsync(UserId);
             }
 
-            _profile = await Profiles.GetUserProfileById(UserId);
+            _profile = await Profiles.GetPublicProfileById(UserId);
         }
         finally
         {

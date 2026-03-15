@@ -140,6 +140,7 @@ public class PostsUploadTests : IClassFixture<PostsUploadTests.TestApplicationFa
 
         var store = _factory.Services.GetRequiredService<TestImageStore>();
         store.Saved.Should().BeEmpty();
+        await AssertNoPersistedPostDataAsync();
     }
 
     [Fact]
@@ -165,6 +166,7 @@ public class PostsUploadTests : IClassFixture<PostsUploadTests.TestApplicationFa
 
         var store = _factory.Services.GetRequiredService<TestImageStore>();
         store.Saved.Should().BeEmpty();
+        await AssertNoPersistedPostDataAsync();
     }
 
     [Fact]
@@ -217,6 +219,47 @@ public class PostsUploadTests : IClassFixture<PostsUploadTests.TestApplicationFa
         var act = async () => await service.CreateWithImagesAsync(TestAuthHandler.TestUserId, dto, default);
 
         await act.Should().ThrowAsync<UnsupportedImageContentTypeException>();
+        await AssertNoPersistedPostDataAsync();
+    }
+
+    [Fact]
+    public async Task ServiceCreateWithImagesAsync_WhenStoreSaveFails_RemovesPostAndStoredVariants()
+    {
+        await _factory.ResetAsync();
+        await SeedUserAsync();
+
+        using var scope = _factory.Services.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<IPostService>();
+        var store = scope.ServiceProvider.GetRequiredService<TestImageStore>();
+        store.ThrowAfterSave = true;
+
+        using var imageStream = await CreateImageAsync(1600, 900);
+        var formFile = CreateFormFile(imageStream, "photo.jpg", "image/jpeg");
+
+        var dto = new CreateImagePostDto
+        {
+            Title = "Title",
+            Content = "Body",
+            Images = new List<IFormFile> { formFile }
+        };
+
+        var act = async () => await service.CreateWithImagesAsync(TestAuthHandler.TestUserId, dto, default);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Simulated image store failure.");
+
+        store.Saved.Should().BeEmpty();
+        store.DeletedImages.Should().ContainSingle();
+        await AssertNoPersistedPostDataAsync();
+    }
+
+    private async Task AssertNoPersistedPostDataAsync()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        (await context.Posts.CountAsync()).Should().Be(0);
+        (await context.PostImages.CountAsync()).Should().Be(0);
+        (await context.PostTags.CountAsync()).Should().Be(0);
     }
 
     private async Task SeedUserAsync()
@@ -296,8 +339,11 @@ public class PostsUploadTests : IClassFixture<PostsUploadTests.TestApplicationFa
     public class TestImageStore : IImageStore
     {
         private readonly List<StoredVariant> _saved = new();
+        private readonly List<(Guid PostId, Guid ImageId)> _deletedImages = new();
 
         public IReadOnlyList<StoredVariant> Saved => _saved;
+        public IReadOnlyList<(Guid PostId, Guid ImageId)> DeletedImages => _deletedImages;
+        public bool ThrowAfterSave { get; set; }
 
         public Task<ImageStoreResult> SaveAsync(Guid postId, Guid imageId, ImageVariants variants, System.Threading.CancellationToken ct)
         {
@@ -308,6 +354,11 @@ public class PostsUploadTests : IClassFixture<PostsUploadTests.TestApplicationFa
                 SaveVariant(postId, imageId, "thumb", variants.Thumb);
             }
 
+            if (ThrowAfterSave)
+            {
+                throw new InvalidOperationException("Simulated image store failure.");
+            }
+
             var baseUrl = $"https://test.local/images/{postId:D}/";
             var result = new ImageStoreResult(
                 baseUrl + $"{imageId:D}_max.{variants.Max.Extension}",
@@ -316,20 +367,34 @@ public class PostsUploadTests : IClassFixture<PostsUploadTests.TestApplicationFa
             return Task.FromResult(result);
         }
 
+        public Task DeleteAsync(Guid postId, Guid imageId, System.Threading.CancellationToken ct)
+        {
+            lock (_saved)
+            {
+                _saved.RemoveAll(variant => variant.PostId == postId && variant.ImageId == imageId);
+                _deletedImages.Add((postId, imageId));
+            }
+
+            return Task.CompletedTask;
+        }
+
         public void Clear()
         {
             lock (_saved)
             {
                 _saved.Clear();
+                _deletedImages.Clear();
             }
+
+            ThrowAfterSave = false;
         }
 
         private void SaveVariant(Guid postId, Guid imageId, string suffix, ImageVariant variant)
         {
-            _saved.Add(new StoredVariant($"{postId:D}_{imageId:D}_{suffix}.{variant.Extension}", variant));
+            _saved.Add(new StoredVariant(postId, imageId, $"{postId:D}_{imageId:D}_{suffix}.{variant.Extension}", variant));
         }
 
-        public record StoredVariant(string Name, ImageVariant Variant);
+        public record StoredVariant(Guid PostId, Guid ImageId, string Name, ImageVariant Variant);
     }
 
     public class FakeImageService : IImageService

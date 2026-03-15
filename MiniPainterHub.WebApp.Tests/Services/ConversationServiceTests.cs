@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Bunit;
 using FluentAssertions;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.WebApp.Services;
@@ -47,6 +48,33 @@ public class ConversationServiceTests
         results[0][0].OtherUser.DisplayName.Should().Be("Other Painter");
     }
 
+    [Fact]
+    public async Task JoinConversationAsync_WhenConnectionReconnects_RejoinsPreviouslyJoinedConversationsOnce()
+    {
+        using var context = new TestContext();
+        var httpClient = new HttpClient(new BlockingHttpMessageHandler())
+        {
+            BaseAddress = new Uri("https://example.test/")
+        };
+        var apiClient = new ApiClient(httpClient, new NoOpNotificationService());
+        var realtimeFactory = new TestRealtimeConnectionFactory();
+        var service = new ConversationService(
+            apiClient,
+            context.Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>(),
+            context.JSInterop.JSRuntime,
+            realtimeFactory);
+
+        await service.JoinConversationAsync(5);
+        await service.JoinConversationAsync(7);
+        await service.JoinConversationAsync(5);
+
+        await realtimeFactory.Connection.RaiseReconnectedAsync();
+
+        realtimeFactory.CreateCount.Should().Be(1);
+        realtimeFactory.Connection.StartCount.Should().Be(1);
+        realtimeFactory.Connection.JoinedConversationIds.Should().Equal(5, 7, 5, 7);
+    }
+
     private sealed class BlockingHttpMessageHandler : HttpMessageHandler
     {
         private const string ConversationsJson =
@@ -76,5 +104,63 @@ public class ConversationServiceTests
         public ValueTask ShowWarningAsync(string message, string? header = null) => ValueTask.CompletedTask;
         public ValueTask ShowErrorAsync(string message, string? header = null) => ValueTask.CompletedTask;
         public ValueTask ShowValidationErrorsAsync(IDictionary<string, string[]> errors) => ValueTask.CompletedTask;
+    }
+
+    private sealed class TestRealtimeConnectionFactory : IConversationRealtimeConnectionFactory
+    {
+        public TestRealtimeConnection Connection { get; } = new();
+        public int CreateCount { get; private set; }
+
+        public Task<IConversationRealtimeConnection?> CreateAsync()
+        {
+            CreateCount++;
+            return Task.FromResult<IConversationRealtimeConnection?>(Connection);
+        }
+    }
+
+    private sealed class TestRealtimeConnection : IConversationRealtimeConnection
+    {
+        public event Func<string?, Task>? Reconnected;
+
+        public HubConnectionState State { get; private set; } = HubConnectionState.Disconnected;
+        public int StartCount { get; private set; }
+        public List<int> JoinedConversationIds { get; } = new();
+
+        public IDisposable On<T>(string methodName, Action<T> handler) => new NoOpDisposable();
+
+        public Task StartAsync()
+        {
+            StartCount++;
+            State = HubConnectionState.Connected;
+            return Task.CompletedTask;
+        }
+
+        public Task InvokeAsync(string methodName, params object[] args)
+        {
+            if (methodName == "JoinConversation")
+            {
+                JoinedConversationIds.Add((int)args[0]);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public async Task RaiseReconnectedAsync()
+        {
+            State = HubConnectionState.Connected;
+            if (Reconnected != null)
+            {
+                await Reconnected.Invoke("reconnected");
+            }
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private sealed class NoOpDisposable : IDisposable
+    {
+        public void Dispose()
+        {
+        }
     }
 }

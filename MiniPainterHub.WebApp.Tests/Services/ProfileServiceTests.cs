@@ -103,7 +103,7 @@ public class ProfileServiceTests
     }
 
     [Fact]
-    public async Task GetUserProfileById_WhenCalled_ReturnsRemoteProfile()
+    public async Task GetPublicProfileById_WhenCalled_ReturnsRemoteProfile()
     {
         var handler = new RecordingHttpMessageHandler();
         var service = new ProfileService(CreateApiClient(handler));
@@ -111,7 +111,7 @@ public class ProfileServiceTests
             HttpStatusCode.OK,
             """{"userId":"user/42","displayName":"Remote Painter","bio":"Profile"}""");
 
-        var profile = await service.GetUserProfileById("user/42");
+        var profile = await service.GetPublicProfileById("user/42");
 
         profile.DisplayName.Should().Be("Remote Painter");
         handler.Requests.Should().ContainSingle();

@@ -17,7 +17,7 @@ public class PublicProfileTests : TestContext
         this.SetAuthenticatedUser("viewer-user", "viewer");
         this.AddProfileStub(new StubProfileService
         {
-            GetByIdHandler = id => Task.FromResult(new UserProfileDto
+            GetPublicByIdHandler = id => Task.FromResult(new PublicUserProfileDto
             {
                 UserId = id,
                 UserName = "target",
@@ -48,7 +48,7 @@ public class PublicProfileTests : TestContext
         this.SetAuthenticatedUser("viewer-user", "viewer");
         this.AddProfileStub(new StubProfileService
         {
-            GetByIdHandler = id => Task.FromResult(new UserProfileDto
+            GetPublicByIdHandler = id => Task.FromResult(new PublicUserProfileDto
             {
                 UserId = id,
                 UserName = "target",
@@ -85,7 +85,7 @@ public class PublicProfileTests : TestContext
 
         this.AddProfileStub(new StubProfileService
         {
-            GetByIdHandler = id => Task.FromResult(new UserProfileDto
+            GetPublicByIdHandler = id => Task.FromResult(new PublicUserProfileDto
             {
                 UserId = id,
                 UserName = "target",
@@ -124,7 +124,7 @@ public class PublicProfileTests : TestContext
         this.SetAuthenticatedUser("viewer-user", "viewer");
         this.AddProfileStub(new StubProfileService
         {
-            GetByIdHandler = id => Task.FromResult(new UserProfileDto
+            GetPublicByIdHandler = id => Task.FromResult(new PublicUserProfileDto
             {
                 UserId = id,
                 UserName = "viewer",

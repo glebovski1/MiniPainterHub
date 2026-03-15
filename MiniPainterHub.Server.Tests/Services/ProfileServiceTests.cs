@@ -284,7 +284,7 @@ public class ProfileServiceTests
     }
 
     [Fact]
-    public async Task GetUserProfileById_WhenProfileExists_ReturnsProfile()
+    public async Task GetUserProfileById_WhenProfileExists_ReturnsPrivateProfile()
     {
         await using var context = AppDbContextFactory.Create();
         var user = CreateUser("user-1", "lookup-user");
@@ -305,6 +305,31 @@ public class ProfileServiceTests
         profile.DisplayName.Should().Be("Lookup Name");
         profile.Bio.Should().Be("Lookup Bio");
         profile.UserName.Should().Be(user.UserName);
+        profile.Email.Should().Be(user.Email);
+    }
+
+    [Fact]
+    public async Task GetPublicProfileById_WhenProfileExists_ReturnsProfileWithoutEmail()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = CreateUser("user-1", "lookup-user");
+        await context.Users.AddAsync(user);
+        await context.Profiles.AddAsync(new MiniPainterHub.Server.Entities.Profile
+        {
+            UserId = user.Id,
+            DisplayName = "Lookup Name",
+            Bio = "Lookup Bio"
+        });
+        await context.SaveChangesAsync();
+
+        var service = new ProfileService(context, new StubImageService());
+
+        var profile = await service.GetPublicProfileById(user.Id);
+
+        profile.UserId.Should().Be(user.Id);
+        profile.DisplayName.Should().Be("Lookup Name");
+        profile.Bio.Should().Be("Lookup Bio");
+        profile.UserName.Should().Be(user.UserName);
     }
 
     [Fact]
@@ -314,6 +339,18 @@ public class ProfileServiceTests
         var service = new ProfileService(context, new StubImageService());
 
         var act = async () => await service.GetUserProfileById("missing-user");
+
+        await act.Should().ThrowAsync<NotFoundException>()
+            .WithMessage("Profile not found.");
+    }
+
+    [Fact]
+    public async Task GetPublicProfileById_WhenProfileMissing_ThrowsNotFoundException()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var service = new ProfileService(context, new StubImageService());
+
+        var act = async () => await service.GetPublicProfileById("missing-user");
 
         await act.Should().ThrowAsync<NotFoundException>()
             .WithMessage("Profile not found.");

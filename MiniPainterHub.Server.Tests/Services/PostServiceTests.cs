@@ -292,6 +292,8 @@ public class PostServiceTests
                 baseUrl + $"{imageId:D}_preview.jpg",
                 baseUrl + $"{imageId:D}_thumb.jpg"));
         }
+
+        public Task DeleteAsync(Guid postId, Guid imageId, CancellationToken ct) => Task.CompletedTask;
     }
 
 }

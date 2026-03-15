@@ -142,6 +142,25 @@ public class LocalImageServiceTests
         }, new ImagesOptions { KeepOriginal = true });
     }
 
+    [Fact]
+    public async Task DeleteAsync_WhenStoredVariantsExist_RemovesAllMatchingFilesAndIsIdempotent()
+    {
+        await RunWithServiceAsync(async (service, basePath) =>
+        {
+            var postId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+            var imageId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+            await service.SaveAsync(postId, imageId, CreateVariants(includeOriginal: true), default);
+
+            var folder = Path.Combine(basePath, postId.ToString("D"));
+            Directory.GetFiles(folder).Should().HaveCount(4);
+
+            await service.DeleteAsync(postId, imageId, default);
+            await service.DeleteAsync(postId, imageId, default);
+
+            Directory.GetFiles(folder).Should().BeEmpty();
+        }, new ImagesOptions { KeepOriginal = true });
+    }
+
     private static ImageVariants CreateVariants(bool includeOriginal)
     {
         var max = new ImageVariant(new byte[] { 1, 2, 3 }, "image/webp", "webp", 1200, 800);

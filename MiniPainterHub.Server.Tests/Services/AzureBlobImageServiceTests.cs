@@ -184,6 +184,61 @@ public class AzureBlobImageServiceTests
             Times.Once);
     }
 
+    [Fact]
+    public async Task DeleteAsync_WhenStoredVariantsExist_DeletesEveryMatchingBlobAndIsIdempotent()
+    {
+        var containerMock = new Mock<BlobContainerClient>();
+        var postId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        var imageId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        var blobNames = new[]
+        {
+            $"images/{postId:D}/{imageId:D}_max.webp",
+            $"images/{postId:D}/{imageId:D}_preview.webp",
+            $"images/{postId:D}/{imageId:D}_thumb.webp",
+            $"images/{postId:D}/{imageId:D}_original.jpg"
+        };
+
+        var blobs = new Dictionary<string, Mock<BlobClient>>();
+        foreach (var blobName in blobNames)
+        {
+            blobs[blobName] = CreateBlobMock(blobName);
+            containerMock.Setup(c => c.GetBlobClient(blobName)).Returns(blobs[blobName].Object);
+        }
+
+        var page = Page<BlobItem>.FromValues(
+            new[]
+            {
+                BlobsModelFactory.BlobItem(name: blobNames[0]),
+                BlobsModelFactory.BlobItem(name: blobNames[1]),
+                BlobsModelFactory.BlobItem(name: blobNames[2]),
+                BlobsModelFactory.BlobItem(name: blobNames[3])
+            },
+            continuationToken: null,
+            Mock.Of<Response>());
+
+        containerMock.Setup(c => c.GetBlobsAsync(
+                It.IsAny<BlobTraits>(),
+                It.IsAny<BlobStates>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(AsyncPageable<BlobItem>.FromPages(new[] { page }));
+
+        var service = new AzureBlobImageService(containerMock.Object, Microsoft.Extensions.Options.Options.Create(new ImagesOptions()));
+
+        await service.DeleteAsync(postId, imageId, CancellationToken.None);
+        await service.DeleteAsync(postId, imageId, CancellationToken.None);
+
+        foreach (var blobName in blobNames)
+        {
+            blobs[blobName].Verify(
+                b => b.DeleteIfExistsAsync(
+                    It.IsAny<DeleteSnapshotsOption>(),
+                    It.IsAny<BlobRequestConditions>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Exactly(2));
+        }
+    }
+
     private static Mock<BlobClient> CreateBlobMock(string fileName)
     {
         var blobMock = new Mock<BlobClient>();

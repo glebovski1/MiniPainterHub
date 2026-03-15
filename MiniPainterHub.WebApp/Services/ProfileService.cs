@@ -120,10 +120,10 @@ namespace MiniPainterHub.WebApp.Services
             return SetAndReturnMine(result);
         }
 
-        public async Task<UserProfileDto> GetUserProfileById(string id)
+        public async Task<PublicUserProfileDto> GetPublicProfileById(string id)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, $"api/profiles/{id}");
-            var result = await _api.SendAsync<UserProfileDto>(request);
+            var result = await _api.SendAsync<PublicUserProfileDto>(request);
             if (result is null)
             {
                 throw new InvalidOperationException($"API returned no data when fetching the profile for user '{id}'.");

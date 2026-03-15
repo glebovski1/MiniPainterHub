@@ -82,10 +82,10 @@ public sealed class ProfilesController : ControllerBase
 
     [HttpGet("{id}")]
     [AllowAnonymous]
-    public async Task<ActionResult<UserProfileDto>> GetUserProfileById(string id)
+    public async Task<ActionResult<PublicUserProfileDto>> GetUserProfileById(string id)
     {
         var viewerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var dto = await _profilesService.GetUserProfileById(id, viewerUserId);
+        var dto = await _profilesService.GetPublicProfileById(id, viewerUserId);
         return Ok(dto);
     }
 }

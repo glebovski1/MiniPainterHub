@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using MiniPainterHub.Common.DTOs;
@@ -98,10 +99,11 @@ public class ProfilesControllerTests
         body.Should().NotBeNull();
         body!.DisplayName.Should().Be("Visible Name");
         body.Bio.Should().Be("Visible bio");
+        body.Email.Should().Be("profile-user@example.test");
     }
 
     [Fact]
-    public async Task GetUserProfileById_WhenProfileExists_ReturnsProfile()
+    public async Task GetUserProfileById_WhenProfileExists_ReturnsPublicProfileWithoutEmail()
     {
         using var factory = new IntegrationTestApplicationFactory();
         await factory.ResetDatabaseAsync();
@@ -112,14 +114,17 @@ public class ProfilesControllerTests
         var response = await client.GetAsync("/api/profiles/target-user");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<UserProfileDto>();
+        var json = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(json);
+        var body = JsonSerializer.Deserialize<PublicUserProfileDto>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         body.Should().NotBeNull();
         body!.UserId.Should().Be("target-user");
         body.DisplayName.Should().Be("Target Name");
+        document.RootElement.TryGetProperty("email", out _).Should().BeFalse();
     }
 
     [Fact]
-    public async Task GetUserProfileById_WhenUnauthenticated_ReturnsProfile()
+    public async Task GetUserProfileById_WhenUnauthenticated_ReturnsPublicProfileWithoutEmail()
     {
         using var factory = new IntegrationTestApplicationFactory();
         await factory.ResetDatabaseAsync();
@@ -130,9 +135,12 @@ public class ProfilesControllerTests
         var response = await client.GetAsync("/api/profiles/target-user");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<UserProfileDto>();
+        var json = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(json);
+        var body = JsonSerializer.Deserialize<PublicUserProfileDto>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         body.Should().NotBeNull();
         body!.UserId.Should().Be("target-user");
+        document.RootElement.TryGetProperty("email", out _).Should().BeFalse();
     }
 
     [Fact]
