@@ -8,8 +8,6 @@
 @using System.Net.Http
 @using MiniPainterHub.WebApp.Shared
 @using System
-@using System.Linq
-@using System.Collections.Generic
 
 <div class="container mt-4" style="max-width: 768px;">
     @if (isLoading)
@@ -58,7 +56,7 @@
                              @onclick="ShowZoomModal" />
                     </div>
                     <div class="d-flex flex-wrap gap-2 justify-content-center">
-                        @for (int i = 0; i < PostImages!.Count; i++)
+                        @for (int i = 0; i < PostImages.Count; i++)
                         {
                             int imageIndex = i;
                             var img = PostImages[i];
@@ -211,21 +209,19 @@
 
     private int selectedIndex = 0;
 
-    // Treat Images flexibly: supports List<PostImageDto>, arrays, etc., via dynamic
-    private List<dynamic>? PostImages
-        => TryGetImages(post);
+    private IReadOnlyList<PostImageDto> PostImages => post?.Images ?? Array.Empty<PostImageDto>();
 
-    private bool HasImages => PostImages != null && PostImages.Count > 0;
+    private bool HasImages => PostImages.Count > 0;
 
     private string SelectedPreviewUrl
-        => HasImages ? GetPreviewUrl(PostImages![selectedIndex])
+        => HasImages ? GetPreviewUrl(PostImages[selectedIndex])
                      : GetAbsoluteUrl(ReplaceVariantSuffix(post?.ImageUrl, "_preview."));
 
     private string SelectedMaxUrl
-        => HasImages ? GetMaxUrl(PostImages![selectedIndex])
+        => HasImages ? GetMaxUrl(PostImages[selectedIndex])
                      : GetAbsoluteUrl(post?.ImageUrl);
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
         await LoadPost();
     }
@@ -242,6 +238,7 @@
         if (response.Success && response.Value is not null)
         {
             post = response.Value;
+            selectedIndex = ClampSelectedIndex(post.Images.Count);
             loadStatus = null;
         }
         else
@@ -251,6 +248,7 @@
                 ? "This post could not be found."
                 : "We couldn't load this post. Please check your connection and try again.";
             post = null;
+            selectedIndex = 0;
         }
 
         isLoading = false;
@@ -311,105 +309,43 @@
     private void SelectImage(int index)
     {
         if (!HasImages) return;
-        if (index < 0 || index >= PostImages!.Count) return;
+        if (index < 0 || index >= PostImages.Count) return;
         selectedIndex = index;
     }
 
-    private static List<dynamic>? TryGetImages(PostDto? p)
+    private int ClampSelectedIndex(int imageCount)
     {
-        if (p is null) return null;
-
-        try
+        if (imageCount <= 0)
         {
-            dynamic dyn = p;
-            var imgs = dyn.Images;
-
-            if (imgs is null) return null;
-
-            // Normalize to List<dynamic>
-            if (imgs is IEnumerable<object> seq)
-                return seq.Select(x => (dynamic)x).ToList();
-
-            return null;
+            return 0;
         }
-        catch
-        {
-            return null;
-        }
+
+        return Math.Min(selectedIndex, imageCount - 1);
     }
 
-    private string GetMaxUrl(dynamic img)
+    private string GetMaxUrl(PostImageDto img)
     {
-        var baseUrl =
-            TryGetString(img, nameof(PostImageDto.ImageUrl)) ??
-            TryGetString(img, "Url") ??
-            TryGetString(img, "imageUrl") ??
-            TryGetString(img, "url");
-
-        return GetAbsoluteUrl(baseUrl);
+        return GetAbsoluteUrl(img.ImageUrl);
     }
 
-    private string GetPreviewUrl(dynamic img)
+    private string GetPreviewUrl(PostImageDto img)
     {
-        var preview =
-            TryGetString(img, nameof(PostImageDto.PreviewUrl)) ??
-            TryGetString(img, "PreviewUrl") ??
-            TryGetString(img, "previewUrl");
-
-        if (!string.IsNullOrEmpty(preview))
+        if (!string.IsNullOrEmpty(img.PreviewUrl))
         {
-            return GetAbsoluteUrl(preview);
+            return GetAbsoluteUrl(img.PreviewUrl);
         }
 
         return GetMaxUrl(img);
     }
 
-    private string GetThumbnailUrl(dynamic img)
+    private string GetThumbnailUrl(PostImageDto img)
     {
-        var thumb =
-            TryGetString(img, nameof(PostImageDto.ThumbnailUrl)) ??
-            TryGetString(img, "thumbnailUrl");
-
-        if (!string.IsNullOrEmpty(thumb))
+        if (!string.IsNullOrEmpty(img.ThumbnailUrl))
         {
-            return GetAbsoluteUrl(thumb);
+            return GetAbsoluteUrl(img.ThumbnailUrl);
         }
 
-        var baseUrl =
-            TryGetString(img, nameof(PostImageDto.ImageUrl)) ??
-            TryGetString(img, "Url") ??
-            TryGetString(img, "imageUrl") ??
-            TryGetString(img, "url");
-
-        return GetAbsoluteUrl(ReplaceVariantSuffix(baseUrl, "_thumb."));
-    }
-
-    private static string? TryGetString(dynamic obj, string property)
-    {
-        if (obj is null) return null;
-
-        // Attempt reflection on the object
-        try
-        {
-            var prop = obj.GetType().GetProperty(property);
-            if (prop != null)
-            {
-                var propValue = prop.GetValue(obj) as string;
-                if (!string.IsNullOrWhiteSpace(propValue))
-                    return propValue;
-            }
-        }
-        catch { }
-
-        // If the object behaves like a dictionary
-        if (obj is IDictionary<string, object> dict &&
-            dict.TryGetValue(property, out var value) &&
-            value is string val && !string.IsNullOrWhiteSpace(val))
-        {
-            return val;
-        }
-
-        return null;
+        return GetAbsoluteUrl(ReplaceVariantSuffix(img.ImageUrl, "_thumb."));
     }
 
     private static string ReplaceVariantSuffix(string? url, string replacement)

@@ -111,6 +111,81 @@ public class PostDetailsModerationTests : TestContext
         });
     }
 
+    [Fact]
+    public void WhenPostIdParameterChanges_ReloadsTheRequestedPost()
+    {
+        var auth = this.AddTestAuthorization();
+        auth.SetAuthorized("reader");
+
+        this.AddCommentStub(new StubCommentService
+        {
+            GetByPostHandler = (_, _, _) => Task.FromResult(
+                new ApiResult<PagedResult<CommentDto>>(
+                    true,
+                    HttpStatusCode.OK,
+                    new PagedResult<CommentDto>
+                    {
+                        Items = Array.Empty<CommentDto>(),
+                        PageNumber = 1,
+                        PageSize = 10,
+                        TotalCount = 0
+                    }))
+        });
+        this.AddLikeStub();
+        this.AddModerationStub(new StubModerationService());
+        Services.AddSingleton(new ApiClient(CreateHttpClient(), new NoOpNotificationService()));
+
+        var cut = RenderWithAuth(postId: 10);
+
+        cut.WaitForAssertion(() =>
+            cut.Find("[data-testid='post-title']").TextContent.Should().Be("Post 10"));
+
+        cut.FindComponent<PostDetails>()
+            .SetParametersAndRender(parameters => parameters.Add(p => p.PostId, 11));
+
+        cut.WaitForAssertion(() =>
+            cut.Find("[data-testid='post-title']").TextContent.Should().Be("Post 11"));
+    }
+
+    [Fact]
+    public void WhenPostProvidesTypedImages_RendersGalleryAndFallbackThumbnail()
+    {
+        var auth = this.AddTestAuthorization();
+        auth.SetAuthorized("reader");
+
+        this.AddCommentStub(new StubCommentService
+        {
+            GetByPostHandler = (_, _, _) => Task.FromResult(
+                new ApiResult<PagedResult<CommentDto>>(
+                    true,
+                    HttpStatusCode.OK,
+                    new PagedResult<CommentDto>
+                    {
+                        Items = Array.Empty<CommentDto>(),
+                        PageNumber = 1,
+                        PageSize = 10,
+                        TotalCount = 0
+                    }))
+        });
+        this.AddLikeStub();
+        this.AddModerationStub(new StubModerationService());
+        Services.AddSingleton(new ApiClient(CreateHttpClient(), new NoOpNotificationService()));
+
+        var cut = RenderWithAuth(postId: 12);
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='post-details-image']")
+                .GetAttribute("src")
+                .Should().Be("https://example.test/uploads/post12_preview.webp");
+
+            var thumbnails = cut.FindAll("[data-testid='post-details-thumbnail']");
+            thumbnails.Should().HaveCount(2);
+            thumbnails[0].GetAttribute("src").Should().Be("https://example.test/uploads/post12_thumb.webp");
+            thumbnails[1].GetAttribute("src").Should().Be("https://example.test/uploads/post12b_thumb.webp");
+        });
+    }
+
     private IRenderedFragment RenderWithAuth(int postId)
     {
         return Render(builder =>
@@ -156,6 +231,23 @@ public class PostDetailsModerationTests : TestContext
                     CreatedById = "author-1",
                     AuthorName = "Author",
                     CreatedAt = DateTime.UtcNow,
+                    Images = postId == 12
+                        ? new List<PostImageDto>
+                        {
+                            new()
+                            {
+                                Id = 1,
+                                ImageUrl = "/uploads/post12_max.webp",
+                                PreviewUrl = "/uploads/post12_preview.webp",
+                                ThumbnailUrl = "/uploads/post12_thumb.webp"
+                            },
+                            new()
+                            {
+                                Id = 2,
+                                ImageUrl = "/uploads/post12b_max.webp"
+                            }
+                        }
+                        : new List<PostImageDto>(),
                     Tags = new List<TagDto>
                     {
                         new() { Name = "glazing", Slug = "glazing" },
