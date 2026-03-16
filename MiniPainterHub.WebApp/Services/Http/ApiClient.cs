@@ -64,12 +64,18 @@ public sealed class ApiClient
             var status = response.StatusCode;
             if (response.IsSuccessStatusCode)
             {
-                if (status == HttpStatusCode.NoContent || response.Content.Headers.ContentLength == 0)
+                if (status == HttpStatusCode.NoContent || response.Content is null)
                 {
                     return new ApiResult<T?>(true, status, default);
                 }
 
-                var value = await response.Content.ReadFromJsonAsync<T>(SerializerOptions, cancellationToken);
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                if (string.IsNullOrWhiteSpace(body))
+                {
+                    return new ApiResult<T?>(true, status, default);
+                }
+
+                var value = JsonSerializer.Deserialize<T>(body, SerializerOptions);
                 return new ApiResult<T?>(true, status, value);
             }
 
