@@ -16,6 +16,8 @@ namespace MiniPainterHub.Server.Services
 {
     public class CommentService : ICommentService
     {
+        private const int MaxCommentLength = 4000;
+
         private readonly AppDbContext _appDbContext;
         private readonly IAccountRestrictionService? _accountRestrictionService;
         public CommentService(AppDbContext appDbContext, IAccountRestrictionService? accountRestrictionService = null)
@@ -30,6 +32,8 @@ namespace MiniPainterHub.Server.Services
                 await _accountRestrictionService.EnsureCanCommentAsync(userId);
             }
 
+            var text = ValidateAndNormalizeText(dto.Text, "text");
+
             // 1️⃣ Optional: verify the post actually exists
             var postExists = await _appDbContext.Posts.AnyAsync(p => p.Id == postId && !p.IsDeleted);
             if (!postExists)
@@ -40,7 +44,7 @@ namespace MiniPainterHub.Server.Services
             {
                 AuthorId = userId,      // FK for the user
                 PostId = postId,      // FK for the post
-                Text = dto.Text,
+                Text = text,
                 CreatedUtc = DateTime.UtcNow,
                 UpdatedUtc = DateTime.UtcNow
             };
@@ -168,15 +172,39 @@ namespace MiniPainterHub.Server.Services
 
         public async Task<bool> UpdateAsync(int commentId, string userId, UpdateCommentDto dto)
         {
+            var text = ValidateAndNormalizeText(dto.Content, "content");
+
             var comment = await _appDbContext.Comments
                 .FirstOrDefaultAsync(c => c.Id == commentId && c.AuthorId == userId && !c.IsDeleted);
             if (comment == null)
                 throw new NotFoundException("Comment not found.");
 
-            comment.Text = dto.Content;
+            comment.Text = text;
             comment.UpdatedUtc = DateTime.UtcNow;
             await _appDbContext.SaveChangesAsync();
             return true;
+        }
+
+        private static string ValidateAndNormalizeText(string? value, string fieldName)
+        {
+            var normalized = value?.Trim() ?? string.Empty;
+            var errors = new Dictionary<string, string[]>();
+
+            if (normalized.Length == 0)
+            {
+                errors[fieldName] = new[] { "Comment text is required." };
+            }
+            else if (normalized.Length > MaxCommentLength)
+            {
+                errors[fieldName] = new[] { $"Comment text must be {MaxCommentLength} characters or fewer." };
+            }
+
+            if (errors.Count > 0)
+            {
+                throw new DomainValidationException("Comment data is invalid.", errors);
+            }
+
+            return normalized;
         }
     }
 }

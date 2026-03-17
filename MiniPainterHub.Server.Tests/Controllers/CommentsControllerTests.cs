@@ -95,6 +95,34 @@ public class CommentsControllerTests
     }
 
     [Fact]
+    public async Task Create_WhenCommentTextIsWhitespace_ReturnsValidationProblemDetails()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await factory.SeedUserAndPostAsync("author-user", 108);
+        using var client = factory.CreateAuthenticatedClient("author-user", "author-user");
+
+        var response = await client.PostAsJsonAsync("/api/posts/108/comments", new CreateCommentDto
+        {
+            PostId = 108,
+            Text = "   "
+        });
+
+        await ProblemDetailsAssertions.AssertAsync(
+            response,
+            HttpStatusCode.BadRequest,
+            "Validation error",
+            "Comment data is invalid.",
+            expectedErrorKeys: new[] { "text" });
+
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            db.Comments.Should().BeEmpty();
+            await Task.CompletedTask;
+        });
+    }
+
+    [Fact]
     public async Task Update_WhenAuthenticated_ReturnsNoContentAndUpdatesComment()
     {
         using var factory = new IntegrationTestApplicationFactory();
