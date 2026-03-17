@@ -111,9 +111,8 @@ public class CommentsControllerTests
         await ProblemDetailsAssertions.AssertAsync(
             response,
             HttpStatusCode.BadRequest,
-            "Validation error",
-            "Comment data is invalid.",
-            expectedErrorKeys: new[] { "text" });
+            "One or more validation errors occurred.",
+            expectedErrorKeys: new[] { "Text" });
 
         await factory.ExecuteDbContextAsync(async db =>
         {
