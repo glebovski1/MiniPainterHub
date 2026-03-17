@@ -93,6 +93,26 @@ public class ApiClientTests
     }
 
     [Fact]
+    public async Task SendForResultAsync_WhenResponseIsOkWithEmptyBody_ReturnsSuccessfulDefault()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        var notifications = new NotificationRecorder();
+        var client = CreateClient(handler, notifications);
+        handler.Enqueue(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(string.Empty)
+        });
+
+        var result = await client.SendForResultAsync<object>(new HttpRequestMessage(HttpMethod.Get, "api/search/overview"));
+
+        result.Success.Should().BeTrue();
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+        result.Value.Should().BeNull();
+        notifications.ErrorCalls.Should().BeEmpty();
+        notifications.ValidationErrors.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task SendForResultAsync_WhenRequestTimesOut_ShowsTimeoutNotification()
     {
         var notifications = new NotificationRecorder();
