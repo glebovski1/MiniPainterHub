@@ -11,6 +11,32 @@ namespace MiniPainterHub.Server.Tests.Services;
 
 public class CommentServiceTests
 {
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task CreateAsync_WhenCommentTextIsBlank_ThrowsDomainValidationException(string text)
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        var post = TestData.CreatePost(1, user.Id);
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.SaveChangesAsync();
+        var service = new CommentService(context);
+
+        var act = async () => await service.CreateAsync(user.Id, post.Id, new MiniPainterHub.Common.DTOs.CreateCommentDto
+        {
+            Text = text
+        });
+
+        var exception = await act.Should().ThrowAsync<DomainValidationException>()
+            .WithMessage("Comment data is invalid.");
+
+        exception.Which.Errors.Should().ContainKey("text")
+            .WhoseValue.Should().Contain("Comment text is required.");
+        context.Comments.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task CreateAsync_WhenPostIsMissing_ThrowsNotFoundException()
     {
@@ -101,6 +127,34 @@ public class CommentServiceTests
 
         result.Should().BeTrue();
         (await context.Comments.SingleAsync()).Text.Should().Be("Updated");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task UpdateAsync_WhenCommentTextIsBlank_ThrowsDomainValidationException(string content)
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        var post = TestData.CreatePost(1, user.Id);
+        var comment = TestData.CreateComment(1, post.Id, user.Id);
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.Comments.AddAsync(comment);
+        await context.SaveChangesAsync();
+        var service = new CommentService(context);
+
+        var act = async () => await service.UpdateAsync(comment.Id, user.Id, new MiniPainterHub.Common.DTOs.UpdateCommentDto
+        {
+            Content = content
+        });
+
+        var exception = await act.Should().ThrowAsync<DomainValidationException>()
+            .WithMessage("Comment data is invalid.");
+
+        exception.Which.Errors.Should().ContainKey("content")
+            .WhoseValue.Should().Contain("Comment text is required.");
+        (await context.Comments.SingleAsync()).Text.Should().Be("Comment 1");
     }
 
     [Fact]
