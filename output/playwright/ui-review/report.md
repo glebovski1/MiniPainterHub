@@ -30,7 +30,7 @@
 - following-populated-desktop: http://127.0.0.1:5176/feed/following [desktop] [seed-user] [following, desktop, populated] -> `output/playwright/ui-review/19-following-populated-desktop-desktop.png`
 - profile-empty-desktop: http://127.0.0.1:5176/profile [desktop] [seed-user] [profile, desktop, empty] -> `output/playwright/ui-review/20-profile-empty-desktop-desktop.png`
 - profile-populated-desktop: http://127.0.0.1:5176/profile [desktop] [seed-user] [profile, desktop, populated] -> `output/playwright/ui-review/21-profile-populated-desktop-desktop.png`
-- profile-public-desktop: http://127.0.0.1:5176/users/c50f41e0-1c13-489d-8a75-c8a5159ff617 [desktop] [seed-user] [profile, desktop, public, populated] -> `output/playwright/ui-review/22-profile-public-desktop-desktop.png`
+- profile-public-desktop: http://127.0.0.1:5176/users/b781b011-29bc-4bff-8d54-e96ab9f0f567 [desktop] [seed-user] [profile, desktop, public, populated] -> `output/playwright/ui-review/22-profile-public-desktop-desktop.png`
 - messages-empty-desktop: http://127.0.0.1:5176/messages [desktop] [seed-user] [messages, desktop, empty] -> `output/playwright/ui-review/23-messages-empty-desktop-desktop.png`
 - messages-populated-desktop: http://127.0.0.1:5176/messages [desktop] [seed-user] [messages, desktop, populated] -> `output/playwright/ui-review/24-messages-populated-desktop-desktop.png`
 - messages-populated-mobile: http://127.0.0.1:5176/messages [mobile] [seed-user] [messages, mobile, populated] -> `output/playwright/ui-review/25-messages-populated-mobile-mobile.png`

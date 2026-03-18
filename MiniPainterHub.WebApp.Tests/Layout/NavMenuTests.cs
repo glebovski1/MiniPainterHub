@@ -4,6 +4,7 @@ using FluentAssertions;
 using MiniPainterHub.WebApp.Layout;
 using MiniPainterHub.WebApp.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using System.Linq;
 using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Layout;
@@ -55,5 +56,22 @@ public class NavMenuTests : TestContext
             cut.Find("[data-testid='nav-search-submit']").Should().NotBeNull();
             cut.FindAll("[data-testid='nav-logout']").Should().BeEmpty();
         });
+    }
+
+    [Fact]
+    public void LatestLink_UsesExactRouteMatching()
+    {
+        this.SetAuthenticatedUser("viewer-user", "viewer");
+        this.AddAuthStub();
+        Services.AddSingleton(new UserPanelState());
+        var nav = Services.GetRequiredService<FakeNavigationManager>();
+        nav.NavigateTo("https://localhost/posts/all");
+
+        var cut = RenderComponent<NavMenu>();
+        var latest = cut.FindAll("a").Single(link => link.TextContent.Contains("Latest"));
+        var explore = cut.FindAll("a").Single(link => link.TextContent.Contains("Explore"));
+
+        latest.ClassList.Should().NotContain("active");
+        explore.ClassList.Should().Contain("active");
     }
 }

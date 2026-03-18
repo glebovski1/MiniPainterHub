@@ -52,6 +52,7 @@ public class ShellPagesTests : TestContext
         {
             cut.Markup.Should().Contain("Discover the Community's Favourites");
             cut.Markup.Should().Contain("Top Posts");
+            cut.Markup.Should().Contain("30 days");
             cut.Markup.Should().Contain("Featured dragon");
             cut.Markup.Should().Contain("Open ranked showcase");
         });

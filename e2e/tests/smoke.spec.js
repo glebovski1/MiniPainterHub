@@ -318,7 +318,7 @@ test("messages thread loads and sending works", async ({ page, request }) => {
   const messageBody = "Smoke DM from Playwright";
   await page.getByPlaceholder("Write a message...").fill(messageBody);
   await page.getByRole("button", { name: "Send" }).click();
-  await expect(page.getByText(messageBody)).toBeVisible();
+  await expect(page.locator(".message-thread .message-bubble").filter({ hasText: messageBody }).last()).toBeVisible();
 });
 
 test("admin can hide and restore post using visibility filter and inline actions", async ({ page }) => {

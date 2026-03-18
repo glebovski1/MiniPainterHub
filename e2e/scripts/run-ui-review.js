@@ -17,6 +17,26 @@ function parseArgs(argv) {
   };
 }
 
+function resolveProvidedScopePath() {
+  const configuredPath = process.env.UI_REVIEW_SCOPE_FILE;
+  if (!configuredPath) {
+    return null;
+  }
+
+  if (path.isAbsolute(configuredPath)) {
+    return configuredPath;
+  }
+
+  const candidatePaths = [
+    path.resolve(REPO_ROOT, configuredPath),
+    path.resolve(process.cwd(), configuredPath),
+    path.resolve(__dirname, "..", configuredPath)
+  ];
+
+  const existingCandidate = candidatePaths.find((candidate) => fs.existsSync(candidate));
+  return existingCandidate ?? candidatePaths[0];
+}
+
 function buildFullScope(matrix) {
   return {
     scope: "full",
@@ -46,11 +66,14 @@ function buildBaselineScope(matrix, previousScope) {
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const matrix = loadMatrix(DEFAULT_MATRIX_PATH);
+  const providedScopePath = resolveProvidedScopePath();
 
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
   const scope = args.full
     ? buildFullScope(matrix)
+    : providedScopePath && fs.existsSync(providedScopePath)
+      ? JSON.parse(fs.readFileSync(providedScopePath, "utf8"))
     : (() => {
         const resolved = resolveScope({
           matrix,
