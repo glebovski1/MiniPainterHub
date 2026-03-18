@@ -5,36 +5,43 @@
 
 <PageTitle>Connections</PageTitle>
 
-<h1 class="mb-4">Connections</h1>
+<div class="page-shell content-stack">
+    <PageHero Eyebrow="Community ties"
+              Title="Connections"
+              Description="Track who follows your work, who you follow back, and where your conversations can deepen next."
+              FrameName="Connections Header" />
 
-@if (_loading)
-{
-    <div class="d-flex align-items-center gap-2 text-secondary">
-        <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-        <span>Loading connections...</span>
-    </div>
-}
-else
-{
-    <div class="row g-4">
-        <div class="col-12 col-lg-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <h2 class="h5 mb-3">Followers</h2>
-                    @RenderUsers(_followers, "No followers yet.")
-                </div>
+    @if (_loading)
+    {
+        <div class="status-panel status-panel--info">
+            <div class="status-panel__icon"><i class="bi bi-people" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Loading connections</div>
+                <p class="status-panel__text mb-0">Gathering your followers and followed painters...</p>
             </div>
         </div>
-        <div class="col-12 col-lg-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <h2 class="h5 mb-3">Following</h2>
-                    @RenderUsers(_following, "You are not following anyone yet.")
-                </div>
-            </div>
+    }
+    else
+    {
+        <div class="results-grid">
+            <section class="surface-card">
+                <SectionHeader Eyebrow="Followers"
+                               Title="Followers"
+                               Description="Painters who are following your work."
+                               SectionName="Followers" />
+                @RenderUsers(_followers, "No followers yet.")
+            </section>
+
+            <section class="surface-card">
+                <SectionHeader Eyebrow="Following"
+                               Title="Following"
+                               Description="The creators you've chosen to keep up with."
+                               SectionName="Following" />
+                @RenderUsers(_following, "You are not following anyone yet.")
+            </section>
         </div>
-    </div>
-}
+    }
+</div>
 
 @code {
     private IReadOnlyList<UserListItemDto> _followers = Array.Empty<UserListItemDto>();
@@ -52,41 +59,48 @@ else
     {
         if (users.Count == 0)
         {
-            builder.OpenElement(0, "p");
-            builder.AddAttribute(1, "class", "text-muted mb-0");
-            builder.AddContent(2, emptyText);
-            builder.CloseElement();
+            builder.OpenComponent<EmptyState>(0);
+            builder.AddAttribute(1, "IconClass", "bi bi-person-plus");
+            builder.AddAttribute(2, "Title", emptyText);
+            builder.AddAttribute(3, "TitleTag", "h3");
+            builder.AddAttribute(4, "TitleClass", "empty-state__title h5");
+            builder.CloseComponent();
             return;
         }
 
         var seq = 10;
         builder.OpenElement(seq++, "div");
-        builder.AddAttribute(seq++, "class", "list-group list-group-flush");
+        builder.AddAttribute(seq++, "class", "entity-list");
         foreach (var user in users)
         {
-            builder.OpenElement(seq++, "a");
-            builder.AddAttribute(seq++, "class", "list-group-item list-group-item-action d-flex align-items-center gap-3");
+            builder.OpenComponent<NavLink>(seq++);
+            builder.AddAttribute(seq++, "class", "entity-row text-decoration-none");
             builder.AddAttribute(seq++, "href", $"/users/{user.UserId}");
+            builder.AddAttribute(seq++, "ChildContent", (RenderFragment)(contentBuilder =>
+            {
+                var childSeq = 0;
+                contentBuilder.OpenComponent<UserAvatar>(childSeq++);
+                contentBuilder.AddAttribute(childSeq++, "ImageUrl", user.AvatarUrl);
+                contentBuilder.AddAttribute(childSeq++, "Name", user.DisplayName);
+                contentBuilder.AddAttribute(childSeq++, "Size", 56);
+                contentBuilder.CloseComponent();
 
-            builder.OpenElement(seq++, "img");
-            builder.AddAttribute(seq++, "src", user.AvatarUrl ?? "/images/avatar-placeholder.png");
-            builder.AddAttribute(seq++, "alt", "User avatar");
-            builder.AddAttribute(seq++, "class", "rounded-circle border");
-            builder.AddAttribute(seq++, "style", "width: 48px; height: 48px; object-fit: cover;");
-            builder.CloseElement();
+                contentBuilder.OpenElement(childSeq++, "div");
+                contentBuilder.AddAttribute(childSeq++, "class", "entity-row__content");
 
-            builder.OpenElement(seq++, "div");
-            builder.OpenElement(seq++, "div");
-            builder.AddAttribute(seq++, "class", "fw-semibold");
-            builder.AddContent(seq++, user.DisplayName);
-            builder.CloseElement();
-            builder.OpenElement(seq++, "div");
-            builder.AddAttribute(seq++, "class", "small text-muted");
-            builder.AddContent(seq++, "@" + user.UserName);
-            builder.CloseElement();
-            builder.CloseElement();
+                contentBuilder.OpenElement(childSeq++, "div");
+                contentBuilder.AddAttribute(childSeq++, "class", "entity-row__title");
+                contentBuilder.AddContent(childSeq++, user.DisplayName);
+                contentBuilder.CloseElement();
 
-            builder.CloseElement();
+                contentBuilder.OpenElement(childSeq++, "div");
+                contentBuilder.AddAttribute(childSeq++, "class", "entity-row__meta");
+                contentBuilder.AddContent(childSeq++, "@" + user.UserName);
+                contentBuilder.CloseElement();
+
+                contentBuilder.CloseElement();
+            }));
+            builder.CloseComponent();
         }
 
         builder.CloseElement();

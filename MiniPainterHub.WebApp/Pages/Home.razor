@@ -1,41 +1,53 @@
 @page "/home"
-@using MiniPainterHub.WebApp.Pages.Posts
-
 <PageTitle>Best photos for last 30 days</PageTitle>
 
-<div class="container py-5">
-    <div class="row justify-content-center mb-4">
-        <div class="col-lg-8 text-center">
-            <h1 class="display-5 fw-bold mb-3">Discover the Community's Favourites</h1>
-            <p class="lead text-muted mb-0">
-                Explore the most inspiring miniatures shared over the past month. Dive in, enjoy the details,
-                and celebrate the creativity of painters from around the world.
-            </p>
-        </div>
-    </div>
-
-    <div class="row justify-content-center">
-        <div class="col-lg-10 col-xl-8">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white py-3">
-                    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between">
-                        <div>
-                            <h2 class="h4 mb-1">Top Posts</h2>
-                            <p class="text-muted mb-0">Curated selection of the highest-rated artwork.</p>
-                        </div>
-                        <div class="mt-3 mt-md-0">
-                            <span class="badge bg-primary text-uppercase fw-semibold px-3 py-2">Updated Daily</span>
-                        </div>
-                    </div>
+<div class="page-shell content-stack">
+    <PageHero Eyebrow="Community highlights"
+              Title="Discover the Community's Favourites"
+              Description="A rotating showcase of standout miniatures from the last month, with the same routes and data underneath but a more gallery-like presentation."
+              FrameName="Highlights Header">
+        <Actions>
+            <NavLink class="btn btn-primary" href="/posts/top">
+                <i class="bi bi-trophy" aria-hidden="true"></i>
+                <span>Open ranked showcase</span>
+            </NavLink>
+            <NavLink class="btn btn-outline-secondary" href="/posts/all">
+                <i class="bi bi-grid-1x2" aria-hidden="true"></i>
+                <span>Explore all posts</span>
+            </NavLink>
+        </Actions>
+        <Metrics>
+            <div class="metric-grid">
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Window</span>
+                    <strong class="metric-chip__value">30 days</strong>
                 </div>
-                <div class="card-body p-0">
-                    <div class="list-group list-group-flush">
-                        <div class="list-group-item p-0">
-                            <TopPosts />
-                        </div>
-                    </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Surface</span>
+                    <strong class="metric-chip__value">Image-first</strong>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Updated</span>
+                    <strong class="metric-chip__value">Daily</strong>
                 </div>
             </div>
+        </Metrics>
+    </PageHero>
+
+    <section class="surface-card">
+        <SectionHeader Eyebrow="Showcase"
+                       Title="Top Posts"
+                       Description="A curated selection of the highest-rated recent artwork."
+                       SectionName="Top Posts">
+            <Actions>
+                <NavLink class="btn btn-outline-secondary btn-sm" href="/posts/top">Full ranked route</NavLink>
+            </Actions>
+        </SectionHeader>
+
+        <div class="card border-0 bg-transparent shadow-none mb-0">
+            <div class="card-body p-0">
+                <TopPostsShowcase HeightPx="520" />
+            </div>
         </div>
-    </div>
+    </section>
 </div>

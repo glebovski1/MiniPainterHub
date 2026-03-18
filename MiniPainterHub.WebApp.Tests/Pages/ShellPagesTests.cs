@@ -53,6 +53,35 @@ public class ShellPagesTests : TestContext
             cut.Markup.Should().Contain("Discover the Community's Favourites");
             cut.Markup.Should().Contain("Top Posts");
             cut.Markup.Should().Contain("Featured dragon");
+            cut.Markup.Should().Contain("Open ranked showcase");
+        });
+    }
+
+    [Fact]
+    public void TopPosts_RendersRankedShowcaseAndSlides()
+    {
+        Services.AddSingleton<MiniPainterHub.WebApp.Services.Interfaces.IPostService>(
+            new StubPostService
+            {
+                GetTopPostsHandler = (_, _) => Task.FromResult<IEnumerable<PostSummaryDto>>(
+                    new[]
+                    {
+                        new PostSummaryDto
+                        {
+                            Id = 77,
+                            Title = "Golden knight",
+                            ImageUrl = "/images/golden-knight.webp"
+                        }
+                    })
+            });
+
+        var cut = RenderComponent<TopPosts>();
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Markup.Should().Contain("Top posts");
+            cut.Markup.Should().Contain("Ranked community work");
+            cut.Markup.Should().Contain("Golden knight");
         });
     }
 

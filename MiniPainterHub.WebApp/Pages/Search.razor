@@ -6,78 +6,197 @@
 
 <PageTitle>Search</PageTitle>
 
-<div class="container py-4">
-    <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-4">
-        <div>
-            <h1 class="mb-1">Search</h1>
-            <p class="text-muted mb-0">Find painters, posts, and technique tags.</p>
-        </div>
-
-        <form class="d-flex gap-2 w-100 w-lg-auto" @onsubmit="SubmitAsync">
-            <input class="form-control"
-                   type="search"
-                   placeholder="Search posts, users, tags"
-                   data-testid="search-query-input"
-                   @bind="_draftQuery" />
-            <button class="btn btn-primary"
-                    type="submit"
-                    data-testid="search-query-submit">
-                Search
-            </button>
-        </form>
-    </div>
+<div class="page-shell content-stack">
+    <PageHero Eyebrow="Discovery"
+              Title="Search"
+              Description="Find painters, posts, and technique tags with better scanability and clearer result grouping."
+              FrameName="Search Header">
+        <Actions>
+            <form class="atelier-nav__search" @onsubmit="SubmitAsync">
+                <label class="visually-hidden" for="search-query-input">Search posts, users, tags</label>
+                <input class="form-control"
+                       id="search-query-input"
+                       type="search"
+                       placeholder="Search posts, users, tags"
+                       data-testid="search-query-input"
+                       @bind="_draftQuery" />
+                <button class="btn btn-primary"
+                        type="submit"
+                        data-testid="search-query-submit">
+                    Search
+                </button>
+            </form>
+        </Actions>
+    </PageHero>
 
     @if (!HasRunnableQuery)
     {
-        <div class="alert alert-light border" data-testid="search-empty-query">
-            Enter at least 2 characters to search across posts, users, and tags.
-        </div>
+        <EmptyState IconClass="bi bi-search"
+                    Title="Start with at least two characters"
+                    Description="Search across posts, users, and tags from one place."
+                    TitleClass="empty-state__title h4"
+                    TestId="search-empty-query" />
     }
     else
     {
-        <ul class="nav nav-pills gap-2 mb-4" data-testid="search-tabs">
-            <li class="nav-item">
-                <button class="@GetTabClass("all")" type="button" data-testid="search-tab-all" @onclick='() => NavigateToTab("all")'>All</button>
-            </li>
-            <li class="nav-item">
-                <button class="@GetTabClass("posts")" type="button" data-testid="search-tab-posts" @onclick='() => NavigateToTab("posts")'>Posts</button>
-            </li>
-            <li class="nav-item">
-                <button class="@GetTabClass("users")" type="button" data-testid="search-tab-users" @onclick='() => NavigateToTab("users")'>Users</button>
-            </li>
-            <li class="nav-item">
-                <button class="@GetTabClass("tags")" type="button" data-testid="search-tab-tags" @onclick='() => NavigateToTab("tags")'>Tags</button>
-            </li>
-        </ul>
+        <section class="surface-card">
+            <SectionHeader Eyebrow="Results"
+                           Title="@($"Search results for \"{NormalizedQuery}\"")"
+                           Description="Switch between a broad overview and focused result types without leaving the page."
+                           SectionName="Search Results" />
 
-        @if (_loading)
-        {
-            <div class="d-flex align-items-center gap-2 text-secondary" data-testid="search-loading">
-                <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-                <span>Searching...</span>
-            </div>
-        }
-        else if (!string.IsNullOrWhiteSpace(_error))
-        {
-            <div class="alert alert-danger" data-testid="search-error">@_error</div>
-        }
-        else if (CurrentTab == "all")
-        {
-            <div class="row g-4" data-testid="search-overview-results">
-                <div class="col-12">
-                    <div class="d-flex align-items-center justify-content-between mb-3">
-                        <h2 class="h4 mb-0">Posts</h2>
-                        <button class="btn btn-link p-0" type="button" data-testid="search-overview-view-posts" @onclick='() => NavigateToTab("posts")'>View all</button>
+            <ul class="nav nav-pills segmented-tabs mb-4" data-testid="search-tabs">
+                <li class="nav-item">
+                    <button class="@GetTabClass("all")" type="button" data-testid="search-tab-all" @onclick='() => NavigateToTab("all")'>All</button>
+                </li>
+                <li class="nav-item">
+                    <button class="@GetTabClass("posts")" type="button" data-testid="search-tab-posts" @onclick='() => NavigateToTab("posts")'>Posts</button>
+                </li>
+                <li class="nav-item">
+                    <button class="@GetTabClass("users")" type="button" data-testid="search-tab-users" @onclick='() => NavigateToTab("users")'>Users</button>
+                </li>
+                <li class="nav-item">
+                    <button class="@GetTabClass("tags")" type="button" data-testid="search-tab-tags" @onclick='() => NavigateToTab("tags")'>Tags</button>
+                </li>
+            </ul>
+
+            @if (_loading)
+            {
+                <div class="status-panel status-panel--info" data-testid="search-loading">
+                    <div class="status-panel__icon"><i class="bi bi-search" aria-hidden="true"></i></div>
+                    <div>
+                        <div class="status-panel__title">Searching…</div>
+                        <p class="status-panel__text mb-0">Scanning painters, posts, and tags.</p>
                     </div>
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <div class="status-panel status-panel--error" data-testid="search-error">
+                    <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+                    <div>
+                        <div class="status-panel__title">Search unavailable</div>
+                        <p class="status-panel__text mb-0">@_error</p>
+                    </div>
+                </div>
+            }
+            else if (CurrentTab == "all")
+            {
+                <div class="content-stack" data-testid="search-overview-results">
+                    <section class="surface-card">
+                        <SectionHeader Eyebrow="Posts"
+                                       Title="Posts"
+                                       TitleTag="h3"
+                                       TitleClass="section-heading__title h3 mb-0"
+                                       SectionName="Search Overview Posts">
+                            <Actions>
+                                <button class="btn btn-link p-0" type="button" data-testid="search-overview-view-posts" @onclick='() => NavigateToTab("posts")'>View all</button>
+                            </Actions>
+                        </SectionHeader>
 
-                    @if (_overview.Posts.Count == 0)
+                        @if (_overview.Posts.Count == 0)
+                        {
+                            <p class="text-muted mb-0" data-testid="search-overview-posts-empty">No posts matched.</p>
+                        }
+                        else
+                        {
+                            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+                                @foreach (var post in _overview.Posts)
+                                {
+                                    <div class="col" data-testid="search-post-result">
+                                        <PostCard Post="post" />
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </section>
+
+                    <div class="results-grid">
+                        <section class="surface-card">
+                            <SectionHeader Eyebrow="Users"
+                                           Title="Users"
+                                           TitleTag="h3"
+                                           TitleClass="section-heading__title h3 mb-0"
+                                           SectionName="Search Overview Users">
+                                <Actions>
+                                    <button class="btn btn-link p-0" type="button" data-testid="search-overview-view-users" @onclick='() => NavigateToTab("users")'>View all</button>
+                                </Actions>
+                            </SectionHeader>
+
+                            @if (_overview.Users.Count == 0)
+                            {
+                                <p class="text-muted mb-0" data-testid="search-overview-users-empty">No users matched.</p>
+                            }
+                            else
+                            {
+                                <div class="entity-list" data-testid="search-overview-users">
+                                    @foreach (var user in _overview.Users)
+                                    {
+                                        <NavLink class="entity-row text-decoration-none" data-testid="search-user-result" href="@($"/users/{user.UserId}")">
+                                            <UserAvatar ImageUrl="@user.AvatarUrl" Name="@user.DisplayName" Size="56" />
+                                            <div class="entity-row__content">
+                                                <div class="entity-row__title">@user.DisplayName</div>
+                                                <div class="entity-row__meta">@("@")@user.UserName</div>
+                                            </div>
+                                        </NavLink>
+                                    }
+                                </div>
+                            }
+                        </section>
+
+                        <section class="surface-card">
+                            <SectionHeader Eyebrow="Tags"
+                                           Title="Tags"
+                                           TitleTag="h3"
+                                           TitleClass="section-heading__title h3 mb-0"
+                                           SectionName="Search Overview Tags">
+                                <Actions>
+                                    <button class="btn btn-link p-0" type="button" data-testid="search-overview-view-tags" @onclick='() => NavigateToTab("tags")'>View all</button>
+                                </Actions>
+                            </SectionHeader>
+
+                            @if (_overview.Tags.Count == 0)
+                            {
+                                <p class="text-muted mb-0" data-testid="search-overview-tags-empty">No tags matched.</p>
+                            }
+                            else
+                            {
+                                <div class="entity-list" data-testid="search-overview-tags">
+                                    @foreach (var tag in _overview.Tags)
+                                    {
+                                        <button class="entity-row text-start" type="button" @onclick="@(() => NavigateToTag(tag))">
+                                            <div class="entity-row__content">
+                                                <div class="entity-row__title">#@tag.Name</div>
+                                                <div class="entity-row__meta">@tag.PostCount post@(tag.PostCount == 1 ? string.Empty : "s")</div>
+                                            </div>
+                                            <span class="badge text-bg-secondary">@tag.PostCount</span>
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </section>
+                    </div>
+                </div>
+            }
+            else if (CurrentTab == "posts")
+            {
+                <div data-testid="search-posts-results">
+                    @if (!string.IsNullOrWhiteSpace(ActiveTag))
                     {
-                        <p class="text-muted mb-0" data-testid="search-overview-posts-empty">No posts matched.</p>
+                        <div class="mini-stat-bar mb-3">
+                            <span class="badge text-bg-secondary">Tag filter: @ActiveTag</span>
+                            <button class="btn btn-link btn-sm p-0" type="button" @onclick="ClearTagFilterAsync">Clear</button>
+                        </div>
+                    }
+
+                    @if (!_postResults.Items.Any())
+                    {
+                        <p class="text-muted mb-0" data-testid="search-posts-empty">No posts matched.</p>
                     }
                     else
                     {
                         <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
-                            @foreach (var post in _overview.Posts)
+                            @foreach (var post in _postResults.Items)
                             {
                                 <div class="col" data-testid="search-post-result">
                                     <PostCard Post="post" />
@@ -85,142 +204,66 @@
                             }
                         </div>
                     }
+
+                    @RenderPager(_postResults.TotalCount, _postResults.HasPreviousPage, _postResults.HasNextPage)
                 </div>
-
-                <div class="col-12 col-lg-6">
-                    <div class="d-flex align-items-center justify-content-between mb-3">
-                        <h2 class="h4 mb-0">Users</h2>
-                        <button class="btn btn-link p-0" type="button" data-testid="search-overview-view-users" @onclick='() => NavigateToTab("users")'>View all</button>
-                    </div>
-
-                    @if (_overview.Users.Count == 0)
+            }
+            else if (CurrentTab == "users")
+            {
+                <div data-testid="search-users-results">
+                    @if (!_userResults.Items.Any())
                     {
-                        <p class="text-muted mb-0" data-testid="search-overview-users-empty">No users matched.</p>
+                        <p class="text-muted mb-0" data-testid="search-users-empty">No users matched.</p>
                     }
                     else
                     {
-                        <div class="list-group" data-testid="search-overview-users">
-                            @foreach (var user in _overview.Users)
+                        <div class="entity-list">
+                            @foreach (var user in _userResults.Items)
                             {
-                                <NavLink class="list-group-item list-group-item-action" data-testid="search-user-result" href="@($"/users/{user.UserId}")">
-                                    <div class="fw-semibold">@user.DisplayName</div>
-                                    <div class="small text-muted">@("@")@user.UserName</div>
+                                <NavLink class="entity-row text-decoration-none" data-testid="search-user-result" href="@($"/users/{user.UserId}")">
+                                    <UserAvatar ImageUrl="@user.AvatarUrl" Name="@user.DisplayName" Size="56" />
+                                    <div class="entity-row__content">
+                                        <div class="entity-row__title">@user.DisplayName</div>
+                                        <div class="entity-row__meta">@("@")@user.UserName</div>
+                                    </div>
                                 </NavLink>
                             }
                         </div>
                     }
+
+                    @RenderPager(_userResults.TotalCount, _userResults.HasPreviousPage, _userResults.HasNextPage)
                 </div>
-
-                <div class="col-12 col-lg-6">
-                    <div class="d-flex align-items-center justify-content-between mb-3">
-                        <h2 class="h4 mb-0">Tags</h2>
-                        <button class="btn btn-link p-0" type="button" data-testid="search-overview-view-tags" @onclick='() => NavigateToTab("tags")'>View all</button>
-                    </div>
-
-                    @if (_overview.Tags.Count == 0)
+            }
+            else
+            {
+                <div data-testid="search-tags-results">
+                    @if (!_tagResults.Items.Any())
                     {
-                        <p class="text-muted mb-0" data-testid="search-overview-tags-empty">No tags matched.</p>
+                        <p class="text-muted mb-0" data-testid="search-tags-empty">No tags matched.</p>
                     }
                     else
                     {
-                        <div class="list-group" data-testid="search-overview-tags">
-                            @foreach (var tag in _overview.Tags)
+                        <div class="entity-list">
+                            @foreach (var tag in _tagResults.Items)
                             {
-                                <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" type="button" @onclick="@(() => NavigateToTag(tag))">
-                                    <span>#@tag.Name</span>
-                                    <span class="badge text-bg-secondary rounded-pill">@tag.PostCount</span>
+                                <button class="entity-row text-start"
+                                        type="button"
+                                        data-testid="search-tag-result"
+                                        @onclick="@(() => NavigateToTag(tag))">
+                                    <div class="entity-row__content">
+                                        <div class="entity-row__title">#@tag.Name</div>
+                                        <div class="entity-row__meta">@tag.PostCount post@(tag.PostCount == 1 ? string.Empty : "s")</div>
+                                    </div>
+                                    <span class="badge text-bg-secondary">@tag.PostCount</span>
                                 </button>
                             }
                         </div>
                     }
+
+                    @RenderPager(_tagResults.TotalCount, _tagResults.HasPreviousPage, _tagResults.HasNextPage)
                 </div>
-            </div>
-        }
-        else if (CurrentTab == "posts")
-        {
-            <div data-testid="search-posts-results">
-                @if (!string.IsNullOrWhiteSpace(ActiveTag))
-                {
-                    <div class="d-flex align-items-center gap-2 mb-3">
-                        <span class="badge text-bg-secondary rounded-pill">Tag filter: @ActiveTag</span>
-                        <button class="btn btn-link btn-sm p-0" type="button" @onclick="ClearTagFilterAsync">Clear</button>
-                    </div>
-                }
-
-                @if (!_postResults.Items.Any())
-                {
-                    <p class="text-muted mb-0" data-testid="search-posts-empty">No posts matched.</p>
-                }
-                else
-                {
-                    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
-                        @foreach (var post in _postResults.Items)
-                        {
-                            <div class="col" data-testid="search-post-result">
-                                <PostCard Post="post" />
-                            </div>
-                        }
-                    </div>
-                }
-
-                @RenderPager(_postResults.TotalCount, _postResults.HasPreviousPage, _postResults.HasNextPage)
-            </div>
-        }
-        else if (CurrentTab == "users")
-        {
-            <div data-testid="search-users-results">
-                @if (!_userResults.Items.Any())
-                {
-                    <p class="text-muted mb-0" data-testid="search-users-empty">No users matched.</p>
-                }
-                else
-                {
-                    <div class="list-group">
-                        @foreach (var user in _userResults.Items)
-                        {
-                            <NavLink class="list-group-item list-group-item-action d-flex align-items-center gap-3" data-testid="search-user-result" href="@($"/users/{user.UserId}")">
-                                <img src="@(string.IsNullOrWhiteSpace(user.AvatarUrl) ? "/images/avatar-placeholder.png" : user.AvatarUrl)"
-                                     alt="Avatar"
-                                     class="rounded-circle border"
-                                     style="width: 48px; height: 48px; object-fit: cover;" />
-                                <div>
-                                    <div class="fw-semibold">@user.DisplayName</div>
-                                    <div class="small text-muted">@("@")@user.UserName</div>
-                                </div>
-                            </NavLink>
-                        }
-                    </div>
-                }
-
-                @RenderPager(_userResults.TotalCount, _userResults.HasPreviousPage, _userResults.HasNextPage)
-            </div>
-        }
-        else
-        {
-            <div data-testid="search-tags-results">
-                @if (!_tagResults.Items.Any())
-                {
-                    <p class="text-muted mb-0" data-testid="search-tags-empty">No tags matched.</p>
-                }
-                else
-                {
-                    <div class="list-group">
-                        @foreach (var tag in _tagResults.Items)
-                        {
-                            <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-                                    type="button"
-                                    data-testid="search-tag-result"
-                                    @onclick="@(() => NavigateToTag(tag))">
-                                <span>#@tag.Name</span>
-                                <span class="badge text-bg-secondary rounded-pill">@tag.PostCount</span>
-                            </button>
-                        }
-                    </div>
-                }
-
-                @RenderPager(_tagResults.TotalCount, _tagResults.HasPreviousPage, _tagResults.HasNextPage)
-            </div>
-        }
+            }
+        </section>
     }
 </div>
 
@@ -423,7 +466,7 @@
         }
 
         builder.OpenElement(0, "div");
-        builder.AddAttribute(1, "class", "d-flex align-items-center gap-2 mt-4");
+        builder.AddAttribute(1, "class", "paginator-bar");
 
         builder.OpenElement(2, "button");
         builder.AddAttribute(3, "class", "btn btn-outline-secondary");
@@ -450,7 +493,7 @@
         builder.CloseElement();
 
         builder.OpenElement(16, "span");
-        builder.AddAttribute(17, "class", "text-muted");
+        builder.AddAttribute(17, "class", "inline-note");
         builder.AddAttribute(18, "data-testid", "search-page-state");
         builder.AddContent(19, $"Page {CurrentPage}");
         builder.CloseElement();

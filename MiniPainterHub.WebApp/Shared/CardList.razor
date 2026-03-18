@@ -6,52 +6,36 @@
 
 @if (!string.IsNullOrEmpty(loadError))
 {
-    <div class="alert alert-danger d-flex align-items-center" role="alert">
-        <i class="bi bi-wifi-off me-2"></i>
+    <div class="status-panel status-panel--error" role="alert">
+        <div class="status-panel__icon"><i class="bi bi-wifi-off" aria-hidden="true"></i></div>
         <div>
-            @loadError
-            @if (errorStatus.HasValue)
-            {
-                <span class="text-muted small">(Status: @((int)errorStatus.Value))</span>
-            }
+            <div class="status-panel__title">Couldn't load posts</div>
+            <p class="status-panel__text mb-0">
+                @loadError
+                @if (errorStatus.HasValue)
+                {
+                    <span class="small">(Status: @((int)errorStatus.Value))</span>
+                }
+            </p>
         </div>
         <button class="btn btn-link btn-sm ms-auto" @onclick="() => LoadPosts(currentPage)">Retry</button>
     </div>
 }
 else if (isLoading)
 {
-    <div class="text-center" aria-live="polite" aria-busy="true">
-        <div class="spinner-border" role="status" aria-hidden="true"></div>
-        <span class="visually-hidden">Loading posts...</span>
+    <div class="status-panel status-panel--info" aria-live="polite" aria-busy="true">
+        <div class="status-panel__icon"><i class="bi bi-grid" aria-hidden="true"></i></div>
+        <div>
+            <div class="status-panel__title">Loading posts</div>
+            <p class="status-panel__text mb-0">Preparing the latest gallery cards...</p>
+        </div>
     </div>
-}
-else if (!posts.Any())
-{
-    <AuthorizeView Roles="Moderator,Admin">
-        <Authorized>
-            <div class="d-flex align-items-center gap-2 mb-3" data-testid="post-visibility-filter">
-                <label class="form-label mb-0" for="post-visibility-select">Visibility</label>
-                <select id="post-visibility-select"
-                        class="form-select w-auto"
-                        data-testid="post-visibility-select"
-                        value="@_visibilityFilter"
-                        @onchange="OnVisibilityFilterChanged"
-                        disabled="@isLoading">
-                    <option value="active">Active only</option>
-                    <option value="all">Include hidden</option>
-                    <option value="hidden">Hidden only</option>
-                </select>
-            </div>
-        </Authorized>
-    </AuthorizeView>
-
-    <p class="text-muted">No posts yet.</p>
 }
 else
 {
     <AuthorizeView Roles="Moderator,Admin">
         <Authorized>
-            <div class="d-flex align-items-center gap-2 mb-3" data-testid="post-visibility-filter">
+            <div class="mini-stat-bar mb-3" data-testid="post-visibility-filter">
                 <label class="form-label mb-0" for="post-visibility-select">Visibility</label>
                 <select id="post-visibility-select"
                         class="form-select w-auto"
@@ -67,52 +51,68 @@ else
         </Authorized>
     </AuthorizeView>
 
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-        @foreach (var post in posts)
+    @if (!posts.Any())
+    {
+        <EmptyState IconClass="@EmptyIconClass"
+                    Title="@EmptyTitle"
+                    Description="@EmptyDescription"
+                    TitleTag="h3"
+                    TitleClass="empty-state__title h5">
+            @if (EmptyContent is not null)
+            {
+                @EmptyContent
+            }
+        </EmptyState>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-md-2 g-4">
+            @foreach (var post in posts)
+            {
+                <div class="col">
+                    <PostCard Post="post" OnModerated="ReloadCurrentPageAsync" />
+                </div>
+            }
+        </div>
+
+        @if (totalPages > 1)
         {
-            <div class="col">
-                <PostCard Post="post" OnModerated="ReloadCurrentPageAsync" />
+            <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-3 mt-4">
+                <nav aria-label="Post pagination">
+                    <ul class="pagination mb-0">
+                        <li class="page-item @(hasPreviousPage ? string.Empty : "disabled")">
+                            <button class="page-link" type="button" @onclick="() => ChangePage(currentPage - 1)" disabled="@(!hasPreviousPage || isLoading)">
+                                Previous
+                            </button>
+                        </li>
+                        <li class="page-item @(hasNextPage ? string.Empty : "disabled")">
+                            <button class="page-link" type="button" @onclick="() => ChangePage(currentPage + 1)" disabled="@(!hasNextPage || isLoading)">
+                                Next
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
+
+                <div class="mini-stat-bar">
+                    <label class="form-label mb-0" for="pageSelector">Page</label>
+                    <select id="pageSelector" class="form-select w-auto" @onchange="OnPageSelected" disabled="@isLoading">
+                        @for (var page = 1; page <= totalPages; page++)
+                        {
+                            var selectPage = page;
+                            if (page == currentPage)
+                            {
+                                <option value="@selectPage" selected>@selectPage</option>
+                            }
+                            else
+                            {
+                                <option value="@selectPage">@selectPage</option>
+                            }
+                        }
+                    </select>
+                    <span class="inline-note">of @totalPages</span>
+                </div>
             </div>
         }
-    </div>
-
-    @if (totalPages > 1)
-    {
-        <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-3 mt-4">
-            <nav aria-label="Post pagination">
-                <ul class="pagination mb-0">
-                    <li class="page-item @(hasPreviousPage ? string.Empty : "disabled")">
-                        <button class="page-link" type="button" @onclick="() => ChangePage(currentPage - 1)" disabled="@(!hasPreviousPage || isLoading)">
-                            Previous
-                        </button>
-                    </li>
-                    <li class="page-item @(hasNextPage ? string.Empty : "disabled")">
-                        <button class="page-link" type="button" @onclick="() => ChangePage(currentPage + 1)" disabled="@(!hasNextPage || isLoading)">
-                            Next
-                        </button>
-                    </li>
-                </ul>
-            </nav>
-
-            <div class="d-flex align-items-center gap-2">
-                <label class="form-label mb-0" for="pageSelector">Page</label>
-                <select id="pageSelector" class="form-select w-auto" @onchange="OnPageSelected" disabled="@isLoading">
-                    @for (var page = 1; page <= totalPages; page++)
-                    {
-                        var selectPage = page;
-                        if (page == currentPage)
-                        {
-                            <option value="@selectPage" selected>@selectPage </option>
-                        }
-                        else
-                        {
-                            <option value="@selectPage">@selectPage </option>
-                        }
-                    }
-                </select>
-                <span class="text-muted">of @totalPages</span>
-            </div>
-        </div>
     }
 }
 
@@ -133,6 +133,18 @@ else
 
     [Parameter]
     public Func<int, int, Task<ApiResult<PagedResult<PostSummaryDto>>>>? LoadPostsHandler { get; set; }
+
+    [Parameter]
+    public string EmptyIconClass { get; set; } = "bi bi-brush";
+
+    [Parameter]
+    public string EmptyTitle { get; set; } = "No posts yet.";
+
+    [Parameter]
+    public string EmptyDescription { get; set; } = "When new work arrives, it will appear here.";
+
+    [Parameter]
+    public RenderFragment? EmptyContent { get; set; }
 
     protected override async Task OnParametersSetAsync()
     {

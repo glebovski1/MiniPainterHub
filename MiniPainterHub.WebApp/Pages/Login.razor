@@ -1,63 +1,100 @@
-﻿@page "/login"
+@page "/login"
 @inject IAuthService AuthService
 @inject NavigationManager Nav
 
 <PageTitle>Login</PageTitle>
 
-<EditForm Model="@credentials" OnValidSubmit="HandleLogin" data-testid="login-form">
-    <div class="container">
-        <div class="row justify-content-center align-items-center vh-100">
-            <div class="col-12 col-sm-8 col-md-6 col-lg-4">
-                <div class="card shadow-sm">
-                    <div class="card-body">
-                        <h1 class="visually-hidden">Login</h1>
-                        <h4 class="card-title text-center mb-4">Login</h4>
+<div class="page-shell">
+    <div class="auth-shell auth-shell--split">
+        <section class="surface-card auth-shell__intro">
+            <p class="section-label mb-2">Studio access</p>
+            <h1 class="auth-shell__headline">Return to your workbench.</h1>
+            <p class="auth-shell__copy">Jump back into the latest posts, private hobby messages, and the personal hub without losing your place in the community.</p>
 
-                        <div class="mb-3">
-                            <label for="login-username" class="form-label">Username</label>
-                            <InputText id="login-username"
-                                       class="form-control"
-                                       autocomplete="username"
-                                       data-testid="login-username"
-                                       @bind-Value="credentials.UserName" />
-                        </div>
-
-                        <div class="mb-4">
-                            <label for="login-password" class="form-label">Password</label>
-                            <InputText id="login-password"
-                                       type="password"
-                                       class="form-control"
-                                       autocomplete="current-password"
-                                       data-testid="login-password"
-                                       @bind-Value="credentials.Password" />
-                        </div>
-
-                        <button type="submit" class="btn btn-primary w-100 mb-3" data-testid="login-submit">
-                            Sign In
-                        </button>
-
-                        @if (!string.IsNullOrEmpty(error))
-                        {
-                            <div class="alert alert-danger text-center mb-0" data-testid="login-error">@error</div>
-                        }
-
-                        <div class="text-center mt-3">
-                            <small>
-                                Don’t have an account?
-                                <NavLink href="/register">Register</NavLink>
-                            </small>
-                        </div>
-
-                    </div>
+            <div class="auth-shell__metrics">
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Community</span>
+                    <strong class="metric-chip__value">Fresh feed</strong>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Personal</span>
+                    <strong class="metric-chip__value">Your panel</strong>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Direct</span>
+                    <strong class="metric-chip__value">Messages</strong>
                 </div>
             </div>
-        </div>
+
+            <div class="auth-shell__note">
+                <div class="auth-shell__note-icon"><i class="bi bi-brush" aria-hidden="true"></i></div>
+                <div>
+                    <div class="auth-shell__note-title">What you can do after signing in</div>
+                    <p class="mb-0">Share new posts, manage your profile, follow painters you like, and keep conversations moving.</p>
+                </div>
+            </div>
+        </section>
+
+        <EditForm Model="@credentials" OnValidSubmit="HandleLogin" data-testid="login-form" class="w-100">
+            <DataAnnotationsValidator />
+
+            <section class="surface-card auth-card mx-auto">
+                <SectionHeader Eyebrow="Welcome back"
+                               Title="Sign in to your studio"
+                               Description="Pick up where you left off, check the feed, and get back to the hobby conversations waiting for you."
+                               TitleTag="h1"
+                               TitleClass="auth-card__title"
+                               ClassName="section-heading section-heading--auth"
+                               SectionName="Login Card" />
+
+                <div class="form-grid mt-4">
+                    <div>
+                        <label for="login-username" class="form-label">Username</label>
+                        <InputText id="login-username"
+                                   class="form-control"
+                                   autocomplete="username"
+                                   data-testid="login-username"
+                                   @bind-Value="credentials.UserName" />
+                    </div>
+
+                    <div>
+                        <label for="login-password" class="form-label">Password</label>
+                        <InputText id="login-password"
+                                   type="password"
+                                   class="form-control"
+                                   autocomplete="current-password"
+                                   data-testid="login-password"
+                                   @bind-Value="credentials.Password" />
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 mt-4" data-testid="login-submit">
+                    Sign In
+                </button>
+
+                @if (!string.IsNullOrEmpty(error))
+                {
+                    <div class="status-panel status-panel--error mt-3" data-testid="login-error">
+                        <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Sign-in failed</div>
+                            <p class="status-panel__text mb-0">@error</p>
+                        </div>
+                    </div>
+                }
+
+                <div class="auth-card__footer">
+                    Don't have an account?
+                    <NavLink href="/register">Register</NavLink>
+                </div>
+            </section>
+        </EditForm>
     </div>
-</EditForm>
+</div>
 
 @code {
     private LoginDto credentials = new();
-    private string error;
+    private string? error;
 
     private async Task HandleLogin()
     {

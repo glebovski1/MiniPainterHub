@@ -1,0 +1,51 @@
+.profile-panel__layout {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.profile-panel__rail,
+.profile-panel__editor {
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    background: rgba(255, 252, 247, 0.78);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.profile-panel__rail {
+    padding: var(--space-4);
+}
+
+.profile-panel__rail-stack {
+    display: grid;
+    gap: var(--space-3);
+    align-items: start;
+    justify-items: center;
+    text-align: center;
+}
+
+.profile-panel__identity {
+    display: grid;
+    gap: var(--space-1);
+}
+
+.profile-panel__name {
+    font-size: var(--text-h5);
+    font-weight: 800;
+    color: var(--ink-900);
+}
+
+.profile-panel__handle {
+    color: var(--ink-500);
+    font-size: var(--text-caption);
+    letter-spacing: 0.02em;
+}
+
+.profile-panel__editor {
+    padding: var(--space-4);
+}
+
+@media (min-width: 992px) {
+    .profile-panel__layout {
+        grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+    }
+}

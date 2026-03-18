@@ -3,7 +3,7 @@
 @inject ILikeService LikeService
 
 
-<button class="btn btn-sm"
+<button class="btn btn-sm btn-outline-secondary like-button"
         data-testid="@ResolvedTestId"
         @onclick="ToggleLike"
         disabled="@_isLoading">
@@ -18,21 +18,49 @@
     <span class="ms-1" data-testid="@($"{ResolvedTestId}-count")">@_state.Count</span>
 </button>
 
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <div class="small text-danger mt-2" role="status" data-testid="@($"{ResolvedTestId}-error")">@_error</div>
+}
+
 @code {
     [Parameter] public int PostId { get; set; }
     [Parameter] public string? TestId { get; set; }
 
     private LikeDto _state = new();
     private bool _isLoading;
+    private string? _error;
     private string ResolvedTestId => string.IsNullOrWhiteSpace(TestId) ? "like-toggle" : TestId;
 
     protected override async Task OnParametersSetAsync()
-        => _state = await LikeService.GetLikesAsync(PostId);
+    {
+        try
+        {
+            _state = await LikeService.GetLikesAsync(PostId);
+            _error = null;
+        }
+        catch
+        {
+            _state = new LikeDto();
+            _error = "Likes are unavailable right now.";
+        }
+    }
 
     private async Task ToggleLike()
     {
         _isLoading = true;
-        _state = await LikeService.ToggleLikeAsync(PostId);
-        _isLoading = false;
+        try
+        {
+            _state = await LikeService.ToggleLikeAsync(PostId);
+            _error = null;
+        }
+        catch
+        {
+            _error = "We couldn't update your like. Please try again.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 }

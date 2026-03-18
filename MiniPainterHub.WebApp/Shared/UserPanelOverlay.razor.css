@@ -1,11 +1,20 @@
 .dashboard-sidebar-offcanvas {
-  --bs-offcanvas-width: 240px;
-  background-color: #f8f9fa;
-  border-right: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0.25rem 0 1.25rem rgba(33, 37, 41, 0.08);
+  --bs-offcanvas-width: min(88vw, 340px);
+  background: rgba(251, 247, 241, 0.98);
+  border-right: 1px solid rgba(77, 91, 89, 0.12);
+  box-shadow: 0.25rem 0 2rem rgba(33, 37, 41, 0.12);
 }
 
 .dashboard-sidebar-offcanvas :global(.offcanvas-header) {
-  padding: 1rem 1rem;
-  background-color: #f8f9fa;
+  padding: 1.1rem 1rem;
+  background: rgba(251, 247, 241, 0.96);
+}
+
+.dashboard-sidebar-offcanvas__eyebrow {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-weight: 800;
+  color: var(--accent-clay);
+  margin-bottom: 0.15rem;
 }

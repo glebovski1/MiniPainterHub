@@ -1,0 +1,171 @@
+.variants-board {
+    display: grid;
+    gap: 40px;
+}
+
+.variant-intro {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
+    gap: 32px;
+}
+
+.variant-card {
+    display: grid;
+    gap: 16px;
+}
+
+.variant-shell {
+    display: grid;
+    grid-template-columns: 272px 1fr;
+    min-height: 760px;
+    overflow: hidden;
+    border-radius: var(--radius-shell);
+    background: linear-gradient(180deg, #f9f5ee 0%, #f3ede4 100%);
+    border: 1px solid rgba(217, 208, 194, 0.92);
+    box-shadow: var(--shadow-card);
+}
+
+.variant-rail {
+    padding: 24px;
+    display: grid;
+    gap: 20px;
+    align-content: start;
+    background: linear-gradient(180deg, rgba(255, 253, 249, 0.92), rgba(247, 242, 232, 0.98));
+    border-right: 1px solid rgba(217, 208, 194, 0.92);
+}
+
+.variant-main {
+    display: grid;
+    grid-template-rows: 72px 1fr;
+}
+
+.variant-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 0 28px;
+    border-bottom: 1px solid rgba(217, 208, 194, 0.92);
+    background: rgba(252, 251, 247, 0.84);
+}
+
+.variant-page {
+    padding: 32px;
+    display: grid;
+    gap: 24px;
+}
+
+.variant-ledger-grid,
+.variant-community-grid {
+    display: grid;
+    gap: 20px;
+}
+
+.variant-ledger-grid {
+    grid-template-columns: 0.85fr 1.15fr;
+}
+
+.variant-community-grid {
+    grid-template-columns: 1.1fr 0.9fr;
+}
+
+.variant-gallery .variant-shell {
+    background: linear-gradient(180deg, #f9f5ee 0%, #f2ebe0 100%);
+}
+
+.variant-gallery .variant-rail {
+    background: linear-gradient(180deg, rgba(255, 253, 249, 0.94), rgba(246, 240, 230, 0.98));
+}
+
+.variant-ledger .variant-shell {
+    background: linear-gradient(180deg, #eef1ec 0%, #e5ebdf 100%);
+}
+
+.variant-ledger .variant-rail {
+    background: linear-gradient(180deg, #214d47 0%, #193d38 100%);
+    border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+.variant-ledger .variant-rail .brand-copy strong,
+.variant-ledger .variant-rail .nav-copy strong,
+.variant-ledger .variant-rail .rail-label,
+.variant-ledger .variant-rail .note,
+.variant-ledger .variant-rail .small,
+.variant-ledger .variant-rail .eyebrow,
+.variant-ledger .variant-rail .utility-item strong,
+.variant-ledger .variant-rail .rail-toggle {
+    color: #edf1eb;
+}
+
+.variant-ledger .variant-rail .utility-item,
+.variant-ledger .variant-rail .nav-item,
+.variant-ledger .variant-rail .profile-card,
+.variant-ledger .variant-rail .rail-toggle {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: none;
+}
+
+.variant-ledger .variant-rail .toggle-mark {
+    border-color: rgba(255, 255, 255, 0.16);
+    background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.24) 0 38%, transparent 38%),
+        rgba(255, 255, 255, 0.12);
+}
+
+.variant-ledger .variant-rail .nav-item.active {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.variant-ledger .variant-topbar,
+.variant-ledger .variant-page {
+    background: rgba(251, 252, 248, 0.82);
+}
+
+.variant-ledger .surface-card,
+.variant-ledger .surface-soft {
+    border-radius: 16px;
+}
+
+.variant-community .variant-shell {
+    background: linear-gradient(180deg, #fbf4eb 0%, #f4ebdf 100%);
+}
+
+.variant-community .variant-rail {
+    background: linear-gradient(180deg, rgba(255, 248, 241, 0.96), rgba(247, 238, 227, 0.98));
+}
+
+.variant-community .surface-soft {
+    background: rgba(247, 240, 231, 0.92);
+}
+
+@media (max-width: 1400px) {
+    .variant-intro,
+    .variant-shell,
+    .variant-ledger-grid,
+    .variant-community-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .variant-topbar,
+    .variant-topbar .topbar-left,
+    .variant-topbar .topbar-right {
+        align-items: flex-start;
+    }
+
+    .variant-topbar {
+        padding: 16px 20px;
+        flex-direction: column;
+    }
+
+    .variant-topbar .topbar-right {
+        width: 100%;
+        margin-left: 0;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .variant-topbar .search-field {
+        width: 100%;
+    }
+}

@@ -1,0 +1,43 @@
+<section class="@CssClass" data-testid="@TestId">
+    @if (!string.IsNullOrWhiteSpace(IconClass))
+    {
+        <div class="empty-state__icon">
+            <i class="@IconClass" aria-hidden="true"></i>
+        </div>
+    }
+
+    @RenderTitle()
+
+    @if (!string.IsNullOrWhiteSpace(Description))
+    {
+        <p class="empty-state__text mb-0">@Description</p>
+    }
+
+    @if (ChildContent is not null)
+    {
+        @ChildContent
+    }
+</section>
+
+@code {
+    [Parameter] public string IconClass { get; set; } = string.Empty;
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public string TitleTag { get; set; } = "h2";
+    [Parameter] public string TitleClass { get; set; } = "empty-state__title";
+    [Parameter] public string? ClassName { get; set; }
+    [Parameter] public string? TestId { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string CssClass => string.IsNullOrWhiteSpace(ClassName)
+        ? "empty-state"
+        : $"empty-state {ClassName}";
+
+    private RenderFragment RenderTitle() => builder =>
+    {
+        builder.OpenElement(0, TitleTag);
+        builder.AddAttribute(1, "class", TitleClass);
+        builder.AddContent(2, Title);
+        builder.CloseElement();
+    };
+}

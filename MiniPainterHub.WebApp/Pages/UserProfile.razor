@@ -1,34 +1,43 @@
-﻿@page "/profile"
+@page "/profile"
 @inject MiniPainterHub.WebApp.Services.Interfaces.IProfileService Profiles
 
-<h2 class="mb-4">My Profile</h2>
+<div class="page-shell content-stack">
+    <PageHero Eyebrow="Your identity"
+              Title="My Profile"
+              Description="Adjust your public presentation without changing the underlying profile flow or save behavior."
+              FrameName="Profile Header" />
 
-@if (_busyInit)
-{
-    <div class="d-flex align-items-center gap-2 text-secondary">
-        <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-        <span>Loading your profile…</span>
-    </div>
-}
-else if (_profile is null)
-{
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <h5 class="card-title mb-3">Create your profile</h5>
+    @if (_busyInit)
+    {
+        <div class="status-panel status-panel--info">
+            <div class="status-panel__icon"><i class="bi bi-person-circle" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Loading your profile</div>
+                <p class="status-panel__text mb-0">Pulling in your current profile details.</p>
+            </div>
+        </div>
+    }
+    else if (_profile is null)
+    {
+        <section class="surface-card">
+            <SectionHeader Eyebrow="Getting started"
+                           Title="Create your profile"
+                           Description="Add a name and short bio so other painters can find and follow you."
+                           SectionName="Create Profile" />
 
-            <EditForm Model="_create" OnValidSubmit="Create">
+            <EditForm Model="_create" OnValidSubmit="Create" class="form-grid">
                 <DataAnnotationsValidator />
-                <ValidationSummary class="text-danger" />
+                <ValidationSummary class="text-danger small mb-0" />
 
-                <div class="mb-3">
+                <div>
                     <label class="form-label">Display name</label>
                     <InputText @bind-Value="_create.DisplayName" class="form-control" data-testid="profile-create-display-name" placeholder="e.g. Sam Painter" />
                     <ValidationMessage For="@(() => _create.DisplayName)" class="text-danger" />
                 </div>
 
-                <div class="mb-3">
+                <div>
                     <label class="form-label">Bio</label>
-                    <InputTextArea @bind-Value="_create.Bio" class="form-control" data-testid="profile-create-bio" rows="4" placeholder="A short bio…" />
+                    <InputTextArea @bind-Value="_create.Bio" class="form-control" data-testid="profile-create-bio" rows="5" placeholder="A short bio..." />
                     <div class="form-text">Max 500 characters.</div>
                     <ValidationMessage For="@(() => _create.Bio)" class="text-danger" />
                 </div>
@@ -41,28 +50,34 @@ else if (_profile is null)
                     Create profile
                 </button>
             </EditForm>
-        </div>
-    </div>
-}
-else
-{
-    <ProfilePanel Title="Profile"
-                  Profile="_profile"
-                  IsOwner="true"
-                  EditEnabled="_editing"
-                  Busy="_busy"
-                  BusyAction="_busyAction"
-                  OnBeginEdit="BeginEdit"
-                  OnCancel="CancelEdit"
-                  OnSave="Save"
-                  OnUploadAvatar="UploadAvatar"
-                  OnRemoveAvatar="RemoveAvatar" />
-
-    @if (!string.IsNullOrWhiteSpace(_error))
-    {
-        <div class="alert alert-danger mt-3" role="alert">@_error</div>
+        </section>
     }
-}
+    else
+    {
+        <ProfilePanel Title="Profile"
+                      Profile="_profile"
+                      IsOwner="true"
+                      EditEnabled="_editing"
+                      Busy="_busy"
+                      BusyAction="_busyAction"
+                      OnBeginEdit="BeginEdit"
+                      OnCancel="CancelEdit"
+                      OnSave="Save"
+                      OnUploadAvatar="UploadAvatar"
+                      OnRemoveAvatar="RemoveAvatar" />
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <div class="status-panel status-panel--error mt-3" role="alert">
+                <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Profile update failed</div>
+                    <p class="status-panel__text mb-0">@_error</p>
+                </div>
+            </div>
+        }
+    }
+</div>
 
 @code {
     private bool _busyInit = true;
@@ -97,11 +112,9 @@ else
         finally { _busy = false; _busyAction = string.Empty; }
     }
 
-    // Edit toggle
     private void BeginEdit() => _editing = true;
     private void CancelEdit() => _editing = false;
 
-    // Save profile details
     private async Task Save(UpdateUserProfileDto dto)
     {
         _error = null;
@@ -109,13 +122,12 @@ else
         try
         {
             _profile = await Profiles.UpdateMineAsync(dto);
-            _editing = false; // back to view
+            _editing = false;
         }
         catch (Exception ex) { _error = ex.Message; }
         finally { _busy = false; _busyAction = string.Empty; }
     }
 
-    // Avatar actions
     private async Task UploadAvatar(IBrowserFile file)
     {
         if (!_editing) return;

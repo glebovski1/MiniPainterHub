@@ -4,110 +4,225 @@
 
 <PageTitle>Moderation Dashboard</PageTitle>
 
-<h3 class="mb-4">Moderation Dashboard</h3>
+<div class="page-shell content-stack">
+    <section class="page-hero">
+        <div class="content-stack">
+            <div>
+                <p class="page-hero__eyebrow">Moderator workspace</p>
+                <h1 class="page-hero__title">Moderation dashboard</h1>
+                <p class="page-hero__description">Review a post or comment by id, load a live preview, and apply hide or restore actions without leaving the moderation queue.</p>
+            </div>
 
-<div class="row g-4">
-    <div class="col-12 col-lg-6">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <h4 class="h6 text-uppercase text-muted fw-semibold mb-3">Post moderation</h4>
-
-                <label class="form-label" for="mod-post-id">Post id</label>
-                <input id="mod-post-id" class="form-control mb-3" type="number" min="1" data-testid="mod-post-id" @bind="_postId" />
-                <div class="form-text mb-2">
-                    Tip: the post id is the number in the URL like <code>/posts/944</code>.
+            <div class="metric-grid">
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Coverage</span>
+                    <span class="metric-chip__value">Posts and comments</span>
                 </div>
-                <button class="btn btn-outline-secondary btn-sm mb-3" type="button" data-testid="mod-post-preview-load" @onclick="LoadPostPreviewAsync" disabled="@_postBusy">
-                    Load post preview
-                </button>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Actions</span>
+                    <span class="metric-chip__value">Hide or restore</span>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Workflow</span>
+                    <span class="metric-chip__value">Preview before action</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="admin-grid">
+        <section class="surface-card">
+            <div class="surface-card__header">
+                <div>
+                    <p class="section-label">Post moderation</p>
+                    <h2 class="surface-card__title">Review a post</h2>
+                    <p class="surface-card__subtitle">Use the post id from the URL, preview the content, then apply the moderation action and note.</p>
+                </div>
+                <span class="mini-stat">Post route: <strong>/posts/944</strong></span>
+            </div>
+
+            <div class="form-grid">
+                <div>
+                    <label class="form-label" for="mod-post-id">Post id</label>
+                    <input id="mod-post-id" class="form-control" type="number" min="1" data-testid="mod-post-id" @bind="_postId" />
+                    <div class="form-text">Use the numeric id from the post URL.</div>
+                </div>
+
+                <div class="page-toolbar">
+                    <button class="btn btn-outline-secondary"
+                            type="button"
+                            data-testid="mod-post-preview-load"
+                            @onclick="LoadPostPreviewAsync"
+                            disabled="@_postBusy">
+                        @(_postBusy ? "Working..." : "Load post preview")
+                    </button>
+                </div>
 
                 @if (!string.IsNullOrWhiteSpace(_postPreviewError))
                 {
-                    <div class="alert alert-warning py-2" data-testid="mod-post-preview-error">@_postPreviewError</div>
+                    <div class="status-panel status-panel--warning" data-testid="mod-post-preview-error">
+                        <div class="status-panel__icon"><i class="bi bi-eye-slash" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Preview unavailable</div>
+                            <p class="status-panel__text mb-0">@_postPreviewError</p>
+                        </div>
+                    </div>
                 }
                 else if (_postPreview is not null)
                 {
-                    <div class="border rounded p-2 mb-3 bg-light" data-testid="mod-post-preview">
-                        <div class="fw-semibold">@_postPreview.Title</div>
-                        <div class="small text-muted">Author: @_postPreview.CreatedByUserId • Deleted: @_postPreview.IsDeleted</div>
-                        <div class="small mt-1">@_postPreview.ContentSnippet</div>
+                    <div class="surface-card" data-testid="mod-post-preview">
+                        <div class="section-heading">
+                            <div>
+                                <p class="section-label">Preview</p>
+                                <h3 class="section-heading__title h4 mb-0">@_postPreview.Title</h3>
+                            </div>
+                        </div>
+                        <div class="mini-stat-bar mb-3">
+                            <span class="mini-stat">Author <strong>@_postPreview.CreatedByUserId</strong></span>
+                            <span class="mini-stat">Deleted <strong>@_postPreview.IsDeleted</strong></span>
+                        </div>
+                        <p class="mb-0 text-muted">@_postPreview.ContentSnippet</p>
                     </div>
                 }
 
-                <label class="form-label" for="mod-post-action">Action</label>
-                <select id="mod-post-action" class="form-select mb-3" data-testid="mod-post-action" @bind="_postAction">
-                    <option value="hide">Hide</option>
-                    <option value="restore">Restore</option>
-                </select>
+                <div>
+                    <label class="form-label" for="mod-post-action">Action</label>
+                    <select id="mod-post-action" class="form-select" data-testid="mod-post-action" @bind="_postAction">
+                        <option value="hide">Hide</option>
+                        <option value="restore">Restore</option>
+                    </select>
+                </div>
 
-                <label class="form-label" for="mod-post-reason">Reason</label>
-                <textarea id="mod-post-reason" class="form-control mb-3" rows="3" data-testid="mod-post-reason" @bind="_postReason"></textarea>
+                <div>
+                    <label class="form-label" for="mod-post-reason">Reason</label>
+                    <textarea id="mod-post-reason" class="form-control" rows="4" data-testid="mod-post-reason" @bind="_postReason"></textarea>
+                </div>
 
                 @if (!string.IsNullOrWhiteSpace(_postError))
                 {
-                    <div class="alert alert-danger py-2" data-testid="mod-post-error">@_postError</div>
+                    <div class="status-panel status-panel--error" data-testid="mod-post-error">
+                        <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Post action blocked</div>
+                            <p class="status-panel__text mb-0">@_postError</p>
+                        </div>
+                    </div>
                 }
                 else if (!string.IsNullOrWhiteSpace(_postResult))
                 {
-                    <div class="alert alert-success py-2" data-testid="mod-post-result">@_postResult</div>
-                }
-
-                <button class="btn btn-primary" type="button" data-testid="mod-post-submit" @onclick="SubmitPostAsync" disabled="@_postBusy">
-                    @(_postBusy ? "Working..." : "Apply to post")
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-12 col-lg-6">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <h4 class="h6 text-uppercase text-muted fw-semibold mb-3">Comment moderation</h4>
-
-                <label class="form-label" for="mod-comment-id">Comment id</label>
-                <input id="mod-comment-id" class="form-control mb-3" type="number" min="1" data-testid="mod-comment-id" @bind="_commentId" />
-                <div class="form-text mb-2">
-                    Tip: comment ids are shown on the post details page for admins/moderators.
-                </div>
-                <button class="btn btn-outline-secondary btn-sm mb-3" type="button" data-testid="mod-comment-preview-load" @onclick="LoadCommentPreviewAsync" disabled="@_commentBusy">
-                    Load comment preview
-                </button>
-
-                @if (!string.IsNullOrWhiteSpace(_commentPreviewError))
-                {
-                    <div class="alert alert-warning py-2" data-testid="mod-comment-preview-error">@_commentPreviewError</div>
-                }
-                else if (_commentPreview is not null)
-                {
-                    <div class="border rounded p-2 mb-3 bg-light" data-testid="mod-comment-preview">
-                        <div class="small text-muted">Post: @_commentPreview.PostId • Author: @_commentPreview.AuthorUserId • Deleted: @_commentPreview.IsDeleted</div>
-                        <div class="small mt-1">@_commentPreview.TextSnippet</div>
+                    <div class="status-panel status-panel--success" data-testid="mod-post-result">
+                        <div class="status-panel__icon"><i class="bi bi-check-circle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Post updated</div>
+                            <p class="status-panel__text mb-0">@_postResult</p>
+                        </div>
                     </div>
                 }
 
-                <label class="form-label" for="mod-comment-action">Action</label>
-                <select id="mod-comment-action" class="form-select mb-3" data-testid="mod-comment-action" @bind="_commentAction">
-                    <option value="hide">Hide</option>
-                    <option value="restore">Restore</option>
-                </select>
+                <div class="page-toolbar">
+                    <button class="btn btn-primary" type="button" data-testid="mod-post-submit" @onclick="SubmitPostAsync" disabled="@_postBusy">
+                        @(_postBusy ? "Working..." : "Apply to post")
+                    </button>
+                </div>
+            </div>
+        </section>
 
-                <label class="form-label" for="mod-comment-reason">Reason</label>
-                <textarea id="mod-comment-reason" class="form-control mb-3" rows="3" data-testid="mod-comment-reason" @bind="_commentReason"></textarea>
+        <section class="surface-card">
+            <div class="surface-card__header">
+                <div>
+                    <p class="section-label">Comment moderation</p>
+                    <h2 class="surface-card__title">Review a comment</h2>
+                    <p class="surface-card__subtitle">Preview the comment in context, then choose the moderation action and resolution note.</p>
+                </div>
+                <span class="mini-stat">Comment ids appear on post details for moderators</span>
+            </div>
+
+            <div class="form-grid">
+                <div>
+                    <label class="form-label" for="mod-comment-id">Comment id</label>
+                    <input id="mod-comment-id" class="form-control" type="number" min="1" data-testid="mod-comment-id" @bind="_commentId" />
+                    <div class="form-text">Comment ids are visible on the post details screen for moderators and admins.</div>
+                </div>
+
+                <div class="page-toolbar">
+                    <button class="btn btn-outline-secondary"
+                            type="button"
+                            data-testid="mod-comment-preview-load"
+                            @onclick="LoadCommentPreviewAsync"
+                            disabled="@_commentBusy">
+                        @(_commentBusy ? "Working..." : "Load comment preview")
+                    </button>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(_commentPreviewError))
+                {
+                    <div class="status-panel status-panel--warning" data-testid="mod-comment-preview-error">
+                        <div class="status-panel__icon"><i class="bi bi-eye-slash" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Preview unavailable</div>
+                            <p class="status-panel__text mb-0">@_commentPreviewError</p>
+                        </div>
+                    </div>
+                }
+                else if (_commentPreview is not null)
+                {
+                    <div class="surface-card" data-testid="mod-comment-preview">
+                        <div class="section-heading">
+                            <div>
+                                <p class="section-label">Preview</p>
+                                <h3 class="section-heading__title h4 mb-0">Comment #@_commentId</h3>
+                            </div>
+                        </div>
+                        <div class="mini-stat-bar mb-3">
+                            <span class="mini-stat">Post <strong>@_commentPreview.PostId</strong></span>
+                            <span class="mini-stat">Author <strong>@_commentPreview.AuthorUserId</strong></span>
+                            <span class="mini-stat">Deleted <strong>@_commentPreview.IsDeleted</strong></span>
+                        </div>
+                        <p class="mb-0 text-muted">@_commentPreview.TextSnippet</p>
+                    </div>
+                }
+
+                <div>
+                    <label class="form-label" for="mod-comment-action">Action</label>
+                    <select id="mod-comment-action" class="form-select" data-testid="mod-comment-action" @bind="_commentAction">
+                        <option value="hide">Hide</option>
+                        <option value="restore">Restore</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label" for="mod-comment-reason">Reason</label>
+                    <textarea id="mod-comment-reason" class="form-control" rows="4" data-testid="mod-comment-reason" @bind="_commentReason"></textarea>
+                </div>
 
                 @if (!string.IsNullOrWhiteSpace(_commentError))
                 {
-                    <div class="alert alert-danger py-2" data-testid="mod-comment-error">@_commentError</div>
+                    <div class="status-panel status-panel--error" data-testid="mod-comment-error">
+                        <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Comment action blocked</div>
+                            <p class="status-panel__text mb-0">@_commentError</p>
+                        </div>
+                    </div>
                 }
                 else if (!string.IsNullOrWhiteSpace(_commentResult))
                 {
-                    <div class="alert alert-success py-2" data-testid="mod-comment-result">@_commentResult</div>
+                    <div class="status-panel status-panel--success" data-testid="mod-comment-result">
+                        <div class="status-panel__icon"><i class="bi bi-check-circle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Comment updated</div>
+                            <p class="status-panel__text mb-0">@_commentResult</p>
+                        </div>
+                    </div>
                 }
 
-                <button class="btn btn-primary" type="button" data-testid="mod-comment-submit" @onclick="SubmitCommentAsync" disabled="@_commentBusy">
-                    @(_commentBusy ? "Working..." : "Apply to comment")
-                </button>
+                <div class="page-toolbar">
+                    <button class="btn btn-primary" type="button" data-testid="mod-comment-submit" @onclick="SubmitCommentAsync" disabled="@_commentBusy">
+                        @(_commentBusy ? "Working..." : "Apply to comment")
+                    </button>
+                </div>
             </div>
-        </div>
+        </section>
     </div>
 </div>
 

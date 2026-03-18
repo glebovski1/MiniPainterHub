@@ -111,6 +111,40 @@ jobs:
           CI: true
         run: npm run test:smoke
 
+      - name: Resolve UI review scope
+        if: github.event_name == 'pull_request'
+        id: ui_review_scope
+        working-directory: e2e
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run ui-review:scope -- --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.sha }}" --output .ui-review-scope.json > /dev/null
+          node -e "const fs=require('fs'); const scope=JSON.parse(fs.readFileSync('.ui-review-scope.json','utf8')); fs.appendFileSync(process.env.GITHUB_OUTPUT, `scope=${scope.scope}\ncommand=${scope.scope === 'full' ? 'test:ui-review:full' : 'test:ui-review'}\n`);"
+
+      - name: Run Playwright UI review
+        if: steps.ui_review_scope.outputs.scope != 'none'
+        working-directory: e2e
+        env:
+          CI: true
+          UI_REVIEW_SCOPE_FILE: .ui-review-scope.json
+        run: npm run ${{ steps.ui_review_scope.outputs.command }}
+
+      - name: Assert UI review artifacts exist
+        if: steps.ui_review_scope.outputs.scope != 'none'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f output/playwright/ui-review/manifest.json
+          test -f output/playwright/ui-review/report.md
+
+      - name: Upload UI review artifacts
+        if: always() && steps.ui_review_scope.outputs.scope != 'none'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-ui-review-pr-artifacts
+          path: output/playwright/ui-review
+          retention-days: 7
+
       - name: Upload Playwright artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -119,6 +153,7 @@ jobs:
           path: |
             e2e/playwright-report
             e2e/test-results
+            output/playwright/ui-review
           retention-days: 7
 
   hard-tests:

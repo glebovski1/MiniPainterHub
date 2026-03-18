@@ -5,14 +5,17 @@
 @inject UserPanelState UserPanel
 
 <div class="app-layout">
-    <header id="appHeader" class="sticky-top bg-white">
-        <NavMenu />
+    <header id="appHeader" class="app-header sticky-top">
+        <div class="page-shell page-shell--wide">
+            <NavMenu />
+        </div>
     </header>
 
     <UserPanelOverlay />
 
-    <main class="container-fluid py-4">
-        <div class="dashboard-main d-flex align-items-start @(UserPanel.IsDesktopCollapsed ? "sidebar-collapsed" : string.Empty)">
+    <main class="app-main">
+        <div class="page-shell page-shell--wide">
+            <div class="dashboard-main d-flex align-items-start @(UserPanel.IsDesktopCollapsed ? "sidebar-collapsed" : string.Empty)">
             <AuthorizeView>
                 <Authorized>
                     <aside class="dashboard-sidebar-column d-none d-lg-block @(UserPanel.IsDesktopCollapsed ? "is-collapsed" : string.Empty)"
@@ -25,9 +28,12 @@
                 </Authorized>
             </AuthorizeView>
 
-            <section class="dashboard-content flex-grow-1">
-                @Body
-            </section>
+                <section class="dashboard-content flex-grow-1">
+                    <div class="dashboard-content-shell">
+                        @Body
+                    </div>
+                </section>
+            </div>
         </div>
     </main>
 </div>

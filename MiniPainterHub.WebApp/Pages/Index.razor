@@ -1,60 +1,29 @@
-﻿@page "/"
-@using MiniPainterHub.Common.DTOs
-@inject IPostService PostService
-@inject NavigationManager Nav
+@page "/"
 
 <PageTitle>Latest posts</PageTitle>
 
-<h1 class="mb-4">Latest Posts</h1>
-<CardList></CardList>
-@* 
-@if (isLoading)
-{
-    <div class="text-center">
-        <div class="spinner-border" role="status"></div>
-    </div>
-}
-else if (!posts.Any())
-{
-    <p class="text-muted">No posts yet.</p>
-}
-else
-{
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-        @foreach (var post in posts)
-        {
-            <div class="col">
-                <PostCard Post="post" />
-            </div>
-        }
-    </div>
-}
+<div class="page-shell content-stack">
+    <PageHero Eyebrow="Community feed"
+              Title="Latest Posts"
+              Description="Fresh workbench drops, finished miniatures, and technique notes from painters across the community."
+              FrameName="Home Feed Header">
+        <Actions>
+            <NavLink class="btn btn-primary" href="/posts/all">
+                <i class="bi bi-grid-1x2" aria-hidden="true"></i>
+                <span>Explore the archive</span>
+            </NavLink>
+            <NavLink class="btn btn-outline-secondary" href="/posts/top">
+                <i class="bi bi-trophy" aria-hidden="true"></i>
+                <span>View top posts</span>
+            </NavLink>
+        </Actions>
+    </PageHero>
 
-@code {
-    // The flat list your foreach iterates over
-    private List<PostSummaryDto> posts = new();
-
-    // Simple loading flag for the spinner
-    private bool isLoading = true;
-
-    // Page size (you can make this a variable or parameter)
-    private const int PageSize = 9;
-
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadPosts();
-    }
-
-    private async Task LoadPosts(int page = 1)
-    {
-        isLoading = true;
-
-        // Call your service to fetch a PagedResult<PostSummaryDto>
-        var result = await PostService.GetAllAsync(page, PageSize);
-
-        // Extract the items into your flat list
-        posts = result.Items.OrderByDescending(posts => posts.CreatedAt).ToList();
-
-        isLoading = false;
-    }
-} *@
+    <section class="surface-card">
+        <SectionHeader Eyebrow="Live feed"
+                       Title="Latest community posts"
+                       Description="Image-first updates with quick access to tags, comments, and likes."
+                       SectionName="Latest Posts" />
+        <CardList></CardList>
+    </section>
+</div>

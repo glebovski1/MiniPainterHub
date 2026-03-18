@@ -16,12 +16,18 @@
 
         @if (!string.IsNullOrWhiteSpace(_result))
         {
-            <div class="alert alert-success py-2 mt-2" data-testid="@($"{TestIdPrefix}-result")">@_result</div>
+            <div class="status-panel status-panel--success mt-2" data-testid="@($"{TestIdPrefix}-result")">
+                <div class="status-panel__icon"><i class="bi bi-check2-circle" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Report submitted</div>
+                    <p class="status-panel__text mb-0">@_result</p>
+                </div>
+            </div>
         }
 
         @if (_open)
         {
-            <div class="border rounded p-3 bg-light mt-2">
+            <div class="surface-card mt-2">
                 <div class="mb-3">
                     <label class="form-label" for="@($"{TestIdPrefix}-reason")">Reason</label>
                     <select id="@($"{TestIdPrefix}-reason")"
@@ -49,7 +55,13 @@
 
                 @if (!string.IsNullOrWhiteSpace(_error))
                 {
-                    <div class="alert alert-danger py-2" data-testid="@($"{TestIdPrefix}-error")">@_error</div>
+                    <div class="status-panel status-panel--error mb-3" data-testid="@($"{TestIdPrefix}-error")">
+                        <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Report not sent</div>
+                            <p class="status-panel__text mb-0">@_error</p>
+                        </div>
+                    </div>
                 }
 
                 <div class="d-flex gap-2">
@@ -168,6 +180,10 @@
             _reasonCode = ReportReasonCodes.Spam;
             _details = null;
             _open = false;
+        }
+        catch
+        {
+            _error = "We couldn't submit the report. Please try again.";
         }
         finally
         {

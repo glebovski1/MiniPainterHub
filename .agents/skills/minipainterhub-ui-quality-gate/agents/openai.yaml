@@ -1,0 +1,4 @@
+interface:
+  display_name: "MiniPainterHub UI Gate"
+  short_description: "Playwright-first UI review workflow for MiniPainterHub"
+  default_prompt: "Use $minipainterhub-ui-quality-gate to verify MiniPainterHub UI changes with Playwright screenshots, route/state coverage, and artifact review."

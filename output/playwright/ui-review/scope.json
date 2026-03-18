@@ -1,0 +1,33 @@
+{
+  "scope": "full",
+  "changedFiles": [],
+  "uiChangedFiles": [],
+  "groups": [
+    "shell",
+    "auth",
+    "community",
+    "search",
+    "posts",
+    "following",
+    "profile",
+    "messages",
+    "connections",
+    "admin"
+  ],
+  "matchedByGroup": {
+    "shell": "forced full review",
+    "auth": "forced full review",
+    "community": "forced full review",
+    "search": "forced full review",
+    "posts": "forced full review",
+    "following": "forced full review",
+    "profile": "forced full review",
+    "messages": "forced full review",
+    "connections": "forced full review",
+    "admin": "forced full review"
+  },
+  "reasons": [
+    "Forced full UI review run."
+  ],
+  "reviewCommand": "npm --prefix e2e run test:ui-review:full"
+}

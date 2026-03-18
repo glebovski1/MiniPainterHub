@@ -1,111 +1,175 @@
 @* Reusable content for the side panel and /me page *@
 @implements IDisposable
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.Extensions.DependencyInjection
 @inject IConversationService Conversations
+@inject IServiceProvider Services
 
-<div class="dashboard-sidebar-content p-3 p-lg-4">
+<div class="dashboard-sidebar-content">
     @if (ShowPanelTitle)
     {
-        <h2 class="h6 text-uppercase text-muted fw-semibold mb-3">My panel</h2>
+        <div class="dashboard-sidebar-kicker">Studio hub</div>
     }
 
     <AuthorizeView Context="auth">
         <Authorized>
-            <div class="d-flex align-items-center gap-2 rounded-3 border bg-white p-2 mb-4">
-                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary flex-shrink-0 dashboard-avatar">
-                    <i class="bi bi-person-fill" aria-hidden="true"></i>
-                </div>
-                <div class="lh-sm overflow-hidden">
-                    <div class="small text-muted">Signed in</div>
-                    <div class="fw-semibold text-truncate">
-                        @((auth.User.Identity?.Name) ?? "User")
+            <section class="dashboard-hub-card">
+                <div class="dashboard-hub-card__top">
+                    <UserAvatar ImageUrl="@_profile?.AvatarUrl"
+                                Name="@GetDisplayName(auth)"
+                                Size="60"
+                                ClassName="dashboard-hub-avatar" />
+                    <div class="dashboard-hub-card__identity">
+                        <div class="dashboard-hub-card__eyebrow">Signed in</div>
+                        <div class="dashboard-hub-card__name text-truncate">@GetDisplayName(auth)</div>
+                        <div class="dashboard-hub-card__handle">@("@")@GetUserName(auth)</div>
+                        <div class="dashboard-hub-card__meta">
+                            @if (_profile is null)
+                            {
+                                <span>Add a bio and avatar to make the profile feel complete.</span>
+                            }
+                            else
+                            {
+                                <span>Member since @_profile.DateJoined.ToLocalTime().ToString("MMM yyyy")</span>
+                            }
+                        </div>
                     </div>
                 </div>
-            </div>
+
+                <div class="dashboard-hub-stats">
+                    <div class="dashboard-hub-stat">
+                        <span class="dashboard-hub-stat__label">Followers</span>
+                        <strong class="dashboard-hub-stat__value">@(_profile?.FollowerCount ?? 0)</strong>
+                    </div>
+                    <div class="dashboard-hub-stat">
+                        <span class="dashboard-hub-stat__label">Following</span>
+                        <strong class="dashboard-hub-stat__value">@(_profile?.FollowingCount ?? 0)</strong>
+                    </div>
+                    <div class="dashboard-hub-stat">
+                        <span class="dashboard-hub-stat__label">Unread</span>
+                        <strong class="dashboard-hub-stat__value">@Conversations.UnreadConversationCount</strong>
+                    </div>
+                </div>
+
+                <div class="dashboard-hub-actions">
+                    <NavLink class="btn btn-primary dashboard-create-btn" href="/posts/new">
+                        <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                        <span>New post</span>
+                    </NavLink>
+                    <NavLink class="btn btn-outline-secondary" href="/posts/mine">
+                        <i class="bi bi-brush" aria-hidden="true"></i>
+                        <span>My posts</span>
+                    </NavLink>
+                </div>
+            </section>
         </Authorized>
     </AuthorizeView>
 
-    <div class="small text-uppercase text-muted fw-semibold mb-2">Quick actions</div>
-    <nav class="nav nav-pills flex-column dashboard-nav gap-1" aria-label="Personal panel navigation">
-        <NavLink class="nav-link dashboard-nav-link" href="/profile">
-            <i class="bi bi-person" aria-hidden="true"></i>
-            <span>My profile</span>
-        </NavLink>
+    <section class="dashboard-sidebar-section">
+        <div class="dashboard-sidebar-section__label">My space</div>
+        <nav class="nav nav-pills flex-column dashboard-nav gap-1" aria-label="Personal panel navigation">
+            <SidebarNavItem Href="/"
+                            IconClass="bi bi-house-door"
+                            Title="My feed"
+                            Description=""
+                            Match="NavLinkMatch.All" />
 
-        <NavLink class="nav-link dashboard-nav-link" href="/posts/mine">
-            <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
-            <span>My posts</span>
-        </NavLink>
+            <SidebarNavItem Href="/feed/following"
+                            IconClass="bi bi-people"
+                            Title="Following feed"
+                            Description="" />
 
-        <NavLink class="nav-link dashboard-nav-link" href="/feed/following">
-            <i class="bi bi-rss" aria-hidden="true"></i>
-            <span>Following feed</span>
-        </NavLink>
+            <SidebarNavItem Href="/messages"
+                            IconClass="bi bi-chat-dots"
+                            Title="Messages"
+                            Description=""
+                            BadgeText="@(Conversations.UnreadConversationCount > 0 ? Conversations.UnreadConversationCount.ToString() : null)"
+                            Split="true"
+                            Match="NavLinkMatch.Prefix" />
 
-        <NavLink class="nav-link dashboard-nav-link" href="/connections">
-            <i class="bi bi-people" aria-hidden="true"></i>
-            <span>Connections</span>
-        </NavLink>
+            <SidebarNavItem Href="/posts/mine"
+                            IconClass="bi bi-brush"
+                            Title="My posts"
+                            Description="" />
 
-        <NavLink class="nav-link dashboard-nav-link d-flex align-items-center justify-content-between" href="/messages">
-            <span class="d-inline-flex align-items-center gap-2">
-                <i class="bi bi-chat-dots" aria-hidden="true"></i>
-                <span>Messages</span>
-            </span>
-            @if (Conversations.UnreadConversationCount > 0)
-            {
-                <span class="badge text-bg-primary rounded-pill">@Conversations.UnreadConversationCount</span>
-            }
-        </NavLink>
+            <SidebarNavItem Href="/connections"
+                            IconClass="bi bi-diagram-3"
+                            Title="Connections"
+                            Description="" />
 
-        <AuthorizeView Roles="Moderator,Admin">
-            <Authorized>
-                <hr class="my-3" />
-                <div class="small text-uppercase text-muted fw-semibold mb-2">Admin</div>
-                <NavLink class="nav-link dashboard-nav-link" href="/admin/moderation" data-testid="admin-nav-moderation">
-                    <i class="bi bi-shield-lock" aria-hidden="true"></i>
-                    <span>Moderation</span>
-                </NavLink>
+            <SidebarNavItem Href="/profile"
+                            IconClass="bi bi-person"
+                            Title="My profile"
+                            Description=""
+                            Match="NavLinkMatch.All" />
+        </nav>
+    </section>
 
-                <NavLink class="nav-link dashboard-nav-link" href="/admin/audit" data-testid="admin-nav-audit">
-                    <i class="bi bi-journal-text" aria-hidden="true"></i>
-                    <span>Audit log</span>
-                </NavLink>
+    <AuthorizeView Roles="Moderator,Admin">
+        <Authorized>
+            <section class="dashboard-sidebar-section dashboard-sidebar-section--admin">
+                <div class="dashboard-sidebar-section__label">Admin</div>
+                <nav class="nav nav-pills flex-column dashboard-nav gap-1" aria-label="Admin panel navigation">
+                    <SidebarNavItem Href="/admin/moderation"
+                                    IconClass="bi bi-shield-lock"
+                                    Title="Moderation"
+                                    Description=""
+                                    TestId="admin-nav-moderation" />
 
-                <NavLink class="nav-link dashboard-nav-link" href="/admin/reports" data-testid="admin-nav-reports">
-                    <i class="bi bi-flag" aria-hidden="true"></i>
-                    <span>Reports</span>
-                </NavLink>
+                    <SidebarNavItem Href="/admin/audit"
+                                    IconClass="bi bi-journal-text"
+                                    Title="Audit log"
+                                    Description=""
+                                    TestId="admin-nav-audit" />
 
-                <AuthorizeView Roles="Admin">
-                    <Authorized Context="adminAuth">
-                        <NavLink class="nav-link dashboard-nav-link" href="/admin/suspensions" data-testid="admin-nav-suspensions">
-                            <i class="bi bi-person-x" aria-hidden="true"></i>
-                            <span>User suspensions</span>
-                        </NavLink>
-                    </Authorized>
-                </AuthorizeView>
-            </Authorized>
-        </AuthorizeView>
-    </nav>
+                    <SidebarNavItem Href="/admin/reports"
+                                    IconClass="bi bi-flag"
+                                    Title="Reports"
+                                    Description=""
+                                    TestId="admin-nav-reports" />
 
-    <hr class="my-3" />
-
-    <NavLink class="btn btn-primary w-100 d-inline-flex align-items-center justify-content-center gap-2 dashboard-create-btn" href="/posts/new">
-        <i class="bi bi-plus-circle" aria-hidden="true"></i>
-        <span>Create a post</span>
-    </NavLink>
+                    <AuthorizeView Roles="Admin">
+                        <Authorized Context="adminAuth">
+                            <SidebarNavItem Href="/admin/suspensions"
+                                            IconClass="bi bi-person-x"
+                                            Title="User suspensions"
+                                            Description=""
+                                            TestId="admin-nav-suspensions" />
+                        </Authorized>
+                    </AuthorizeView>
+                </nav>
+            </section>
+        </Authorized>
+    </AuthorizeView>
 </div>
 
 @code {
     [Parameter]
     public bool ShowPanelTitle { get; set; } = true;
 
+    private UserProfileDto? _profile;
+
     protected override async Task OnInitializedAsync()
     {
         Conversations.OnChange += HandleConversationChange;
         await Conversations.EnsureRealtimeAsync();
         await Conversations.GetConversationsAsync(forceRefresh: true);
+
+        var profiles = Services.GetService<IProfileService>();
+        if (profiles is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _profile = await profiles.GetMineAsync();
+        }
+        catch
+        {
+            _profile = null;
+        }
     }
 
     private void HandleConversationChange()
@@ -116,5 +180,30 @@
     public void Dispose()
     {
         Conversations.OnChange -= HandleConversationChange;
+    }
+
+    private string GetDisplayName(AuthenticationState auth)
+    {
+        if (!string.IsNullOrWhiteSpace(_profile?.DisplayName))
+        {
+            return _profile.DisplayName!;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_profile?.UserName))
+        {
+            return _profile.UserName;
+        }
+
+        return auth.User.Identity?.Name ?? "Painter";
+    }
+
+    private string GetUserName(AuthenticationState auth)
+    {
+        if (!string.IsNullOrWhiteSpace(_profile?.UserName))
+        {
+            return _profile.UserName;
+        }
+
+        return auth.User.Identity?.Name ?? "painter";
     }
 }

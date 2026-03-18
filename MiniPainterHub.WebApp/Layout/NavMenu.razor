@@ -3,15 +3,21 @@
 @inject NavigationManager Nav
 @inject UserPanelState UserPanel
 
-<nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm">
-    <div class="container-fluid">
-        <NavLink class="navbar-brand fw-bold" href="/">MiniPainterHub</NavLink>
+<nav class="navbar navbar-expand-lg atelier-nav">
+    <div class="atelier-nav__bar">
+        <NavLink class="navbar-brand atelier-brand" href="/">
+            <span class="atelier-brand__mark" aria-hidden="true">MP</span>
+            <span class="atelier-brand__copy">
+                <span class="atelier-brand__title">MiniPainterHub</span>
+                <span class="atelier-brand__subtitle">A warm atelier for miniature painters</span>
+            </span>
+        </NavLink>
 
-        <div class="d-flex align-items-center gap-2 ms-auto">
+        <div class="d-flex align-items-center gap-2">
             <AuthorizeView>
                 <Authorized>
                     <button type="button"
-                            class="btn btn-sm btn-outline-secondary d-none d-lg-inline-flex align-items-center gap-2"
+                            class="btn btn-sm btn-outline-secondary atelier-nav__utility d-none d-lg-inline-flex align-items-center gap-2"
                             @onclick="ToggleDesktopPanel"
                             aria-label="Toggle desktop panel"
                             aria-pressed="@UserPanel.IsDesktopCollapsed">
@@ -20,13 +26,13 @@
                     </button>
 
                     <button type="button"
-                            class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-2 d-lg-none"
+                            class="btn btn-sm btn-outline-secondary atelier-nav__utility d-inline-flex align-items-center gap-2 d-lg-none"
                             data-bs-toggle="offcanvas"
                             data-bs-target="#userPanelOffcanvas"
                             aria-controls="userPanelOffcanvas"
                             aria-label="Toggle personal panel">
-                        <i class="bi bi-person" aria-hidden="true"></i>
-                        <span>My panel</span>
+                        <i class="bi bi-person-badge" aria-hidden="true"></i>
+                        <span>Studio hub</span>
                     </button>
                 </Authorized>
             </AuthorizeView>
@@ -37,70 +43,87 @@
                     aria-controls="navbarNav"
                     aria-expanded="false"
                     aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
+                <span class="navbar-toggler-icon atelier-nav__toggle-icon" aria-hidden="true"></span>
             </button>
         </div>
+    </div>
 
-        <div class="collapse navbar-collapse align-items-center" id="navbarNav">
-            <form class="d-flex gap-2 me-lg-3 my-3 my-lg-0" role="search" @onsubmit="SubmitSearchAsync">
-                <input class="form-control"
-                       type="search"
-                       placeholder="Search posts, users, tags"
-                       aria-label="Search"
-                       data-testid="nav-search-input"
-                       @bind="_searchQuery" />
-                <button class="btn btn-outline-primary"
-                        type="submit"
-                        data-testid="nav-search-submit">
-                    Search
-                </button>
-            </form>
+    <div class="collapse navbar-collapse atelier-nav__collapse align-items-center" id="navbarNav">
+        <form class="atelier-nav__search" role="search" @onsubmit="SubmitSearchAsync">
+            <label class="visually-hidden" for="nav-search-input">Search posts, users, tags</label>
+            <input class="form-control"
+                   id="nav-search-input"
+                   type="search"
+                   placeholder="Search posts, users, tags"
+                   aria-label="Search"
+                   data-testid="nav-search-input"
+                   @bind="_searchQuery" />
+            <button class="btn btn-primary"
+                    type="submit"
+                    data-testid="nav-search-submit">
+                Search
+            </button>
+        </form>
 
-            <ul class="navbar-nav mb-2 mb-lg-0">
-                <li>
-                    <NavLink class="nav-link" href="/home">Home</NavLink>
-                </li>
-                <li>
-                    <NavLink class="nav-link" href="/posts/all">Explore posts</NavLink>
-                </li>
-                <AuthorizeView>
-                    <Authorized>
-                        <li>
-                            <NavLink class="nav-link" href="/posts/new">New Post</NavLink>
-                        </li>
-                        <li>
-                            <NavLink class="nav-link" href="/feed/following">Following</NavLink>
-                        </li>
-                        <li>
-                            <NavLink class="nav-link" href="/messages">Messages</NavLink>
-                        </li>
-                    </Authorized>
-                </AuthorizeView>
-                <li>
-                    <NavLink class="nav-link" href="/about">About</NavLink>
-                </li>
-            </ul>
+        <ul class="navbar-nav atelier-nav__links mb-2 mb-xl-0">
+            <li class="nav-item">
+                <NavLink class="nav-link atelier-nav__link" href="/">
+                    <i class="bi bi-clock-history" aria-hidden="true"></i>
+                    <span>Latest</span>
+                </NavLink>
+            </li>
+            <li class="nav-item">
+                <NavLink class="nav-link atelier-nav__link" href="/posts/all">
+                    <i class="bi bi-grid-1x2" aria-hidden="true"></i>
+                    <span>Explore</span>
+                </NavLink>
+            </li>
+            <li class="nav-item">
+                <NavLink class="nav-link atelier-nav__link" href="/posts/top">
+                    <i class="bi bi-trophy" aria-hidden="true"></i>
+                    <span>Top posts</span>
+                </NavLink>
+            </li>
+            <li class="nav-item">
+                <NavLink class="nav-link atelier-nav__link" href="/home">
+                    <i class="bi bi-stars" aria-hidden="true"></i>
+                    <span>Highlights</span>
+                </NavLink>
+            </li>
+            <li class="nav-item">
+                <NavLink class="nav-link atelier-nav__link" href="/about">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    <span>About</span>
+                </NavLink>
+            </li>
+        </ul>
 
-            <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-                <AuthorizeView>
-                    <Authorized>
-                        <li>
-                            <button type="button" class="btn btn-link nav-link" data-testid="nav-logout" @onclick="Logout">
-                                Logout
-                            </button>
-                        </li>
-                    </Authorized>
-                    <NotAuthorized>
-                        <li>
-                            <NavLink class="nav-link" href="/login" data-testid="nav-login">Login</NavLink>
-                        </li>
-                        <li>
-                            <NavLink class="nav-link" href="/register">Register</NavLink>
-                        </li>
-                    </NotAuthorized>
-                </AuthorizeView>
-            </ul>
-        </div>
+        <ul class="navbar-nav atelier-nav__session ms-auto mb-2 mb-xl-0">
+            <AuthorizeView>
+                <Authorized>
+                    <li class="nav-item">
+                        <button type="button" class="btn btn-link nav-link atelier-nav__logout" data-testid="nav-logout" @onclick="Logout">
+                            <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                            <span>Logout</span>
+                        </button>
+                    </li>
+                </Authorized>
+                <NotAuthorized>
+                    <li class="nav-item">
+                        <NavLink class="nav-link atelier-nav__link" href="/login" data-testid="nav-login">
+                            <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
+                            <span>Login</span>
+                        </NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink class="nav-link atelier-nav__link atelier-nav__register" href="/register">
+                            <i class="bi bi-person-plus" aria-hidden="true"></i>
+                            <span>Register</span>
+                        </NavLink>
+                    </li>
+                </NotAuthorized>
+            </AuthorizeView>
+        </ul>
     </div>
 </nav>
 

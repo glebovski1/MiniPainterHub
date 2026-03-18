@@ -38,6 +38,53 @@ async function loginAsAdmin(page) {
   await expect(page.getByTestId("nav-logout")).toBeVisible();
 }
 
+async function loginViaApi(request, userName, password) {
+  const response = await request.post("/api/auth/login", {
+    data: {
+      userName,
+      password,
+    },
+  });
+
+  expect(response.ok(), `Login API failed with HTTP ${response.status()}`).toBeTruthy();
+  const payload = await response.json();
+  expect(payload?.token, "Login API did not return a token.").toBeTruthy();
+  return payload.token;
+}
+
+async function sendAuthedRequest(request, token, method, url, data) {
+  const response = await request.fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    data,
+  });
+
+  expect(response.ok(), `${method} ${url} failed with HTTP ${response.status()}`).toBeTruthy();
+  return response;
+}
+
+async function ensureProfileForToken(request, token, details) {
+  let response = await request.fetch("/api/profiles/me", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (response.status() === 404) {
+    await sendAuthedRequest(request, token, "POST", "/api/profiles/me", details);
+    response = await request.fetch("/api/profiles/me", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  expect(response.ok(), `GET /api/profiles/me failed with HTTP ${response.status()}`).toBeTruthy();
+  return response.json();
+}
+
 async function createPost(page, suffix, options = {}) {
   const title = `Smoke title ${suffix}`;
   const content = `Smoke content ${suffix}`;
@@ -242,6 +289,36 @@ test("post details prompt sign-in for comments when session is cleared", async (
   await page.goto(detailsUrl);
 
   await expect(page.getByText("Sign in to join the conversation.")).toBeVisible();
+});
+
+test("messages thread loads and sending works", async ({ page, request }) => {
+  const adminToken = await loginViaApi(request, "admin", "P@ssw0rd!");
+  const adminProfile = await ensureProfileForToken(request, adminToken, {
+    displayName: "Admin Painter",
+    bio: "Seeded for smoke coverage.",
+  });
+
+  await loginAsSeedUser(page);
+  const userToken = await page.evaluate(() => localStorage.getItem("authToken"));
+  expect(userToken, "Expected the page login flow to store an auth token.").toBeTruthy();
+
+  const conversationResponse = await sendAuthedRequest(
+    request,
+    userToken,
+    "POST",
+    `/api/conversations/direct/${encodeURIComponent(adminProfile.userId)}`,
+  );
+
+  const conversation = await conversationResponse.json();
+  expect(conversation?.id, "Expected the conversation API to return an id.").toBeTruthy();
+
+  await page.goto(`/messages/${conversation.id}`);
+  await expect(page.getByRole("heading", { name: "Admin Painter" })).toBeVisible();
+
+  const messageBody = "Smoke DM from Playwright";
+  await page.getByPlaceholder("Write a message...").fill(messageBody);
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByText(messageBody)).toBeVisible();
 });
 
 test("admin can hide and restore post using visibility filter and inline actions", async ({ page }) => {

@@ -3,24 +3,30 @@
 @inject NavigationManager Navigation
 @inject MiniPainterHub.WebApp.Services.Interfaces.IModerationService ModerationService
 
-<div class="card h-100 shadow-sm">
+<div class="card h-100 shadow-sm post-card">
     @if (!string.IsNullOrEmpty(Post.ImageUrl))
     {
-        <NavLink class="text-decoration-none" href="@($"/posts/{Post.Id}")">
+        <NavLink class="text-decoration-none post-card__media-link" href="@($"/posts/{Post.Id}")">
             <img src="@DisplayImageUrl"
-                 class="card-img-top bg-light"
+                 class="card-img-top post-card__image"
                  data-testid="post-card-image"
                  alt="Post image"
                  @onerror="HandleImageError"
-                 loading="lazy"
-                 style="height: 180px; object-fit: contain;" />
+                 loading="lazy" />
         </NavLink>
     }
+    else
+    {
+        <div class="post-card__placeholder">
+            <i class="bi bi-image" aria-hidden="true"></i>
+            <span>No preview image</span>
+        </div>
+    }
 
-    <div class="card-body">
+    <div class="card-body post-card__body">
         <div class="d-flex align-items-start justify-content-between gap-2">
             <NavLink class="text-decoration-none text-dark flex-grow-1" href="@($"/posts/{Post.Id}")">
-                <h5 class="card-title mb-0">@Post.Title</h5>
+                <h5 class="card-title post-card__title mb-0">@Post.Title</h5>
             </NavLink>
             <AuthorizeView Roles="Moderator,Admin">
                 <Authorized>
@@ -30,25 +36,27 @@
         </div>
 
         <NavLink class="text-decoration-none text-dark" href="@($"/posts/{Post.Id}")">
-            <p class="card-text text-truncate">@Post.Snippet</p>
+            <p class="card-text post-card__snippet text-truncate">@Post.Snippet</p>
         </NavLink>
 
         <TagBadgeList Tags="Post.Tags" TestId="post-card-tags" />
 
         @if (Post.IsDeleted)
         {
-            <span class="badge text-bg-warning mt-2" data-testid="post-hidden-badge">Hidden</span>
+            <span class="badge text-bg-warning mt-3" data-testid="post-hidden-badge">Hidden</span>
         }
     </div>
 
-    <div class="card-footer d-flex justify-content-between align-items-center mt-auto">
-        <small class="text-muted">
-            <NavLink class="text-decoration-none" href="@($"/users/{Post.AuthorId}")">@Post.AuthorName</NavLink>
-            <span class="mx-1">&bull;</span> @Post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
-        </small>
-        <div>
-            <span class="me-2"><i class="bi bi-chat-left-text"></i> @Post.CommentCount</span>
-            <span><i class="bi bi-heart"></i> @Post.LikeCount</span>
+    <div class="card-footer post-card__footer mt-auto">
+        <div class="post-card__footer-meta">
+            <small class="text-muted">
+                <NavLink class="text-decoration-none" href="@($"/users/{Post.AuthorId}")">@Post.AuthorName</NavLink>
+                <span class="mx-1">&bull;</span> @Post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
+            </small>
+            <div class="mini-stat-bar">
+                <span class="mini-stat"><i class="bi bi-chat-left-text" aria-hidden="true"></i> @Post.CommentCount</span>
+                <span class="mini-stat"><i class="bi bi-heart" aria-hidden="true"></i> @Post.LikeCount</span>
+            </div>
         </div>
     </div>
 
