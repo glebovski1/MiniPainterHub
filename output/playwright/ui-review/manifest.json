@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-18T18:46:42.921Z",
+  "generatedAt": "2026-03-18T20:22:59.136Z",
   "scope": "full",
   "reviewCommand": "npm --prefix e2e run test:ui-review:full",
   "groups": [
@@ -299,7 +299,7 @@
     {
       "name": "profile-public-desktop",
       "group": "profile",
-      "url": "http://127.0.0.1:5176/users/0c249dbc-198b-472c-b091-9b1296165b4b",
+      "url": "http://127.0.0.1:5176/users/c50f41e0-1c13-489d-8a75-c8a5159ff617",
       "viewport": "desktop",
       "authState": "seed-user",
       "stateTags": [
@@ -431,6 +431,6 @@
     }
   ],
   "failures": [],
-  "completedAt": "2026-03-18T18:48:17.609Z",
+  "completedAt": "2026-03-18T20:24:34.965Z",
   "captureCount": 31
 }
