@@ -119,14 +119,21 @@ jobs:
         run: |
           set -euo pipefail
           npm run ui-review:scope -- --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.sha }}" --output .ui-review-scope.json > /dev/null
-          node -e "const fs=require('fs'); const scope=JSON.parse(fs.readFileSync('.ui-review-scope.json','utf8')); fs.appendFileSync(process.env.GITHUB_OUTPUT, `scope=${scope.scope}\ncommand=${scope.scope === 'full' ? 'test:ui-review:full' : 'test:ui-review'}\n`);"
+          node <<'NODE'
+          const fs = require("fs");
+          const path = require("path");
+          const scopePath = path.resolve("..", ".ui-review-scope.json");
+          const scope = JSON.parse(fs.readFileSync(scopePath, "utf8"));
+          const command = scope.scope === "full" ? "test:ui-review:full" : "test:ui-review";
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `scope=${scope.scope}\ncommand=${command}\n`);
+          NODE
 
       - name: Run Playwright UI review
         if: steps.ui_review_scope.outputs.scope != 'none'
         working-directory: e2e
         env:
           CI: true
-          UI_REVIEW_SCOPE_FILE: .ui-review-scope.json
+          UI_REVIEW_SCOPE_FILE: ${{ github.workspace }}/.ui-review-scope.json
         run: npm run ${{ steps.ui_review_scope.outputs.command }}
 
       - name: Assert UI review artifacts exist
