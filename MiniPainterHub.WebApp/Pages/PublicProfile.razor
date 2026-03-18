@@ -12,85 +12,100 @@
 
 <PageTitle>User profile</PageTitle>
 
-@if (_loading)
-{
-    <div class="d-flex align-items-center gap-2 text-secondary">
-        <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-        <span>Loading profile...</span>
-    </div>
-}
-else if (!string.IsNullOrWhiteSpace(_error))
-{
-    <div class="alert alert-danger">@_error</div>
-}
-else if (_profile is null)
-{
-    <div class="alert alert-warning">Profile not found.</div>
-}
-else
-{
-    <div class="row g-4">
-        <div class="col-12">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex flex-column flex-lg-row gap-4 align-items-lg-center">
-                        <img src="@(_profile.AvatarUrl ?? "/images/avatar-placeholder.png")"
-                             alt="Profile avatar"
-                             class="rounded-circle border"
-                             style="width: 112px; height: 112px; object-fit: cover;" />
-
-                        <div class="flex-grow-1">
-                            <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
-                                <div>
-                                    <h1 class="h3 mb-1">@(_profile.DisplayName ?? _profile.UserName)</h1>
-                                    <div class="text-muted">@("@")@_profile.UserName</div>
-                                    <div class="small text-muted mt-2">Joined @_profile.DateJoined.ToLocalTime().ToString("MMM dd, yyyy")</div>
-                                </div>
-
-                                <div class="d-flex flex-wrap gap-2">
-                                    @if (_isOwner)
-                                    {
-                                        <button class="btn btn-outline-primary" @onclick='() => Nav.NavigateTo("/profile")'>Edit profile</button>
-                                        <button class="btn btn-outline-secondary" @onclick='() => Nav.NavigateTo("/connections")'>Connections</button>
-                                    }
-                                    else if (_isAuthenticated)
-                                    {
-                                        <button class="btn btn-primary" data-testid="profile-follow-toggle" @onclick="ToggleFollowAsync" disabled="@_busy">
-                                            @(_profile.IsFollowing ? "Unfollow" : "Follow")
-                                        </button>
-                                        <button class="btn btn-outline-secondary" data-testid="profile-message" @onclick="StartConversationAsync" disabled="@_busy">
-                                            Message
-                                        </button>
-                                    }
-                                </div>
-                            </div>
-
-                            @if (!string.IsNullOrWhiteSpace(_profile.Bio))
-                            {
-                                <p class="mt-3 mb-0">@_profile.Bio</p>
-                            }
-
-                            <div class="d-flex gap-4 mt-3 small">
-                                <div><strong>@_profile.FollowerCount</strong> followers</div>
-                                <div><strong>@_profile.FollowingCount</strong> following</div>
-                            </div>
-
-                            <ReportAction TargetType="@ReportTargetTypes.User"
-                                          TargetId="@UserId"
-                                          OwnerUserId="@UserId"
-                                          TestIdPrefix="profile-report" />
-                        </div>
-                    </div>
-                </div>
+<div class="page-shell content-stack">
+    @if (_loading)
+    {
+        <div class="status-panel status-panel--info">
+            <div class="status-panel__icon"><i class="bi bi-person-circle" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Loading profile</div>
+                <p class="status-panel__text mb-0">Preparing this painter’s profile and post history.</p>
             </div>
         </div>
-
-        <div class="col-12">
-            <h2 class="h4 mb-3">Posts by @(_profile.DisplayName ?? _profile.UserName)</h2>
-            <CardList LoadPostsHandler="LoadPosts"></CardList>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="status-panel status-panel--error">
+            <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Couldn’t load profile</div>
+                <p class="status-panel__text mb-0">@_error</p>
+            </div>
         </div>
-    </div>
-}
+    }
+    else if (_profile is null)
+    {
+        <section class="empty-state">
+            <div class="empty-state__icon"><i class="bi bi-person-x" aria-hidden="true"></i></div>
+            <h1 class="empty-state__title h4">Profile not found</h1>
+            <p class="empty-state__text mb-0">This painter profile may no longer be available.</p>
+        </section>
+    }
+    else
+    {
+        <section class="page-hero">
+            <div class="d-flex flex-column flex-lg-row gap-4 align-items-lg-center">
+                <UserAvatar ImageUrl="@_profile.AvatarUrl"
+                            Name="@(_profile.DisplayName ?? _profile.UserName)"
+                            Size="112" />
+
+                <div class="flex-grow-1">
+                    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+                        <div>
+                            <p class="page-hero__eyebrow">Painter profile</p>
+                            <h1 class="page-hero__title mb-0">@(_profile.DisplayName ?? _profile.UserName)</h1>
+                            <p class="page-hero__description mb-0">@("@")@_profile.UserName • Joined @_profile.DateJoined.ToLocalTime().ToString("MMM dd, yyyy")</p>
+                        </div>
+
+                        <div class="page-hero__actions">
+                            @if (_isOwner)
+                            {
+                                <button class="btn btn-outline-primary" @onclick='() => Nav.NavigateTo("/profile")'>Edit profile</button>
+                                <button class="btn btn-outline-secondary" @onclick='() => Nav.NavigateTo("/connections")'>Connections</button>
+                            }
+                            else if (_isAuthenticated)
+                            {
+                                <button class="btn btn-primary" data-testid="profile-follow-toggle" @onclick="ToggleFollowAsync" disabled="@_busy">
+                                    @(_profile.IsFollowing ? "Unfollow" : "Follow")
+                                </button>
+                                <button class="btn btn-outline-secondary" data-testid="profile-message" @onclick="StartConversationAsync" disabled="@_busy">
+                                    Message
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_profile.Bio))
+                    {
+                        <p class="page-hero__description mt-3">@_profile.Bio</p>
+                    }
+
+                    <div class="mini-stat-bar mt-3">
+                        <span class="mini-stat"><strong>@_profile.FollowerCount</strong> followers</span>
+                        <span class="mini-stat"><strong>@_profile.FollowingCount</strong> following</span>
+                        <span class="mini-stat"><strong>@_profile.DateJoined.ToLocalTime().Year</strong> joined</span>
+                    </div>
+
+                    <ReportAction TargetType="@ReportTargetTypes.User"
+                                  TargetId="@UserId"
+                                  OwnerUserId="@UserId"
+                                  TestIdPrefix="profile-report" />
+                </div>
+            </div>
+        </section>
+
+        <section class="surface-card">
+            <div class="section-heading">
+                <div>
+                    <p class="section-label">Gallery</p>
+                    <h2 class="section-heading__title">Posts by @(_profile.DisplayName ?? _profile.UserName)</h2>
+                    <p class="section-heading__subtitle">The same authored-post feed, presented with a stronger profile context.</p>
+                </div>
+            </div>
+            <CardList LoadPostsHandler="LoadPosts"></CardList>
+        </section>
+    }
+</div>
 
 @code {
     [Parameter] public string UserId { get; set; } = string.Empty;

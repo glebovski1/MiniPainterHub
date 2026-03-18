@@ -7,7 +7,7 @@
         @foreach (var tag in Tags)
         {
             <button type="button"
-                    class="btn btn-sm btn-outline-secondary rounded-pill"
+                    class="btn btn-sm btn-outline-secondary tag-badge"
                     data-testid="tag-link"
                     @onclick="@(() => NavigateToTag(tag))">
                 #@tag.Name

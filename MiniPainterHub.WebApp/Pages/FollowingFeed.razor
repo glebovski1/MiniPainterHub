@@ -6,10 +6,56 @@
 
 <PageTitle>Following feed</PageTitle>
 
-<h1 class="mb-4">Following feed</h1>
-<p class="text-muted">New posts from painters you follow.</p>
+<div class="page-shell content-stack">
+    <PageHero Eyebrow="Your circle"
+              Title="Following feed"
+              Description="Catch the newest posts from painters you already follow, with the broader account controls kept in the left personal hub."
+              FrameName="Following Feed Header">
+        <Metrics>
+            <div class="metric-grid">
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Scope</span>
+                    <strong class="metric-chip__value">Painters you follow</strong>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Updates</span>
+                    <strong class="metric-chip__value">Newest first</strong>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Controls</span>
+                    <strong class="metric-chip__value">Studio hub</strong>
+                </div>
+            </div>
+        </Metrics>
+    </PageHero>
 
-<CardList LoadPostsHandler="LoadPosts"></CardList>
+    <section class="surface-card">
+        <div class="section-heading">
+            <div>
+                <p class="section-label">Filtered feed</p>
+                <h2 class="section-heading__title">Posts from painters you follow</h2>
+                <p class="section-heading__subtitle">Stay current with the creators you care about most.</p>
+            </div>
+        </div>
+        <CardList LoadPostsHandler="LoadPosts"
+                  EmptyIconClass="bi bi-people"
+                  EmptyTitle="Your following feed is quiet"
+                  EmptyDescription="Follow a few painters and their newest work will land here first.">
+            <EmptyContent>
+                <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
+                    <NavLink class="btn btn-primary btn-sm" href="/connections">
+                        <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                        <span>Manage connections</span>
+                    </NavLink>
+                    <NavLink class="btn btn-outline-secondary btn-sm" href="/posts/all">
+                        <i class="bi bi-grid-1x2" aria-hidden="true"></i>
+                        <span>Browse posts</span>
+                    </NavLink>
+                </div>
+            </EmptyContent>
+        </CardList>
+    </section>
+</div>
 
 @code {
     private Task<ApiResult<PagedResult<PostSummaryDto>>> LoadPosts(int page, int pageSize)

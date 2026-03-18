@@ -1,0 +1,52 @@
+<section class="@CssClass" data-export-frame="@FrameName">
+    <div class="page-hero__header @(Actions is not null ? "page-hero__header--with-actions" : string.Empty)">
+        <div class="page-hero__intro">
+            @if (!string.IsNullOrWhiteSpace(Eyebrow))
+            {
+                <p class="page-hero__eyebrow">@Eyebrow</p>
+            }
+
+            <h1 class="page-hero__title" data-testid="@TitleTestId">@Title</h1>
+
+            @if (!string.IsNullOrWhiteSpace(Description))
+            {
+                <p class="page-hero__description">@Description</p>
+            }
+        </div>
+
+        @if (Actions is not null)
+        {
+            <div class="page-hero__actions">
+                @Actions
+            </div>
+        }
+    </div>
+
+    @if (Metrics is not null)
+    {
+        <div class="page-hero__support">
+            @Metrics
+        </div>
+    }
+
+    @if (ChildContent is not null)
+    {
+        @ChildContent
+    }
+</section>
+
+@code {
+    [Parameter] public string Eyebrow { get; set; } = string.Empty;
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public string? ClassName { get; set; }
+    [Parameter] public string? FrameName { get; set; }
+    [Parameter] public string? TitleTestId { get; set; }
+    [Parameter] public RenderFragment? Actions { get; set; }
+    [Parameter] public RenderFragment? Metrics { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string CssClass => string.IsNullOrWhiteSpace(ClassName)
+        ? "page-hero"
+        : $"page-hero {ClassName}";
+}

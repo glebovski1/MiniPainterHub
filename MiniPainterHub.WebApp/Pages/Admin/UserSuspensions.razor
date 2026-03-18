@@ -4,15 +4,46 @@
 
 <PageTitle>User Suspensions</PageTitle>
 
-<h3 class="mb-4">User Suspensions</h3>
+<div class="page-shell content-stack">
+    <section class="page-hero">
+        <div class="content-stack">
+            <div>
+                <p class="page-hero__eyebrow">Admin controls</p>
+                <h1 class="page-hero__title">User suspensions</h1>
+                <p class="page-hero__description">Search for an account, review the target user, then suspend or unsuspend without leaving the moderation workspace.</p>
+            </div>
 
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <h4 class="h6 text-uppercase text-muted fw-semibold mb-3">Find user</h4>
-        <div class="row g-2 align-items-end">
+            <div class="metric-grid">
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Lookup</span>
+                    <span class="metric-chip__value">Id, username, or email</span>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Access</span>
+                    <span class="metric-chip__value">Admin only</span>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Actions</span>
+                    <span class="metric-chip__value">Suspend or restore</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="surface-card">
+        <div class="surface-card__header">
+            <div>
+                <p class="section-label">User lookup</p>
+                <h2 class="surface-card__title">Find a target account</h2>
+                <p class="surface-card__subtitle">Search by user id, username, or email. Leave the field empty to browse suspended users.</p>
+            </div>
+        </div>
+
+        <div class="row g-3 align-items-end">
             <div class="col-12 col-md-8">
-                <label class="form-label" for="lookup-user-query">User id, username, or email (leave empty to list suspended users)</label>
+                <label class="form-label" for="lookup-user-query">User id, username, or email</label>
                 <input id="lookup-user-query" class="form-control" type="text" data-testid="lookup-user-query" @bind="_lookupQuery" />
+                <div class="form-text">Leave empty to list users with an active suspension.</div>
             </div>
             <div class="col-12 col-md-4">
                 <button class="btn btn-outline-secondary w-100" type="button" data-testid="lookup-user-submit" @onclick="SearchUsersAsync" disabled="@_lookupBusy">
@@ -23,79 +54,135 @@
 
         @if (!string.IsNullOrWhiteSpace(_lookupError))
         {
-            <div class="alert alert-warning mt-3 py-2" data-testid="lookup-user-error">@_lookupError</div>
+            <div class="status-panel status-panel--warning mt-4" data-testid="lookup-user-error">
+                <div class="status-panel__icon"><i class="bi bi-person-exclamation" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Lookup update</div>
+                    <p class="status-panel__text mb-0">@_lookupError</p>
+                </div>
+            </div>
         }
         else if (_lookupResults.Count > 0)
         {
-            <div class="list-group mt-3" data-testid="lookup-user-results">
+            <div class="entity-list mt-4" data-testid="lookup-user-results">
                 @foreach (var user in _lookupResults)
                 {
-                    <button type="button" class="list-group-item list-group-item-action" data-testid="lookup-user-item" @onclick="() => SelectUser(user.UserId)">
-                        <div class="fw-semibold">@user.UserName (@user.UserId)</div>
-                        <div class="small text-muted">@user.Email • Roles: @string.Join(", ", user.Roles)</div>
+                    <button type="button" class="entity-row" data-testid="lookup-user-item" @onclick="() => SelectUser(user.UserId)">
+                        <UserAvatar Name="@user.UserName" Size="56" />
+                        <div class="entity-row__content">
+                            <div class="entity-row__title">@user.UserName (@user.UserId)</div>
+                            <p class="entity-row__meta mb-0">@user.Email</p>
+                            <p class="entity-row__summary mb-0">Roles: @string.Join(", ", user.Roles)</p>
+                        </div>
                     </button>
                 }
             </div>
         }
-    </div>
-</div>
+    </section>
 
-<div class="row g-4">
-    <div class="col-12 col-lg-6">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <h4 class="h6 text-uppercase text-muted fw-semibold mb-3">Suspend user</h4>
+    <div class="admin-grid">
+        <section class="surface-card">
+            <div class="surface-card__header">
+                <div>
+                    <p class="section-label">Suspend</p>
+                    <h2 class="surface-card__title">Apply a suspension</h2>
+                    <p class="surface-card__subtitle">Set the account id, choose the end time, and record the reason for the action.</p>
+                </div>
+            </div>
 
-                <label class="form-label" for="suspend-user-id">User id</label>
-                <input id="suspend-user-id" class="form-control mb-3" type="text" data-testid="suspend-user-id" @bind="_suspendUserId" />
+            <div class="form-grid">
+                <div>
+                    <label class="form-label" for="suspend-user-id">User id</label>
+                    <input id="suspend-user-id" class="form-control" type="text" data-testid="suspend-user-id" @bind="_suspendUserId" />
+                </div>
 
-                <label class="form-label" for="suspend-until">Suspend until (UTC)</label>
-                <input id="suspend-until" class="form-control mb-3" type="datetime-local" data-testid="suspend-until" @bind="_suspendedUntilLocal" />
+                <div>
+                    <label class="form-label" for="suspend-until">Suspend until (UTC)</label>
+                    <input id="suspend-until" class="form-control" type="datetime-local" data-testid="suspend-until" @bind="_suspendedUntilLocal" />
+                </div>
 
-                <label class="form-label" for="suspend-reason">Reason</label>
-                <textarea id="suspend-reason" class="form-control mb-3" rows="3" data-testid="suspend-reason" @bind="_suspendReason"></textarea>
+                <div>
+                    <label class="form-label" for="suspend-reason">Reason</label>
+                    <textarea id="suspend-reason" class="form-control" rows="4" data-testid="suspend-reason" @bind="_suspendReason"></textarea>
+                </div>
 
                 @if (!string.IsNullOrWhiteSpace(_suspendError))
                 {
-                    <div class="alert alert-danger py-2" data-testid="suspend-error">@_suspendError</div>
+                    <div class="status-panel status-panel--error" data-testid="suspend-error">
+                        <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Suspension failed</div>
+                            <p class="status-panel__text mb-0">@_suspendError</p>
+                        </div>
+                    </div>
                 }
                 else if (!string.IsNullOrWhiteSpace(_suspendResult))
                 {
-                    <div class="alert alert-success py-2" data-testid="suspend-result">@_suspendResult</div>
+                    <div class="status-panel status-panel--success" data-testid="suspend-result">
+                        <div class="status-panel__icon"><i class="bi bi-check-circle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Suspension saved</div>
+                            <p class="status-panel__text mb-0">@_suspendResult</p>
+                        </div>
+                    </div>
                 }
 
-                <button class="btn btn-primary" type="button" data-testid="suspend-submit" @onclick="SubmitSuspendAsync" disabled="@_suspendBusy">
-                    @(_suspendBusy ? "Working..." : "Suspend user")
-                </button>
+                <div class="page-toolbar">
+                    <button class="btn btn-primary" type="button" data-testid="suspend-submit" @onclick="SubmitSuspendAsync" disabled="@_suspendBusy">
+                        @(_suspendBusy ? "Working..." : "Suspend user")
+                    </button>
+                </div>
             </div>
-        </div>
-    </div>
+        </section>
 
-    <div class="col-12 col-lg-6">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <h4 class="h6 text-uppercase text-muted fw-semibold mb-3">Unsuspend user</h4>
+        <section class="surface-card">
+            <div class="surface-card__header">
+                <div>
+                    <p class="section-label">Unsuspend</p>
+                    <h2 class="surface-card__title">Restore account access</h2>
+                    <p class="surface-card__subtitle">Use the same target id and add an optional note when removing the suspension.</p>
+                </div>
+            </div>
 
-                <label class="form-label" for="unsuspend-user-id">User id</label>
-                <input id="unsuspend-user-id" class="form-control mb-3" type="text" data-testid="unsuspend-user-id" @bind="_unsuspendUserId" />
+            <div class="form-grid">
+                <div>
+                    <label class="form-label" for="unsuspend-user-id">User id</label>
+                    <input id="unsuspend-user-id" class="form-control" type="text" data-testid="unsuspend-user-id" @bind="_unsuspendUserId" />
+                </div>
 
-                <label class="form-label" for="unsuspend-reason">Reason</label>
-                <textarea id="unsuspend-reason" class="form-control mb-3" rows="3" data-testid="unsuspend-reason" @bind="_unsuspendReason"></textarea>
+                <div>
+                    <label class="form-label" for="unsuspend-reason">Reason</label>
+                    <textarea id="unsuspend-reason" class="form-control" rows="4" data-testid="unsuspend-reason" @bind="_unsuspendReason"></textarea>
+                </div>
 
                 @if (!string.IsNullOrWhiteSpace(_unsuspendError))
                 {
-                    <div class="alert alert-danger py-2" data-testid="unsuspend-error">@_unsuspendError</div>
+                    <div class="status-panel status-panel--error" data-testid="unsuspend-error">
+                        <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Unsuspend failed</div>
+                            <p class="status-panel__text mb-0">@_unsuspendError</p>
+                        </div>
+                    </div>
                 }
                 else if (!string.IsNullOrWhiteSpace(_unsuspendResult))
                 {
-                    <div class="alert alert-success py-2" data-testid="unsuspend-result">@_unsuspendResult</div>
+                    <div class="status-panel status-panel--success" data-testid="unsuspend-result">
+                        <div class="status-panel__icon"><i class="bi bi-check-circle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Access restored</div>
+                            <p class="status-panel__text mb-0">@_unsuspendResult</p>
+                        </div>
+                    </div>
                 }
 
-                <button class="btn btn-primary" type="button" data-testid="unsuspend-submit" @onclick="SubmitUnsuspendAsync" disabled="@_unsuspendBusy">
-                    @(_unsuspendBusy ? "Working..." : "Unsuspend user")
-                </button>
+                <div class="page-toolbar">
+                    <button class="btn btn-primary" type="button" data-testid="unsuspend-submit" @onclick="SubmitUnsuspendAsync" disabled="@_unsuspendBusy">
+                        @(_unsuspendBusy ? "Working..." : "Unsuspend user")
+                    </button>
+                </div>
             </div>
-        </div>
+        </section>
     </div>
 </div>
 

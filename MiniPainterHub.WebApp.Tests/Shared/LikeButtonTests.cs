@@ -64,4 +64,20 @@ public class LikeButtonTests : TestContext
         cut.WaitForAssertion(() =>
             cut.Find("[data-testid='post-like-toggle-count']").TextContent.Should().Be("3"));
     }
+
+    [Fact]
+    public void LoadFailure_ShowsInlineErrorInsteadOfThrowing()
+    {
+        this.AddLikeStub(new StubLikeService
+        {
+            GetLikesHandler = _ => throw new System.InvalidOperationException("boom")
+        });
+
+        var cut = RenderComponent<LikeButton>(parameters => parameters
+            .Add(p => p.PostId, 101)
+            .Add(p => p.TestId, "post-like-toggle"));
+
+        cut.WaitForAssertion(() =>
+            cut.Find("[data-testid='post-like-toggle-error']").TextContent.Should().Contain("Likes are unavailable"));
+    }
 }

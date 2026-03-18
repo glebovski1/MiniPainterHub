@@ -1,71 +1,108 @@
-﻿@page "/register"
+@page "/register"
 @inject IAuthService AuthService
 @inject NavigationManager Nav
 
 <PageTitle>Register</PageTitle>
 
-<EditForm Model="@registration" OnValidSubmit="HandleRegister" data-testid="register-form">
-    <DataAnnotationsValidator />
-    <div class="container">
-        <div class="row justify-content-center align-items-center vh-100">
-            <div class="col-12 col-sm-8 col-md-6 col-lg-4">
-                <div class="card shadow-sm">
-                    <div class="card-body">
-                        <h1 class="visually-hidden">Register</h1>
-                        <h4 class="card-title text-center mb-4">Register</h4>
-                        <ValidationSummary class="text-danger small mb-3" />
+<div class="page-shell">
+    <div class="auth-shell auth-shell--split">
+        <section class="surface-card auth-shell__intro">
+            <p class="section-label mb-2">Join the studio</p>
+            <h1 class="auth-shell__headline">Build your place in the community.</h1>
+            <p class="auth-shell__copy">Create an account to publish miniatures, curate a profile, follow painters, and keep a personal space for your own feed and conversations.</p>
 
-                        <div class="mb-3">
-                            <label for="reg-username" class="form-label">Username</label>
-                            <InputText id="reg-username"
-                                       class="form-control"
-                                       autocomplete="username"
-                                       data-testid="register-username"
-                                       @bind-Value="registration.UserName" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="reg-email" class="form-label">Email</label>
-                            <InputText id="reg-email"
-                                       type="email"
-                                       class="form-control"
-                                       autocomplete="email"
-                                       data-testid="register-email"
-                                       @bind-Value="registration.Email" />
-                        </div>
-
-                        <div class="mb-4">
-                            <label for="reg-password" class="form-label">Password</label>
-                            <InputText id="reg-password"
-                                       type="password"
-                                       class="form-control"
-                                       autocomplete="new-password"
-                                       data-testid="register-password"
-                                       @bind-Value="registration.Password" />
-                        </div>
-
-                        <button type="submit" class="btn btn-success w-100 mb-3" data-testid="register-submit">
-                            Create Account
-                        </button>
-
-                        @if (!string.IsNullOrEmpty(error))
-                        {
-                            <div class="alert alert-danger text-center mb-0" data-testid="register-error">@error</div>
-                        }
-
-                        <div class="text-center mt-3">
-                            <small>
-                                Already have an account?
-                                <NavLink href="/login">Sign In</NavLink>
-                            </small>
-                        </div>
-
-                    </div>
+            <div class="auth-shell__metrics">
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Publish</span>
+                    <strong class="metric-chip__value">Share work</strong>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Profile</span>
+                    <strong class="metric-chip__value">Show style</strong>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Network</span>
+                    <strong class="metric-chip__value">Follow painters</strong>
                 </div>
             </div>
-        </div>
+
+            <div class="auth-shell__note">
+                <div class="auth-shell__note-icon"><i class="bi bi-stars" aria-hidden="true"></i></div>
+                <div>
+                    <div class="auth-shell__note-title">Designed for hobby sharing</div>
+                    <p class="mb-0">The app keeps the core posting and browsing flows simple, but gives your account a clearer home once you join.</p>
+                </div>
+            </div>
+        </section>
+
+        <EditForm Model="@registration" OnValidSubmit="HandleRegister" data-testid="register-form" class="w-100">
+            <DataAnnotationsValidator />
+
+            <section class="surface-card auth-card mx-auto">
+                <SectionHeader Eyebrow="Join the community"
+                               Title="Create your painter account"
+                               Description="Set up your place in MiniPainterHub and start sharing finished models, work-in-progress shots, and technique notes."
+                               TitleTag="h1"
+                               TitleClass="auth-card__title"
+                               ClassName="section-heading section-heading--auth"
+                               SectionName="Registration Card" />
+
+                <ValidationSummary class="text-danger small mt-3 mb-0" />
+
+                <div class="form-grid mt-4">
+                    <div>
+                        <label for="reg-username" class="form-label">Username</label>
+                        <InputText id="reg-username"
+                                   class="form-control"
+                                   autocomplete="username"
+                                   data-testid="register-username"
+                                   @bind-Value="registration.UserName" />
+                    </div>
+
+                    <div>
+                        <label for="reg-email" class="form-label">Email</label>
+                        <InputText id="reg-email"
+                                   type="email"
+                                   class="form-control"
+                                   autocomplete="email"
+                                   data-testid="register-email"
+                                   @bind-Value="registration.Email" />
+                    </div>
+
+                    <div>
+                        <label for="reg-password" class="form-label">Password</label>
+                        <InputText id="reg-password"
+                                   type="password"
+                                   class="form-control"
+                                   autocomplete="new-password"
+                                   data-testid="register-password"
+                                   @bind-Value="registration.Password" />
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 mt-4" data-testid="register-submit">
+                    Create Account
+                </button>
+
+                @if (!string.IsNullOrEmpty(error))
+                {
+                    <div class="status-panel status-panel--error mt-3" data-testid="register-error">
+                        <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Registration failed</div>
+                            <p class="status-panel__text mb-0">@error</p>
+                        </div>
+                    </div>
+                }
+
+                <div class="auth-card__footer">
+                    Already have an account?
+                    <NavLink href="/login">Sign In</NavLink>
+                </div>
+            </section>
+        </EditForm>
     </div>
-</EditForm>
+</div>
 
 @code {
     private RegisterDto registration = new();

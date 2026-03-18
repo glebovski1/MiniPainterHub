@@ -76,7 +76,8 @@ public class FollowingFeedTests : TestContext
         cut.WaitForAssertion(() =>
         {
             cut.Markup.Should().Contain("Following feed");
-            cut.Markup.Should().Contain("No posts yet.");
+            cut.Markup.Should().Contain("Your following feed is quiet");
+            cut.Markup.Should().Contain("Manage connections");
         });
     }
 }

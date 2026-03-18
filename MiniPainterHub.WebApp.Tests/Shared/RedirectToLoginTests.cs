@@ -11,16 +11,19 @@ namespace MiniPainterHub.WebApp.Tests.Shared;
 public class RedirectToLoginTests : TestContext
 {
     [Fact]
-    public void WhenUnauthenticated_RedirectsToLoginWithReturnUrl()
+    public void WhenUnauthenticated_ShowsLoginPromptWithReturnUrl()
     {
         var auth = this.AddTestAuthorization();
         auth.SetNotAuthorized();
         var nav = Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo("/posts/new");
 
-        RenderComponent<RedirectToLogin>();
+        var cut = RenderComponent<RedirectToLogin>();
 
-        nav.Uri.Should().Be("http://localhost/login?returnUrl=http%3A%2F%2Flocalhost%2Fposts%2Fnew");
+        nav.Uri.Should().Be("http://localhost/posts/new");
+        cut.Find("[data-testid='access-login-required']").TextContent.Should().Contain("sign in");
+        cut.Find("[data-testid='redirect-login-link']").GetAttribute("href")
+            .Should().Be("/login?returnUrl=http%3A%2F%2Flocalhost%2Fposts%2Fnew");
     }
 
     [Fact]

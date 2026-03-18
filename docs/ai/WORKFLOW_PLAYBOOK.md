@@ -32,6 +32,39 @@ High-Risk:
 - Targeted endpoint/manual checks for changed flows.
 - Explicitly document residual risks.
 
+## 2.5) UI Change Workflow
+
+If a task touches UI, layout, CSS, responsive behavior, navigation, or shared client presentation:
+- Follow `docs/ai/UI_QUALITY_PLAYBOOK.md`
+- Treat Playwright review as mandatory, not optional
+- Run the behavioral smoke suite and the UI review suite
+- Review screenshots before closing the task
+- Fix obvious in-scope defects immediately and rerun the same review scope
+- Repeat until the reviewed scope is clean or a real blocker is documented
+
+Use the repo commands:
+- `npm --prefix e2e run ui-review:scope`
+- `npm --prefix e2e run test:ui-review`
+- `npm --prefix e2e run test:ui-review:full`
+- `npm --prefix e2e run test:smoke`
+
+Default UI review scope:
+- Changed areas + shared shell + one narrow viewport
+
+Escalate to a full app sweep when:
+- global CSS or theme files change
+- `MiniPainterHub.WebApp/Layout/` changes
+- shared UI primitives or shell components change
+- auth shell or navigation composition changes
+
+UI remediation loop:
+1. Resolve the review scope.
+2. Run the required Playwright review.
+3. Inspect screenshots and manifest.
+4. Fix every obvious issue that is in scope for the current task.
+5. Rerun the same review.
+6. Only stop when the scope is clean or a genuine blocker is recorded in the delivery summary.
+
 ## 3) Retrieval Strategy
 
 When answering or implementing:
@@ -54,6 +87,11 @@ For each completed task, report:
 - Behavioral impact.
 - Validation commands and outcomes.
 - Follow-ups (if any).
+
+For UI tasks also report:
+- which routes/states/viewports were reviewed
+- where the screenshots/report were written
+- whether the review was localized or full-app
 
 ## 6) Phase Gates
 

@@ -76,4 +76,27 @@ public class ReportActionTests : TestContext
             cut.Find("[data-testid='report-result']").TextContent.Should().Contain("Report submitted");
         });
     }
+
+    [Fact]
+    public void Submit_WhenServiceThrows_ShowsRecoverableError()
+    {
+        this.SetAuthenticatedUser("viewer-user", "viewer");
+
+        this.AddReportStub(new StubReportService
+        {
+            ReportPostHandler = (_, _) => throw new System.InvalidOperationException("boom")
+        });
+
+        var cut = RenderComponent<ReportAction>(parameters => parameters
+            .Add(p => p.TargetType, ReportTargetTypes.Post)
+            .Add(p => p.TargetId, "42")
+            .Add(p => p.OwnerUserId, "author-user")
+            .Add(p => p.TestIdPrefix, "report"));
+
+        cut.Find("[data-testid='report-toggle']").Click();
+        cut.Find("[data-testid='report-submit']").Click();
+
+        cut.WaitForAssertion(() =>
+            cut.Find("[data-testid='report-error']").TextContent.ToLowerInvariant().Should().Contain("couldn't submit the report"));
+    }
 }

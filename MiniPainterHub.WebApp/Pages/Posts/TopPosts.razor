@@ -1,63 +1,82 @@
-﻿@inject NavigationManager NavigationManager
 @page "/posts/top"
 @using MiniPainterHub.WebApp.Shared
-@using MiniPainterHub.Common.DTOs
-@inject IPostService PostService
 
+<PageTitle>Top posts</PageTitle>
 
-<ImageCarousel 
-    Mode="@ImageCarousel.CarouselMode.Auto"
-               IntervalMs="5000"
-               ShowControls="false"
-               HeightPx="600"
-               OpenInNewTab="false"
-               ShowIndicators="true"
-               Slides="@posts"
+<div class="page-shell content-stack">
+    <PageHero Eyebrow="Ranked showcase"
+              Title="Top posts"
+              Description="Browse the highest-rated recent miniatures in a focused gallery route, without changing how the underlying posts, profiles, and detail pages work."
+              FrameName="Top Posts Header">
+        <Actions>
+            <NavLink class="btn btn-primary" href="/posts/all">
+                <i class="bi bi-grid-1x2" aria-hidden="true"></i>
+                <span>Explore all posts</span>
+            </NavLink>
+            <NavLink class="btn btn-outline-secondary" href="/search">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <span>Open search</span>
+            </NavLink>
+        </Actions>
+        <Metrics>
+            <div class="metric-grid">
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Window</span>
+                    <strong class="metric-chip__value">Last 60 days</strong>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Ranking</span>
+                    <strong class="metric-chip__value">Top 5 posts</strong>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Routes</span>
+                    <strong class="metric-chip__value">Post details intact</strong>
+                </div>
+            </div>
+        </Metrics>
+    </PageHero>
 
-></ImageCarousel>
-@code {
-    List<ImageCarousel.Slide> posts = new List<ImageCarousel.Slide>();
-    protected override async Task OnInitializedAsync()
-    {
-        var result = await PostService.GetTopPosts(5, TimeSpan.FromDays(60));
-        foreach(var post in result)
-        {
-            if (post.ImageUrl == null) continue;
-            try
-                {
-                    ImageCarousel.Slide slide = new ImageCarousel.Slide
-                    (
-                        post?.ImageUrl,
-                        NavigationManager.ToAbsoluteUri($"/posts/{post.Id}").ToString(),
-                        BuildCaption(post)
-                    );
+    <div class="split-grid">
+        <section class="surface-card">
+            <SectionHeader Eyebrow="Showcase"
+                           Title="Ranked community work"
+                           Description="Use the carousel for a quick visual pass, then open the original post details for comments, tags, and reactions."
+                           SectionName="Top Posts Showcase" />
 
-                    posts.Add(slide);
-                }
-                catch (Exception ex)
-                {
-                    // Log the exception (you can use a logging framework here)
-                    Console.WriteLine($"Error processing post ID {post.Id}: {ex.Message}");
-                }
-            
-        }
+            <TopPostsShowcase HeightPx="560" />
+        </section>
 
-        StateHasChanged();
-    }
+        <section class="surface-card">
+            <SectionHeader Eyebrow="Route coverage"
+                           Title="What stays intact"
+                           Description="This route is now a first-class page, but it still leads back into the same product flows you already have."
+                           SectionName="Top Posts Route Coverage" />
 
-    private static string BuildCaption(PostSummaryDto post)
-    {
-        var tags = post.Tags
-            .Where(tag => !string.IsNullOrWhiteSpace(tag.Name))
-            .Select(tag => $"#{tag.Name}")
-            .ToList();
+            <div class="entity-list">
+                <div class="entity-row">
+                    <div class="entity-row__content">
+                        <div class="entity-row__title">Post details</div>
+                        <div class="entity-row__meta">Every slide opens the original post route with comments, likes, tags, and reports preserved.</div>
+                    </div>
+                </div>
+                <div class="entity-row">
+                    <div class="entity-row__content">
+                        <div class="entity-row__title">Public profiles</div>
+                        <div class="entity-row__meta">Captions still reflect the original creator and tag context, so the route supports discovery instead of replacing it.</div>
+                    </div>
+                </div>
+                <div class="entity-row">
+                    <div class="entity-row__content">
+                        <div class="entity-row__title">Explore and search</div>
+                        <div class="entity-row__meta">Use this route as a ranked gallery pass, then jump back into archive browsing or search when you want more depth.</div>
+                    </div>
+                </div>
+            </div>
 
-        if (tags.Count == 0)
-        {
-            return post.Title;
-        }
-
-        return $"{post.Title} • {string.Join(" ", tags)}";
-    }
-
-}
+            <div class="page-toolbar mt-4">
+                <NavLink class="btn btn-outline-secondary" href="/">Back to latest</NavLink>
+                <NavLink class="btn btn-outline-secondary" href="/home">View highlights</NavLink>
+            </div>
+        </section>
+    </div>
+</div>

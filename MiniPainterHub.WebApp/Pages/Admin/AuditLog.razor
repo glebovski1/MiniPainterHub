@@ -4,11 +4,40 @@
 
 <PageTitle>Audit Log</PageTitle>
 
-<h3 class="mb-4">Audit Log</h3>
+<div class="page-shell content-stack">
+    <section class="page-hero">
+        <div class="content-stack">
+            <div>
+                <p class="page-hero__eyebrow">Activity history</p>
+                <h1 class="page-hero__title">Audit log</h1>
+                <p class="page-hero__description">Trace moderator and admin actions across posts, comments, and users with clearer filters and a more readable history table.</p>
+            </div>
 
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <h4 class="h6 text-uppercase text-muted fw-semibold mb-3">Filters</h4>
+            <div class="metric-grid">
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Current page</span>
+                    <span class="metric-chip__value">@_page</span>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Page size</span>
+                    <span class="metric-chip__value">@_pageSize</span>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Total records</span>
+                    <span class="metric-chip__value">@_totalCount</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="surface-card">
+        <div class="surface-card__header">
+            <div>
+                <p class="section-label">Filters</p>
+                <h2 class="surface-card__title">Focus the log</h2>
+                <p class="surface-card__subtitle">Filter by target type, actor id, action type, and page size without resetting the moderator workflow.</p>
+            </div>
+        </div>
 
         <div class="row g-3">
             <div class="col-12 col-md-3">
@@ -41,68 +70,95 @@
             </div>
         </div>
 
-        <button class="btn btn-primary mt-3" type="button" data-testid="audit-apply-filters" @onclick="ApplyFiltersAsync" disabled="@_loading">
-            @(_loading ? "Loading..." : "Apply filters")
-        </button>
-    </div>
-</div>
+        <div class="page-toolbar mt-4">
+            <button class="btn btn-primary" type="button" data-testid="audit-apply-filters" @onclick="ApplyFiltersAsync" disabled="@_loading">
+                @(_loading ? "Loading..." : "Apply filters")
+            </button>
+        </div>
+    </section>
 
-@if (!string.IsNullOrWhiteSpace(_error))
-{
-    <div class="alert alert-danger" data-testid="audit-error">@_error</div>
-}
-else if (_loading)
-{
-    <div class="d-flex align-items-center gap-2 text-secondary" data-testid="audit-loading">
-        <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-        <span>Loading...</span>
-    </div>
-}
-else
-{
-    <div class="table-responsive">
-        <table class="table table-striped align-middle" data-testid="audit-table">
-            <thead>
-                <tr>
-                    <th scope="col">Created (UTC)</th>
-                    <th scope="col">Actor</th>
-                    <th scope="col">Role</th>
-                    <th scope="col">Action</th>
-                    <th scope="col">Target</th>
-                    <th scope="col">Reason</th>
-                </tr>
-            </thead>
-            <tbody>
-                @if (_items.Count == 0)
-                {
-                    <tr>
-                        <td colspan="6" class="text-muted" data-testid="audit-empty">No audit records found.</td>
-                    </tr>
-                }
-                else
-                {
-                    @foreach (var item in _items)
-                    {
-                        <tr data-testid="audit-row">
-                            <td>@item.CreatedUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                            <td>@item.ActorUserId</td>
-                            <td>@item.ActorRole</td>
-                            <td>@item.ActionType</td>
-                            <td>@item.TargetType/@item.TargetId</td>
-                            <td>@(string.IsNullOrWhiteSpace(item.Reason) ? "-" : item.Reason)</td>
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="status-panel status-panel--error" data-testid="audit-error">
+            <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Audit history unavailable</div>
+                <p class="status-panel__text mb-0">@_error</p>
+            </div>
+        </div>
+    }
+    else if (_loading)
+    {
+        <div class="status-panel status-panel--info" data-testid="audit-loading">
+            <div class="status-panel__icon"><i class="bi bi-clock-history" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Loading audit records</div>
+                <p class="status-panel__text mb-0">Refreshing the activity history for the selected filters.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <section class="surface-card">
+            <div class="surface-card__header">
+                <div>
+                    <p class="section-label">History</p>
+                    <h2 class="surface-card__title">Moderation activity</h2>
+                    <p class="surface-card__subtitle">A readable log of who acted, what changed, and why.</p>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table align-middle" data-testid="audit-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Created (UTC)</th>
+                            <th scope="col">Actor</th>
+                            <th scope="col">Role</th>
+                            <th scope="col">Action</th>
+                            <th scope="col">Target</th>
+                            <th scope="col">Reason</th>
                         </tr>
-                    }
-                }
-            </tbody>
-        </table>
-    </div>
+                    </thead>
+                    <tbody>
+                        @if (_items.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="6" class="py-4">
+                                    <div class="empty-state" data-testid="audit-empty">
+                                        <div class="empty-state__icon"><i class="bi bi-journal-x" aria-hidden="true"></i></div>
+                                        <h3 class="empty-state__title h5">No audit records found</h3>
+                                        <p class="empty-state__text mb-0">Try broadening the filter set to see more history.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var item in _items)
+                            {
+                                <tr data-testid="audit-row">
+                                    <td>@item.CreatedUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                    <td>@item.ActorUserId</td>
+                                    <td>@item.ActorRole</td>
+                                    <td>@item.ActionType</td>
+                                    <td>@item.TargetType/@item.TargetId</td>
+                                    <td>@(string.IsNullOrWhiteSpace(item.Reason) ? "-" : item.Reason)</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
 
-    <div class="d-flex align-items-center gap-2">
-        <button class="btn btn-outline-secondary" type="button" data-testid="audit-prev" @onclick="LoadPreviousPageAsync" disabled="@(!_hasPreviousPage || _loading)">Previous</button>
-        <button class="btn btn-outline-secondary" type="button" data-testid="audit-next" @onclick="LoadNextPageAsync" disabled="@(!_hasNextPage || _loading)">Next</button>
-        <span class="text-muted" data-testid="audit-page-state">Page @_page • @_totalCount total</span>
-    </div>
-}
+            <div class="paginator-bar">
+                <button class="btn btn-outline-secondary" type="button" data-testid="audit-prev" @onclick="LoadPreviousPageAsync" disabled="@(!_hasPreviousPage || _loading)">Previous</button>
+                <button class="btn btn-outline-secondary" type="button" data-testid="audit-next" @onclick="LoadNextPageAsync" disabled="@(!_hasNextPage || _loading)">Next</button>
+                <span class="text-muted" data-testid="audit-page-state">Page @_page &middot; @_totalCount total</span>
+            </div>
+        </section>
+    }
+</div>
 
 @code {
     private readonly List<MiniPainterHub.Common.DTOs.ModerationAuditDto> _items = new();

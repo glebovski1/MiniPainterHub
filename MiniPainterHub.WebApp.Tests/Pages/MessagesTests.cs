@@ -184,4 +184,34 @@ public class MessagesTests : TestContext
             markedReadConversationIds.Should().Contain(5);
         });
     }
+
+    [Fact]
+    public void ThreadLoadFailure_ShowsRecoverableErrorState()
+    {
+        this.SetAuthenticatedUser("viewer-user", "viewer");
+        this.AddConversationStub(new StubConversationService
+        {
+            GetConversationsHandler = _ => Task.FromResult<IReadOnlyList<ConversationSummaryDto>>(new[]
+            {
+                new ConversationSummaryDto
+                {
+                    Id = 5,
+                    OtherUser = new UserListItemDto
+                    {
+                        UserId = "other-user",
+                        UserName = "other",
+                        DisplayName = "Other Painter"
+                    }
+                }
+            }),
+            GetMessagesHandler = (_, _, _) => throw new System.InvalidOperationException("boom")
+        });
+
+        var cut = RenderComponent<Messages>(parameters => parameters.Add(p => p.ConversationId, 5));
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='messages-thread-error']").TextContent.Should().Contain("Couldn't load this thread");
+        });
+    }
 }

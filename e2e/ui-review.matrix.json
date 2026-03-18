@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "alwaysIncludeGroups": [
+    "shell"
+  ],
+  "defaultGroups": [
+    "shell",
+    "community"
+  ],
+  "uiImpactPatterns": [
+    "MiniPainterHub.WebApp/**/*.razor",
+    "MiniPainterHub.WebApp/**/*.css",
+    "MiniPainterHub.WebApp/wwwroot/css/**",
+    "MiniPainterHub.WebApp/wwwroot/index.html",
+    "e2e/tests/ui-review.spec.js",
+    "e2e/tests/helpers/ui-review.js",
+    "e2e/ui-review.matrix.json"
+  ],
+  "fullSweepTriggers": [
+    "MiniPainterHub.WebApp/wwwroot/css/app.css",
+    "MiniPainterHub.WebApp/wwwroot/index.html",
+    "MiniPainterHub.WebApp/Layout/**",
+    "MiniPainterHub.WebApp/App.razor",
+    "MiniPainterHub.WebApp/Shared/PageHero.razor",
+    "MiniPainterHub.WebApp/Shared/EmptyState.razor",
+    "MiniPainterHub.WebApp/Shared/SectionHeader.razor",
+    "MiniPainterHub.WebApp/Shared/UserPanel*.razor",
+    "MiniPainterHub.WebApp/Shared/SidebarNavItem.razor",
+    "MiniPainterHub.WebApp/Shared/UserAvatar.razor",
+    "MiniPainterHub.WebApp/Shared/UserAvatar.razor.css",
+    "MiniPainterHub.WebApp/Shared/PostCard.razor",
+    "MiniPainterHub.WebApp/Shared/PostCard.razor.css",
+    "MiniPainterHub.WebApp/Shared/CardList.razor"
+  ],
+  "groups": {
+    "shell": {
+      "description": "Top navigation, sidebar, panel behavior, and shared shell states.",
+      "patterns": [
+        "MiniPainterHub.WebApp/App.razor",
+        "MiniPainterHub.WebApp/Layout/**",
+        "MiniPainterHub.WebApp/Shared/UserPanel*.razor",
+        "MiniPainterHub.WebApp/Shared/SidebarNavItem.razor"
+      ]
+    },
+    "auth": {
+      "description": "Authentication entry screens.",
+      "patterns": [
+        "MiniPainterHub.WebApp/Pages/Login.razor",
+        "MiniPainterHub.WebApp/Pages/Registration.razor"
+      ]
+    },
+    "community": {
+      "description": "Home feed, archive, top posts, and shared feed cards.",
+      "patterns": [
+        "MiniPainterHub.WebApp/Pages/Index.razor",
+        "MiniPainterHub.WebApp/Pages/Home.razor",
+        "MiniPainterHub.WebApp/Pages/Posts/AllPosts.razor",
+        "MiniPainterHub.WebApp/Pages/Posts/TopPosts.razor",
+        "MiniPainterHub.WebApp/Shared/PostCard.razor",
+        "MiniPainterHub.WebApp/Shared/PostCard.razor.css",
+        "MiniPainterHub.WebApp/Shared/CardList.razor",
+        "MiniPainterHub.WebApp/Shared/TagBadgeList.razor"
+      ]
+    },
+    "search": {
+      "description": "Search results and route tabs.",
+      "patterns": [
+        "MiniPainterHub.WebApp/Pages/Search.razor"
+      ]
+    },
+    "posts": {
+      "description": "Composer, post details, authored posts, comments, likes, and report controls.",
+      "patterns": [
+        "MiniPainterHub.WebApp/Pages/Posts/Create.razor",
+        "MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor",
+        "MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor.css",
+        "MiniPainterHub.WebApp/Pages/Posts/MyPosts.razor",
+        "MiniPainterHub.WebApp/Shared/CommentForm.razor",
+        "MiniPainterHub.WebApp/Shared/CommentItem.razor",
+        "MiniPainterHub.WebApp/Shared/CommentList.razor",
+        "MiniPainterHub.WebApp/Shared/LikeButton.razor",
+        "MiniPainterHub.WebApp/Shared/ReportAction.razor",
+        "MiniPainterHub.WebApp/Shared/TagBadgeList.razor"
+      ]
+    },
+    "following": {
+      "description": "Following feed states.",
+      "patterns": [
+        "MiniPainterHub.WebApp/Pages/FollowingFeed.razor"
+      ]
+    },
+    "profile": {
+      "description": "Own profile, public profile, and identity presentation.",
+      "patterns": [
+        "MiniPainterHub.WebApp/Pages/ProfilePanel.razor",
+        "MiniPainterHub.WebApp/Pages/ProfilePanel.razor.css",
+        "MiniPainterHub.WebApp/Pages/UserProfile.razor",
+        "MiniPainterHub.WebApp/Pages/PublicProfile.razor",
+        "MiniPainterHub.WebApp/Pages/Users/PublicProfile.razor",
+        "MiniPainterHub.WebApp/Shared/UserAvatar.razor",
+        "MiniPainterHub.WebApp/Shared/UserAvatar.razor.css"
+      ]
+    },
+    "messages": {
+      "description": "Conversation list, message thread, and composer.",
+      "patterns": [
+        "MiniPainterHub.WebApp/Pages/Messages.razor"
+      ]
+    },
+    "connections": {
+      "description": "Followers and following lists.",
+      "patterns": [
+        "MiniPainterHub.WebApp/Pages/Connections.razor"
+      ]
+    },
+    "admin": {
+      "description": "Moderation and reports surfaces.",
+      "patterns": [
+        "MiniPainterHub.WebApp/Pages/Admin/**",
+        "MiniPainterHub.WebApp/Shared/ReportAction.razor"
+      ]
+    }
+  }
+}

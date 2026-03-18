@@ -11,109 +11,125 @@
 @using System.Linq
 @using System.Collections.Generic
 
-<div class="container mt-4" style="max-width: 768px;">
+<div class="page-shell content-stack">
     @if (isLoading)
     {
-        <div class="d-flex justify-content-center align-items-center" style="min-height: 200px;">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
+        <div class="status-panel status-panel--info">
+            <div class="status-panel__icon"><i class="bi bi-image" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Loading post</div>
+                <p class="status-panel__text mb-0">Preparing the gallery and conversation for this post.</p>
             </div>
         </div>
     }
     else if (!string.IsNullOrEmpty(loadError))
     {
-        <div class="alert alert-danger d-flex align-items-center">
-            <i class="bi bi-exclamation-octagon me-2"></i>
+        <div class="status-panel status-panel--error">
+            <div class="status-panel__icon"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i></div>
             <div>
-                @loadError
-                @if (loadStatus.HasValue)
-                {
-                    <span class="text-muted small">(Status: @((int)loadStatus.Value))</span>
-                }
+                <div class="status-panel__title">Couldn’t load post</div>
+                <p class="status-panel__text mb-0">
+                    @loadError
+                    @if (loadStatus.HasValue)
+                    {
+                        <span class="small">(Status: @((int)loadStatus.Value))</span>
+                    }
+                </p>
             </div>
             <button class="btn btn-link btn-sm ms-auto" @onclick="LoadPost">Retry</button>
         </div>
     }
     else if (post is null)
     {
-        <div class="alert alert-warning text-center">
-            <strong>Oops!</strong> Post not found.
-        </div>
+        <EmptyState IconClass="bi bi-binoculars"
+                    Title="Post not found"
+                    Description="This post may have been removed or never existed."
+                    TitleClass="empty-state__title h4" />
     }
     else
     {
-        <div class="card shadow-lg p-4">
+        <PageHero Eyebrow="Post details"
+                  Title="@post.Title"
+                  TitleTestId="post-title"
+                  Description="@($"Shared on {post.CreatedAt.ToLocalTime():MMM dd, yyyy}")"
+                  FrameName="Post Details Header">
+            <Actions>
+                <div class="mini-stat-bar">
+                    <LikeButton PostId="@PostId" TestId="post-like-toggle" />
+                    <button class="btn btn-outline-secondary btn-sm" @onclick='() => Nav.NavigateTo("/")'>
+                        Back
+                    </button>
+                    <AuthorizeView Roles="Moderator,Admin">
+                        <Authorized>
+                            <span class="badge text-bg-secondary" data-testid="post-id-badge">#@PostId</span>
+                        </Authorized>
+                    </AuthorizeView>
+                </div>
+            </Actions>
+            <ChildContent>
+                <div class="mini-stat-bar">
+                    <NavLink class="mini-stat text-decoration-none" href="@($"/users/{post.CreatedById}")">
+                        By @post.AuthorName
+                    </NavLink>
+                </div>
+            </ChildContent>
+        </PageHero>
 
-            @* Image/Gallery Section *@
-            @if (HasImages)
-            {
-                <div class="bg-light border rounded p-3 mb-4">
-                    <div class="text-center mb-2">
+        <div class="split-grid post-details-grid">
+            <section class="surface-card post-details-media">
+                @if (HasImages)
+                {
+                    <div class="post-details-stage">
                         <img src="@SelectedPreviewUrl"
                              class="img-fluid rounded shadow-sm"
                              data-testid="post-details-image"
                              alt="Post image"
                              loading="lazy"
-                             style="cursor: zoom-in;"
                              @onclick="ShowZoomModal" />
                     </div>
-                    <div class="d-flex flex-wrap gap-2 justify-content-center">
+
+                    <div class="post-details-thumbnails">
                         @for (int i = 0; i < PostImages!.Count; i++)
                         {
                             int imageIndex = i;
                             var img = PostImages[i];
                             <img src="@GetThumbnailUrl(img)"
-                                 class="img-thumbnail"
+                                 class="img-thumbnail post-details-thumbnail @(selectedIndex == imageIndex ? "is-active" : string.Empty)"
                                  data-testid="post-details-thumbnail"
-                                 style="width:80px;height:80px;object-fit:cover;cursor:pointer;"
                                  @onclick="@(() => SelectImage(imageIndex))" />
                         }
                     </div>
-                </div>
-            }
-            else if (!string.IsNullOrEmpty(post.ImageUrl))
-            {
-                <div class="bg-light border rounded p-3 mb-4">
-                    <div class="text-center">
+                }
+                else if (!string.IsNullOrEmpty(post.ImageUrl))
+                {
+                    <div class="post-details-stage">
                         <img src="@GetAbsoluteUrl(ReplaceVariantSuffix(post.ImageUrl, "_preview."))"
                              class="img-fluid rounded shadow-sm"
                              data-testid="post-details-image"
                              alt="Post image"
                              loading="lazy"
-                             style="cursor: zoom-in;"
                              @onclick="ShowZoomModal" />
                     </div>
-                </div>
-            }
+                }
+                else
+                {
+                    <EmptyState IconClass="bi bi-image"
+                                Title="No images on this post"
+                                TitleTag="h3"
+                                TitleClass="empty-state__title h5" />
+                }
+            </section>
 
-            @* Post Content *@
-            <div class="card-body p-0">
-                <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
-                    <h2 class="card-title mb-0" data-testid="post-title">@post.Title</h2>
-                    <AuthorizeView Roles="Moderator,Admin">
-                        <Authorized>
-                            <span class="badge text-bg-secondary flex-shrink-0" data-testid="post-id-badge">#@PostId</span>
-                        </Authorized>
-                    </AuthorizeView>
-                </div>
-
-                <p class="text-muted small mb-3">
-                    <i class="bi bi-person me-1"></i>
-                    <NavLink class="fw-semibold text-decoration-none" href="@($"/users/{post.CreatedById}")">@post.AuthorName</NavLink>
-                    <span class="mx-2">&bull;</span>
-                    <i class="bi bi-calendar3 me-1"></i>
-                    @post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
-                </p>
-
+            <section class="surface-card post-details-aside">
                 @if (post.Tags is { Count: > 0 })
                 {
                     <section class="mb-4" data-testid="post-details-tag-section">
-                        <div class="text-uppercase text-muted fw-semibold small mb-2">Tags</div>
+                        <p class="section-label">Tags</p>
                         <TagBadgeList Tags="post.Tags" TestId="post-details-tags" />
                     </section>
                 }
 
-                <div class="card-text mb-4">
+                <div class="post-details-copy mb-4">
                     @post.Content
                 </div>
 
@@ -121,15 +137,6 @@
                               TargetId="@PostId.ToString()"
                               OwnerUserId="@post.CreatedById"
                               TestIdPrefix="post-report" />
-
-                <div class="d-flex align-items-center gap-3 mb-4">
-                    <LikeButton PostId="@PostId" TestId="post-like-toggle" />
-
-                    <button class="btn btn-outline-secondary btn-sm ms-auto"
-                            @onclick='() => Nav.NavigateTo("/")'>
-                        Back
-                    </button>
-                </div>
 
                 <AuthorizeView Roles="Moderator,Admin">
                     <Authorized>
@@ -154,38 +161,60 @@
 
                 @if (!string.IsNullOrWhiteSpace(_postModerationError))
                 {
-                    <div class="alert alert-danger py-2" role="alert" data-testid="post-inline-moderation-error">@_postModerationError</div>
+                    <div class="status-panel status-panel--error mb-3" role="alert" data-testid="post-inline-moderation-error">
+                        <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Moderation action failed</div>
+                            <p class="status-panel__text mb-0">@_postModerationError</p>
+                        </div>
+                    </div>
                 }
                 else if (!string.IsNullOrWhiteSpace(_postModerationResult))
                 {
-                    <div class="alert alert-success py-2" role="alert" data-testid="post-inline-moderation-result">@_postModerationResult</div>
+                    <div class="status-panel status-panel--success mb-3" role="alert" data-testid="post-inline-moderation-result">
+                        <div class="status-panel__icon"><i class="bi bi-check2-circle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Moderation updated</div>
+                            <p class="status-panel__text mb-0">@_postModerationResult</p>
+                        </div>
+                    </div>
                 }
+            </section>
+        </div>
 
-                <h5 class="mb-3" data-testid="comments-heading">Comments</h5>
-                <AuthorizeView>
-                    <Authorized>
-                        <CommentForm PostId="@PostId" OnCommentAdded="ReloadComments" />
-                    </Authorized>
-                    <NotAuthorized>
-                        <div class="alert alert-info d-flex align-items-center" role="alert">
-                            <i class="bi bi-info-circle me-2"></i>
-                            <div>
+        <section class="surface-card">
+            <SectionHeader Eyebrow="Conversation"
+                           Title="Comments"
+                           Description="Feedback, encouragement, and technique discussion."
+                           TitleTag="h2"
+                           TitleClass="section-heading__title h3 mb-0"
+                           SectionName="Comments" />
+
+            <AuthorizeView>
+                <Authorized>
+                    <CommentForm PostId="@PostId" OnCommentAdded="ReloadComments" />
+                </Authorized>
+                <NotAuthorized>
+                    <div class="status-panel status-panel--info" role="alert">
+                        <div class="status-panel__icon"><i class="bi bi-info-circle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Join the conversation</div>
+                            <p class="status-panel__text mb-0">
                                 Sign in to join the conversation.
                                 <button class="btn btn-link p-0 align-baseline" @onclick="GoToLogin">Login</button>
-                            </div>
+                            </p>
                         </div>
-                    </NotAuthorized>
-                </AuthorizeView>
-                <CommentList @ref="_commentList" PostId="@PostId" />
-            </div>
-        </div>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeView>
+            <CommentList @ref="_commentList" PostId="@PostId" />
+        </section>
     }
 </div>
 
-@* Zoom Modal *@
 @if (showModal)
 {
-    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6);" tabindex="-1">
+    <div class="modal fade show d-block post-details-modal-backdrop" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content bg-transparent border-0">
                 <img src="@SelectedMaxUrl" class="img-fluid rounded zoomed-image" alt="Zoomed image" />
@@ -211,7 +240,6 @@
 
     private int selectedIndex = 0;
 
-    // Treat Images flexibly: supports List<PostImageDto>, arrays, etc., via dynamic
     private List<dynamic>? PostImages
         => TryGetImages(post);
 
@@ -235,25 +263,36 @@
         isLoading = true;
         loadError = null;
         loadStatus = null;
-
-        var request = new HttpRequestMessage(HttpMethod.Get, $"api/posts/{PostId}");
-        var response = await Api.SendForResultAsync<PostDto>(request, new ApiRequestOptions { SuppressErrorNotifications = true });
-
-        if (response.Success && response.Value is not null)
+        try
         {
-            post = response.Value;
-            loadStatus = null;
+            var request = new HttpRequestMessage(HttpMethod.Get, $"api/posts/{PostId}");
+            var response = await Api.SendForResultAsync<PostDto>(request, new ApiRequestOptions { SuppressErrorNotifications = true });
+
+            if (response.Success && response.Value is not null)
+            {
+                post = response.Value;
+                selectedIndex = 0;
+                loadStatus = null;
+            }
+            else
+            {
+                loadStatus = response.StatusCode;
+                loadError = response.StatusCode == HttpStatusCode.NotFound
+                    ? "This post could not be found."
+                    : "We couldn't load this post. Please check your connection and try again.";
+                post = null;
+            }
         }
-        else
+        catch
         {
-            loadStatus = response.StatusCode;
-            loadError = response.StatusCode == HttpStatusCode.NotFound
-                ? "This post could not be found."
-                : "We couldn't load this post. Please check your connection and try again.";
             post = null;
+            loadStatus = null;
+            loadError = "We couldn't load this post. Please try again in a moment.";
         }
-
-        isLoading = false;
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private async Task ReloadComments()
@@ -326,7 +365,6 @@
 
             if (imgs is null) return null;
 
-            // Normalize to List<dynamic>
             if (imgs is IEnumerable<object> seq)
                 return seq.Select(x => (dynamic)x).ToList();
 
@@ -388,7 +426,6 @@
     {
         if (obj is null) return null;
 
-        // Attempt reflection on the object
         try
         {
             var prop = obj.GetType().GetProperty(property);
@@ -401,7 +438,6 @@
         }
         catch { }
 
-        // If the object behaves like a dictionary
         if (obj is IDictionary<string, object> dict &&
             dict.TryGetValue(property, out var value) &&
             value is string val && !string.IsNullOrWhiteSpace(val))
@@ -434,6 +470,3 @@
             : $"{Nav.BaseUri.TrimEnd('/')}{url}";
     }
 }
-
-
-

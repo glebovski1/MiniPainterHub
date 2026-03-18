@@ -1,4 +1,4 @@
-﻿@page "/posts/new"
+@page "/posts/new"
 @attribute [Authorize]
 @using MiniPainterHub.Common.DTOs
 @inject IPostService PostService
@@ -6,83 +6,168 @@
 
 <PageTitle>Create new post</PageTitle>
 
-<h1 class="mb-4">Create new post</h1>
+<div class="page-shell content-stack">
+    <PageHero Eyebrow="Publish"
+              Title="Create new post"
+              Description="Share a finished miniature, a work-in-progress note, or a technique breakdown without changing the existing post flow."
+              FrameName="Composer Header" />
 
-<EditForm Model="@newPost" OnValidSubmit="HandleSubmit" data-testid="create-post-form">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
+    <div class="composer-grid">
+        <section class="surface-card">
+            <SectionHeader Eyebrow="Composer"
+                           Title="Post details"
+                           Description="Keep the content strong and the tags easy to discover."
+                           TitleTag="h2"
+                           TitleClass="section-heading__title h3 mb-0"
+                           SectionName="Post Details" />
 
-    <div class="mb-3">
-        <label for="post-title" class="form-label">Title</label>
-        <InputText id="post-title"
-                   class="form-control"
-                   data-testid="create-post-title"
-                   @bind-Value="newPost.Title"
-                   disabled="@_isSubmitting" />
-    </div>
+            <EditForm Model="@newPost" OnValidSubmit="HandleSubmit" data-testid="create-post-form" class="form-grid">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger small mb-0" />
 
-    <div class="mb-3">
-        <label for="post-content" class="form-label">Content</label>
-        <InputTextArea id="post-content"
-                       class="form-control"
-                       rows="6"
-                       data-testid="create-post-content"
-                       @bind-Value="newPost.Content"
-                       disabled="@_isSubmitting" />
-    </div>
+                <div>
+                    <label for="post-title" class="form-label">Title</label>
+                    <InputText id="post-title"
+                               class="form-control"
+                               data-testid="create-post-title"
+                               @bind-Value="newPost.Title"
+                               disabled="@_isSubmitting" />
+                </div>
 
-    <div class="mb-3">
-        <label for="post-tags" class="form-label">Tags</label>
-        <input id="post-tags"
-               class="form-control"
-               data-testid="create-post-tags"
-               @bind="tagInput"
-               @bind:event="oninput"
-               disabled="@_isSubmitting"
-               placeholder="glazing, nmm, osl" />
-        <div class="form-text">Comma-separated technique tags. Up to @MiniPainterHub.Common.DTOs.TagRules.MaxTagsPerPost tags.</div>
-        @if (ParsedTags.Count > 0)
-        {
-            <div class="d-flex flex-wrap gap-2 mt-2" data-testid="create-post-tags-preview">
-                @foreach (var tag in ParsedTags)
-                {
-                    <span class="badge rounded-pill text-bg-secondary" data-testid="create-post-tag-chip">#@tag</span>
-                }
-            </div>
-        }
-    </div>
+                <div>
+                    <label for="post-content" class="form-label">Content</label>
+                    <InputTextArea id="post-content"
+                                   class="form-control"
+                                   rows="8"
+                                   data-testid="create-post-content"
+                                   @bind-Value="newPost.Content"
+                                   disabled="@_isSubmitting" />
+                </div>
 
-    <div class="mb-3">
-        <label for="post-images" class="form-label">Images</label>
-        <InputFile id="post-images"
-                   class="form-control"
-                   data-testid="create-post-images"
-                   OnChange="OnFilesSelected"
-                   disabled="@_isSubmitting"
-                   multiple />
-        @if (previewUrls.Count > 0)
-        {
-            foreach (var url in previewUrls)
+                <div>
+                    <label for="post-tags" class="form-label">Tags</label>
+                    <input id="post-tags"
+                           class="form-control"
+                           data-testid="create-post-tags"
+                           @bind="tagInput"
+                           @bind:event="oninput"
+                           disabled="@_isSubmitting"
+                           placeholder="glazing, nmm, osl" />
+                    <div class="form-text">Comma-separated technique tags. Up to @MiniPainterHub.Common.DTOs.TagRules.MaxTagsPerPost tags.</div>
+                </div>
+
+                <div>
+                    <label for="post-images" class="form-label">Images</label>
+                    <InputFile id="post-images"
+                               class="form-control"
+                               data-testid="create-post-images"
+                               OnChange="OnFilesSelected"
+                               disabled="@_isSubmitting"
+                               multiple />
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-primary" data-testid="create-post-submit" disabled="@_isSubmitting">
+                        @(_isSubmitting ? "Creating..." : "Create")
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-testid="create-post-cancel" @onclick="Cancel" disabled="@_isSubmitting">Cancel</button>
+                </div>
+            </EditForm>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
             {
-                <img src="@url"
-                     alt="Selected image preview"
-                     data-testid="create-post-image-preview"
-                     class="img-fluid rounded mt-2 me-2"
-                     style="max-height:200px;" />
+                <div class="status-panel status-panel--error mt-3" data-testid="create-post-error">
+                    <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                    <div>
+                        <div class="status-panel__title">Post creation failed</div>
+                        <p class="status-panel__text mb-0">@errorMessage</p>
+                    </div>
+                </div>
             }
-        }
+        </section>
+
+        <section class="surface-card">
+            <SectionHeader Eyebrow="Preview"
+                           Title="How it will read"
+                           Description="A quick check for clarity before you publish."
+                           TitleTag="h2"
+                           TitleClass="section-heading__title h3 mb-0"
+                           SectionName="Composer Preview" />
+
+            <div class="form-grid">
+                <div class="preview-post-card" data-testid="create-post-live-preview">
+                    <div class="preview-post-card__media">
+                        @if (previewUrls.Count > 0)
+                        {
+                            <img src="@previewUrls[0]" alt="Post preview image" />
+                        }
+                        else
+                        {
+                            <div class="preview-post-card__placeholder">
+                                <i class="bi bi-image" aria-hidden="true"></i>
+                                <span>Add an image to see the card framing.</span>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="preview-post-card__body">
+                        <div class="preview-post-card__eyebrow">Post card preview</div>
+                        <h3 class="preview-post-card__title">@PreviewTitle</h3>
+                        <p class="preview-post-card__snippet">@PreviewSnippet</p>
+
+                        @if (ParsedTags.Count > 0)
+                        {
+                            <div class="d-flex flex-wrap gap-2">
+                                @foreach (var tag in ParsedTags)
+                                {
+                                    <span class="badge tag-badge">#@tag</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div>
+                    <div class="inline-note fw-semibold mb-2">Tag preview</div>
+                    @if (ParsedTags.Count > 0)
+                    {
+                        <div class="d-flex flex-wrap gap-2 mt-2" data-testid="create-post-tags-preview">
+                            @foreach (var tag in ParsedTags)
+                            {
+                                <span class="badge text-bg-secondary" data-testid="create-post-tag-chip">#@tag</span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="inline-note mb-0">Tags help people find your technique faster.</p>
+                    }
+                </div>
+
+                <div>
+                    <div class="inline-note fw-semibold mb-2">Image preview</div>
+                    @if (previewUrls.Count > 0)
+                    {
+                        <div class="preview-grid">
+                            @foreach (var url in previewUrls)
+                            {
+                                <div class="preview-frame">
+                                    <img src="@url"
+                                         alt="Selected image preview"
+                                         data-testid="create-post-image-preview" />
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="inline-note mb-0">Upload one or more images to create an image-first post card.</p>
+                    }
+                </div>
+            </div>
+        </section>
     </div>
-
-    <button type="submit" class="btn btn-primary" data-testid="create-post-submit" disabled="@_isSubmitting">
-        @(_isSubmitting ? "Creating..." : "Create")
-    </button>
-    <button type="button" class="btn btn-secondary ms-2" data-testid="create-post-cancel" @onclick="Cancel" disabled="@_isSubmitting">Cancel</button>
-</EditForm>
-
-@if (!string.IsNullOrEmpty(errorMessage))
-{
-    <div class="alert alert-danger mt-3" data-testid="create-post-error">@errorMessage</div>
-}
+</div>
 
 @code {
     private CreatePostDto newPost = new();
@@ -97,6 +182,20 @@
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .Take(MiniPainterHub.Common.DTOs.TagRules.MaxTagsPerPost)
         .ToList();
+    private string PreviewTitle => string.IsNullOrWhiteSpace(newPost.Title) ? "Your post title will appear here" : newPost.Title.Trim();
+    private string PreviewSnippet
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(newPost.Content))
+            {
+                return "Use the content field to preview how the first lines of your update will read in the feed.";
+            }
+
+            var snippet = newPost.Content.Trim();
+            return snippet.Length > 160 ? $"{snippet[..157]}..." : snippet;
+        }
+    }
 
     private void OnFilesSelected(InputFileChangeEventArgs e)
     {

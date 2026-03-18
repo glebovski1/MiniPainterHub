@@ -1,0 +1,45 @@
+@using Microsoft.AspNetCore.Components.Routing
+
+<NavLink class="@CssClass" href="@Href" Match="@Match" data-testid="@TestId">
+    @if (Split)
+    {
+        <span class="d-inline-flex align-items-center gap-3">
+            <span class="dashboard-nav-link__icon"><i class="@IconClass" aria-hidden="true"></i></span>
+            <span class="dashboard-nav-link__copy">
+                <span class="dashboard-nav-link__title">@Title</span>
+                <small>@Description</small>
+            </span>
+        </span>
+
+        @if (!string.IsNullOrWhiteSpace(BadgeText))
+        {
+            <span class="badge text-bg-primary">@BadgeText</span>
+        }
+    }
+    else
+    {
+        <span class="dashboard-nav-link__icon"><i class="@IconClass" aria-hidden="true"></i></span>
+        <span class="dashboard-nav-link__copy">
+            <span class="dashboard-nav-link__title">@Title</span>
+            @if (!string.IsNullOrWhiteSpace(Description))
+            {
+                <small>@Description</small>
+            }
+        </span>
+    }
+</NavLink>
+
+@code {
+    [Parameter] public string Href { get; set; } = "/";
+    [Parameter] public string IconClass { get; set; } = "bi bi-circle";
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Description { get; set; } = string.Empty;
+    [Parameter] public string? BadgeText { get; set; }
+    [Parameter] public bool Split { get; set; }
+    [Parameter] public string? TestId { get; set; }
+    [Parameter] public NavLinkMatch Match { get; set; } = NavLinkMatch.Prefix;
+
+    private string CssClass => Split
+        ? "nav-link dashboard-nav-link dashboard-nav-link--split"
+        : "nav-link dashboard-nav-link";
+}

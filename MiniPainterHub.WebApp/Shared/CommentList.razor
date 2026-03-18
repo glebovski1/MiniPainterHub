@@ -7,7 +7,7 @@
 <div data-testid="comment-list-container">
     <AuthorizeView Roles="Moderator,Admin">
         <Authorized>
-            <div class="d-flex align-items-center gap-2 mb-3" data-testid="comment-visibility-filter">
+            <div class="mini-stat-bar mb-3" data-testid="comment-visibility-filter">
                 <label class="form-label mb-0" for="comment-visibility-select">Visibility</label>
                 <select id="comment-visibility-select"
                         class="form-select w-auto"
@@ -25,25 +25,38 @@
 
     @if (!string.IsNullOrEmpty(_loadError))
     {
-        <div class="alert alert-warning d-flex align-items-center" role="alert">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <div class="status-panel status-panel--warning" role="alert">
+            <div class="status-panel__icon"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i></div>
             <div>
-                @_loadError
-                @if (_errorStatus.HasValue)
-                {
-                    <span class="text-muted small">(Status: @((int)_errorStatus.Value))</span>
-                }
+                <div class="status-panel__title">Couldn’t load comments</div>
+                <p class="status-panel__text mb-0">
+                    @_loadError
+                    @if (_errorStatus.HasValue)
+                    {
+                        <span class="small">(Status: @((int)_errorStatus.Value))</span>
+                    }
+                </p>
             </div>
             <button class="btn btn-link btn-sm ms-auto" @onclick="ReloadAsync">Retry</button>
         </div>
     }
     else if (_comments == null)
     {
-        <p class="text-muted"><em>Loading comments...</em></p>
+        <div class="status-panel status-panel--info">
+            <div class="status-panel__icon"><i class="bi bi-chat-left-text" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Loading comments</div>
+                <p class="status-panel__text mb-0">Pulling in the conversation around this post.</p>
+            </div>
+        </div>
     }
     else if (!_comments.Items.Any())
     {
-        <p class="text-muted"><em>No comments yet.</em></p>
+        <section class="empty-state">
+            <div class="empty-state__icon"><i class="bi bi-chat" aria-hidden="true"></i></div>
+            <h3 class="empty-state__title h5">No comments yet</h3>
+            <p class="empty-state__text mb-0">Be the first to add a helpful note.</p>
+        </section>
     }
     else
     {
@@ -53,7 +66,7 @@
         }
 
         <nav aria-label="Comment pagination">
-            <ul class="pagination">
+            <ul class="pagination mb-0">
                 <li class="page-item @(_page == 1 ? "disabled" : string.Empty)">
                     <button class="page-link" @onclick="() => ChangePage(_page - 1)">&lt;&lt;</button>
                 </li>

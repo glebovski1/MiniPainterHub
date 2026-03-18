@@ -1,0 +1,105 @@
+@using MiniPainterHub.Common.DTOs
+@inject IPostService PostService
+
+@if (_isLoading)
+{
+    <div class="status-panel status-panel--info" data-testid="@LoadingTestId">
+        <div class="status-panel__icon"><i class="bi bi-image" aria-hidden="true"></i></div>
+        <div>
+            <div class="status-panel__title">Loading top posts</div>
+            <p class="status-panel__text mb-0">Preparing the ranked gallery.</p>
+        </div>
+    </div>
+}
+else if (!string.IsNullOrWhiteSpace(_loadError))
+{
+    <div class="status-panel status-panel--error" data-testid="@ErrorTestId">
+        <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+        <div>
+            <div class="status-panel__title">Top posts are unavailable</div>
+            <p class="status-panel__text mb-0">@_loadError</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="@ContainerClass" data-testid="@CarouselTestId">
+        <ImageCarousel Mode="@ImageCarousel.CarouselMode.Auto"
+                       IntervalMs="5000"
+                       ShowControls="false"
+                       ShowIndicators="true"
+                       HeightPx="@HeightPx"
+                       OpenInNewTab="false"
+                       Slides="@_slides">
+            <EmptyTemplate>
+                <EmptyState IconClass="bi bi-trophy"
+                            Title="@EmptyTitle"
+                            Description="@EmptyDescription"
+                            TitleClass="empty-state__title h4" />
+            </EmptyTemplate>
+        </ImageCarousel>
+    </div>
+}
+
+@code {
+    [Parameter] public int HeightPx { get; set; } = 560;
+    [Parameter] public int MaxPosts { get; set; } = 5;
+    [Parameter] public int LookbackDays { get; set; } = 60;
+    [Parameter] public string ContainerClass { get; set; } = "carousel-stage";
+    [Parameter] public string EmptyTitle { get; set; } = "No ranked posts yet";
+    [Parameter] public string EmptyDescription { get; set; } = "When enough recent work is available, the ranked showcase will appear here.";
+    [Parameter] public string LoadingTestId { get; set; } = "top-posts-loading";
+    [Parameter] public string ErrorTestId { get; set; } = "top-posts-error";
+    [Parameter] public string CarouselTestId { get; set; } = "top-posts-carousel";
+
+    private readonly List<ImageCarousel.Slide> _slides = new();
+    private bool _isLoading = true;
+    private string? _loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+        _slides.Clear();
+
+        try
+        {
+            var posts = await PostService.GetTopPosts(MaxPosts, TimeSpan.FromDays(LookbackDays));
+            foreach (var post in posts)
+            {
+                if (string.IsNullOrWhiteSpace(post.ImageUrl))
+                {
+                    continue;
+                }
+
+                _slides.Add(new ImageCarousel.Slide(
+                    post.ImageUrl,
+                    $"/posts/{post.Id}",
+                    BuildCaption(post)));
+            }
+        }
+        catch (Exception)
+        {
+            _loadError = "We couldn't load the ranked showcase right now. Please try again.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string BuildCaption(PostSummaryDto post)
+    {
+        var tags = post.Tags
+            .Where(tag => !string.IsNullOrWhiteSpace(tag.Name))
+            .Select(tag => $"#{tag.Name}")
+            .ToList();
+
+        if (tags.Count == 0)
+        {
+            return post.Title;
+        }
+
+        return $"{post.Title} - {string.Join(" ", tags)}";
+    }
+}

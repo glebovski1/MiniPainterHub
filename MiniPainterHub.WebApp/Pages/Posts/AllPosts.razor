@@ -1,7 +1,34 @@
-﻿@page "/posts/all"
+@page "/posts/all"
 
 <PageTitle>Explore posts</PageTitle>
 
-<h1 class="mb-4">Explore posts</h1>
+<div class="page-shell content-stack">
+    <section class="page-hero">
+        <div>
+            <p class="page-hero__eyebrow">Explore</p>
+            <h1 class="page-hero__title">Explore posts</h1>
+            <p class="page-hero__description">Browse the wider gallery, scan technique tags quickly, and dive into the work that inspires your next paint session.</p>
+        </div>
+        <div class="page-hero__actions">
+            <NavLink class="btn btn-primary" href="/search">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <span>Open search</span>
+            </NavLink>
+            <NavLink class="btn btn-outline-secondary" href="/">
+                <i class="bi bi-clock-history" aria-hidden="true"></i>
+                <span>Back to latest</span>
+            </NavLink>
+        </div>
+    </section>
 
-<CardList Query="(source)=> source.OrderByDescending(key => key.CreatedAt)"></CardList>
+    <section class="surface-card">
+        <div class="section-heading">
+            <div>
+                <p class="section-label">Gallery</p>
+                <h2 class="section-heading__title">Explore posts</h2>
+                <p class="section-heading__subtitle">Newest work first, with moderation visibility tools preserved for staff.</p>
+            </div>
+        </div>
+        <CardList Query="(source)=> source.OrderByDescending(key => key.CreatedAt)"></CardList>
+    </section>
+</div>

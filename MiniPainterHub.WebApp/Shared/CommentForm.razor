@@ -5,25 +5,28 @@
 
 @if (!string.IsNullOrEmpty(_submitError))
 {
-    <div class="alert alert-warning d-flex align-items-center" role="alert" data-testid="comment-error">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <div class="status-panel status-panel--warning mb-3" role="alert" data-testid="comment-error">
+        <div class="status-panel__icon"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i></div>
         <div>
-            @_submitError
-            @if (_submitStatus.HasValue)
-            {
-                <span class="text-muted small">(Status: @((int)_submitStatus.Value))</span>
-            }
+            <div class="status-panel__title">Couldn’t post comment</div>
+            <p class="status-panel__text mb-0">
+                @_submitError
+                @if (_submitStatus.HasValue)
+                {
+                    <span class="small">(Status: @((int)_submitStatus.Value))</span>
+                }
+            </p>
         </div>
     </div>
 }
 
-<EditForm Model="_model" OnValidSubmit="HandleSubmit">
+<EditForm Model="_model" OnValidSubmit="HandleSubmit" class="form-grid">
     <DataAnnotationsValidator />
-    <ValidationSummary />
+    <ValidationSummary class="text-danger small mb-0" />
 
     <InputTextArea @bind-Value="_model.Text"
                    class="form-control"
-                   placeholder="Write your comment…"
+                   placeholder="Write your comment..."
                    data-testid="comment-input"
                    rows="3" />
 
@@ -31,7 +34,7 @@
             class="btn btn-primary mt-2"
             data-testid="comment-submit"
             disabled="@_isSubmitting">
-        @(_isSubmitting ? "Posting…" : "Post Comment")
+        @(_isSubmitting ? "Posting..." : "Post Comment")
     </button>
 </EditForm>
 

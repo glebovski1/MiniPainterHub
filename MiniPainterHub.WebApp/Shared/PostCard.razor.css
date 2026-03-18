@@ -1,0 +1,63 @@
+.post-card {
+    background: rgba(255, 252, 247, 0.98);
+}
+
+.post-card__media-link,
+.post-card__placeholder {
+    display: block;
+    padding: 0.85rem 0.85rem 0;
+}
+
+.post-card__image {
+    height: 232px;
+    object-fit: cover;
+    border-radius: 16px;
+    background: rgba(247, 242, 232, 0.8);
+}
+
+.post-card__placeholder {
+    height: 232px;
+    border-radius: 0;
+}
+
+.post-card__placeholder > div,
+.post-card__placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.post-card__placeholder {
+    gap: 0.6rem;
+    color: var(--ink-500);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.post-card__body {
+    display: grid;
+    gap: 0.7rem;
+}
+
+.post-card__title {
+    font-family: var(--font-ui);
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.28;
+}
+
+.post-card__snippet {
+    color: var(--ink-700);
+    line-height: 1.55;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 4.65rem;
+}
+
+.post-card__footer-meta {
+    display: grid;
+    gap: 0.65rem;
+}

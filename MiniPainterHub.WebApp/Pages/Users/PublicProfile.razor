@@ -9,133 +9,166 @@
 
 <PageTitle>Profile</PageTitle>
 
-@if (_loading)
-{
-    <div class="d-flex align-items-center gap-2 text-secondary">
-        <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-        <span>Loading profile…</span>
-    </div>
-}
-else if (!string.IsNullOrWhiteSpace(_loadError))
-{
-    <div class="alert alert-danger" role="alert" data-testid="public-profile-error">@_loadError</div>
-}
-else if (_profile is null)
-{
-    <div class="alert alert-warning" role="alert">Profile not found.</div>
-}
-else
-{
-    <div class="row g-4">
-        <div class="col-12 col-lg-7">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex align-items-start justify-content-between gap-2">
-                        <div>
-                            <h2 class="h4 mb-1" data-testid="public-profile-name">@(_profile.DisplayName ?? _profile.UserId)</h2>
-                            <div class="text-muted small" data-testid="public-profile-userid">@_profile.UserId</div>
-                        </div>
-                    </div>
-
-                    <hr />
-
-                    <div class="d-flex align-items-start gap-3">
-                        <img src="@(_profile.AvatarUrl ?? "/images/avatar-placeholder.png")"
-                             alt="Avatar"
-                             class="rounded-circle border bg-light"
-                             style="width: 72px; height: 72px; object-fit: cover;" />
-                        <div class="flex-grow-1">
-                            <div class="text-muted small mb-1">Bio</div>
-                            <div data-testid="public-profile-bio">@(!string.IsNullOrWhiteSpace(_profile.Bio) ? _profile.Bio : "No bio yet.")</div>
-                        </div>
-                    </div>
-                </div>
+<div class="page-shell content-stack">
+    @if (_loading)
+    {
+        <div class="status-panel status-panel--info">
+            <div class="status-panel__icon"><i class="bi bi-person-circle" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Loading profile</div>
+                <p class="status-panel__text mb-0">Preparing profile details and moderation status.</p>
             </div>
         </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <div class="status-panel status-panel--error" role="alert" data-testid="public-profile-error">
+            <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Could not load profile</div>
+                <p class="status-panel__text mb-0">@_loadError</p>
+            </div>
+        </div>
+    }
+    else if (_profile is null)
+    {
+        <section class="empty-state">
+            <div class="empty-state__icon"><i class="bi bi-person-x" aria-hidden="true"></i></div>
+            <h1 class="empty-state__title h4">Profile not found</h1>
+            <p class="empty-state__text mb-0">The requested painter profile is no longer available.</p>
+        </section>
+    }
+    else
+    {
+        <section class="page-hero">
+            <div class="d-flex flex-column flex-lg-row gap-4 align-items-lg-center">
+                <UserAvatar ImageUrl="@_profile.AvatarUrl"
+                            Name="@(_profile.DisplayName ?? _profile.UserId)"
+                            Size="112" />
+
+                <div class="flex-grow-1">
+                    <p class="page-hero__eyebrow">Admin profile review</p>
+                    <h1 class="page-hero__title mb-0" data-testid="public-profile-name">@(_profile.DisplayName ?? _profile.UserId)</h1>
+                    <p class="page-hero__description mb-0" data-testid="public-profile-userid">@_profile.UserId</p>
+                    <p class="page-hero__description mt-3" data-testid="public-profile-bio">@(!string.IsNullOrWhiteSpace(_profile.Bio) ? _profile.Bio : "No bio yet.")</p>
+                </div>
+            </div>
+        </section>
 
         <AuthorizeView Roles="Admin">
             <Authorized>
-                <div class="col-12 col-lg-5">
-                    <div class="card shadow-sm border-warning-subtle">
-                        <div class="card-body">
-                            <h3 class="h6 text-uppercase text-muted fw-semibold mb-3">Admin actions</h3>
+                <section class="surface-card">
+                    <div class="surface-card__header">
+                        <div>
+                            <p class="section-label">Admin actions</p>
+                            <h2 class="surface-card__title">Account status</h2>
+                            <p class="surface-card__subtitle">Review current suspension state, then update or remove the suspension without leaving the profile.</p>
+                        </div>
+                    </div>
 
-                            @if (_statusLoading)
-                            {
-                                <div class="d-flex align-items-center gap-2 text-secondary">
-                                    <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-                                    <span>Loading status…</span>
+                    @if (_statusLoading)
+                    {
+                        <div class="status-panel status-panel--info">
+                            <div class="status-panel__icon"><i class="bi bi-hourglass-split" aria-hidden="true"></i></div>
+                            <div>
+                                <div class="status-panel__title">Loading status</div>
+                                <p class="status-panel__text mb-0">Checking the current suspension state for this user.</p>
+                            </div>
+                        </div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(_statusError))
+                    {
+                        <div class="status-panel status-panel--warning" role="alert" data-testid="public-profile-status-error">
+                            <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                            <div>
+                                <div class="status-panel__title">Status unavailable</div>
+                                <p class="status-panel__text mb-0">@_statusError</p>
+                            </div>
+                        </div>
+                    }
+                    else if (_status is not null)
+                    {
+                        <div class="surface-card mb-4" data-testid="public-profile-status">
+                            <div class="section-heading">
+                                <div>
+                                    <p class="section-label">Suspension status</p>
+                                    <h3 class="section-heading__title h4 mb-0">@(_status.IsSuspended ? "Suspended" : "Active")</h3>
                                 </div>
-                            }
-                            else if (!string.IsNullOrWhiteSpace(_statusError))
-                            {
-                                <div class="alert alert-warning py-2" role="alert" data-testid="public-profile-status-error">@_statusError</div>
-                            }
-                            else if (_status is not null)
-                            {
-                                <div class="mb-3" data-testid="public-profile-status">
-                                    <div class="small text-muted">Suspension</div>
-                                    @if (_status.IsSuspended)
+                                <div class="mini-stat-bar">
+                                    <span class="@(_status.IsSuspended ? "badge text-bg-danger" : "badge text-bg-success")">
+                                        @(_status.IsSuspended ? "Suspended" : "Active")
+                                    </span>
+                                    @if (_status.SuspendedUntilUtc.HasValue)
                                     {
-                                        <div class="fw-semibold text-danger">Suspended</div>
-                                        @if (_status.SuspendedUntilUtc.HasValue)
-                                        {
-                                            <div class="small text-muted">Until: @_status.SuspendedUntilUtc.Value.ToLocalTime().ToString("g")</div>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <div class="fw-semibold text-success">Active</div>
+                                        <span class="mini-stat">Until <strong>@_status.SuspendedUntilUtc.Value.ToLocalTime().ToString("g")</strong></span>
                                     }
                                 </div>
-                            }
+                            </div>
+                        </div>
+                    }
 
+                    <div class="form-grid">
+                        <div>
                             <label class="form-label" for="admin-suspend-until">Suspend until</label>
                             <input id="admin-suspend-until"
                                    type="datetime-local"
-                                   class="form-control mb-2"
+                                   class="form-control"
                                    data-testid="public-profile-suspend-until"
                                    @bind="_suspendUntilLocal" />
+                        </div>
 
+                        <div>
                             <label class="form-label" for="admin-reason">Reason</label>
                             <textarea id="admin-reason"
-                                      class="form-control mb-3"
-                                      rows="3"
+                                      class="form-control"
+                                      rows="4"
                                       data-testid="public-profile-reason"
                                       @bind="_reason"></textarea>
+                        </div>
 
-                            @if (!string.IsNullOrWhiteSpace(_actionError))
-                            {
-                                <div class="alert alert-danger py-2" role="alert" data-testid="public-profile-action-error">@_actionError</div>
-                            }
-                            else if (!string.IsNullOrWhiteSpace(_actionResult))
-                            {
-                                <div class="alert alert-success py-2" role="alert" data-testid="public-profile-action-result">@_actionResult</div>
-                            }
-
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-warning flex-grow-1"
-                                        type="button"
-                                        data-testid="public-profile-suspend"
-                                        @onclick="SuspendAsync"
-                                        disabled="@_actionBusy">
-                                    @(_actionBusy && _actionBusyName == "suspend" ? "Working..." : (_status?.IsSuspended == true ? "Update suspension" : "Suspend user"))
-                                </button>
-                                <button class="btn btn-outline-secondary flex-grow-1"
-                                        type="button"
-                                        data-testid="public-profile-unsuspend"
-                                        @onclick="UnsuspendAsync"
-                                        disabled="@(_actionBusy || _status?.IsSuspended != true)">
-                                    @(_actionBusy && _actionBusyName == "unsuspend" ? "Working..." : "Unsuspend")
-                                </button>
+                        @if (!string.IsNullOrWhiteSpace(_actionError))
+                        {
+                            <div class="status-panel status-panel--error" role="alert" data-testid="public-profile-action-error">
+                                <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+                                <div>
+                                    <div class="status-panel__title">Action failed</div>
+                                    <p class="status-panel__text mb-0">@_actionError</p>
+                                </div>
                             </div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(_actionResult))
+                        {
+                            <div class="status-panel status-panel--success" role="alert" data-testid="public-profile-action-result">
+                                <div class="status-panel__icon"><i class="bi bi-check-circle" aria-hidden="true"></i></div>
+                                <div>
+                                    <div class="status-panel__title">Action applied</div>
+                                    <p class="status-panel__text mb-0">@_actionResult</p>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="page-toolbar">
+                            <button class="btn btn-warning"
+                                    type="button"
+                                    data-testid="public-profile-suspend"
+                                    @onclick="SuspendAsync"
+                                    disabled="@_actionBusy">
+                                @(_actionBusy && _actionBusyName == "suspend" ? "Working..." : (_status?.IsSuspended == true ? "Update suspension" : "Suspend user"))
+                            </button>
+                            <button class="btn btn-outline-secondary"
+                                    type="button"
+                                    data-testid="public-profile-unsuspend"
+                                    @onclick="UnsuspendAsync"
+                                    disabled="@(_actionBusy || _status?.IsSuspended != true)">
+                                @(_actionBusy && _actionBusyName == "unsuspend" ? "Working..." : "Unsuspend")
+                            </button>
                         </div>
                     </div>
-                </div>
+                </section>
             </Authorized>
         </AuthorizeView>
-    </div>
-}
+    }
+</div>
 
 @code {
     [Parameter] public string UserId { get; set; } = string.Empty;

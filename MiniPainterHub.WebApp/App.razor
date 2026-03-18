@@ -6,8 +6,16 @@
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
                 <Authorizing>
                     <LayoutView Layout="@typeof(MainLayout)">
-                        <div class="container py-4">
-                            <p class="text-muted mb-0" data-testid="route-authorizing">Checking access...</p>
+                        <div class="page-shell">
+                            <div class="status-panel status-panel--info mt-4" data-testid="route-authorizing">
+                                <div class="status-panel__icon">
+                                    <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+                                </div>
+                                <div>
+                                    <div class="status-panel__title">Checking access</div>
+                                    <p class="status-panel__text mb-0">Preparing your studio view...</p>
+                                </div>
+                            </div>
                         </div>
                     </LayoutView>
                 </Authorizing>
@@ -18,7 +26,12 @@
         </Found>
         <NotFound>
             <LayoutView Layout="@typeof(MainLayout)">
-                <p>Sorry, page not found.</p>
+                <div class="page-shell">
+                    <EmptyState IconClass="bi bi-compass"
+                                Title="Page not found"
+                                Description="The trail ran cold. Head back to the community feed and keep exploring."
+                                ClassName="mt-4" />
+                </div>
             </LayoutView>
         </NotFound>
     </Router>

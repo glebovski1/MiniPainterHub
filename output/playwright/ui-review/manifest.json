@@ -1,0 +1,436 @@
+{
+  "generatedAt": "2026-03-18T23:17:29.170Z",
+  "scope": "full",
+  "reviewCommand": "npm --prefix e2e run test:ui-review:full",
+  "groups": [
+    "shell",
+    "auth",
+    "community",
+    "search",
+    "posts",
+    "following",
+    "profile",
+    "messages",
+    "connections",
+    "admin"
+  ],
+  "reasons": [
+    "Forced full UI review run."
+  ],
+  "captures": [
+    {
+      "name": "shell-home-panel-open",
+      "group": "shell",
+      "url": "http://127.0.0.1:5176/",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "shell",
+        "community",
+        "panel-open",
+        "desktop"
+      ],
+      "relativeFile": "output/playwright/ui-review/01-shell-home-panel-open-desktop.png"
+    },
+    {
+      "name": "shell-home-panel-collapsed",
+      "group": "shell",
+      "url": "http://127.0.0.1:5176/",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "shell",
+        "community",
+        "panel-collapsed",
+        "desktop"
+      ],
+      "relativeFile": "output/playwright/ui-review/02-shell-home-panel-collapsed-desktop.png"
+    },
+    {
+      "name": "shell-home-mobile-panel-open",
+      "group": "shell",
+      "url": "http://127.0.0.1:5176/",
+      "viewport": "mobile",
+      "authState": "seed-user",
+      "stateTags": [
+        "shell",
+        "community",
+        "mobile",
+        "panel-open"
+      ],
+      "relativeFile": "output/playwright/ui-review/03-shell-home-mobile-panel-open-mobile.png"
+    },
+    {
+      "name": "auth-login-desktop",
+      "group": "auth",
+      "url": "http://127.0.0.1:5176/login",
+      "viewport": "desktop",
+      "authState": "unauthenticated",
+      "stateTags": [
+        "auth",
+        "desktop",
+        "entry"
+      ],
+      "relativeFile": "output/playwright/ui-review/04-auth-login-desktop-desktop.png"
+    },
+    {
+      "name": "auth-login-error-desktop",
+      "group": "auth",
+      "url": "http://127.0.0.1:5176/login",
+      "viewport": "desktop",
+      "authState": "unauthenticated",
+      "stateTags": [
+        "auth",
+        "desktop",
+        "error"
+      ],
+      "relativeFile": "output/playwright/ui-review/05-auth-login-error-desktop-desktop.png"
+    },
+    {
+      "name": "auth-register-desktop",
+      "group": "auth",
+      "url": "http://127.0.0.1:5176/register",
+      "viewport": "desktop",
+      "authState": "unauthenticated",
+      "stateTags": [
+        "auth",
+        "desktop",
+        "entry"
+      ],
+      "relativeFile": "output/playwright/ui-review/06-auth-register-desktop-desktop.png"
+    },
+    {
+      "name": "auth-login-mobile",
+      "group": "auth",
+      "url": "http://127.0.0.1:5176/login",
+      "viewport": "mobile",
+      "authState": "unauthenticated",
+      "stateTags": [
+        "auth",
+        "mobile",
+        "entry"
+      ],
+      "relativeFile": "output/playwright/ui-review/07-auth-login-mobile-mobile.png"
+    },
+    {
+      "name": "community-home-desktop",
+      "group": "community",
+      "url": "http://127.0.0.1:5176/",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "community",
+        "desktop",
+        "populated"
+      ],
+      "relativeFile": "output/playwright/ui-review/08-community-home-desktop-desktop.png"
+    },
+    {
+      "name": "community-archive-desktop",
+      "group": "community",
+      "url": "http://127.0.0.1:5176/posts/all",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "community",
+        "desktop",
+        "archive"
+      ],
+      "relativeFile": "output/playwright/ui-review/09-community-archive-desktop-desktop.png"
+    },
+    {
+      "name": "community-top-posts-desktop",
+      "group": "community",
+      "url": "http://127.0.0.1:5176/posts/top",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "community",
+        "desktop",
+        "showcase"
+      ],
+      "relativeFile": "output/playwright/ui-review/10-community-top-posts-desktop-desktop.png"
+    },
+    {
+      "name": "search-post-results-desktop",
+      "group": "search",
+      "url": "http://127.0.0.1:5176/search?q=seeded&tab=posts",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "search",
+        "desktop",
+        "posts-results"
+      ],
+      "relativeFile": "output/playwright/ui-review/11-search-post-results-desktop-desktop.png"
+    },
+    {
+      "name": "search-user-results-desktop",
+      "group": "search",
+      "url": "http://127.0.0.1:5176/search?q=user&tab=users",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "search",
+        "desktop",
+        "users-results"
+      ],
+      "relativeFile": "output/playwright/ui-review/12-search-user-results-desktop-desktop.png"
+    },
+    {
+      "name": "posts-new-auth-gated",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/new",
+      "viewport": "desktop",
+      "authState": "unauthenticated",
+      "stateTags": [
+        "posts",
+        "desktop",
+        "auth-gated"
+      ],
+      "relativeFile": "output/playwright/ui-review/13-posts-new-auth-gated-desktop.png"
+    },
+    {
+      "name": "posts-new-composer",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/new",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "posts",
+        "desktop",
+        "composer"
+      ],
+      "relativeFile": "output/playwright/ui-review/14-posts-new-composer-desktop.png"
+    },
+    {
+      "name": "posts-new-validation",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/new",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "posts",
+        "desktop",
+        "validation"
+      ],
+      "relativeFile": "output/playwright/ui-review/15-posts-new-validation-desktop.png"
+    },
+    {
+      "name": "posts-detail-seeded",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/1",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "posts",
+        "desktop",
+        "details",
+        "populated"
+      ],
+      "relativeFile": "output/playwright/ui-review/16-posts-detail-seeded-desktop.png"
+    },
+    {
+      "name": "posts-mine-desktop",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/mine",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "posts",
+        "desktop",
+        "mine",
+        "populated"
+      ],
+      "relativeFile": "output/playwright/ui-review/17-posts-mine-desktop-desktop.png"
+    },
+    {
+      "name": "following-empty-desktop",
+      "group": "following",
+      "url": "http://127.0.0.1:5176/feed/following",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "following",
+        "desktop",
+        "empty"
+      ],
+      "relativeFile": "output/playwright/ui-review/18-following-empty-desktop-desktop.png"
+    },
+    {
+      "name": "following-populated-desktop",
+      "group": "following",
+      "url": "http://127.0.0.1:5176/feed/following",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "following",
+        "desktop",
+        "populated"
+      ],
+      "relativeFile": "output/playwright/ui-review/19-following-populated-desktop-desktop.png"
+    },
+    {
+      "name": "profile-empty-desktop",
+      "group": "profile",
+      "url": "http://127.0.0.1:5176/profile",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "profile",
+        "desktop",
+        "empty"
+      ],
+      "relativeFile": "output/playwright/ui-review/20-profile-empty-desktop-desktop.png"
+    },
+    {
+      "name": "profile-populated-desktop",
+      "group": "profile",
+      "url": "http://127.0.0.1:5176/profile",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "profile",
+        "desktop",
+        "populated"
+      ],
+      "relativeFile": "output/playwright/ui-review/21-profile-populated-desktop-desktop.png"
+    },
+    {
+      "name": "profile-public-desktop",
+      "group": "profile",
+      "url": "http://127.0.0.1:5176/users/b781b011-29bc-4bff-8d54-e96ab9f0f567",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "profile",
+        "desktop",
+        "public",
+        "populated"
+      ],
+      "relativeFile": "output/playwright/ui-review/22-profile-public-desktop-desktop.png"
+    },
+    {
+      "name": "messages-empty-desktop",
+      "group": "messages",
+      "url": "http://127.0.0.1:5176/messages",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "messages",
+        "desktop",
+        "empty"
+      ],
+      "relativeFile": "output/playwright/ui-review/23-messages-empty-desktop-desktop.png"
+    },
+    {
+      "name": "messages-populated-desktop",
+      "group": "messages",
+      "url": "http://127.0.0.1:5176/messages",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "messages",
+        "desktop",
+        "populated"
+      ],
+      "relativeFile": "output/playwright/ui-review/24-messages-populated-desktop-desktop.png"
+    },
+    {
+      "name": "messages-populated-mobile",
+      "group": "messages",
+      "url": "http://127.0.0.1:5176/messages",
+      "viewport": "mobile",
+      "authState": "seed-user",
+      "stateTags": [
+        "messages",
+        "mobile",
+        "populated"
+      ],
+      "relativeFile": "output/playwright/ui-review/25-messages-populated-mobile-mobile.png"
+    },
+    {
+      "name": "connections-populated-desktop",
+      "group": "connections",
+      "url": "http://127.0.0.1:5176/connections",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "connections",
+        "desktop",
+        "populated"
+      ],
+      "relativeFile": "output/playwright/ui-review/26-connections-populated-desktop-desktop.png"
+    },
+    {
+      "name": "admin-reports-empty-desktop",
+      "group": "admin",
+      "url": "http://127.0.0.1:5176/admin/reports",
+      "viewport": "desktop",
+      "authState": "admin",
+      "stateTags": [
+        "admin",
+        "desktop",
+        "reports",
+        "empty"
+      ],
+      "relativeFile": "output/playwright/ui-review/27-admin-reports-empty-desktop-desktop.png"
+    },
+    {
+      "name": "admin-moderation-desktop",
+      "group": "admin",
+      "url": "http://127.0.0.1:5176/admin/moderation",
+      "viewport": "desktop",
+      "authState": "admin",
+      "stateTags": [
+        "admin",
+        "desktop",
+        "moderation"
+      ],
+      "relativeFile": "output/playwright/ui-review/28-admin-moderation-desktop-desktop.png"
+    },
+    {
+      "name": "admin-audit-desktop",
+      "group": "admin",
+      "url": "http://127.0.0.1:5176/admin/audit",
+      "viewport": "desktop",
+      "authState": "admin",
+      "stateTags": [
+        "admin",
+        "desktop",
+        "audit"
+      ],
+      "relativeFile": "output/playwright/ui-review/29-admin-audit-desktop-desktop.png"
+    },
+    {
+      "name": "admin-suspensions-desktop",
+      "group": "admin",
+      "url": "http://127.0.0.1:5176/admin/suspensions",
+      "viewport": "desktop",
+      "authState": "admin",
+      "stateTags": [
+        "admin",
+        "desktop",
+        "suspensions"
+      ],
+      "relativeFile": "output/playwright/ui-review/30-admin-suspensions-desktop-desktop.png"
+    },
+    {
+      "name": "admin-reports-populated-desktop",
+      "group": "admin",
+      "url": "http://127.0.0.1:5176/admin/reports",
+      "viewport": "desktop",
+      "authState": "admin",
+      "stateTags": [
+        "admin",
+        "desktop",
+        "reports",
+        "populated"
+      ],
+      "relativeFile": "output/playwright/ui-review/31-admin-reports-populated-desktop-desktop.png"
+    }
+  ],
+  "failures": [],
+  "completedAt": "2026-03-18T23:19:04.306Z",
+  "captureCount": 31
+}
