@@ -1,0 +1,88 @@
+@using MiniPainterHub.Common.DTOs
+
+<div class="viewer-overlay" aria-hidden="true">
+    @foreach (var mark in AuthorMarks)
+    {
+        var isSelected = SelectedAuthorMarkId == mark.Id;
+
+        <button type="button"
+                class="viewer-mark viewer-mark--author @(isSelected ? "is-selected" : null)"
+                style="@BuildPositionStyle(mark.NormalizedX, mark.NormalizedY)"
+                title="@BuildAuthorTitle(mark)"
+                data-testid="viewer-author-mark"
+                aria-label="@BuildAuthorLabel(mark)"
+                @onpointerdown:stopPropagation="true"
+                @onclick:stopPropagation="true"
+                @onclick="@(() => OnAuthorMarkSelected.InvokeAsync(mark.Id))">
+            <span class="viewer-mark__pulse"></span>
+            <span class="viewer-mark__core">@GetAuthorGlyph(mark)</span>
+        </button>
+    }
+
+    @if (ActiveCommentMark is not null)
+    {
+        <div class="viewer-mark viewer-mark--comment is-selected"
+             style="@BuildPositionStyle(ActiveCommentMark.NormalizedX, ActiveCommentMark.NormalizedY)"
+             data-testid="viewer-comment-mark">
+            <span class="viewer-mark__pulse"></span>
+            <span class="viewer-mark__core">
+                <i class="bi bi-chat-square-text" aria-hidden="true"></i>
+            </span>
+        </div>
+    }
+
+    @if (DraftCommentMark is not null)
+    {
+        <div class="viewer-mark viewer-mark--draft"
+             style="@BuildPositionStyle(DraftCommentMark.NormalizedX, DraftCommentMark.NormalizedY)"
+             data-testid="viewer-draft-mark">
+            <span class="viewer-mark__pulse"></span>
+            <span class="viewer-mark__core">
+                <i class="bi bi-crosshair2" aria-hidden="true"></i>
+            </span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<AuthorMarkDto> AuthorMarks { get; set; } = Array.Empty<AuthorMarkDto>();
+    [Parameter] public int? SelectedAuthorMarkId { get; set; }
+    [Parameter] public CommentMarkDto? ActiveCommentMark { get; set; }
+    [Parameter] public ViewerMarkDraftDto? DraftCommentMark { get; set; }
+    [Parameter] public EventCallback<int> OnAuthorMarkSelected { get; set; }
+
+    private static string BuildPositionStyle(decimal normalizedX, decimal normalizedY)
+    {
+        var left = Math.Clamp((double)normalizedX * 100d, 0d, 100d);
+        var top = Math.Clamp((double)normalizedY * 100d, 0d, 100d);
+        return $"left:{left:F4}%;top:{top:F4}%;";
+    }
+
+    private static string BuildAuthorTitle(AuthorMarkDto mark)
+    {
+        if (!string.IsNullOrWhiteSpace(mark.Tag) && !string.IsNullOrWhiteSpace(mark.Message))
+        {
+            return $"{mark.Tag}: {mark.Message}";
+        }
+
+        return mark.Tag ?? mark.Message ?? "Author mark";
+    }
+
+    private static string BuildAuthorLabel(AuthorMarkDto mark)
+    {
+        var summary = BuildAuthorTitle(mark);
+        return string.IsNullOrWhiteSpace(summary)
+            ? "Author note"
+            : $"Author note: {summary}";
+    }
+
+    private static string GetAuthorGlyph(AuthorMarkDto mark)
+    {
+        if (!string.IsNullOrWhiteSpace(mark.Tag))
+        {
+            return mark.Tag!.Trim()[0].ToString().ToUpperInvariant();
+        }
+
+        return "A";
+    }
+}

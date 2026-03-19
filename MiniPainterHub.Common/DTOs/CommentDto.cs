@@ -21,5 +21,7 @@ namespace MiniPainterHub.Common.DTOs
 
         public DateTime CreatedAt { get; set; }
         public bool IsDeleted { get; set; }
+        public bool HasViewerMark { get; set; }
+        public int? MarkedPostImageId { get; set; }
     }
 }

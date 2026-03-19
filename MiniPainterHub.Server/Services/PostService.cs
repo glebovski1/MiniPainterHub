@@ -91,7 +91,9 @@ namespace MiniPainterHub.Server.Services
                     {
                         ImageUrl = img.ImageUrl,
                         PreviewUrl = string.IsNullOrWhiteSpace(img.PreviewUrl) ? img.ImageUrl : img.PreviewUrl,
-                        ThumbnailUrl = img.ThumbnailUrl
+                        ThumbnailUrl = img.ThumbnailUrl,
+                        Width = img.Width,
+                        Height = img.Height
                     });
                 }
             }
@@ -114,7 +116,9 @@ namespace MiniPainterHub.Server.Services
                     Id = i.Id,
                     ImageUrl = i.ImageUrl,
                     PreviewUrl = i.PreviewUrl,
-                    ThumbnailUrl = i.ThumbnailUrl
+                    ThumbnailUrl = i.ThumbnailUrl,
+                    Width = i.Width,
+                    Height = i.Height
                 }).ToList(),
                 Tags = newPost.PostTags
                     .OrderBy(pt => pt.Tag.DisplayName)
@@ -283,7 +287,9 @@ namespace MiniPainterHub.Server.Services
                     PostId = postId,
                     ImageUrl = img.ImageUrl,
                     PreviewUrl = string.IsNullOrWhiteSpace(img.PreviewUrl) ? img.ImageUrl : img.PreviewUrl,
-                    ThumbnailUrl = img.ThumbnailUrl
+                    ThumbnailUrl = img.ThumbnailUrl,
+                    Width = img.Width,
+                    Height = img.Height
                 })
                 .ToList();
 
@@ -303,7 +309,9 @@ namespace MiniPainterHub.Server.Services
                     Id = i.Id,
                     ImageUrl = i.ImageUrl,
                     PreviewUrl = i.PreviewUrl,
-                    ThumbnailUrl = i.ThumbnailUrl
+                    ThumbnailUrl = i.ThumbnailUrl,
+                    Width = i.Width,
+                    Height = i.Height
                 })
                 .ToListAsync();
         }
@@ -644,7 +652,9 @@ namespace MiniPainterHub.Server.Services
                         {
                             ImageUrl = stored.MaxUrl,
                             PreviewUrl = stored.PreviewUrl,
-                            ThumbnailUrl = stored.ThumbUrl
+                            ThumbnailUrl = stored.ThumbUrl,
+                            Width = variants.Max.Width,
+                            Height = variants.Max.Height
                         },
                         imageId,
                         Array.Empty<string>()));
@@ -773,7 +783,9 @@ namespace MiniPainterHub.Server.Services
                         Id = i.Id,
                         ImageUrl = i.ImageUrl,
                         PreviewUrl = i.PreviewUrl,
-                        ThumbnailUrl = i.ThumbnailUrl
+                        ThumbnailUrl = i.ThumbnailUrl,
+                        Width = i.Width,
+                        Height = i.Height
                     })
                     .ToList(),
                 Tags = MapTags(post.PostTags)

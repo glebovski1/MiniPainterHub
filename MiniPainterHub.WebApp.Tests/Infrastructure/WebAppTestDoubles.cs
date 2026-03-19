@@ -176,6 +176,92 @@ internal sealed class StubPostService : IPostService
     public Task<PostDto> CreateWithImageAsync(MultipartFormDataContent content) => CreateWithImageHandler(content);
 }
 
+internal sealed class StubPostViewerService : IPostViewerService
+{
+    public Func<int, Task<PostViewerDto>> GetHandler { get; set; } = postId =>
+        Task.FromResult(new PostViewerDto
+        {
+            PostId = postId,
+            Title = $"Post {postId}",
+            CreatedById = "stub-user",
+            AuthorName = "Stub User",
+            CreatedAt = DateTime.UtcNow,
+            CanAttachCommentMark = true,
+            Images =
+            {
+                new PostViewerImageDto
+                {
+                    Id = 1,
+                    ImageUrl = "/images/test_max.png",
+                    PreviewUrl = "/images/test_preview.png",
+                    ThumbnailUrl = "/images/test_thumb.png",
+                    Width = 1600,
+                    Height = 900
+                }
+            }
+        });
+
+    public Task<PostViewerDto> GetAsync(int postId) => GetHandler(postId);
+}
+
+internal sealed class StubAuthorMarkService : IAuthorMarkService
+{
+    public Func<int, int, CreateAuthorMarkDto, Task<AuthorMarkDto>> CreateHandler { get; set; } = (_, imageId, dto) =>
+        Task.FromResult(new AuthorMarkDto
+        {
+            Id = 1,
+            PostImageId = imageId,
+            NormalizedX = dto.NormalizedX,
+            NormalizedY = dto.NormalizedY,
+            Tag = dto.Tag,
+            Message = dto.Message
+        });
+
+    public Func<int, UpdateAuthorMarkDto, Task<AuthorMarkDto>> UpdateHandler { get; set; } = (markId, dto) =>
+        Task.FromResult(new AuthorMarkDto
+        {
+            Id = markId,
+            PostImageId = 1,
+            NormalizedX = dto.NormalizedX,
+            NormalizedY = dto.NormalizedY,
+            Tag = dto.Tag,
+            Message = dto.Message
+        });
+
+    public Func<int, Task> DeleteHandler { get; set; } = _ => Task.CompletedTask;
+
+    public Task<AuthorMarkDto> CreateAsync(int postId, int imageId, CreateAuthorMarkDto dto) => CreateHandler(postId, imageId, dto);
+    public Task<AuthorMarkDto> UpdateAsync(int markId, UpdateAuthorMarkDto dto) => UpdateHandler(markId, dto);
+    public Task DeleteAsync(int markId) => DeleteHandler(markId);
+}
+
+internal sealed class StubCommentMarkService : ICommentMarkService
+{
+    public Func<int, bool, Task<CommentMarkDto>> GetByCommentIdHandler { get; set; } = (commentId, _) =>
+        Task.FromResult(new CommentMarkDto
+        {
+            CommentId = commentId,
+            PostImageId = 1,
+            NormalizedX = 0.5m,
+            NormalizedY = 0.5m
+        });
+
+    public Func<int, ViewerMarkDraftDto, Task<CommentMarkDto>> UpsertHandler { get; set; } = (commentId, dto) =>
+        Task.FromResult(new CommentMarkDto
+        {
+            CommentId = commentId,
+            PostImageId = dto.PostImageId,
+            NormalizedX = dto.NormalizedX,
+            NormalizedY = dto.NormalizedY
+        });
+
+    public Func<int, Task> DeleteHandler { get; set; } = _ => Task.CompletedTask;
+
+    public Task<CommentMarkDto> GetByCommentIdAsync(int commentId, bool includeDeleted = false) => GetByCommentIdHandler(commentId, includeDeleted);
+    public Task<CommentMarkDto> UpsertAsync(int commentId, ViewerMarkDraftDto dto) => UpsertHandler(commentId, dto);
+    public Task DeleteAsync(int commentId) => DeleteHandler(commentId);
+}
+
 internal sealed class StubCommentService : ICommentService
 {
     public Func<int, int, int, Task<ApiResult<PagedResult<CommentDto>>>> GetByPostHandler { get; set; } = (_, _, _) =>

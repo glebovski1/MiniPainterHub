@@ -20,5 +20,6 @@ namespace MiniPainterHub.Server.Entities
         public Post Post { get; set; }
         public ApplicationUser Author { get; set; }
         public ApplicationUser? ModeratedByUser { get; set; }
+        public CommentImageMark? ViewerMark { get; set; }
     }
 }

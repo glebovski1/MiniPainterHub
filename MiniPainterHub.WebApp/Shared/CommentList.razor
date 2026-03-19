@@ -62,7 +62,13 @@
     {
         @foreach (var comment in _comments.Items)
         {
-            <CommentItem Comment="comment" OnModerated="ReloadAsync" />
+            <CommentItem Comment="comment"
+                         IsActive="@(ActiveCommentId == comment.Id)"
+                         CanRevealViewerMark="@(comment.HasViewerMark && (!comment.IsDeleted || _visibilityFilter != "active"))"
+                         IsViewerMarkLoading="@(LoadingViewerMarkCommentId == comment.Id)"
+                         ViewerMarkError="@(ViewerMarkErrorCommentId == comment.Id ? ViewerMarkError : null)"
+                         OnRevealViewerMark="@(() => RevealViewerMarkAsync(comment))"
+                         OnModerated="ReloadAsync" />
         }
 
         <nav aria-label="Comment pagination">
@@ -87,6 +93,11 @@
 
 @code {
     [Parameter] public int PostId { get; set; }
+    [Parameter] public int? ActiveCommentId { get; set; }
+    [Parameter] public int? LoadingViewerMarkCommentId { get; set; }
+    [Parameter] public int? ViewerMarkErrorCommentId { get; set; }
+    [Parameter] public string? ViewerMarkError { get; set; }
+    [Parameter] public EventCallback<CommentDto> OnRevealViewerMark { get; set; }
 
     private PagedResult<CommentDto>? _comments;
     private int _page = 1;
@@ -158,4 +169,7 @@
         _page = 1;
         await LoadPageAsync();
     }
+
+    private Task RevealViewerMarkAsync(CommentDto comment) =>
+        OnRevealViewerMark.HasDelegate ? OnRevealViewerMark.InvokeAsync(comment) : Task.CompletedTask;
 }

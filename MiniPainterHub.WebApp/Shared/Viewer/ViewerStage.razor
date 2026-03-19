@@ -1,0 +1,35 @@
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="@StageClass"
+     style="@Style"
+     tabindex="@TabIndex"
+     @ref="_stageElement"
+     @onpointerdown="OnPointerDown"
+     @onpointermove="OnPointerMove"
+     @onpointerup="OnPointerUp"
+     @onpointerleave="OnPointerLeave"
+     @onwheel="OnWheel"
+     @onwheel:preventDefault="PreventWheelDefault"
+     @onkeydown="OnKeyDown"
+     @onkeydown:stopPropagation="true"
+     data-testid="viewer-stage">
+    @ChildContent
+</div>
+
+@code {
+    private ElementReference _stageElement;
+
+    [Parameter] public string StageClass { get; set; } = "viewer-stage";
+    [Parameter] public string? Style { get; set; }
+    [Parameter] public int TabIndex { get; set; } = 0;
+    [Parameter] public bool PreventWheelDefault { get; set; } = true;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback<PointerEventArgs> OnPointerDown { get; set; }
+    [Parameter] public EventCallback<PointerEventArgs> OnPointerMove { get; set; }
+    [Parameter] public EventCallback<PointerEventArgs> OnPointerUp { get; set; }
+    [Parameter] public EventCallback<PointerEventArgs> OnPointerLeave { get; set; }
+    [Parameter] public EventCallback<WheelEventArgs> OnWheel { get; set; }
+    [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }
+
+    public ElementReference StageElement => _stageElement;
+}

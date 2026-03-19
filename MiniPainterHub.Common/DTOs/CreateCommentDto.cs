@@ -10,5 +10,7 @@ namespace MiniPainterHub.Common.DTOs
         [Required]
         [StringLength(4000)]
         public string Text { get; set; } = default!;
+
+        public ViewerMarkDraftDto? Mark { get; set; }
     }
 }

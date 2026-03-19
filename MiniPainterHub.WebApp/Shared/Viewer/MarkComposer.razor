@@ -1,0 +1,115 @@
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+
+<section class="viewer-composer @(IsReadOnly ? "is-readonly" : null)"
+         style="@Style"
+         data-testid="viewer-mark-composer">
+    <div class="viewer-composer__header">
+        <div>
+            <div class="viewer-composer__eyebrow">@Title</div>
+            @if (!string.IsNullOrWhiteSpace(Subtitle))
+            {
+                <div class="viewer-composer__subtitle">@Subtitle</div>
+            }
+        </div>
+        <button type="button" class="btn btn-link btn-sm p-0" @onclick="OnCancel">Close</button>
+    </div>
+
+    @if (IsReadOnly)
+    {
+        @if (!string.IsNullOrWhiteSpace(Value.Tag))
+        {
+            <div class="viewer-composer__tag">@Value.Tag</div>
+        }
+
+        <p class="viewer-composer__body">@(!string.IsNullOrWhiteSpace(Value.Message) ? Value.Message : "No additional note.")</p>
+    }
+    else
+    {
+        <EditForm Model="_model" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+
+            <div class="mb-2">
+                <label class="form-label" for="@_tagId">Tag</label>
+                <InputText id="@_tagId" @bind-Value="_model.Tag" class="form-control form-control-sm" maxlength="64" />
+            </div>
+
+            <div class="mb-2">
+                <label class="form-label" for="@_messageId">Message</label>
+                <InputTextArea id="@_messageId"
+                               @bind-Value="_model.Message"
+                               class="form-control form-control-sm"
+                               maxlength="1000"
+                               rows="4" />
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_validationError))
+            {
+                <div class="text-danger small mb-2" role="alert">@_validationError</div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(Error))
+            {
+                <div class="text-danger small mb-2" role="alert">@Error</div>
+            }
+
+            <div class="viewer-composer__actions">
+                <button type="submit" class="btn btn-sm btn-primary" disabled="@IsBusy">
+                    @(IsBusy ? "Saving..." : SaveLabel)
+                </button>
+                @if (CanDelete)
+                {
+                    <button type="button" class="btn btn-sm btn-outline-danger" disabled="@IsBusy" @onclick="OnDelete">
+                        Delete
+                    </button>
+                }
+            </div>
+        </EditForm>
+    }
+</section>
+
+@code {
+    private readonly string _tagId = $"mark-tag-{Guid.NewGuid():N}";
+    private readonly string _messageId = $"mark-message-{Guid.NewGuid():N}";
+    private MarkComposerValue _model = new();
+    private string? _validationError;
+    private string? _lastIncomingTag;
+    private string? _lastIncomingMessage;
+
+    [Parameter] public string Title { get; set; } = "Annotation";
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public string? Style { get; set; }
+    [Parameter] public bool IsReadOnly { get; set; }
+    [Parameter] public bool IsBusy { get; set; }
+    [Parameter] public bool CanDelete { get; set; }
+    [Parameter] public string SaveLabel { get; set; } = "Save note";
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public MarkComposerValue Value { get; set; } = new();
+    [Parameter] public EventCallback<MarkComposerValue> OnSave { get; set; }
+    [Parameter] public EventCallback OnDelete { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (!string.Equals(Value.Tag, _lastIncomingTag, StringComparison.Ordinal)
+            || !string.Equals(Value.Message, _lastIncomingMessage, StringComparison.Ordinal))
+        {
+            _model = Value.Clone();
+            _lastIncomingTag = Value.Tag;
+            _lastIncomingMessage = Value.Message;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        _validationError = null;
+
+        if (string.IsNullOrWhiteSpace(_model.Tag) && string.IsNullOrWhiteSpace(_model.Message))
+        {
+            _validationError = "Add a tag or a message before saving.";
+            return;
+        }
+
+        await OnSave.InvokeAsync(_model.Clone());
+    }
+}

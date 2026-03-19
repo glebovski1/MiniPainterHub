@@ -2,6 +2,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Services;
 using MiniPainterHub.Server.Tests.Infrastructure;
@@ -232,5 +234,70 @@ public class CommentServiceTests
         result.Items.Should().ContainSingle();
         result.Items.Single().Id.Should().Be(hiddenComment.Id);
         result.Items.Single().IsDeleted.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenDraftMarkProvided_PersistsCommentMarkSummary()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1", "commenter");
+        var post = TestData.CreatePost(3, user.Id);
+        var image = new PostImage { Id = 44, PostId = post.Id, ImageUrl = "https://img/mark", Width = 1200, Height = 900 };
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.PostImages.AddAsync(image);
+        await context.SaveChangesAsync();
+        var service = new CommentService(context);
+
+        var result = await service.CreateAsync(user.Id, post.Id, new CreateCommentDto
+        {
+            Text = "Pinned note",
+            Mark = new ViewerMarkDraftDto
+            {
+                PostImageId = image.Id,
+                NormalizedX = 0.4m,
+                NormalizedY = 0.6m
+            }
+        });
+
+        result.HasViewerMark.Should().BeTrue();
+        result.MarkedPostImageId.Should().Be(image.Id);
+
+        var savedMark = await context.CommentImageMarks.SingleAsync();
+        savedMark.CommentId.Should().Be(result.Id);
+        savedMark.PostImageId.Should().Be(image.Id);
+        savedMark.NormalizedX.Should().Be(0.4m);
+        savedMark.NormalizedY.Should().Be(0.6m);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenDraftMarkTargetsDifferentPost_ThrowsDomainValidationException()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1", "commenter");
+        var post = TestData.CreatePost(4, user.Id);
+        var otherPost = TestData.CreatePost(5, user.Id);
+        var otherImage = new PostImage { Id = 45, PostId = otherPost.Id, ImageUrl = "https://img/other", Width = 1200, Height = 900 };
+        await context.Users.AddAsync(user);
+        await context.Posts.AddRangeAsync(post, otherPost);
+        await context.PostImages.AddAsync(otherImage);
+        await context.SaveChangesAsync();
+        var service = new CommentService(context);
+
+        var act = async () => await service.CreateAsync(user.Id, post.Id, new CreateCommentDto
+        {
+            Text = "Pinned note",
+            Mark = new ViewerMarkDraftDto
+            {
+                PostImageId = otherImage.Id,
+                NormalizedX = 0.4m,
+                NormalizedY = 0.6m
+            }
+        });
+
+        var exception = await act.Should().ThrowAsync<DomainValidationException>()
+            .WithMessage("Viewer mark data is invalid.");
+
+        exception.Which.Errors.Should().ContainKey("Mark.PostImageId");
     }
 }

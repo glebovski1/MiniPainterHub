@@ -140,6 +140,47 @@ public class PostDetailsModerationTests : TestContext
         {
             if (request.Method == HttpMethod.Get &&
                 request.RequestUri is not null &&
+                request.RequestUri.AbsolutePath.EndsWith("/viewer", StringComparison.OrdinalIgnoreCase))
+            {
+                var path = request.RequestUri.AbsolutePath;
+                var idToken = path.Substring("/api/posts/".Length);
+                idToken = idToken[..idToken.IndexOf("/viewer", StringComparison.OrdinalIgnoreCase)];
+
+                if (!int.TryParse(idToken, out var postId))
+                {
+                    postId = 10;
+                }
+
+                var payload = JsonSerializer.Serialize(new PostViewerDto
+                {
+                    PostId = postId,
+                    Title = $"Post {postId}",
+                    CreatedById = "author-1",
+                    AuthorName = "Author",
+                    CreatedAt = DateTime.UtcNow,
+                    CanAttachCommentMark = true,
+                    Images = new List<PostViewerImageDto>
+                    {
+                        new()
+                        {
+                            Id = 101,
+                            ImageUrl = "/images/test_max.png",
+                            PreviewUrl = "/images/test_preview.png",
+                            ThumbnailUrl = "/images/test_thumb.png",
+                            Width = 1600,
+                            Height = 900
+                        }
+                    }
+                });
+
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(payload, Encoding.UTF8, "application/json")
+                });
+            }
+
+            if (request.Method == HttpMethod.Get &&
+                request.RequestUri is not null &&
                 request.RequestUri.AbsolutePath.StartsWith("/api/posts/", StringComparison.OrdinalIgnoreCase))
             {
                 var idToken = request.RequestUri.AbsolutePath.Substring("/api/posts/".Length);

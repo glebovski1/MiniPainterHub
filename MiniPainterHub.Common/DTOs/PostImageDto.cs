@@ -15,5 +15,9 @@ namespace MiniPainterHub.Common.DTOs
 
         [StringLength(2048)]
         public string? ThumbnailUrl { get; set; }
+
+        public int? Width { get; set; }
+
+        public int? Height { get; set; }
     }
 }

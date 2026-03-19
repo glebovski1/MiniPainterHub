@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace MiniPainterHub.Server.Entities
 {
@@ -9,7 +10,11 @@ namespace MiniPainterHub.Server.Entities
         public string ImageUrl { get; set; } = default!;
         public string? PreviewUrl { get; set; }
         public string? ThumbnailUrl { get; set; }
+        public int? Width { get; set; }
+        public int? Height { get; set; }
         // Navigation:
         public Post Post { get; set; } = default!;
+        public List<ImageAuthorMark> AuthorMarks { get; set; } = new();
+        public List<CommentImageMark> CommentMarks { get; set; } = new();
     }
 }

@@ -52,6 +52,9 @@ public class Program
         //------------------------------------------------------------
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IPostService, PostService>();
+        builder.Services.AddScoped<IPostViewerService, PostViewerService>();
+        builder.Services.AddScoped<IAuthorMarkService, AuthorMarkService>();
+        builder.Services.AddScoped<ICommentMarkService, CommentMarkService>();
         builder.Services.AddScoped<ICommentService, CommentService>();
         builder.Services.AddScoped<ILikeService, LikeService>();
         builder.Services.AddScoped<IProfileService, ProfileService>();

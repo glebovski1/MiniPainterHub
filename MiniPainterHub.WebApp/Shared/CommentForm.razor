@@ -30,12 +30,42 @@
                    data-testid="comment-input"
                    rows="3" />
 
-    <button type="submit"
-            class="btn btn-primary mt-2"
-            data-testid="comment-submit"
-            disabled="@_isSubmitting">
-        @(_isSubmitting ? "Posting..." : "Post Comment")
-    </button>
+    @if (CanAttachViewerMark)
+    {
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2" data-testid="comment-mark-controls">
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    data-testid="comment-attach-mark"
+                    disabled="@(_isSubmitting || ViewerPlacementActive)"
+                    @onclick="RequestAttachMarkAsync">
+                @(ViewerPlacementActive ? "Tap image to place mark" : DraftMark is null ? "Attach point" : "Reposition point")
+            </button>
+
+            @if (DraftMark is not null)
+            {
+                <span class="badge text-bg-light border" data-testid="comment-mark-chip">
+                    Image @AttachedImageNumber point
+                </span>
+
+                <button type="button"
+                        class="btn btn-link btn-sm p-0"
+                        data-testid="comment-remove-mark"
+                        disabled="@_isSubmitting"
+                        @onclick="RemoveAttachedMarkAsync">
+                    Remove
+                </button>
+            }
+        </div>
+    }
+
+    <div class="d-flex flex-wrap gap-2 mt-2">
+        <button type="submit"
+                class="btn btn-primary"
+                data-testid="comment-submit"
+                disabled="@_isSubmitting">
+            @(_isSubmitting ? "Posting..." : "Post Comment")
+        </button>
+    </div>
 </EditForm>
 
 @code {
@@ -43,7 +73,25 @@
     public int PostId { get; set; }
 
     [Parameter]
-    public EventCallback OnCommentAdded { get; set; }
+    public EventCallback<CommentDto> OnCommentAdded { get; set; }
+
+    [Parameter]
+    public bool CanAttachViewerMark { get; set; }
+
+    [Parameter]
+    public bool ViewerPlacementActive { get; set; }
+
+    [Parameter]
+    public ViewerMarkDraftDto? DraftMark { get; set; }
+
+    [Parameter]
+    public int? AttachedImageNumber { get; set; }
+
+    [Parameter]
+    public EventCallback OnRequestAttachMark { get; set; }
+
+    [Parameter]
+    public EventCallback OnRemoveAttachedMark { get; set; }
 
     private CreateCommentDto _model = new();
     private bool _isSubmitting;
@@ -55,16 +103,19 @@
         _submitError = null;
         _submitStatus = null;
         _isSubmitting = true;
+        _model.PostId = PostId;
+        _model.Mark = DraftMark;
 
         var response = await CommentService.CreateAsync(PostId, _model);
 
         if (response.Success && response.Value is not null)
         {
             _model.Text = string.Empty;
+            _model.Mark = null;
 
             if (OnCommentAdded.HasDelegate)
             {
-                await OnCommentAdded.InvokeAsync();
+                await OnCommentAdded.InvokeAsync(response.Value);
             }
         }
         else
@@ -77,4 +128,10 @@
 
         _isSubmitting = false;
     }
+
+    private Task RequestAttachMarkAsync() =>
+        OnRequestAttachMark.HasDelegate ? OnRequestAttachMark.InvokeAsync() : Task.CompletedTask;
+
+    private Task RemoveAttachedMarkAsync() =>
+        OnRemoveAttachedMark.HasDelegate ? OnRemoveAttachedMark.InvokeAsync() : Task.CompletedTask;
 }

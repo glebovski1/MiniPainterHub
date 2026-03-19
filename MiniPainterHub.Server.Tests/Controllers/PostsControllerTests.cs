@@ -94,6 +94,70 @@ public class PostsControllerTests
     }
 
     [Fact]
+    public async Task GetViewer_WhenOwnerAuthenticated_ReturnsImagesAndAuthorMarks()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await SeedUserAsync(factory, "viewer-user", "viewer-user");
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            var post = new Post
+            {
+                Id = 390,
+                Title = "Viewer post",
+                Content = "Viewer content",
+                CreatedById = "viewer-user",
+                CreatedUtc = DateTime.UtcNow,
+                UpdatedUtc = DateTime.UtcNow
+            };
+
+            var image = new PostImage
+            {
+                Id = 391,
+                PostId = post.Id,
+                ImageUrl = "https://img/viewer/max.png",
+                PreviewUrl = "https://img/viewer/preview.png",
+                ThumbnailUrl = "https://img/viewer/thumb.png",
+                Width = 1600,
+                Height = 900
+            };
+
+            var authorMark = new ImageAuthorMark
+            {
+                Id = 392,
+                PostImageId = image.Id,
+                CreatedByUserId = "viewer-user",
+                NormalizedX = 0.2m,
+                NormalizedY = 0.8m,
+                Tag = "Light",
+                Message = "Push the highlight here.",
+                CreatedUtc = DateTime.UtcNow,
+                UpdatedUtc = DateTime.UtcNow
+            };
+
+            await db.Posts.AddAsync(post);
+            await db.PostImages.AddAsync(image);
+            await db.ImageAuthorMarks.AddAsync(authorMark);
+            await db.SaveChangesAsync();
+        });
+
+        using var client = factory.CreateAuthenticatedClient("viewer-user", "viewer-user");
+
+        var response = await client.GetAsync("/api/posts/390/viewer");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<PostViewerDto>();
+        body.Should().NotBeNull();
+        body!.PostId.Should().Be(390);
+        body.CanManageAuthorMarks.Should().BeTrue();
+        body.CanAttachCommentMark.Should().BeTrue();
+        body.Images.Should().ContainSingle();
+        body.Images.Single().Width.Should().Be(1600);
+        body.AuthorMarks.Should().ContainSingle();
+        body.AuthorMarks.Single().Tag.Should().Be("Light");
+    }
+
+    [Fact]
     public async Task Create_WhenAuthenticated_ReturnsCreatedAndPersistsPost()
     {
         using var factory = new IntegrationTestApplicationFactory();
