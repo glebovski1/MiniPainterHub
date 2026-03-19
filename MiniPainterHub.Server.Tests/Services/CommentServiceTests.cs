@@ -12,6 +12,29 @@ namespace MiniPainterHub.Server.Tests.Services;
 public class CommentServiceTests
 {
     [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task CreateAsync_WhenUserIdIsMissing_ThrowsUnauthorizedAccessException(string? userId)
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        var post = TestData.CreatePost(1, user.Id);
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.SaveChangesAsync();
+        var service = new CommentService(context);
+
+        var act = async () => await service.CreateAsync(userId!, post.Id, new MiniPainterHub.Common.DTOs.CreateCommentDto
+        {
+            Text = "Test"
+        });
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>()
+            .WithMessage("User must be authenticated to create comments.");
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData("   ")]
     public async Task CreateAsync_WhenCommentTextIsBlank_ThrowsDomainValidationException(string text)
@@ -109,6 +132,28 @@ public class CommentServiceTests
             .WithMessage("Comment not found.");
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task DeleteAsync_WhenUserIdIsMissing_ThrowsUnauthorizedAccessException(string? userId)
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        var post = TestData.CreatePost(1, user.Id);
+        var comment = TestData.CreateComment(1, post.Id, user.Id);
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.Comments.AddAsync(comment);
+        await context.SaveChangesAsync();
+        var service = new CommentService(context);
+
+        var act = async () => await service.DeleteAsync(comment.Id, userId!, isAdmin: false);
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>()
+            .WithMessage("User must be authenticated to delete comments.");
+    }
+
     [Fact]
     public async Task UpdateAsync_WhenCommentExistsForUser_UpdatesContent()
     {
@@ -127,6 +172,31 @@ public class CommentServiceTests
 
         result.Should().BeTrue();
         (await context.Comments.SingleAsync()).Text.Should().Be("Updated");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task UpdateAsync_WhenUserIdIsMissing_ThrowsUnauthorizedAccessException(string? userId)
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        var post = TestData.CreatePost(1, user.Id);
+        var comment = TestData.CreateComment(1, post.Id, user.Id);
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.Comments.AddAsync(comment);
+        await context.SaveChangesAsync();
+        var service = new CommentService(context);
+
+        var act = async () => await service.UpdateAsync(comment.Id, userId!, new MiniPainterHub.Common.DTOs.UpdateCommentDto
+        {
+            Content = "Updated"
+        });
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>()
+            .WithMessage("User must be authenticated to update comments.");
     }
 
     [Theory]
