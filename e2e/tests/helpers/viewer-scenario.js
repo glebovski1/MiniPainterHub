@@ -47,6 +47,7 @@ async function createRichViewerPost(page, request, suffix, options = {}) {
     options.content ||
     "Built to exercise the post-details flow with a separate rich viewer overlay, integrated commentary, anchored marks, and a full aspect-ratio matrix.";
   const tags = options.tags || "viewer, moonlight, showcase";
+  const extraPlainCommentsCount = options.extraPlainCommentsCount || 0;
 
   await page.goto("/posts/new");
   await page.getByTestId("create-post-title").fill(title);
@@ -162,6 +163,16 @@ async function createRichViewerPost(page, request, suffix, options = {}) {
     text: "The right-panel commentary should stay useful without overpowering the image stage.",
   });
   const plainComment = await plainCommentResponse.json();
+  const extraComments = [];
+
+  for (let index = 0; index < extraPlainCommentsCount; index += 1) {
+    const extraCommentResponse = await sendAuthedRequest(page, request, "POST", `/api/posts/${postId}/comments`, {
+      postId,
+      text: `Viewer thread filler ${index + 1} keeps the comments column scrollable while the composer stays pinned in place.`,
+    });
+
+    extraComments.push(await extraCommentResponse.json());
+  }
 
   await page.goto(`/posts/${postId}`);
   await page.waitForLoadState("networkidle");
@@ -182,6 +193,7 @@ async function createRichViewerPost(page, request, suffix, options = {}) {
     markedCommentTwo,
     markedCommentThree,
     plainComment,
+    extraComments,
   };
 }
 

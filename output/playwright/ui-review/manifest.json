@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-20T22:20:18.436Z",
+  "generatedAt": "2026-03-20T23:42:07.467Z",
   "scope": "targeted",
   "reviewCommand": "npm --prefix e2e run test:ui-review",
   "groups": [
@@ -335,6 +335,6 @@
     }
   ],
   "failures": [],
-  "completedAt": "2026-03-20T22:21:24.862Z",
+  "completedAt": "2026-03-20T23:43:13.639Z",
   "captureCount": 23
 }

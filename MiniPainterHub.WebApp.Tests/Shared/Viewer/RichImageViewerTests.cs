@@ -88,6 +88,19 @@ public class RichImageViewerTests : TestContext
     }
 
     [Fact]
+    public void ExpandedRailShowsKeyboardShortcutHints()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var cut = RenderViewer();
+
+        cut.Find("[data-testid='viewer-shortcuts']").TextContent.Should().Contain("navigate");
+        cut.Find("[data-testid='viewer-shortcuts']").TextContent.Should().Contain("fullscreen");
+        cut.Find("[data-testid='viewer-shortcuts']").TextContent.Should().Contain("Esc");
+    }
+
+    [Fact]
     public void ReopeningViewerResetsScaleModeAndZoomToFitForTheSameImage()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;

@@ -364,18 +364,33 @@
                             }
 
                             <section class="viewer-panel-section viewer-panel-section--comments">
-                                <div class="viewer-panel__comments-body">
-                                    <div class="viewer-panel__comments-top" data-testid="viewer-composer-sticky">
-                                        <div class="viewer-panel__comments-header">
-                                            <div>
-                                                <p class="viewer-panel__eyebrow">Comments</p>
-                                                <h3 class="viewer-panel__title">Discuss the piece without leaving the viewer.</h3>
-                                            </div>
-                                        </div>
+                                <div class="viewer-panel__comments-header">
+                                    <div>
+                                        <p class="viewer-panel__eyebrow">Comments</p>
+                                        <h3 class="viewer-panel__title">Discuss the piece without leaving the viewer.</h3>
+                                    </div>
+                                </div>
 
+                                <div class="viewer-panel__comments-thread" data-testid="viewer-comments-thread">
+                                    <div class="viewer-panel__comments-scroll" data-testid="viewer-comments-scroll">
+                                        <div class="viewer-panel__comments-list">
+                                            <CommentList @ref="_viewerCommentList"
+                                                         PostId="@PostId"
+                                                         ActiveCommentId="@_activeCommentId"
+                                                         LoadingViewerMarkCommentId="@_markLoadingCommentId"
+                                                         ViewerMarkErrorCommentId="@_markErrorCommentId"
+                                                         ViewerMarkError="@_markError"
+                                                         OnToggleViewerMark="ToggleCommentMarkAsync"
+                                                         IsViewerPanel="true"
+                                                         ViewerActionLabel="Reveal anchor"
+                                                         ViewerActionActiveLabel="Hide anchor" />
+                                        </div>
+                                    </div>
+
+                                    <div class="viewer-panel__composer-sticky" data-testid="viewer-composer-sticky">
                                         <AuthorizeView>
                                             <Authorized>
-                                                <div class="viewer-panel__composer">
+                                                <div class="viewer-panel__composer" data-testid="viewer-comment-composer">
                                                     <CommentForm PostId="@PostId"
                                                                  CanAttachViewerMark="@(viewer.CanAttachCommentMark && viewer.Images.Count > 0)"
                                                                  ViewerPlacementActive="@_isCommentPlacementMode"
@@ -400,21 +415,6 @@
                                                 </div>
                                             </NotAuthorized>
                                         </AuthorizeView>
-                                    </div>
-
-                                    <div class="viewer-panel__comments-scroll" data-testid="viewer-comments-scroll">
-                                        <div class="viewer-panel__comments-list">
-                                            <CommentList @ref="_viewerCommentList"
-                                                         PostId="@PostId"
-                                                         ActiveCommentId="@_activeCommentId"
-                                                         LoadingViewerMarkCommentId="@_markLoadingCommentId"
-                                                         ViewerMarkErrorCommentId="@_markErrorCommentId"
-                                                         ViewerMarkError="@_markError"
-                                                         OnToggleViewerMark="ToggleCommentMarkAsync"
-                                                         IsViewerPanel="true"
-                                                         ViewerActionLabel="Reveal anchor"
-                                                         ViewerActionActiveLabel="Hide anchor" />
-                                        </div>
                                     </div>
                                 </div>
                             </section>

@@ -92,6 +92,25 @@ public class PostDetailsViewerTests : TestContext
     }
 
     [Fact]
+    public void CommentsTabRendersScrollableThreadBeforeStickyComposer()
+    {
+        var cut = RenderWithAuth(CreateScenario());
+
+        cut.Find("[data-testid='post-details-open-viewer-hero']").Click();
+        cut.Find("[data-testid='viewer-side-tab-comments']").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            var thread = cut.Find("[data-testid='viewer-comments-thread']");
+            var childTestIds = thread.Children.Select(child => child.GetAttribute("data-testid")).ToArray();
+
+            childTestIds.Should().Equal("viewer-comments-scroll", "viewer-composer-sticky");
+            cut.Find("[data-testid='viewer-comment-composer']").Should().NotBeNull();
+            cut.Find("[data-testid='viewer-composer-sticky']").TextContent.Should().Contain("Post Comment");
+        });
+    }
+
+    [Fact]
     public void ClickingPageThumbnailOpensViewerAtThatImage()
     {
         var scenario = CreateScenario();

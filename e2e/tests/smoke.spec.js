@@ -245,7 +245,7 @@ test("comment and like flow works on post details", async ({ page }) => {
 
 test("rich viewer overlay keeps post details intact and supports refined layout modes", async ({ page, request }) => {
   await loginAsSeedUser(page);
-  const viewerPost = await createRichViewerPost(page, request, "desktop-flow");
+  const viewerPost = await createRichViewerPost(page, request, "desktop-flow", { extraPlainCommentsCount: 8 });
   const squareImagePath = getPathSegment(new URL(viewerPost.squareImage.imageUrl, page.url()).toString(), "/uploads/images/");
   const secondaryImagePath = getPathSegment(new URL(viewerPost.secondaryImage.imageUrl, page.url()).toString(), "/uploads/images/");
   const panoramaImagePath = getPathSegment(new URL(viewerPost.panoramaImage.imageUrl, page.url()).toString(), "/uploads/images/");
@@ -350,6 +350,24 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
   await page.getByTestId("viewer-side-tab-comments").click();
   await expect(page.getByTestId("viewer-side-tab-comments")).toHaveClass(/is-active/);
   await expect(page.getByTestId("viewer-comments-scroll")).toBeVisible();
+  const commentsScroll = page.getByTestId("viewer-comments-scroll");
+  const composerSticky = page.getByTestId("viewer-composer-sticky");
+  const composerBoxBeforeScroll = await composerSticky.boundingBox();
+  const scrollMetrics = await commentsScroll.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+  }));
+  expect(scrollMetrics.scrollHeight).toBeGreaterThan(scrollMetrics.clientHeight);
+  await commentsScroll.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await page.waitForTimeout(160);
+  const scrollTop = await commentsScroll.evaluate((element) => element.scrollTop);
+  const composerBoxAfterScroll = await composerSticky.boundingBox();
+  expect(scrollTop).toBeGreaterThan(0);
+  expect(composerBoxBeforeScroll).toBeTruthy();
+  expect(composerBoxAfterScroll).toBeTruthy();
+  expectWithinTolerance(composerBoxAfterScroll.y, composerBoxBeforeScroll.y, 2);
   await page.getByTestId("viewer-side-tab-info").click();
   await expect(page.getByTestId("viewer-side-tab-info")).toHaveClass(/is-active/);
   await expect(page.getByTestId("viewer-panel-info")).toBeVisible();
@@ -546,6 +564,20 @@ test("rich viewer mobile layout plus loading and error states work", async ({ pa
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(250);
   await expect(page.getByTestId("viewer-side-panel")).toBeVisible();
+  await expect(page.getByTestId("viewer-control-rail")).toBeVisible();
+  const [railBox, stageBox, panelBox] = await Promise.all([
+    page.getByTestId("viewer-control-rail").boundingBox(),
+    page.getByTestId("viewer-stage").boundingBox(),
+    page.getByTestId("viewer-side-panel").boundingBox(),
+  ]);
+  expect(railBox).toBeTruthy();
+  expect(stageBox).toBeTruthy();
+  expect(panelBox).toBeTruthy();
+  expect(stageBox.y).toBeGreaterThanOrEqual(railBox.y + railBox.height - 1);
+  expect(stageBox.height).toBeGreaterThan(railBox.height);
+  expect(stageBox.height).toBeGreaterThan(panelBox.height * 0.85);
+  expectWithinTolerance(stageBox.x, panelBox.x, 6);
+  expectWithinTolerance(stageBox.width, panelBox.width, 6);
 });
 
 test("search by title and tag works, and public profiles open from search", async ({ page }) => {
