@@ -196,11 +196,11 @@
 .viewer-panel-section {
     display: grid;
     gap: 0.75rem;
-    padding: 0.2rem 0;
+    padding: 0.1rem 0;
 }
 
 .viewer-panel-section--hero {
-    padding: 0.9rem;
+    padding: 0.82rem 0.88rem;
     border-radius: calc(var(--radius-md) + 0.15rem);
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015)),
@@ -210,7 +210,7 @@
 
 .viewer-panel-section + .viewer-panel-section {
     border-top: 1px solid rgba(255, 255, 255, 0.08);
-    padding-top: 0.8rem;
+    padding-top: 0.72rem;
 }
 
 .viewer-panel-section--comments {
@@ -299,18 +299,18 @@
 
 .viewer-panel__comments-top {
     display: grid;
-    gap: 0.7rem;
+    gap: 0.62rem;
     position: sticky;
-    top: -0.15rem;
+    top: -0.05rem;
     z-index: 2;
-    padding-bottom: 0.45rem;
+    padding-bottom: 0.35rem;
     background: linear-gradient(180deg, rgba(18, 26, 30, 0.98), rgba(18, 26, 30, 0.92) 76%, rgba(18, 26, 30, 0));
 }
 
 .viewer-panel__composer {
     display: grid;
-    gap: 0.75rem;
-    padding: 0.72rem;
+    gap: 0.68rem;
+    padding: 0.66rem;
     border-radius: 1rem;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -325,7 +325,7 @@
 .viewer-panel__comments-list {
     display: grid;
     align-content: start;
-    gap: 0.7rem;
+    gap: 0.62rem;
 }
 
 .viewer-panel__auth-callout {

@@ -160,7 +160,7 @@ else if (IsOpen)
                         </div>
                     </div>
 
-                    <aside class="viewer-shell__side-panel" data-testid="viewer-side-panel">
+                    <aside class="viewer-shell__side-panel" data-testid="viewer-side-panel" @ref="_sidePanelElement">
                         @if (SidePanelContent is not null)
                         {
                             @SidePanelContent
@@ -185,6 +185,7 @@ else if (IsOpen)
     private ViewerStage? _viewerStage;
     private ElementReference _rootElement;
     private ElementReference _imageElement;
+    private ElementReference _sidePanelElement;
     private IJSObjectReference? _module;
     private DotNetObjectReference<RichImageViewer>? _selfReference;
 
@@ -417,6 +418,11 @@ else if (IsOpen)
             if (!_wasOpenLastRender)
             {
                 await FocusStageAsync();
+
+                if (!ActiveCommentId.HasValue)
+                {
+                    await ResetSidePanelScrollAsync();
+                }
             }
         }
 
@@ -586,6 +592,24 @@ else if (IsOpen)
         catch
         {
             // Ignore scrolling failures while the viewer is updating.
+        }
+    }
+
+    private async Task ResetSidePanelScrollAsync()
+    {
+        var module = await EnsureModuleAsync();
+        if (module is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await module.InvokeVoidAsync("scrollElementToTop", _sidePanelElement);
+        }
+        catch
+        {
+            // Ignore panel scroll reset failures during viewer open.
         }
     }
 

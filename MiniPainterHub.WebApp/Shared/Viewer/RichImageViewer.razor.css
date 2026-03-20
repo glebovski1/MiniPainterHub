@@ -4,7 +4,7 @@
     z-index: 1200;
     display: grid;
     place-items: center;
-    padding: clamp(0.85rem, 1.6vw, 1.25rem);
+    padding: clamp(0.55rem, 1.25vw, 0.95rem);
 }
 
 .viewer-modal__backdrop {
@@ -31,8 +31,10 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    width: min(97vw, 95rem);
-    max-height: min(96vh, 60rem);
+    width: min(97.75vw, 96rem);
+    height: min(97vh, 64rem);
+    max-height: calc(100vh - 0.7rem);
+    min-height: min(88vh, 52rem);
     overflow: hidden;
     border-radius: calc(var(--radius-lg) + 0.5rem);
     background: linear-gradient(145deg, rgba(10, 15, 18, 0.98), rgba(16, 24, 28, 0.95));
@@ -70,7 +72,7 @@
     min-height: 0;
     height: 100%;
     overflow: hidden;
-    padding: clamp(0.9rem, 1.4vw, 1.15rem);
+    padding: clamp(0.72rem, 1.15vw, 0.98rem);
     box-sizing: border-box;
 }
 
@@ -79,7 +81,7 @@
     display: grid;
     grid-template-columns: 11rem minmax(0, 1fr) 24rem;
     grid-template-rows: minmax(0, 1fr);
-    gap: 1rem;
+    gap: 0.85rem;
     min-height: 0;
     height: 100%;
     align-items: stretch;
@@ -101,9 +103,12 @@
 .viewer-shell__control-rail {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    padding: 0.85rem;
-    overflow: hidden;
+    gap: 0.65rem;
+    align-self: start;
+    height: auto;
+    max-height: 100%;
+    padding: 0.8rem 0.8rem 0.7rem;
+    overflow: auto;
     background: linear-gradient(180deg, rgba(20, 28, 32, 0.96), rgba(16, 22, 26, 0.94));
     min-width: 0;
 }
@@ -115,7 +120,7 @@
 .viewer-shell__stage-column {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
-    gap: 0.75rem;
+    gap: 0.6rem;
     height: 100%;
     min-width: 0;
     min-height: 0;
@@ -126,7 +131,7 @@
     height: 100%;
     min-width: 0;
     min-height: 0;
-    padding: 0.2rem;
+    padding: 0.12rem;
     border-radius: calc(var(--radius-lg) + 0.2rem);
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -140,13 +145,13 @@
 .viewer-shell__side-panel {
     display: flex;
     flex-direction: column;
-    gap: 0.8rem;
+    gap: 0.72rem;
     min-width: 0;
     overflow: auto;
-    padding: 0.95rem;
+    padding: 1rem 1rem 1.1rem;
     background: linear-gradient(180deg, rgba(18, 26, 30, 0.96), rgba(15, 21, 26, 0.94));
     overscroll-behavior: contain;
-    scroll-padding-top: 13rem;
+    scroll-padding-top: 10.5rem;
     scrollbar-gutter: stable;
     touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
@@ -173,13 +178,15 @@
 
 .viewer-helptext {
     justify-content: flex-start;
-    margin-top: auto;
-    padding: 0;
+    margin-top: 0.1rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     color: var(--viewer-muted);
-    font-size: 0.72rem;
-    line-height: 1.35;
+    font-size: 0.66rem;
+    line-height: 1.28;
     text-align: left;
     flex-wrap: wrap;
+    gap: 0.22rem 0.42rem;
 }
 
 .viewer-helptext kbd {
@@ -273,7 +280,7 @@
 
 @media (max-width: 1279.98px) and (min-width: 992px) {
     .viewer-shell {
-        width: min(97vw, 90rem);
+        width: min(97vw, 92rem);
     }
 
     .viewer-shell__body {
@@ -283,16 +290,18 @@
 
 @media (max-width: 991.98px) {
     .viewer-modal {
-        padding: 0.55rem;
+        padding: 0.4rem;
     }
 
     .viewer-shell {
-        width: min(100vw - 1.1rem, 58rem);
-        max-height: calc(100vh - 1.1rem);
+        width: min(100vw - 0.8rem, 58rem);
+        height: min(100vh - 0.8rem, 58rem);
+        max-height: calc(100vh - 0.8rem);
+        min-height: auto;
     }
 
     .viewer-shell__content {
-        padding: 0.75rem;
+        padding: 0.65rem;
     }
 
     .viewer-shell__body {
@@ -305,6 +314,8 @@
 
     .viewer-shell__control-rail {
         padding: 0.85rem;
+        align-self: stretch;
+        height: auto;
     }
 
     .viewer-shell__side-panel {
@@ -314,7 +325,7 @@
 
 @media (max-width: 767.98px) {
     .viewer-helptext {
-        font-size: 0.76rem;
+        font-size: 0.72rem;
     }
 
     .viewer-shell__side-panel {

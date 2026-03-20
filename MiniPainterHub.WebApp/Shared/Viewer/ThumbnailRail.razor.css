@@ -2,7 +2,7 @@
     position: relative;
     z-index: 2;
     display: grid;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     gap: 0.65rem;
     overflow: auto;
     min-height: 0;
@@ -56,8 +56,8 @@
 @media (min-width: 992px) {
     .viewer-thumbnails {
         grid-auto-rows: minmax(0, 3.85rem);
-        min-height: 12rem;
-        max-height: none;
+        min-height: 0;
+        max-height: min(15rem, 28vh);
     }
 }
 

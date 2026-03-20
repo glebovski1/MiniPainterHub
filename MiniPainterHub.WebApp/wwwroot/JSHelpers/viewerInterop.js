@@ -237,3 +237,14 @@ export function scrollIntoViewIfNeeded(selector) {
         behavior: "auto"
     });
 }
+
+export function scrollElementToTop(element) {
+    if (!element) {
+        return;
+    }
+
+    element.scrollTo({
+        top: 0,
+        behavior: "auto"
+    });
+}
