@@ -97,23 +97,35 @@ async function settle(page, milliseconds = 450) {
   await page.waitForTimeout(milliseconds);
 }
 
-async function waitForViewerLayout(page) {
+async function waitForViewerLayout(page, options = {}) {
+  const { allowCompactRail = false } = options;
   await page.waitForFunction(() => {
     const image = document.querySelector("[data-testid='viewer-stage-image']");
+    const stage = document.querySelector("[data-testid='viewer-stage']");
     const rail = document.querySelector("[data-testid='viewer-control-rail']");
     const panel = document.querySelector("[data-testid='viewer-side-panel']");
-    if (!(image instanceof HTMLElement) || !(rail instanceof HTMLElement) || !(panel instanceof HTMLElement)) {
+    if (!(image instanceof HTMLElement)
+      || !(stage instanceof HTMLElement)
+      || !(rail instanceof HTMLElement)
+      || !(panel instanceof HTMLElement)) {
       return false;
     }
 
     const imageRect = image.getBoundingClientRect();
+    const stageRect = stage.getBoundingClientRect();
     const railRect = rail.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
-    return imageRect.width > 150
+    return stageRect.width > 300
+      && stageRect.height > 220
+      && imageRect.width > 150
       && imageRect.height > 150
-      && railRect.width > 90
+      && railRect.width > 40
       && panelRect.width > 220;
   });
+
+  if (!allowCompactRail) {
+    await expect.poll(() => page.getByTestId("viewer-control-rail").boundingBox().then((box) => (box ? box.width : 0))).toBeGreaterThan(90);
+  }
 }
 
 async function getViewerFitRatio(page) {
@@ -580,6 +592,7 @@ const scenarioGroups = {
     });
 
     await openViewerFromDetails(page);
+    await waitForViewerLayout(page);
     await capture(page, manifest, {
       name: "posts-detail-rich-viewer-open-portrait",
       group: "posts",
@@ -588,6 +601,46 @@ const scenarioGroups = {
       fullPage: false,
       stateTags: ["posts", "desktop", "viewer-open", "portrait"]
     });
+
+    await clickReliably(page.getByTestId("viewer-view-fill"));
+    await waitForViewerLayout(page);
+    await settle(page, 250);
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-open-fill",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "desktop", "viewer-open", "fill"]
+    });
+
+    await clickReliably(page.getByTestId("viewer-rail-toggle"));
+    await waitForViewerLayout(page, { allowCompactRail: true });
+    await settle(page, 250);
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-open-collapsed-rail",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "desktop", "viewer-open", "compact-rail"]
+    });
+
+    await clickReliably(page.getByTestId("viewer-side-tab-comments"));
+    await settle(page, 250);
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-comments-tab",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "desktop", "viewer-open", "comments-tab"]
+    });
+
+    await clickReliably(page.getByTestId("viewer-rail-toggle"));
+    await clickReliably(page.getByTestId("viewer-reset"));
+    await clickReliably(page.getByTestId("viewer-side-tab-info"));
+    await waitForViewerLayout(page);
 
     await cycleViewerToRatio(page, 1);
     await settle(page, 300);

@@ -36,14 +36,24 @@
     -webkit-box-orient: vertical;
 }
 
+.viewer-toolbar__top-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.viewer-toolbar__toggle,
 .viewer-toolbar__close {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.45rem;
-    box-shadow: 0 0.8rem 1.4rem rgba(0, 0, 0, 0.18);
-    white-space: nowrap;
-    justify-self: start;
     min-height: 2.55rem;
+    white-space: nowrap;
+}
+
+.viewer-toolbar__close {
+    box-shadow: 0 0.8rem 1.4rem rgba(0, 0, 0, 0.18);
 }
 
 .viewer-toolbar__status {
@@ -85,7 +95,7 @@
 }
 
 .viewer-toolbar__button-pair,
-.viewer-toolbar__button-trio {
+.viewer-toolbar__mode-buttons {
     display: grid;
     gap: 0.38rem;
 }
@@ -94,18 +104,22 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.viewer-toolbar__button-trio {
+.viewer-toolbar__mode-buttons {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .viewer-toolbar__button-pair .btn,
-.viewer-toolbar__button-trio .btn,
+.viewer-toolbar__mode-buttons .btn,
 .viewer-toolbar__wide-action {
     min-height: 2.55rem;
 }
 
-.viewer-toolbar__fit {
+.viewer-toolbar__mode {
     font-weight: 700;
+}
+
+.viewer-toolbar__mode.is-active {
+    color: #102127;
 }
 
 .viewer-toolbar__wide-action {
@@ -113,6 +127,99 @@
     align-items: center;
     justify-content: center;
     gap: 0.55rem;
+}
+
+.viewer-toolbar.is-compact {
+    gap: 0.6rem;
+    justify-items: stretch;
+}
+
+.viewer-toolbar.is-compact .viewer-toolbar__identity {
+    display: none;
+}
+
+.viewer-toolbar.is-compact .viewer-toolbar__top {
+    gap: 0;
+}
+
+.viewer-toolbar.is-compact .viewer-toolbar__top-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.35rem;
+}
+
+.viewer-toolbar.is-compact .viewer-toolbar__toggle,
+.viewer-toolbar.is-compact .viewer-toolbar__close {
+    min-height: 2.7rem;
+    padding: 0;
+    border-radius: 0.95rem;
+    box-shadow: none;
+}
+
+.viewer-toolbar.is-compact .viewer-toolbar__toggle span,
+.viewer-toolbar.is-compact .viewer-toolbar__close span,
+.viewer-toolbar.is-compact .viewer-toolbar__wide-action span {
+    display: none;
+}
+
+.viewer-toolbar.is-compact .viewer-toolbar__status {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.viewer-toolbar.is-compact .viewer-toolbar__status-pill {
+    align-items: center;
+    text-align: center;
+    gap: 0.12rem;
+    padding: 0.52rem 0.4rem;
+    border-radius: 0.95rem;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.035)),
+        rgba(255, 255, 255, 0.02);
+}
+
+.viewer-toolbar.is-compact .viewer-toolbar__status-label {
+    font-size: 0.58rem;
+    letter-spacing: 0.16em;
+}
+
+.viewer-toolbar.is-compact .viewer-toolbar__status-pill strong {
+    font-size: 0.82rem;
+}
+
+.viewer-toolbar.is-compact .viewer-toolbar__label {
+    text-align: center;
+    font-size: 0.58rem;
+    letter-spacing: 0.16em;
+}
+
+.viewer-toolbar.is-compact .viewer-toolbar__button-pair,
+.viewer-toolbar.is-compact .viewer-toolbar__mode-buttons {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.viewer-toolbar.is-compact .viewer-toolbar__cluster {
+    gap: 0.4rem;
+    padding: 0.52rem 0.38rem 0.44rem;
+    border-radius: 1rem;
+    border-top: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015));
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.viewer-toolbar.is-compact .viewer-toolbar__button-pair .btn,
+.viewer-toolbar.is-compact .viewer-toolbar__mode-buttons .btn,
+.viewer-toolbar.is-compact .viewer-toolbar__wide-action {
+    min-height: 2.42rem;
+    padding-inline: 0;
+}
+
+.viewer-toolbar.is-compact .viewer-toolbar__button-pair .btn i,
+.viewer-toolbar.is-compact .viewer-toolbar__wide-action i {
+    font-size: 0.95rem;
+}
+
+.viewer-toolbar.is-compact .viewer-toolbar__mode-buttons .btn {
+    font-size: 0.72rem;
 }
 
 @media (max-width: 991.98px) {
@@ -124,15 +231,16 @@
         gap: 0.7rem;
     }
 
+    .viewer-toolbar__toggle,
     .viewer-toolbar__close {
         min-height: 2.75rem;
     }
 
-    .viewer-toolbar__status {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
     .viewer-toolbar__cluster {
         padding-top: 0.75rem;
+    }
+
+    .viewer-toolbar__toggle {
+        display: none;
     }
 }

@@ -89,6 +89,15 @@ export async function requestFullscreen(element) {
     return true;
 }
 
+export async function exitFullscreenIfOwned(element) {
+    if (!element || document.fullscreenElement !== element) {
+        return false;
+    }
+
+    await document.exitFullscreen();
+    return true;
+}
+
 export function preloadImages(urls) {
     if (!Array.isArray(urls)) {
         return;
@@ -138,10 +147,12 @@ export function activateModal(element) {
 
     const previousOverflow = document.body.style.overflow;
     const previousPaddingRight = document.body.style.paddingRight;
+    const previousDocumentOverflow = document.documentElement.style.overflow;
     const scrollbarWidth = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
     if (scrollbarWidth > 0) {
         document.body.style.paddingRight = `${scrollbarWidth}px`;
     }
@@ -192,6 +203,7 @@ export function activateModal(element) {
     modalStates.set(element, {
         previousOverflow,
         previousPaddingRight,
+        previousDocumentOverflow,
         previouslyFocused,
         keydownHandler,
         focusInHandler
@@ -213,6 +225,7 @@ export function deactivateModal(element) {
     document.removeEventListener("focusin", state.focusInHandler, true);
     document.body.style.overflow = state.previousOverflow;
     document.body.style.paddingRight = state.previousPaddingRight;
+    document.documentElement.style.overflow = state.previousDocumentOverflow;
 
     if (state.previouslyFocused && typeof state.previouslyFocused.focus === "function") {
         state.previouslyFocused.focus();

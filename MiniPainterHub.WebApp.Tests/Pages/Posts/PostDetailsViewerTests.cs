@@ -53,6 +53,41 @@ public class PostDetailsViewerTests : TestContext
             cut.Find("[data-testid='rich-image-viewer']");
             cut.Find("[data-testid='viewer-side-panel']");
             cut.Find("[data-testid='viewer-stage-image']");
+            cut.Find("[data-testid='viewer-side-tab-info']").ClassList.Should().Contain("is-active");
+            cut.Find("[data-testid='viewer-panel-info']").TextContent.Should().Contain("About this piece");
+            cut.FindAll("[data-testid='viewer-panel-comments']").Should().BeEmpty();
+        });
+    }
+
+    [Fact]
+    public void ViewerSidePanelTabsSwitchBetweenInfoAndComments()
+    {
+        var cut = RenderWithAuth(CreateScenario());
+
+        cut.Find("[data-testid='post-details-open-viewer-hero']").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='viewer-side-tab-info']").ClassList.Should().Contain("is-active");
+            cut.Find("[data-testid='viewer-panel-info']");
+        });
+
+        cut.Find("[data-testid='viewer-side-tab-comments']").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='viewer-side-tab-comments']").ClassList.Should().Contain("is-active");
+            cut.Find("[data-testid='viewer-panel-comments']");
+            cut.Find("[data-testid='viewer-comments-scroll']");
+        });
+
+        cut.Find("[data-testid='viewer-side-tab-info']").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='viewer-side-tab-info']").ClassList.Should().Contain("is-active");
+            cut.Find("[data-testid='viewer-mark-summary']");
+            cut.FindAll("[data-testid='viewer-comments-scroll']").Should().BeEmpty();
         });
     }
 
@@ -75,6 +110,22 @@ public class PostDetailsViewerTests : TestContext
     }
 
     [Fact]
+    public void RequestingCommentPlacementOpensViewerOnTheCommentsTab()
+    {
+        var cut = RenderWithAuth(CreateScenario());
+
+        cut.Find("[data-testid='comment-attach-mark']").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='rich-image-viewer-modal']");
+            cut.Find("[data-testid='viewer-side-tab-comments']").ClassList.Should().Contain("is-active");
+            cut.Find("[data-testid='viewer-panel-comments']");
+            cut.Find("[data-testid='viewer-banner']").TextContent.Should().Contain("comment marker");
+        });
+    }
+
+    [Fact]
     public void ClickingPageCommentMarkOpensViewerAndHighlightsCorrectComment()
     {
         var scenario = CreateScenario();
@@ -92,6 +143,7 @@ public class PostDetailsViewerTests : TestContext
         cut.WaitForAssertion(() =>
         {
             cut.Find("[data-testid='rich-image-viewer-modal']");
+            cut.Find("[data-testid='viewer-side-tab-comments']").ClassList.Should().Contain("is-active");
             cut.Find("[data-testid='viewer-comment-state']").TextContent.Should().Contain("#12");
             cut.Find("[data-testid='viewer-stage-image']")
                 .GetAttribute("src")

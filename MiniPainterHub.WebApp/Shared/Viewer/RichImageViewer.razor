@@ -23,7 +23,7 @@ else if (IsOpen)
                 data-testid="viewer-backdrop"
                 @onclick="CloseAsync"></button>
 
-        <section class="viewer-shell @(_isFullscreen ? "is-fullscreen" : null)"
+        <section class="@ViewerShellClass"
                  data-testid="rich-image-viewer"
                  role="dialog"
                  aria-modal="true"
@@ -36,13 +36,15 @@ else if (IsOpen)
 
             <div class="viewer-shell__content">
                 <div class="viewer-shell__body">
-                    <aside class="viewer-shell__control-rail" data-testid="viewer-control-rail">
+                    <aside class="viewer-shell__control-rail @(_isControlRailCollapsed ? "is-collapsed" : null)" data-testid="viewer-control-rail">
                         <ViewerToolbar Eyebrow="@Eyebrow"
                                        Title="@Title"
                                        TitleId="@TitleId"
                                        CurrentIndex="@CurrentImageNumber"
                                        TotalCount="@Viewer.Images.Count"
                                        ZoomPercent="@ZoomPercent"
+                                       ScaleMode="@_transform.ScaleMode"
+                                       IsCompact="@_isControlRailCollapsed"
                                        CanGoPrevious="@(Viewer.Images.Count > 1)"
                                        CanGoNext="@(Viewer.Images.Count > 1)"
                                        CanAddAuthorMark="@Viewer.CanManageAuthorMarks"
@@ -53,11 +55,16 @@ else if (IsOpen)
                                        OnNext="NextImageAsync"
                                        OnZoomIn="ZoomInAsync"
                                        OnZoomOut="ZoomOutAsync"
-                                       OnResetView="ResetViewAsync"
+                                       OnSetFitMode="SetFitModeAsync"
+                                       OnSetFillMode="SetFillModeAsync"
+                                       OnSetActualSizeMode="SetActualSizeModeAsync"
                                        OnToggleFullscreen="ToggleFullscreenAsync"
                                        OnToggleAuthorPlacement="ToggleAuthorPlacementAsync"
+                                       OnToggleRail="ToggleControlRailAsync"
                                        OnClose="CloseAsync" />
 
+                        @if (!_isControlRailCollapsed)
+                        {
                         <ThumbnailRail Images="@Viewer.Images"
                                        ActiveImageId="@ResolvedImageId"
                                        OnSelect="SelectImageAsync" />
@@ -69,6 +76,7 @@ else if (IsOpen)
                             <span><kbd>F</kbd> fullscreen</span>
                             <span><kbd>Esc</kbd> close</span>
                         </div>
+                        }
                     </aside>
 
                     <div class="viewer-shell__stage-column">
@@ -198,6 +206,7 @@ else if (IsOpen)
     private bool _isFullscreenSupported;
     private bool _isFullscreen;
     private bool _isAuthorPlacementMode;
+    private bool _isControlRailCollapsed;
     private bool _authorMarkBusy;
     private bool _pendingFocusCommentMark;
     private bool _pendingScrollActiveComment;
@@ -261,7 +270,7 @@ else if (IsOpen)
         }
     }
 
-    private int ZoomPercent => (int)Math.Round(_transform.Zoom * 100d, MidpointRounding.AwayFromZero);
+    private int ZoomPercent => (int)Math.Round(_transform.GetDisplayScale(CurrentImage) * 100d, MidpointRounding.AwayFromZero);
 
     private bool CurrentImageLoading => CurrentImage is not null && !_loadedImageIds.Contains(CurrentImage.Id) && !_failedImageIds.Contains(CurrentImage.Id);
 
@@ -284,7 +293,10 @@ else if (IsOpen)
                 ? SelectedAuthorMark.Tag!
                 : $"Image {CurrentImageNumber} author mark";
 
-    private string CurrentInteractionHint =>
+    private string ViewerShellClass =>
+        $"viewer-shell {(_isFullscreen ? "is-fullscreen" : null)} {(_isControlRailCollapsed ? "is-rail-collapsed" : null)}";
+
+    private string? CurrentInteractionHint =>
         IsCommentPlacementMode
             ? "Tap the artwork to place the comment marker."
             : _isAuthorPlacementMode
@@ -308,8 +320,8 @@ else if (IsOpen)
                 return string.Empty;
             }
 
-            var fit = _transform.GetFitRect(CurrentImage);
-            return FormattableString.Invariant($"left:{fit.Left:F2}px;top:{fit.Top:F2}px;width:{fit.Width:F2}px;height:{fit.Height:F2}px;");
+            var imageRect = _transform.GetImageRect(CurrentImage);
+            return FormattableString.Invariant($"left:{imageRect.Left:F2}px;top:{imageRect.Top:F2}px;width:{imageRect.Width:F2}px;height:{imageRect.Height:F2}px;");
         }
     }
 
@@ -370,6 +382,7 @@ else if (IsOpen)
             _composerValue = new();
             _authorMarkError = null;
             _isAuthorPlacementMode = false;
+            _isControlRailCollapsed = false;
             ResetViewState();
             _lastFocusedCommentId = null;
             _lastPreloadedImageId = null;
@@ -452,6 +465,12 @@ else if (IsOpen)
     [JSInvokable]
     public Task OnStageResized(double width, double height)
     {
+        if (Math.Abs(width - _transform.StageWidth) < 0.5d
+            && Math.Abs(height - _transform.StageHeight) < 0.5d)
+        {
+            return Task.CompletedTask;
+        }
+
         _transform.SetStage(width, height, CurrentImage);
         return InvokeAsync(StateHasChanged);
     }
@@ -459,6 +478,11 @@ else if (IsOpen)
     [JSInvokable]
     public Task OnFullscreenChanged(bool isFullscreen)
     {
+        if (_isFullscreen == isFullscreen)
+        {
+            return Task.CompletedTask;
+        }
+
         _isFullscreen = isFullscreen;
         return InvokeAsync(StateHasChanged);
     }
@@ -505,12 +529,18 @@ else if (IsOpen)
             _isFullscreen = false;
             _pointer = null;
             _suppressNextPlacementClick = false;
+            _isControlRailCollapsed = false;
             ResetViewState();
             return;
         }
 
         try
         {
+            if (_isFullscreen && _isFullscreenSupported)
+            {
+                await _module.InvokeVoidAsync("exitFullscreenIfOwned", _rootElement);
+            }
+
             if (_isStageObserved && _viewerStage is not null)
             {
                 await _module.InvokeVoidAsync("unobserveStageSize", _viewerStage.StageElement);
@@ -533,6 +563,7 @@ else if (IsOpen)
             _isFullscreen = false;
             _pointer = null;
             _suppressNextPlacementClick = false;
+            _isControlRailCollapsed = false;
             ResetViewState();
         }
     }
@@ -685,9 +716,27 @@ else if (IsOpen)
         return Task.CompletedTask;
     }
 
-    private Task ResetViewAsync()
+    private Task SetFitModeAsync()
     {
         ResetViewState();
+        return Task.CompletedTask;
+    }
+
+    private Task SetFillModeAsync()
+    {
+        _transform.SetScaleMode(ViewerScaleMode.Fill, CurrentImage);
+        return Task.CompletedTask;
+    }
+
+    private Task SetActualSizeModeAsync()
+    {
+        _transform.SetScaleMode(ViewerScaleMode.ActualSize, CurrentImage);
+        return Task.CompletedTask;
+    }
+
+    private Task ToggleControlRailAsync()
+    {
+        _isControlRailCollapsed = !_isControlRailCollapsed;
         return Task.CompletedTask;
     }
 
@@ -1102,7 +1151,7 @@ else if (IsOpen)
         var module = await EnsureModuleAsync();
         if (module is null || _viewerStage is null)
         {
-            return CurrentImage is null ? null : MapFitRect(_transform.GetFitRect(CurrentImage));
+            return CurrentImage is null ? null : MapImageRect(_transform.GetRenderedRect(CurrentImage));
         }
 
         try
@@ -1111,7 +1160,7 @@ else if (IsOpen)
         }
         catch
         {
-            return CurrentImage is null ? null : MapFitRect(_transform.GetFitRect(CurrentImage));
+            return CurrentImage is null ? null : MapImageRect(_transform.GetRenderedRect(CurrentImage));
         }
     }
 
@@ -1272,7 +1321,7 @@ else if (IsOpen)
 
     private void ResetViewState()
     {
-        _transform.Reset();
+        _transform.Reset(CurrentImage);
     }
 
     private async Task PreloadAdjacentImagesAsync()
@@ -1336,13 +1385,13 @@ else if (IsOpen)
         return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
     }
 
-    private static RelativeRect MapFitRect(ViewerFitRectSnapshot fit) =>
+    private static RelativeRect MapImageRect(ViewerImageRectSnapshot imageRect) =>
         new()
         {
-            Left = fit.Left,
-            Top = fit.Top,
-            Width = fit.Width,
-            Height = fit.Height
+            Left = imageRect.Left,
+            Top = imageRect.Top,
+            Width = imageRect.Width,
+            Height = imageRect.Height
         };
 
     private static TouchPoint? GetTouchPoint(TouchEventArgs args, bool useChangedTouches = false)
@@ -1362,6 +1411,11 @@ else if (IsOpen)
         {
             try
             {
+                if (_isFullscreen && _isFullscreenSupported)
+                {
+                    await _module.InvokeVoidAsync("exitFullscreenIfOwned", _rootElement);
+                }
+
                 if (_isStageObserved && _viewerStage is not null)
                 {
                     await _module.InvokeVoidAsync("unobserveStageSize", _viewerStage.StageElement);

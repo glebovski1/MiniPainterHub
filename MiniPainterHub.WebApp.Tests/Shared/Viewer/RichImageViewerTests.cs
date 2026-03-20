@@ -19,12 +19,8 @@ public class RichImageViewerTests : TestContext
         this.AddAuthorMarkStub();
 
         var requestedImageId = 0;
-        var cut = RenderComponent<RichImageViewer>(parameters => parameters
-            .Add(component => component.IsOpen, true)
-            .Add(component => component.Viewer, CreateViewer())
-            .Add(component => component.ActiveImageId, 101)
-            .Add(component => component.ActiveImageIdChanged, EventCallback.Factory.Create<int>(this, imageId => requestedImageId = imageId))
-            .Add(component => component.SidePanelContent, (RenderFragment)(_ => { })));
+        var cut = RenderViewer(parameters => parameters
+            .Add(component => component.ActiveImageIdChanged, EventCallback.Factory.Create<int>(this, imageId => requestedImageId = imageId)));
 
         var stage = cut.Find("[data-testid='viewer-stage']");
         stage.TriggerEvent("ontouchstart", CreateTouchEventArgs(280d, 180d));
@@ -41,12 +37,8 @@ public class RichImageViewerTests : TestContext
         this.AddAuthorMarkStub();
 
         var requestedImageId = 0;
-        var cut = RenderComponent<RichImageViewer>(parameters => parameters
-            .Add(component => component.IsOpen, true)
-            .Add(component => component.Viewer, CreateViewer())
-            .Add(component => component.ActiveImageId, 101)
-            .Add(component => component.ActiveImageIdChanged, EventCallback.Factory.Create<int>(this, imageId => requestedImageId = imageId))
-            .Add(component => component.SidePanelContent, (RenderFragment)(_ => { })));
+        var cut = RenderViewer(parameters => parameters
+            .Add(component => component.ActiveImageIdChanged, EventCallback.Factory.Create<int>(this, imageId => requestedImageId = imageId)));
 
         var stage = cut.Find("[data-testid='viewer-stage']");
         stage.TriggerEvent("ontouchstart", CreateTouchEventArgs(280d, 180d));
@@ -57,35 +49,79 @@ public class RichImageViewerTests : TestContext
     }
 
     [Fact]
-    public void ReopeningViewerResetsZoomToFitForTheSameImage()
+    public void ViewModeButtonsUpdateTheRenderedScale()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         this.AddAuthorMarkStub();
 
-        var cut = RenderComponent<RichImageViewer>(parameters => parameters
-            .Add(component => component.IsOpen, true)
-            .Add(component => component.Viewer, CreateViewer())
-            .Add(component => component.ActiveImageId, 101)
-            .Add(component => component.SidePanelContent, (RenderFragment)(_ => { })));
+        var cut = RenderViewer();
 
-        var stage = cut.Find("[data-testid='viewer-stage']");
-        stage.TriggerEvent("onwheel", new WheelEventArgs { DeltaY = -1 });
+        cut.Find("[data-testid='viewer-control-rail']").TextContent.Should().Contain("60%");
+        cut.Find("[data-testid='viewer-reset']").ClassList.Should().Contain("is-active");
 
+        cut.Find("[data-testid='viewer-view-fill']").Click();
+        cut.Find("[data-testid='viewer-control-rail']").TextContent.Should().Contain("71%");
+        cut.Find("[data-testid='viewer-view-fill']").ClassList.Should().Contain("is-active");
+
+        cut.Find("[data-testid='viewer-view-actual']").Click();
+        cut.Find("[data-testid='viewer-control-rail']").TextContent.Should().Contain("100%");
+        cut.Find("[data-testid='viewer-view-actual']").ClassList.Should().Contain("is-active");
+    }
+
+    [Fact]
+    public void CollapsingTheControlRailHidesTheThumbnailRail()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var cut = RenderViewer();
+
+        cut.Find("[data-testid='viewer-thumbnail-rail']");
+
+        var railToggle = cut.Find("[data-testid='viewer-rail-toggle']");
+        cut.Find("[data-testid='viewer-control-rail']").ClassList.Should().NotContain("is-collapsed");
+        railToggle.Click();
+
+        cut.Find("[data-testid='viewer-control-rail']").ClassList.Should().Contain("is-collapsed");
+        cut.FindAll("[data-testid='viewer-thumbnail-rail']").Should().BeEmpty();
+        cut.Find("[data-testid='viewer-close']").Should().NotBeNull();
+    }
+
+    [Fact]
+    public void ReopeningViewerResetsScaleModeAndZoomToFitForTheSameImage()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var cut = RenderViewer();
+
+        cut.Find("[data-testid='viewer-view-actual']").Click();
+        cut.Find("[data-testid='viewer-stage']").TriggerEvent("onwheel", new WheelEventArgs { DeltaY = -1 });
         cut.Find("[data-testid='viewer-control-rail']").TextContent.Should().Contain("125%");
 
-        cut.SetParametersAndRender(parameters => parameters
-            .Add(component => component.IsOpen, false)
+        cut.SetParametersAndRender(parameters => ConfigureViewerParameters(parameters, false));
+        cut.SetParametersAndRender(parameters => ConfigureViewerParameters(parameters, true));
+
+        cut.Find("[data-testid='viewer-control-rail']").TextContent.Should().Contain("60%");
+        cut.Find("[data-testid='viewer-reset']").ClassList.Should().Contain("is-active");
+    }
+
+    private IRenderedComponent<RichImageViewer> RenderViewer(Action<ComponentParameterCollectionBuilder<RichImageViewer>>? configure = null)
+    {
+        return RenderComponent<RichImageViewer>(parameters =>
+        {
+            ConfigureViewerParameters(parameters, true);
+            configure?.Invoke(parameters);
+        });
+    }
+
+    private static void ConfigureViewerParameters(ComponentParameterCollectionBuilder<RichImageViewer> parameters, bool isOpen)
+    {
+        parameters
+            .Add(component => component.IsOpen, isOpen)
             .Add(component => component.Viewer, CreateViewer())
             .Add(component => component.ActiveImageId, 101)
-            .Add(component => component.SidePanelContent, (RenderFragment)(_ => { })));
-
-        cut.SetParametersAndRender(parameters => parameters
-            .Add(component => component.IsOpen, true)
-            .Add(component => component.Viewer, CreateViewer())
-            .Add(component => component.ActiveImageId, 101)
-            .Add(component => component.SidePanelContent, (RenderFragment)(_ => { })));
-
-        cut.Find("[data-testid='viewer-control-rail']").TextContent.Should().Contain("100%");
+            .Add(component => component.SidePanelContent, (RenderFragment)(_ => { }));
     }
 
     private static PostViewerDto CreateViewer()

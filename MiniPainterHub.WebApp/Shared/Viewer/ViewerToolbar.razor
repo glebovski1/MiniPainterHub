@@ -1,17 +1,29 @@
-<header class="viewer-toolbar">
+<header class="viewer-toolbar @(IsCompact ? "is-compact" : null)">
     <div class="viewer-toolbar__top">
         <div class="viewer-toolbar__identity">
             <div class="viewer-toolbar__eyebrow">@Eyebrow</div>
             <div class="viewer-toolbar__title" id="@TitleId">@Title</div>
         </div>
 
-        <button type="button"
-                class="btn btn-sm btn-light viewer-toolbar__close"
-                data-testid="viewer-close"
-                @onclick="OnClose">
-            <i class="bi bi-x-lg" aria-hidden="true"></i>
-            <span>Close</span>
-        </button>
+        <div class="viewer-toolbar__top-actions">
+            <button type="button"
+                    class="btn btn-sm btn-outline-light viewer-toolbar__toggle"
+                    data-testid="viewer-rail-toggle"
+                    aria-expanded="@(!IsCompact)"
+                    aria-label="@(IsCompact ? "Expand viewer tools" : "Collapse viewer tools")"
+                    @onclick="OnToggleRail">
+                <i class="bi @(IsCompact ? "bi-layout-sidebar-inset-reverse" : "bi-layout-sidebar-inset")" aria-hidden="true"></i>
+                <span>@(IsCompact ? "Expand" : "Collapse")</span>
+            </button>
+
+            <button type="button"
+                    class="btn btn-sm btn-light viewer-toolbar__close"
+                    data-testid="viewer-close"
+                    @onclick="OnClose">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+                <span>Close</span>
+            </button>
+        </div>
     </div>
 
     <div class="viewer-toolbar__status">
@@ -20,7 +32,7 @@
             <strong>@Math.Max(CurrentIndex, 1) / @Math.Max(TotalCount, 1)</strong>
         </div>
         <div class="viewer-toolbar__status-pill">
-            <span class="viewer-toolbar__status-label">Zoom</span>
+            <span class="viewer-toolbar__status-label">Scale</span>
             <strong>@ZoomPercent%</strong>
         </div>
     </div>
@@ -47,19 +59,37 @@
         </div>
     </section>
 
-    <section class="viewer-toolbar__cluster" aria-label="Zoom controls">
+    <section class="viewer-toolbar__cluster" aria-label="View controls">
         <div class="viewer-toolbar__label">View</div>
-        <div class="viewer-toolbar__button-trio" role="group" aria-label="Zoom controls">
+        <div class="viewer-toolbar__button-pair" role="group" aria-label="Zoom controls">
             <button type="button" class="btn btn-outline-light" data-testid="viewer-zoom-out" @onclick="OnZoomOut">
                 <i class="bi bi-dash-lg" aria-hidden="true"></i>
                 <span class="visually-hidden">Zoom out</span>
             </button>
-            <button type="button" class="btn btn-outline-light viewer-toolbar__fit" data-testid="viewer-reset" @onclick="OnResetView">
-                Fit
-            </button>
             <button type="button" class="btn btn-outline-light" data-testid="viewer-zoom-in" @onclick="OnZoomIn">
                 <i class="bi bi-plus-lg" aria-hidden="true"></i>
                 <span class="visually-hidden">Zoom in</span>
+            </button>
+        </div>
+
+        <div class="viewer-toolbar__mode-buttons" role="group" aria-label="View modes">
+            <button type="button"
+                    class="btn @(ScaleMode == ViewerScaleMode.Fit ? "btn-light viewer-toolbar__mode is-active" : "btn-outline-light viewer-toolbar__mode")"
+                    data-testid="viewer-reset"
+                    @onclick="OnSetFitMode">
+                Fit
+            </button>
+            <button type="button"
+                    class="btn @(ScaleMode == ViewerScaleMode.Fill ? "btn-light viewer-toolbar__mode is-active" : "btn-outline-light viewer-toolbar__mode")"
+                    data-testid="viewer-view-fill"
+                    @onclick="OnSetFillMode">
+                Fill
+            </button>
+            <button type="button"
+                    class="btn @(ScaleMode == ViewerScaleMode.ActualSize ? "btn-light viewer-toolbar__mode is-active" : "btn-outline-light viewer-toolbar__mode")"
+                    data-testid="viewer-view-actual"
+                    @onclick="OnSetActualSizeMode">
+                100%
             </button>
         </div>
 
@@ -97,6 +127,8 @@
     [Parameter] public int CurrentIndex { get; set; }
     [Parameter] public int TotalCount { get; set; }
     [Parameter] public int ZoomPercent { get; set; }
+    [Parameter] public ViewerScaleMode ScaleMode { get; set; }
+    [Parameter] public bool IsCompact { get; set; }
     [Parameter] public bool CanGoPrevious { get; set; }
     [Parameter] public bool CanGoNext { get; set; }
     [Parameter] public bool CanAddAuthorMark { get; set; }
@@ -107,8 +139,11 @@
     [Parameter] public EventCallback OnNext { get; set; }
     [Parameter] public EventCallback OnZoomIn { get; set; }
     [Parameter] public EventCallback OnZoomOut { get; set; }
-    [Parameter] public EventCallback OnResetView { get; set; }
+    [Parameter] public EventCallback OnSetFitMode { get; set; }
+    [Parameter] public EventCallback OnSetFillMode { get; set; }
+    [Parameter] public EventCallback OnSetActualSizeMode { get; set; }
     [Parameter] public EventCallback OnToggleFullscreen { get; set; }
     [Parameter] public EventCallback OnToggleAuthorPlacement { get; set; }
+    [Parameter] public EventCallback OnToggleRail { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
 }

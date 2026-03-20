@@ -75,6 +75,7 @@
         "MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor",
         "MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor.css",
         "MiniPainterHub.WebApp/Pages/Posts/MyPosts.razor",
+        "MiniPainterHub.WebApp/Shared/Viewer/**",
         "MiniPainterHub.WebApp/Shared/CommentForm.razor",
         "MiniPainterHub.WebApp/Shared/CommentItem.razor",
         "MiniPainterHub.WebApp/Shared/CommentList.razor",

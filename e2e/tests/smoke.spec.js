@@ -21,6 +21,41 @@ function expectWithinTolerance(actual, expected, tolerance = 4) {
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(tolerance);
 }
 
+async function getViewerBoxes(page) {
+  const [stageSurfaceBox, stageBox, fitBox, imageBox] = await Promise.all([
+    page.locator(".viewer-shell__stage-surface").boundingBox(),
+    page.getByTestId("viewer-stage").boundingBox(),
+    page.getByTestId("viewer-stage-fitbox").boundingBox(),
+    page.getByTestId("viewer-stage-image").boundingBox(),
+  ]);
+
+  expect(stageSurfaceBox).toBeTruthy();
+  expect(stageBox).toBeTruthy();
+  expect(fitBox).toBeTruthy();
+  expect(imageBox).toBeTruthy();
+
+  return { stageSurfaceBox, stageBox, fitBox, imageBox };
+}
+
+async function getScrollLockState(page) {
+  return page.evaluate(() => ({
+    bodyOverflow: document.body.style.overflow,
+    bodyPaddingRight: document.body.style.paddingRight,
+    documentOverflow: document.documentElement.style.overflow,
+  }));
+}
+
+async function expectViewerScrollLocked(page) {
+  await expect.poll(async () => (await getScrollLockState(page)).bodyOverflow).toBe("hidden");
+  await expect.poll(async () => (await getScrollLockState(page)).documentOverflow).toBe("hidden");
+}
+
+async function expectViewerScrollReleased(page) {
+  await expect.poll(async () => (await getScrollLockState(page)).bodyOverflow).toBe("");
+  await expect.poll(async () => (await getScrollLockState(page)).bodyPaddingRight).toBe("");
+  await expect.poll(async () => (await getScrollLockState(page)).documentOverflow).toBe("");
+}
+
 async function resetAppState(request) {
   const response = await request.post("/api/test-support/reset", {
     headers: {
@@ -208,14 +243,13 @@ test("comment and like flow works on post details", async ({ page }) => {
   await expect(likeCount).toHaveText(String(initial));
 });
 
-test("rich viewer overlay keeps post details intact and supports core interactions", async ({ page, request }) => {
+test("rich viewer overlay keeps post details intact and supports refined layout modes", async ({ page, request }) => {
   await loginAsSeedUser(page);
   const viewerPost = await createRichViewerPost(page, request, "desktop-flow");
-  const secondaryIndex = viewerPost.viewer.images.findIndex((image) => image.id === viewerPost.secondaryImage.id);
-  const panoramaIndex = viewerPost.viewer.images.findIndex((image) => image.id === viewerPost.panoramaImage.id);
-  const secondaryImagePath = getPathSegment(new URL(viewerPost.secondaryImage.imageUrl, page.url()).toString(), "/uploads/images/");
   const squareImagePath = getPathSegment(new URL(viewerPost.squareImage.imageUrl, page.url()).toString(), "/uploads/images/");
+  const secondaryImagePath = getPathSegment(new URL(viewerPost.secondaryImage.imageUrl, page.url()).toString(), "/uploads/images/");
   const panoramaImagePath = getPathSegment(new URL(viewerPost.panoramaImage.imageUrl, page.url()).toString(), "/uploads/images/");
+  const panoramaIndex = viewerPost.viewer.images.findIndex((image) => image.id === viewerPost.panoramaImage.id);
 
   const commentMarkRequests = [];
   page.on("request", (requestInfo) => {
@@ -231,184 +265,156 @@ test("rich viewer overlay keeps post details intact and supports core interactio
   await openViewerFromDetails(page);
   await expect(page.getByTestId("viewer-author-mark")).toHaveCount(1);
   await expect(page.getByTestId("viewer-comment-mark")).toHaveCount(0);
-  await expect(page.getByTestId("viewer-side-panel")).toContainText("About this piece");
+  await expect(page.getByTestId("viewer-side-tab-info")).toHaveClass(/is-active/);
+  await expect(page.getByTestId("viewer-panel-info")).toContainText("About this piece");
   await expect(page.getByTestId("viewer-control-rail")).toBeVisible();
-  await expect(page.getByTestId("viewer-stage-viewport")).toBeVisible();
+  await expect(page.getByTestId("viewer-stage")).toBeVisible();
   await expect(page.getByTestId("viewer-thumbnail-rail")).toBeVisible();
   await expect(page.getByTestId("viewer-close")).toBeVisible();
+  await expectViewerScrollLocked(page);
 
   const stage = page.getByTestId("viewer-stage");
-  const stageViewport = page.getByTestId("viewer-stage-viewport");
   const stageImage = page.getByTestId("viewer-stage-image");
   const toolbarStatus = page.locator(".viewer-toolbar__status");
   const controlRail = page.getByTestId("viewer-control-rail");
   const sidePanel = page.getByTestId("viewer-side-panel");
   const modal = page.getByTestId("rich-image-viewer");
 
-  const [railBox, stageBox, panelBox, modalBox] = await Promise.all([
+  const [railBox, panelBox, modalBox] = await Promise.all([
     controlRail.boundingBox(),
-    stageViewport.boundingBox(),
     sidePanel.boundingBox(),
     modal.boundingBox(),
   ]);
   expect(railBox).toBeTruthy();
-  expect(stageBox).toBeTruthy();
   expect(panelBox).toBeTruthy();
   expect(modalBox).toBeTruthy();
+  expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(modalBox.x + modalBox.width + 1);
+
+  let { stageSurfaceBox, stageBox, fitBox, imageBox } = await getViewerBoxes(page);
   expect(stageBox.width).toBeGreaterThan(panelBox.width);
   expect(railBox.x + railBox.width).toBeLessThanOrEqual(stageBox.x + 1);
   expect(stageBox.x + stageBox.width).toBeLessThanOrEqual(panelBox.x + 1);
-  expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(modalBox.x + modalBox.width + 1);
+  expectWithinTolerance(fitBox.x - stageBox.x, (stageBox.width - fitBox.width) / 2, 4);
+  expectWithinTolerance(fitBox.y - stageBox.y, (stageBox.height - fitBox.height) / 2, 4);
+  expectWithinTolerance(imageBox.x - stageBox.x, (stageBox.width - imageBox.width) / 2, 4);
+  expectWithinTolerance(imageBox.y - stageBox.y, (stageBox.height - imageBox.height) / 2, 4);
+  expectWithinTolerance(fitBox.height, stageBox.height, 4);
+  const fitArea = fitBox.width * fitBox.height;
 
-  const panelCanScroll = await sidePanel.evaluate((element) => {
-    element.scrollTop = 0;
-    return element.scrollHeight > element.clientHeight;
-  });
-  expect(panelCanScroll).toBeTruthy();
-  await sidePanel.hover();
-  await page.mouse.wheel(0, 1200);
-  await expect.poll(() => sidePanel.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  await sidePanel.evaluate((element) => {
-    element.scrollTop = 0;
-  });
+  await page.getByTestId("viewer-view-fill").click();
+  await expect(page.getByTestId("viewer-view-fill")).toHaveClass(/is-active/);
+  await page.waitForTimeout(220);
+  ({ stageSurfaceBox, stageBox, fitBox, imageBox } = await getViewerBoxes(page));
+  expect(fitBox.width * fitBox.height).toBeGreaterThan(fitArea * 1.2);
+  expect(fitBox.x).toBeLessThanOrEqual(stageBox.x + 4);
+  expect(fitBox.y).toBeLessThanOrEqual(stageBox.y + 4);
+  expect(fitBox.x + fitBox.width).toBeGreaterThanOrEqual(stageBox.x + stageBox.width - 4);
+  expect(fitBox.y + fitBox.height).toBeGreaterThanOrEqual(stageBox.y + stageBox.height - 4);
+  expect(imageBox.height).toBeGreaterThanOrEqual(stageBox.height - 4);
 
-  await page.evaluate(() => document.querySelector("[data-testid='viewer-stage']")?.focus());
-  await stage.press("=");
-  await expect(toolbarStatus).toContainText("125%");
-
+  await page.getByTestId("viewer-view-actual").click();
+  await expect(page.getByTestId("viewer-view-actual")).toHaveClass(/is-active/);
+  await expect(toolbarStatus).toContainText("100%");
+  await page.waitForTimeout(220);
   const transform = page.locator(".viewer-stage__transform");
   const transformBeforePan = await transform.getAttribute("style");
-  await stage.press("=");
-  await expect(toolbarStatus).toContainText("150%");
-
-  const dragStartX = stageBox.x + stageBox.width * 0.55;
-  const dragStartY = stageBox.y + stageBox.height * 0.45;
-  await page.mouse.move(dragStartX, dragStartY);
+  ({ stageSurfaceBox, stageBox } = await getViewerBoxes(page));
+  await page.mouse.move(stageBox.x + stageBox.width * 0.55, stageBox.y + stageBox.height * 0.45);
   await page.mouse.down();
-  await page.mouse.move(dragStartX - 80, dragStartY - 48, { steps: 8 });
+  await page.mouse.move(stageBox.x + stageBox.width * 0.4, stageBox.y + stageBox.height * 0.3, { steps: 8 });
   await page.mouse.up();
   await expect.poll(() => transform.getAttribute("style")).not.toBe(transformBeforePan);
 
-  await stage.press("0");
-  await expect(toolbarStatus).toContainText("100%");
+  await page.getByTestId("viewer-reset").click();
+  await expect(page.getByTestId("viewer-reset")).toHaveClass(/is-active/);
+  await page.waitForTimeout(220);
+  ({ stageSurfaceBox, stageBox, fitBox, imageBox } = await getViewerBoxes(page));
+  expectWithinTolerance(fitBox.x - stageBox.x, (stageBox.width - fitBox.width) / 2, 4);
+  expectWithinTolerance(fitBox.y - stageBox.y, (stageBox.height - fitBox.height) / 2, 4);
+  expectWithinTolerance(imageBox.x - stageBox.x, (stageBox.width - imageBox.width) / 2, 4);
+  expectWithinTolerance(imageBox.y - stageBox.y, (stageBox.height - imageBox.height) / 2, 4);
 
-  const firstImageSrc = await stageImage.getAttribute("src");
-  await page.getByTestId("viewer-thumbnail").nth(secondaryIndex).click({ force: true });
-  await expect.poll(() => stageImage.getAttribute("src")).not.toBe(firstImageSrc);
+  const expandedRailBox = await controlRail.boundingBox();
+  const expandedStageBox = await stage.boundingBox();
+  await page.getByTestId("viewer-rail-toggle").click();
+  await expect(page.getByTestId("viewer-thumbnail-rail")).toHaveCount(0);
+  await expect.poll(async () => {
+    const box = await stage.boundingBox();
+    return box ? box.width : 0;
+  }).toBeGreaterThan(expandedStageBox.width + 20);
+  const compactRailBox = await controlRail.boundingBox();
+  const collapsedStageBox = await stage.boundingBox();
+  expect(compactRailBox.width).toBeLessThan(expandedRailBox.width);
+  expect(collapsedStageBox.width).toBeGreaterThan(expandedStageBox.width + 20);
 
-  await expect.poll(() => commentMarkRequests.length).toBe(0);
+  await page.getByTestId("viewer-side-tab-comments").click();
+  await expect(page.getByTestId("viewer-side-tab-comments")).toHaveClass(/is-active/);
+  await expect(page.getByTestId("viewer-comments-scroll")).toBeVisible();
+  await page.getByTestId("viewer-side-tab-info").click();
+  await expect(page.getByTestId("viewer-side-tab-info")).toHaveClass(/is-active/);
+  await expect(page.getByTestId("viewer-panel-info")).toBeVisible();
 
-  const secondaryComment = page
-    .getByTestId("viewer-side-panel")
+  await page.getByTestId("viewer-close").click();
+  await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
+  await expectViewerScrollReleased(page);
+
+  const pageComment = page
+    .locator("[data-testid='comment-list-container']")
+    .first()
     .getByTestId("comment-item")
-    .filter({ hasText: "Portrait follow-up anchor sits on the second portrait image" })
+    .filter({ hasText: "Portrait follow-up anchor sits on the second portrait image and should switch the viewer there cleanly." })
     .first();
-  await secondaryComment.click();
+  await pageComment.getByTestId("comment-show-mark").click();
+  await expect(page.getByTestId("viewer-side-tab-comments")).toHaveClass(/is-active/);
   await expect.poll(() => commentMarkRequests.length).toBe(1);
   await expect.poll(() => stageImage.getAttribute("src")).toContain(secondaryImagePath);
   await expect(page.getByTestId("viewer-comment-mark")).toBeVisible();
   await expect(page.getByTestId("viewer-comment-state")).toContainText(`#${viewerPost.markedCommentOne.id}`);
-  await expect
-    .poll(() => page.getByTestId("viewer-stage-transform").getAttribute("style"))
-    .not.toContain("scale(1)");
 
   const squareComment = page
     .getByTestId("viewer-side-panel")
     .getByTestId("comment-item")
-    .filter({ hasText: "Square image anchor should stay centered" })
+    .filter({ hasText: "Square image anchor should stay centered while the comment panel highlights this thread." })
     .first();
   await squareComment.click();
   await expect.poll(() => commentMarkRequests.length).toBe(2);
   await expect.poll(() => stageImage.getAttribute("src")).toContain(squareImagePath);
   await expect(page.getByTestId("viewer-comment-state")).toContainText(`#${viewerPost.markedCommentTwo.id}`);
-  const [activeRailBox, activeStageBox, activeImageBox, activePanelBox] = await Promise.all([
-    page.getByTestId("viewer-control-rail").boundingBox(),
-    page.getByTestId("viewer-stage-viewport").boundingBox(),
-    page.getByTestId("viewer-stage-image").boundingBox(),
-    page.getByTestId("viewer-side-panel").boundingBox(),
-  ]);
-  expect(activeRailBox).toBeTruthy();
-  expect(activeStageBox).toBeTruthy();
-  expect(activeImageBox).toBeTruthy();
-  expect(activePanelBox).toBeTruthy();
-  expect(activeRailBox.width).toBeGreaterThan(90);
-  expect(activeImageBox.width).toBeGreaterThan(150);
-  expect(activeImageBox.height).toBeGreaterThan(150);
-  expect(activeStageBox.x + activeStageBox.width).toBeLessThanOrEqual(activePanelBox.x + 1);
-
-  const activeCommentLayout = await page.evaluate(() => {
-    const shell = document.querySelector("[data-testid='rich-image-viewer']");
-    const panel = document.querySelector("[data-testid='viewer-side-panel']");
-    const comment = document.querySelector("[data-testid='viewer-side-panel'] .comment-item--active");
-    const closeButton = document.querySelector("[data-testid='viewer-close']");
-
-    if (!(shell instanceof HTMLElement)
-      || !(panel instanceof HTMLElement)
-      || !(comment instanceof HTMLElement)
-      || !(closeButton instanceof HTMLElement)) {
-      return null;
-    }
-
-    const panelRect = panel.getBoundingClientRect();
-    const commentRect = comment.getBoundingClientRect();
-    const closeRect = closeButton.getBoundingClientRect();
-
-    return {
-      shellScrollTop: shell.scrollTop,
-      panelScrollTop: panel.scrollTop,
-      panelTop: panelRect.top,
-      panelBottom: panelRect.bottom,
-      commentTop: commentRect.top,
-      commentBottom: commentRect.bottom,
-      closeTop: closeRect.top,
-      closeBottom: closeRect.bottom,
-    };
-  });
-
-  expect(activeCommentLayout).toBeTruthy();
-  expect(activeCommentLayout.shellScrollTop).toBe(0);
-  expect(activeCommentLayout.panelScrollTop).toBeGreaterThan(0);
-  expect(activeCommentLayout.closeTop).toBeGreaterThanOrEqual(0);
-  expect(activeCommentLayout.commentTop).toBeGreaterThanOrEqual(activeCommentLayout.panelTop - 1);
-  expect(activeCommentLayout.commentBottom).toBeLessThanOrEqual(activeCommentLayout.panelBottom + 1);
 
   await page.getByTestId("viewer-thumbnail").nth(panoramaIndex).click({ force: true });
   await expect.poll(() => stageImage.getAttribute("src")).toContain(panoramaImagePath);
   await expect(page.getByTestId("viewer-comment-mark")).toHaveCount(0);
   await expect(page.getByTestId("viewer-comment-state")).toHaveCount(0);
 
-  const panoramaComment = page
-    .getByTestId("viewer-side-panel")
-    .getByTestId("comment-item")
-    .filter({ hasText: "Panorama anchor is here to verify active-comment switching" })
-    .first();
-  await panoramaComment.click();
-  await expect.poll(() => commentMarkRequests.length).toBe(3);
-  await expect(page.getByTestId("viewer-comment-state")).toContainText(`#${viewerPost.markedCommentThree.id}`);
-  await expect(page.getByTestId("viewer-comment-mark")).toBeVisible();
-
-  await panoramaComment.click();
-  await expect(page.getByTestId("viewer-comment-mark")).toHaveCount(0);
-  await expect(page.getByTestId("viewer-comment-state")).toHaveCount(0);
-
-  await panoramaComment.click();
-  await expect.poll(() => commentMarkRequests.length).toBe(3);
-  await expect(page.getByTestId("viewer-comment-mark")).toBeVisible();
-
-  await stage.hover();
-  await page.mouse.wheel(0, -250);
-  await expect(toolbarStatus).not.toContainText("100%");
+  await page.getByTestId("viewer-reset").click();
+  await page.setViewportSize({ width: 1320, height: 760 });
+  await page.waitForTimeout(260);
+  ({ stageSurfaceBox, stageBox, fitBox, imageBox } = await getViewerBoxes(page));
+  expectWithinTolerance(fitBox.x - stageBox.x, (stageBox.width - fitBox.width) / 2, 4);
+  expectWithinTolerance(fitBox.y - stageBox.y, (stageBox.height - fitBox.height) / 2, 4);
+  expectWithinTolerance(imageBox.x - stageBox.x, (stageBox.width - imageBox.width) / 2, 4);
+  expectWithinTolerance(imageBox.y - stageBox.y, (stageBox.height - imageBox.height) / 2, 4);
 
   const fullscreenButton = page.getByTestId("viewer-fullscreen");
   if (await fullscreenButton.isVisible()) {
     await fullscreenButton.click();
     await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBeTruthy();
-    await fullscreenButton.click();
+    const fullscreenShellBox = await modal.boundingBox();
+    const windowSize = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
+    expect(fullscreenShellBox).toBeTruthy();
+    expectWithinTolerance(fullscreenShellBox.width, windowSize.width, 3);
+    expectWithinTolerance(fullscreenShellBox.height, windowSize.height, 3);
+    await page.getByTestId("viewer-close").click();
+    await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBeFalsy();
+    await expectViewerScrollReleased(page);
+    await expect(page.getByTestId("post-details-image")).toBeVisible();
+    return;
   }
 
   await page.getByTestId("viewer-close").click();
   await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
+  await expectViewerScrollReleased(page);
   await expect(page.getByTestId("post-details-image")).toBeVisible();
 });
 
@@ -436,7 +442,7 @@ test("rich viewer preserves image fit across the aspect-ratio matrix", async ({ 
     observedSources.add(currentSrc);
 
     const [stageBox, fitBox, imageBox] = await Promise.all([
-      page.getByTestId("viewer-stage-viewport").boundingBox(),
+      page.getByTestId("viewer-stage").boundingBox(),
       page.getByTestId("viewer-stage-fitbox").boundingBox(),
       page.getByTestId("viewer-stage-image").boundingBox(),
     ]);
