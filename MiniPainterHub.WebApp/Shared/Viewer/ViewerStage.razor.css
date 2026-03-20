@@ -7,11 +7,11 @@
     min-height: clamp(26rem, 74vh, 56rem);
     overflow: hidden;
     border-radius: calc(var(--radius-lg) + 0.2rem);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.075);
     background:
-        radial-gradient(circle at top, rgba(255, 255, 255, 0.06), transparent 40%),
-        linear-gradient(180deg, rgba(12, 17, 21, 0.92), rgba(9, 14, 18, 0.98)),
-        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.018) 1rem, transparent 1rem, transparent 2rem);
+        radial-gradient(circle at top, rgba(255, 255, 255, 0.045), transparent 38%),
+        linear-gradient(180deg, rgba(11, 16, 20, 0.94), rgba(8, 13, 17, 0.985)),
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.012), rgba(255, 255, 255, 0.012) 1rem, transparent 1rem, transparent 2rem);
     outline: none;
 }
 

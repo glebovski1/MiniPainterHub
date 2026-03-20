@@ -56,6 +56,38 @@ public class RichImageViewerTests : TestContext
         requestedImageId.Should().Be(0);
     }
 
+    [Fact]
+    public void ReopeningViewerResetsZoomToFitForTheSameImage()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var cut = RenderComponent<RichImageViewer>(parameters => parameters
+            .Add(component => component.IsOpen, true)
+            .Add(component => component.Viewer, CreateViewer())
+            .Add(component => component.ActiveImageId, 101)
+            .Add(component => component.SidePanelContent, (RenderFragment)(_ => { })));
+
+        var stage = cut.Find("[data-testid='viewer-stage']");
+        stage.TriggerEvent("onwheel", new WheelEventArgs { DeltaY = -1 });
+
+        cut.Find("[data-testid='viewer-control-rail']").TextContent.Should().Contain("125%");
+
+        cut.SetParametersAndRender(parameters => parameters
+            .Add(component => component.IsOpen, false)
+            .Add(component => component.Viewer, CreateViewer())
+            .Add(component => component.ActiveImageId, 101)
+            .Add(component => component.SidePanelContent, (RenderFragment)(_ => { })));
+
+        cut.SetParametersAndRender(parameters => parameters
+            .Add(component => component.IsOpen, true)
+            .Add(component => component.Viewer, CreateViewer())
+            .Add(component => component.ActiveImageId, 101)
+            .Add(component => component.SidePanelContent, (RenderFragment)(_ => { })));
+
+        cut.Find("[data-testid='viewer-control-rail']").TextContent.Should().Contain("100%");
+    }
+
     private static PostViewerDto CreateViewer()
     {
         return new PostViewerDto

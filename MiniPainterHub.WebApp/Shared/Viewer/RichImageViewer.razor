@@ -63,11 +63,11 @@ else if (IsOpen)
                                        OnSelect="SelectImageAsync" />
 
                         <div class="viewer-helptext">
-                            <span>Arrows browse images.</span>
-                            <span><kbd>+</kbd>/<kbd>-</kbd> zoom.</span>
-                            <span><kbd>0</kbd> reset.</span>
-                            <span><kbd>F</kbd> fullscreen.</span>
-                            <span><kbd>Esc</kbd> close.</span>
+                            <span><kbd>←</kbd><kbd>→</kbd> browse</span>
+                            <span><kbd>+</kbd><kbd>-</kbd> zoom</span>
+                            <span><kbd>0</kbd> fit</span>
+                            <span><kbd>F</kbd> fullscreen</span>
+                            <span><kbd>Esc</kbd> close</span>
                         </div>
                     </aside>
 
@@ -417,6 +417,7 @@ else if (IsOpen)
 
             if (!_wasOpenLastRender)
             {
+                ResetViewState();
                 await FocusStageAsync();
 
                 if (!ActiveCommentId.HasValue)

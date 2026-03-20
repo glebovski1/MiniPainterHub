@@ -310,7 +310,7 @@
 .viewer-panel__composer {
     display: grid;
     gap: 0.68rem;
-    padding: 0.66rem;
+    padding: 0.58rem;
     border-radius: 1rem;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -359,7 +359,7 @@
 }
 
 ::deep(.viewer-panel-section--comments .form-grid--compact .form-control) {
-    min-height: 4.45rem;
+    min-height: 4.15rem;
 }
 
 ::deep(.viewer-panel-section--comments .form-control) {
@@ -370,6 +370,18 @@
 
 ::deep(.viewer-panel-section--comments .form-control::placeholder) {
     color: rgba(248, 244, 236, 0.48);
+}
+
+::deep(.viewer-panel-section--comments .form-grid--compact) {
+    gap: 0.55rem;
+}
+
+::deep(.viewer-panel-section--comments .form-grid--compact [data-testid="comment-mark-controls"]) {
+    margin-top: 0.1rem;
+}
+
+::deep(.viewer-panel-section--comments .form-grid--compact [data-testid="comment-submit"]) {
+    min-width: 7.75rem;
 }
 
 ::deep(.viewer-panel-section--comments .btn-outline-secondary) {

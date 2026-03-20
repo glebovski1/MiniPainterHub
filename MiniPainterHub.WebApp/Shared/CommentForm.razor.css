@@ -1,13 +1,14 @@
 .form-grid--compact {
-    gap: 0.65rem;
+    gap: 0.55rem;
 }
 
 .form-grid--compact .form-control {
-    min-height: 6.35rem;
+    min-height: 4.15rem;
     resize: vertical;
     background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.12);
     color: rgba(248, 244, 236, 0.94);
+    padding: 0.75rem 0.85rem;
 }
 
 .form-grid--compact .form-control::placeholder {
@@ -29,5 +30,5 @@
 }
 
 .form-grid--compact [data-testid="comment-submit"] {
-    min-width: 8.5rem;
+    min-width: 7.75rem;
 }
