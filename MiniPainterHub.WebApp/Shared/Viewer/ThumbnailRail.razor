@@ -1,0 +1,36 @@
+@using MiniPainterHub.Common.DTOs
+
+@if (Images.Count > 1)
+{
+    <div class="viewer-thumbnails" data-testid="viewer-thumbnails" role="tablist" aria-label="Image thumbnails">
+        @for (var index = 0; index < Images.Count; index++)
+        {
+            var image = Images[index];
+            var isActive = image.Id == ActiveImageId;
+
+            <button type="button"
+                    class="viewer-thumbnail @(isActive ? "is-active" : null)"
+                    data-testid="viewer-thumbnail"
+                    role="tab"
+                    aria-selected="@isActive"
+                    aria-label="Show image @(index + 1)"
+                    @onclick="@(() => OnSelect.InvokeAsync(image.Id))">
+                <img src="@GetThumbnailSource(image)"
+                     alt=""
+                     loading="lazy" />
+                <span class="viewer-thumbnail__index">@((index + 1).ToString("00"))</span>
+            </button>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<PostViewerImageDto> Images { get; set; } = Array.Empty<PostViewerImageDto>();
+    [Parameter] public int ActiveImageId { get; set; }
+    [Parameter] public EventCallback<int> OnSelect { get; set; }
+
+    private static string GetThumbnailSource(PostViewerImageDto image) =>
+        image.ThumbnailUrl
+        ?? image.PreviewUrl
+        ?? image.ImageUrl;
+}

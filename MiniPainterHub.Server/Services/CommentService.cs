@@ -19,11 +19,16 @@ namespace MiniPainterHub.Server.Services
         private const int MaxCommentLength = 4000;
 
         private readonly AppDbContext _appDbContext;
+        private readonly CommentMarkService _commentMarkService;
         private readonly IAccountRestrictionService? _accountRestrictionService;
-        public CommentService(AppDbContext appDbContext, IAccountRestrictionService? accountRestrictionService = null)
+        public CommentService(
+            AppDbContext appDbContext,
+            IAccountRestrictionService? accountRestrictionService = null,
+            CommentMarkService? commentMarkService = null)
         {
             _appDbContext = appDbContext;
             _accountRestrictionService = accountRestrictionService;
+            _commentMarkService = commentMarkService ?? new CommentMarkService(appDbContext);
         }
         public async Task<CommentDto> CreateAsync(string userId, int postId, CreateCommentDto dto)
         {
@@ -41,25 +46,24 @@ namespace MiniPainterHub.Server.Services
 
             var text = ValidateAndNormalizeText(dto.Text, "text");
 
-            // 1️⃣ Optional: verify the post actually exists
             var postExists = await _appDbContext.Posts.AnyAsync(p => p.Id == postId && !p.IsDeleted);
             if (!postExists)
                 throw new NotFoundException("Post not found.");
 
-            // 2️⃣ Create the Comment entity, setting only the FKs
             var comment = new Comment
             {
-                AuthorId = userId,      // FK for the user
-                PostId = postId,      // FK for the post
+                AuthorId = userId,
+                PostId = postId,
                 Text = text,
                 CreatedUtc = DateTime.UtcNow,
                 UpdatedUtc = DateTime.UtcNow
             };
 
+            comment.ViewerMark = await _commentMarkService.CreateDraftAsync(comment, dto.Mark);
+
             _appDbContext.Comments.Add(comment);
             await _appDbContext.SaveChangesAsync();
 
-            // 3️⃣ Map to DTO and return
             return new CommentDto
             {
                 Id = comment.Id,
@@ -67,7 +71,9 @@ namespace MiniPainterHub.Server.Services
                 PostId = comment.PostId,
                 Content = comment.Text,
                 CreatedAt = comment.CreatedUtc,
-                IsDeleted = comment.IsDeleted
+                IsDeleted = comment.IsDeleted,
+                HasViewerMark = comment.ViewerMark is not null,
+                MarkedPostImageId = comment.ViewerMark?.PostImageId
             };
 
         }
@@ -109,7 +115,9 @@ namespace MiniPainterHub.Server.Services
                     PostId = c.PostId,
                     Content = c.Text,
                     CreatedAt = c.CreatedUtc,
-                    IsDeleted = c.IsDeleted
+                    IsDeleted = c.IsDeleted,
+                    HasViewerMark = c.ViewerMark != null,
+                    MarkedPostImageId = c.ViewerMark != null ? c.ViewerMark.PostImageId : (int?)null
                 })
                 .FirstOrDefaultAsync();
 
@@ -167,7 +175,9 @@ namespace MiniPainterHub.Server.Services
                     Content = c.Text,
                     CreatedAt = c.CreatedUtc,
                     AuthorName = c.Author.UserName ?? "No name",
-                    IsDeleted = c.IsDeleted
+                    IsDeleted = c.IsDeleted,
+                    HasViewerMark = c.ViewerMark != null,
+                    MarkedPostImageId = c.ViewerMark != null ? c.ViewerMark.PostImageId : (int?)null
                 })
                 .ToListAsync();
 

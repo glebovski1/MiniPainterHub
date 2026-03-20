@@ -14,6 +14,8 @@ namespace MiniPainterHub.Server.Data
         public DbSet<Profile> Profiles { get; set; } = default!;
         public DbSet<Post> Posts { get; set; } = default!;
         public DbSet<PostImage> PostImages { get; set; } = default!;
+        public DbSet<ImageAuthorMark> ImageAuthorMarks { get; set; } = default!;
+        public DbSet<CommentImageMark> CommentImageMarks { get; set; } = default!;
         public DbSet<Tag> Tags { get; set; } = default!;
         public DbSet<PostTag> PostTags { get; set; } = default!;
         public DbSet<Comment> Comments { get; set; } = default!;
@@ -56,6 +58,46 @@ namespace MiniPainterHub.Server.Data
                 .WithMany(p => p.Images)
                 .HasForeignKey(pi => pi.PostId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<ImageAuthorMark>(b =>
+            {
+                b.Property(m => m.CreatedByUserId).HasMaxLength(450).IsRequired();
+                b.Property(m => m.Tag).HasMaxLength(64);
+                b.Property(m => m.Message).HasMaxLength(1000);
+                b.Property(m => m.NormalizedX).HasPrecision(9, 6);
+                b.Property(m => m.NormalizedY).HasPrecision(9, 6);
+
+                b.HasOne(m => m.PostImage)
+                    .WithMany(i => i.AuthorMarks)
+                    .HasForeignKey(m => m.PostImageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasOne(m => m.CreatedByUser)
+                    .WithMany()
+                    .HasForeignKey(m => m.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasIndex(m => m.PostImageId);
+            });
+
+            builder.Entity<CommentImageMark>(b =>
+            {
+                b.HasKey(m => m.CommentId);
+                b.Property(m => m.NormalizedX).HasPrecision(9, 6);
+                b.Property(m => m.NormalizedY).HasPrecision(9, 6);
+
+                b.HasOne(m => m.Comment)
+                    .WithOne(c => c.ViewerMark)
+                    .HasForeignKey<CommentImageMark>(m => m.CommentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(m => m.PostImage)
+                    .WithMany(i => i.CommentMarks)
+                    .HasForeignKey(m => m.PostImageId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasIndex(m => m.PostImageId);
+            });
 
             builder.Entity<PostTag>(b =>
             {

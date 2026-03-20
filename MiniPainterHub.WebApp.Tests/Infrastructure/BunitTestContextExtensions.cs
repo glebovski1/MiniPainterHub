@@ -38,8 +38,32 @@ internal static class BunitTestContextExtensions
     public static StubPostService AddPostStub(this TestContext context, StubPostService? stub = null)
     {
         context.EnsureReportStub();
+        context.AddPostViewerStub();
+        context.AddAuthorMarkStub();
+        context.AddCommentMarkStub();
         stub ??= new StubPostService();
         context.Services.AddSingleton<IPostService>(stub);
+        return stub;
+    }
+
+    public static StubPostViewerService AddPostViewerStub(this TestContext context, StubPostViewerService? stub = null)
+    {
+        stub ??= new StubPostViewerService();
+        context.Services.AddSingleton<IPostViewerService>(stub);
+        return stub;
+    }
+
+    public static StubAuthorMarkService AddAuthorMarkStub(this TestContext context, StubAuthorMarkService? stub = null)
+    {
+        stub ??= new StubAuthorMarkService();
+        context.Services.AddSingleton<IAuthorMarkService>(stub);
+        return stub;
+    }
+
+    public static StubCommentMarkService AddCommentMarkStub(this TestContext context, StubCommentMarkService? stub = null)
+    {
+        stub ??= new StubCommentMarkService();
+        context.Services.AddSingleton<ICommentMarkService>(stub);
         return stub;
     }
 
@@ -60,6 +84,8 @@ internal static class BunitTestContextExtensions
     public static StubCommentService AddCommentStub(this TestContext context, StubCommentService? stub = null)
     {
         context.EnsureReportStub();
+        context.AddCommentMarkStub();
+        context.AddAuthorMarkStub();
         stub ??= new StubCommentService();
         context.Services.AddSingleton<ICommentService>(stub);
         return stub;

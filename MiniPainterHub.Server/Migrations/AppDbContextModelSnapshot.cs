@@ -206,6 +206,35 @@ namespace MiniPainterHub.Server.Migrations
                     b.ToTable("Comments");
                 });
 
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.CommentImageMark", b =>
+                {
+                    b.Property<int>("CommentId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("NormalizedX")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal>("NormalizedY")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<int>("PostImageId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("CommentId");
+
+                    b.HasIndex("PostImageId");
+
+                    b.ToTable("CommentImageMarks");
+                });
+
             modelBuilder.Entity("MiniPainterHub.Server.Entities.ContentReport", b =>
                 {
                     b.Property<long>("Id")
@@ -364,6 +393,53 @@ namespace MiniPainterHub.Server.Migrations
                     b.ToTable("Follows");
                 });
 
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.ImageAuthorMark", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<decimal>("NormalizedX")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal>("NormalizedY")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<int>("PostImageId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Tag")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("PostImageId");
+
+                    b.ToTable("ImageAuthorMarks");
+                });
+
             modelBuilder.Entity("MiniPainterHub.Server.Entities.Like", b =>
                 {
                     b.Property<int>("Id")
@@ -503,6 +579,9 @@ namespace MiniPainterHub.Server.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("Height")
+                        .HasColumnType("int");
+
                     b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -515,6 +594,9 @@ namespace MiniPainterHub.Server.Migrations
 
                     b.Property<string>("ThumbnailUrl")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("Width")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -759,6 +841,25 @@ namespace MiniPainterHub.Server.Migrations
                     b.Navigation("Post");
                 });
 
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.CommentImageMark", b =>
+                {
+                    b.HasOne("MiniPainterHub.Server.Entities.Comment", "Comment")
+                        .WithOne("ViewerMark")
+                        .HasForeignKey("MiniPainterHub.Server.Entities.CommentImageMark", "CommentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MiniPainterHub.Server.Entities.PostImage", "PostImage")
+                        .WithMany("CommentMarks")
+                        .HasForeignKey("PostImageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Comment");
+
+                    b.Navigation("PostImage");
+                });
+
             modelBuilder.Entity("MiniPainterHub.Server.Entities.ConversationParticipant", b =>
                 {
                     b.HasOne("MiniPainterHub.Server.Entities.Conversation", "Conversation")
@@ -814,6 +915,25 @@ namespace MiniPainterHub.Server.Migrations
                     b.Navigation("FollowedUser");
 
                     b.Navigation("FollowerUser");
+                });
+
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.ImageAuthorMark", b =>
+                {
+                    b.HasOne("MiniPainterHub.Server.Identity.ApplicationUser", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MiniPainterHub.Server.Entities.PostImage", "PostImage")
+                        .WithMany("AuthorMarks")
+                        .HasForeignKey("PostImageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("PostImage");
                 });
 
             modelBuilder.Entity("MiniPainterHub.Server.Entities.Like", b =>
@@ -894,6 +1014,11 @@ namespace MiniPainterHub.Server.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.Comment", b =>
+                {
+                    b.Navigation("ViewerMark");
+                });
+
             modelBuilder.Entity("MiniPainterHub.Server.Entities.Conversation", b =>
                 {
                     b.Navigation("Messages");
@@ -910,6 +1035,13 @@ namespace MiniPainterHub.Server.Migrations
                     b.Navigation("Likes");
 
                     b.Navigation("PostTags");
+                });
+
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.PostImage", b =>
+                {
+                    b.Navigation("AuthorMarks");
+
+                    b.Navigation("CommentMarks");
                 });
 
             modelBuilder.Entity("MiniPainterHub.Server.Entities.Tag", b =>

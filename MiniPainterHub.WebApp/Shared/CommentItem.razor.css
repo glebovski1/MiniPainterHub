@@ -1,0 +1,15 @@
+.comment-item {
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.comment-item--active {
+    border-color: rgba(75, 138, 143, 0.5);
+    box-shadow: 0 0 0 3px rgba(75, 138, 143, 0.12), 0 1.2rem 2.8rem rgba(7, 14, 16, 0.08);
+    transform: translateY(-1px);
+}
+
+.comment-item__mark-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}

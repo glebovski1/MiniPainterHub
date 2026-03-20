@@ -1,15 +1,14 @@
 @page "/posts/{PostId:int}"
+@using System.Net
+@using System.Net.Http
 @using MiniPainterHub.Common.DTOs
+@using MiniPainterHub.WebApp.Services.Http
+@using MiniPainterHub.WebApp.Shared
+@using MiniPainterHub.WebApp.Shared.Viewer
 @inject ApiClient Api
 @inject NavigationManager Nav
 @inject MiniPainterHub.WebApp.Services.Interfaces.IModerationService ModerationService
-@using MiniPainterHub.WebApp.Services.Http
-@using System.Net
-@using System.Net.Http
-@using MiniPainterHub.WebApp.Shared
-@using System
-@using System.Linq
-@using System.Collections.Generic
+@inject MiniPainterHub.WebApp.Services.Interfaces.ICommentMarkService CommentMarkService
 
 <div class="page-shell content-stack">
     @if (isLoading)
@@ -27,7 +26,7 @@
         <div class="status-panel status-panel--error">
             <div class="status-panel__icon"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i></div>
             <div>
-                <div class="status-panel__title">Couldn’t load post</div>
+                <div class="status-panel__title">Couldn't load post</div>
                 <p class="status-panel__text mb-0">
                     @loadError
                     @if (loadStatus.HasValue)
@@ -36,10 +35,10 @@
                     }
                 </p>
             </div>
-            <button class="btn btn-link btn-sm ms-auto" @onclick="LoadPost">Retry</button>
+            <button class="btn btn-link btn-sm ms-auto" @onclick="LoadPostAsync">Retry</button>
         </div>
     }
-    else if (post is null)
+    else if (post is null || viewer is null)
     {
         <EmptyState IconClass="bi bi-binoculars"
                     Title="Post not found"
@@ -76,48 +75,17 @@
         </PageHero>
 
         <div class="split-grid post-details-grid">
-            <section class="surface-card post-details-media">
-                @if (HasImages)
-                {
-                    <div class="post-details-stage">
-                        <img src="@SelectedPreviewUrl"
-                             class="img-fluid rounded shadow-sm"
-                             data-testid="post-details-image"
-                             alt="Post image"
-                             loading="lazy"
-                             @onclick="ShowZoomModal" />
-                    </div>
-
-                    <div class="post-details-thumbnails">
-                        @for (int i = 0; i < PostImages!.Count; i++)
-                        {
-                            int imageIndex = i;
-                            var img = PostImages[i];
-                            <img src="@GetThumbnailUrl(img)"
-                                 class="img-thumbnail post-details-thumbnail @(selectedIndex == imageIndex ? "is-active" : string.Empty)"
-                                 data-testid="post-details-thumbnail"
-                                 @onclick="@(() => SelectImage(imageIndex))" />
-                        }
-                    </div>
-                }
-                else if (!string.IsNullOrEmpty(post.ImageUrl))
-                {
-                    <div class="post-details-stage">
-                        <img src="@GetAbsoluteUrl(ReplaceVariantSuffix(post.ImageUrl, "_preview."))"
-                             class="img-fluid rounded shadow-sm"
-                             data-testid="post-details-image"
-                             alt="Post image"
-                             loading="lazy"
-                             @onclick="ShowZoomModal" />
-                    </div>
-                }
-                else
-                {
-                    <EmptyState IconClass="bi bi-image"
-                                Title="No images on this post"
-                                TitleTag="h3"
-                                TitleClass="empty-state__title h5" />
-                }
+            <section class="post-details-viewer">
+                <RichImageViewer Viewer="@viewer"
+                                 ActiveImageId="@_activeImageId"
+                                 ActiveImageIdChanged="HandleActiveImageChangedAsync"
+                                 ActiveCommentMark="@_activeCommentMark"
+                                 ActiveCommentId="@_activeCommentId"
+                                 DraftCommentMark="@_draftCommentMark"
+                                 IsCommentPlacementMode="@_isCommentPlacementMode"
+                                 OnCommentPlacementSelected="HandleCommentPlacementSelectedAsync"
+                                 OnCommentPlacementCancelled="CancelCommentPlacementAsync"
+                                 OnClearActiveCommentMark="ClearActiveCommentMarkAsync" />
             </section>
 
             <section class="surface-card post-details-aside">
@@ -129,9 +97,36 @@
                     </section>
                 }
 
-                <div class="post-details-copy mb-4">
-                    @post.Content
-                </div>
+                <section class="post-details-aside__panel">
+                    <p class="section-label">About this piece</p>
+                    <div class="post-details-copy">
+                        @post.Content
+                    </div>
+                </section>
+
+                <section class="post-details-aside__panel">
+                    <p class="section-label">Viewer state</p>
+                    <div class="post-details-aside__meta">
+                        <span><strong>@viewer.Images.Count</strong> image(s)</span>
+                        <span><strong>@viewer.AuthorMarks.Count</strong> author note(s)</span>
+                        <span><strong>@(viewer.CanAttachCommentMark ? "Comment marks enabled" : "Sign in to attach comment marks")</strong></span>
+                    </div>
+
+                    @if (_activeCommentId.HasValue)
+                    {
+                        <div class="post-details-aside__callout">
+                            <i class="bi bi-chat-square-text" aria-hidden="true"></i>
+                            <span>Comment #@_activeCommentId.Value is currently pinned in the viewer.</span>
+                        </div>
+                    }
+                    else if (_draftCommentMark is not null)
+                    {
+                        <div class="post-details-aside__callout">
+                            <i class="bi bi-crosshair2" aria-hidden="true"></i>
+                            <span>Comment draft linked to image @GetImageNumber(_draftCommentMark.PostImageId).</span>
+                        </div>
+                    }
+                </section>
 
                 <ReportAction TargetType="@ReportTargetTypes.Post"
                               TargetId="@PostId.ToString()"
@@ -192,7 +187,14 @@
 
             <AuthorizeView>
                 <Authorized>
-                    <CommentForm PostId="@PostId" OnCommentAdded="ReloadComments" />
+                    <CommentForm PostId="@PostId"
+                                 CanAttachViewerMark="@(viewer.CanAttachCommentMark && viewer.Images.Count > 0)"
+                                 ViewerPlacementActive="@_isCommentPlacementMode"
+                                 DraftMark="@_draftCommentMark"
+                                 AttachedImageNumber="@GetImageNumber(_draftCommentMark?.PostImageId)"
+                                 OnRequestAttachMark="BeginCommentPlacementAsync"
+                                 OnRemoveAttachedMark="RemoveDraftCommentMarkAsync"
+                                 OnCommentAdded="HandleCommentAddedAsync" />
                 </Authorized>
                 <NotAuthorized>
                     <div class="status-panel status-panel--info" role="alert">
@@ -207,85 +209,86 @@
                     </div>
                 </NotAuthorized>
             </AuthorizeView>
-            <CommentList @ref="_commentList" PostId="@PostId" />
+
+            <CommentList @ref="_commentList"
+                         PostId="@PostId"
+                         ActiveCommentId="@_activeCommentId"
+                         LoadingViewerMarkCommentId="@_markLoadingCommentId"
+                         ViewerMarkErrorCommentId="@_markErrorCommentId"
+                         ViewerMarkError="@_markError"
+                         OnRevealViewerMark="RevealCommentMarkAsync" />
         </section>
     }
 </div>
 
-@if (showModal)
-{
-    <div class="modal fade show d-block post-details-modal-backdrop" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content bg-transparent border-0">
-                <img src="@SelectedMaxUrl" class="img-fluid rounded zoomed-image" alt="Zoomed image" />
-                <button type="button" class="btn-close position-absolute top-0 end-0 m-3 bg-white rounded-circle"
-                        aria-label="Close"
-                        @onclick="CloseZoomModal"></button>
-            </div>
-        </div>
-    </div>
-}
-
 @code {
     [Parameter] public int PostId { get; set; }
+
     private CommentList? _commentList;
     private PostDto? post;
+    private PostViewerDto? viewer;
     private bool isLoading;
     private string? loadError;
     private HttpStatusCode? loadStatus;
-    private bool showModal = false;
     private bool _postModerationBusy;
     private string? _postModerationError;
     private string? _postModerationResult;
+    private int _activeImageId;
+    private bool _isCommentPlacementMode;
+    private ViewerMarkDraftDto? _draftCommentMark;
+    private int? _activeCommentId;
+    private CommentMarkDto? _activeCommentMark;
+    private int? _markLoadingCommentId;
+    private int? _markErrorCommentId;
+    private string? _markError;
+    private int _commentMarkRequestVersion;
+    private readonly Dictionary<int, CommentMarkDto> _commentMarkCache = new();
 
-    private int selectedIndex = 0;
-
-    private List<dynamic>? PostImages
-        => TryGetImages(post);
-
-    private bool HasImages => PostImages != null && PostImages.Count > 0;
-
-    private string SelectedPreviewUrl
-        => HasImages ? GetPreviewUrl(PostImages![selectedIndex])
-                     : GetAbsoluteUrl(ReplaceVariantSuffix(post?.ImageUrl, "_preview."));
-
-    private string SelectedMaxUrl
-        => HasImages ? GetMaxUrl(PostImages![selectedIndex])
-                     : GetAbsoluteUrl(post?.ImageUrl);
-
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
-        await LoadPost();
+        await LoadPostAsync();
     }
 
-    private async Task LoadPost()
+    private async Task LoadPostAsync()
     {
         isLoading = true;
         loadError = null;
         loadStatus = null;
+
+        var postRequest = new HttpRequestMessage(HttpMethod.Get, $"api/posts/{PostId}");
+        var viewerRequest = new HttpRequestMessage(HttpMethod.Get, $"api/posts/{PostId}/viewer");
+
         try
         {
-            var request = new HttpRequestMessage(HttpMethod.Get, $"api/posts/{PostId}");
-            var response = await Api.SendForResultAsync<PostDto>(request, new ApiRequestOptions { SuppressErrorNotifications = true });
+            var postTask = Api.SendForResultAsync<PostDto>(postRequest, new ApiRequestOptions { SuppressErrorNotifications = true });
+            var viewerTask = Api.SendForResultAsync<PostViewerDto>(viewerRequest, new ApiRequestOptions { SuppressErrorNotifications = true });
 
-            if (response.Success && response.Value is not null)
+            await Task.WhenAll(postTask, viewerTask);
+
+            var postResponse = postTask.Result;
+            var viewerResponse = viewerTask.Result;
+
+            if (postResponse.Success && postResponse.Value is not null && viewerResponse.Success && viewerResponse.Value is not null)
             {
-                post = response.Value;
-                selectedIndex = 0;
-                loadStatus = null;
+                post = postResponse.Value;
+                viewer = viewerResponse.Value;
+                _activeImageId = viewer.Images.FirstOrDefault()?.Id ?? 0;
+                ResetCommentViewerState();
             }
             else
             {
-                loadStatus = response.StatusCode;
-                loadError = response.StatusCode == HttpStatusCode.NotFound
+                post = null;
+                viewer = null;
+                loadStatus = viewerResponse.StatusCode ?? postResponse.StatusCode;
+                loadError = loadStatus == HttpStatusCode.NotFound
                     ? "This post could not be found."
                     : "We couldn't load this post. Please check your connection and try again.";
-                post = null;
             }
         }
         catch
         {
             post = null;
+            viewer = null;
             loadStatus = null;
             loadError = "We couldn't load this post. Please try again in a moment.";
         }
@@ -295,10 +298,12 @@
         }
     }
 
-    private async Task ReloadComments()
+    private async Task ReloadCommentsAsync()
     {
-        if (_commentList != null)
+        if (_commentList is not null)
+        {
             await _commentList.ReloadAsync();
+        }
     }
 
     private void GoToLogin()
@@ -306,9 +311,6 @@
         var returnUrl = Uri.EscapeDataString(Nav.Uri);
         Nav.NavigateTo($"/login?returnUrl={returnUrl}", true);
     }
-
-    private void ShowZoomModal() => showModal = true;
-    private void CloseZoomModal() => showModal = false;
 
     private Task HidePostAsync() => ModeratePostAsync(hide: true);
 
@@ -318,8 +320,8 @@
     {
         _postModerationError = null;
         _postModerationResult = null;
-
         _postModerationBusy = true;
+
         try
         {
             var request = new ModerationActionRequestDto
@@ -338,8 +340,8 @@
             }
 
             _postModerationResult = hide ? "Post hidden." : "Post restored.";
-            await LoadPost();
-            await ReloadComments();
+            await LoadPostAsync();
+            await ReloadCommentsAsync();
         }
         finally
         {
@@ -347,126 +349,153 @@
         }
     }
 
-    private void SelectImage(int index)
+    private async Task HandleActiveImageChangedAsync(int imageId)
     {
-        if (!HasImages) return;
-        if (index < 0 || index >= PostImages!.Count) return;
-        selectedIndex = index;
-    }
+        _activeImageId = imageId;
 
-    private static List<dynamic>? TryGetImages(PostDto? p)
-    {
-        if (p is null) return null;
-
-        try
+        if (_activeCommentMark is not null && _activeCommentMark.PostImageId != imageId)
         {
-            dynamic dyn = p;
-            var imgs = dyn.Images;
-
-            if (imgs is null) return null;
-
-            if (imgs is IEnumerable<object> seq)
-                return seq.Select(x => (dynamic)x).ToList();
-
-            return null;
-        }
-        catch
-        {
-            return null;
+            await ClearActiveCommentMarkAsync();
         }
     }
 
-    private string GetMaxUrl(dynamic img)
+    private Task BeginCommentPlacementAsync()
     {
-        var baseUrl =
-            TryGetString(img, nameof(PostImageDto.ImageUrl)) ??
-            TryGetString(img, "Url") ??
-            TryGetString(img, "imageUrl") ??
-            TryGetString(img, "url");
-
-        return GetAbsoluteUrl(baseUrl);
+        _isCommentPlacementMode = true;
+        _activeCommentMark = null;
+        _activeCommentId = null;
+        _markLoadingCommentId = null;
+        _markErrorCommentId = null;
+        _markError = null;
+        _commentMarkRequestVersion++;
+        return Task.CompletedTask;
     }
 
-    private string GetPreviewUrl(dynamic img)
+    private Task HandleCommentPlacementSelectedAsync(ViewerMarkDraftDto draft)
     {
-        var preview =
-            TryGetString(img, nameof(PostImageDto.PreviewUrl)) ??
-            TryGetString(img, "PreviewUrl") ??
-            TryGetString(img, "previewUrl");
-
-        if (!string.IsNullOrEmpty(preview))
-        {
-            return GetAbsoluteUrl(preview);
-        }
-
-        return GetMaxUrl(img);
+        _draftCommentMark = draft;
+        _activeImageId = draft.PostImageId;
+        _isCommentPlacementMode = false;
+        return Task.CompletedTask;
     }
 
-    private string GetThumbnailUrl(dynamic img)
+    private Task CancelCommentPlacementAsync()
     {
-        var thumb =
-            TryGetString(img, nameof(PostImageDto.ThumbnailUrl)) ??
-            TryGetString(img, "thumbnailUrl");
-
-        if (!string.IsNullOrEmpty(thumb))
-        {
-            return GetAbsoluteUrl(thumb);
-        }
-
-        var baseUrl =
-            TryGetString(img, nameof(PostImageDto.ImageUrl)) ??
-            TryGetString(img, "Url") ??
-            TryGetString(img, "imageUrl") ??
-            TryGetString(img, "url");
-
-        return GetAbsoluteUrl(ReplaceVariantSuffix(baseUrl, "_thumb."));
+        _isCommentPlacementMode = false;
+        return Task.CompletedTask;
     }
 
-    private static string? TryGetString(dynamic obj, string property)
+    private Task RemoveDraftCommentMarkAsync()
     {
-        if (obj is null) return null;
+        _draftCommentMark = null;
+        _isCommentPlacementMode = false;
+        return Task.CompletedTask;
+    }
 
-        try
+    private async Task HandleCommentAddedAsync(CommentDto createdComment)
+    {
+        if (_draftCommentMark is not null && createdComment.HasViewerMark)
         {
-            var prop = obj.GetType().GetProperty(property);
-            if (prop != null)
+            var mark = new CommentMarkDto
             {
-                var propValue = prop.GetValue(obj) as string;
-                if (!string.IsNullOrWhiteSpace(propValue))
-                    return propValue;
+                CommentId = createdComment.Id,
+                PostImageId = createdComment.MarkedPostImageId ?? _draftCommentMark.PostImageId,
+                NormalizedX = _draftCommentMark.NormalizedX,
+                NormalizedY = _draftCommentMark.NormalizedY
+            };
+
+            _commentMarkCache[createdComment.Id] = mark;
+            _activeCommentId = createdComment.Id;
+            _activeCommentMark = mark;
+            _activeImageId = mark.PostImageId;
+        }
+
+        _draftCommentMark = null;
+        _isCommentPlacementMode = false;
+        _markError = null;
+        _markErrorCommentId = null;
+        _markLoadingCommentId = null;
+        await ReloadCommentsAsync();
+    }
+
+    private async Task RevealCommentMarkAsync(CommentDto comment)
+    {
+        _commentMarkRequestVersion++;
+        var requestVersion = _commentMarkRequestVersion;
+
+        _activeCommentId = comment.Id;
+        _activeCommentMark = null;
+        _markErrorCommentId = null;
+        _markError = null;
+        _markLoadingCommentId = comment.Id;
+        _isCommentPlacementMode = false;
+
+        if (!_commentMarkCache.TryGetValue(comment.Id, out var mark))
+        {
+            try
+            {
+                mark = await CommentMarkService.GetByCommentIdAsync(comment.Id, comment.IsDeleted);
             }
-        }
-        catch { }
+            catch
+            {
+                if (requestVersion != _commentMarkRequestVersion || _activeCommentId != comment.Id)
+                {
+                    return;
+                }
 
-        if (obj is IDictionary<string, object> dict &&
-            dict.TryGetValue(property, out var value) &&
-            value is string val && !string.IsNullOrWhiteSpace(val))
-        {
-            return val;
+                _markLoadingCommentId = null;
+                _markErrorCommentId = comment.Id;
+                _markError = "We couldn't show this marker right now.";
+                return;
+            }
+
+            if (requestVersion != _commentMarkRequestVersion || _activeCommentId != comment.Id)
+            {
+                return;
+            }
+
+            _commentMarkCache[comment.Id] = mark;
         }
 
-        return null;
+        _markLoadingCommentId = null;
+        _markErrorCommentId = null;
+        _markError = null;
+        _activeCommentMark = mark;
+        _activeImageId = mark.PostImageId;
     }
 
-    private static string ReplaceVariantSuffix(string? url, string replacement)
+    private Task ClearActiveCommentMarkAsync()
     {
-        if (string.IsNullOrEmpty(url))
-        {
-            return string.Empty;
-        }
-
-        return url.Contains("_max.", StringComparison.OrdinalIgnoreCase)
-            ? url.Replace("_max.", replacement, StringComparison.OrdinalIgnoreCase)
-            : url;
+        _commentMarkRequestVersion++;
+        _activeCommentId = null;
+        _activeCommentMark = null;
+        _markLoadingCommentId = null;
+        _markErrorCommentId = null;
+        _markError = null;
+        return Task.CompletedTask;
     }
 
-    private string GetAbsoluteUrl(string? url)
+    private int? GetImageNumber(int? postImageId)
     {
-        if (string.IsNullOrEmpty(url))
-            return string.Empty;
+        if (viewer is null || !postImageId.HasValue)
+        {
+            return null;
+        }
 
-        return url.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-            ? url
-            : $"{Nav.BaseUri.TrimEnd('/')}{url}";
+        var index = viewer.Images.FindIndex(image => image.Id == postImageId.Value);
+        return index >= 0 ? index + 1 : null;
+    }
+
+    private void ResetCommentViewerState()
+    {
+        _commentMarkCache.Clear();
+        _activeCommentId = null;
+        _activeCommentMark = null;
+        _draftCommentMark = null;
+        _isCommentPlacementMode = false;
+        _markLoadingCommentId = null;
+        _markErrorCommentId = null;
+        _markError = null;
+        _commentMarkRequestVersion = 0;
     }
 }

@@ -206,7 +206,11 @@ public class Program
 
         builder.Services.AddScoped<IProfileService, ProfileService>();
         builder.Services.AddScoped<IPostService, PostService>();
+        builder.Services.AddScoped<IPostViewerService, PostViewerService>();
         builder.Services.AddScoped<ICommentService, CommentService>();
+        builder.Services.AddScoped<CommentMarkService>();
+        builder.Services.AddScoped<ICommentMarkService>(sp => sp.GetRequiredService<CommentMarkService>());
+        builder.Services.AddScoped<IAuthorMarkService, AuthorMarkService>();
         builder.Services.AddScoped<ILikeService, LikeService>();
         builder.Services.AddScoped<DevelopmentContentSeeder>();
         builder.Services.AddScoped<IAccountRestrictionService, AccountRestrictionService>();

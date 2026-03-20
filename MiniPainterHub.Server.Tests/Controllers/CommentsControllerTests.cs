@@ -95,6 +95,52 @@ public class CommentsControllerTests
     }
 
     [Fact]
+    public async Task Create_WhenAuthenticatedWithMark_ReturnsMarkSummaryAndPersistsMarker()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await factory.SeedUserAndPostAsync("author-user", 120);
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            await db.PostImages.AddAsync(new MiniPainterHub.Server.Entities.PostImage
+            {
+                Id = 901,
+                PostId = 120,
+                ImageUrl = "https://img/comment-mark",
+                Width = 1600,
+                Height = 900
+            });
+            await db.SaveChangesAsync();
+        });
+        using var client = factory.CreateAuthenticatedClient("author-user", "author-user");
+
+        var response = await client.PostAsJsonAsync("/api/posts/120/comments", new CreateCommentDto
+        {
+            PostId = 120,
+            Text = "Comment with a marker",
+            Mark = new ViewerMarkDraftDto
+            {
+                PostImageId = 901,
+                NormalizedX = 0.25m,
+                NormalizedY = 0.75m
+            }
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var body = await response.Content.ReadFromJsonAsync<CommentDto>();
+        body.Should().NotBeNull();
+        body!.HasViewerMark.Should().BeTrue();
+        body.MarkedPostImageId.Should().Be(901);
+
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            db.CommentImageMarks.Should().ContainSingle();
+            db.CommentImageMarks.Single().PostImageId.Should().Be(901);
+            await Task.CompletedTask;
+        });
+    }
+
+    [Fact]
     public async Task Create_WhenCommentTextIsWhitespace_ReturnsValidationProblemDetails()
     {
         using var factory = new IntegrationTestApplicationFactory();

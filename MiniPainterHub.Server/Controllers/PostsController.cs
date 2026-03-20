@@ -6,6 +6,7 @@ using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace MiniPainterHub.Server.Controllers
@@ -16,10 +17,12 @@ namespace MiniPainterHub.Server.Controllers
     public class PostsController : ControllerBase
     {
         private readonly IPostService _postService;
+        private readonly IPostViewerService _postViewerService;
 
-        public PostsController(IPostService postService)
+        public PostsController(IPostService postService, IPostViewerService postViewerService)
         {
             _postService = postService ?? throw new ArgumentNullException(nameof(postService));
+            _postViewerService = postViewerService ?? throw new ArgumentNullException(nameof(postViewerService));
         }
 
         // GET: api/posts?page=1&pageSize=10
@@ -51,6 +54,15 @@ namespace MiniPainterHub.Server.Controllers
         public async Task<ActionResult<PostDto>> GetById(int id)
         {
             var dto = await _postService.GetByIdAsync(id);
+            return Ok(dto);
+        }
+
+        [HttpGet("{id}/viewer")]
+        [AllowAnonymous]
+        public async Task<ActionResult<PostViewerDto>> GetViewer(int id)
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var dto = await _postViewerService.GetAsync(id, currentUserId);
             return Ok(dto);
         }
 
