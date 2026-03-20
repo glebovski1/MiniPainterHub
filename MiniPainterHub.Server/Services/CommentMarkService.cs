@@ -53,7 +53,7 @@ namespace MiniPainterHub.Server.Services
         {
             var comment = await _appDbContext.Comments
                 .Include(c => c.ViewerMark)
-                .FirstOrDefaultAsync(c => c.Id == commentId && c.AuthorId == userId && !c.IsDeleted);
+                .FirstOrDefaultAsync(c => c.Id == commentId && c.AuthorId == userId && !c.IsDeleted && !c.Post.IsDeleted);
 
             if (comment is null)
             {
@@ -98,7 +98,7 @@ namespace MiniPainterHub.Server.Services
         {
             var mark = await _appDbContext.CommentImageMarks
                 .Include(m => m.Comment)
-                .FirstOrDefaultAsync(m => m.CommentId == commentId && m.Comment.AuthorId == userId && !m.Comment.IsDeleted);
+                .FirstOrDefaultAsync(m => m.CommentId == commentId && m.Comment.AuthorId == userId && !m.Comment.IsDeleted && !m.Comment.Post.IsDeleted);
 
             if (mark is null)
             {

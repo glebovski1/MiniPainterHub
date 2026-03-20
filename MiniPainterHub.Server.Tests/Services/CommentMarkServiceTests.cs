@@ -101,4 +101,65 @@ public class CommentMarkServiceTests
         exception.Which.Errors.Should().ContainKey("NormalizedX");
         exception.Which.Errors.Should().ContainKey("NormalizedY");
     }
+
+    [Fact]
+    public async Task UpsertAsync_WhenParentPostIsDeleted_ThrowsNotFound()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var author = TestData.CreateUser("author-1");
+        var post = TestData.CreatePost(4, author.Id);
+        post.IsDeleted = true;
+        var image = new PostImage { Id = 14, PostId = post.Id, ImageUrl = "https://img/4", Width = 1000, Height = 800 };
+        var comment = TestData.CreateComment(24, post.Id, author.Id);
+
+        await context.Users.AddAsync(author);
+        await context.Posts.AddAsync(post);
+        await context.PostImages.AddAsync(image);
+        await context.Comments.AddAsync(comment);
+        await context.SaveChangesAsync();
+
+        var service = new CommentMarkService(context);
+
+        var act = async () => await service.UpsertAsync(comment.Id, author.Id, new ViewerMarkDraftDto
+        {
+            PostImageId = image.Id,
+            NormalizedX = 0.25m,
+            NormalizedY = 0.75m
+        });
+
+        await act.Should().ThrowAsync<NotFoundException>()
+            .WithMessage("Comment not found.");
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenParentPostIsDeleted_ThrowsNotFound()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var author = TestData.CreateUser("author-1");
+        var post = TestData.CreatePost(5, author.Id);
+        post.IsDeleted = true;
+        var image = new PostImage { Id = 15, PostId = post.Id, ImageUrl = "https://img/5", Width = 1000, Height = 800 };
+        var comment = TestData.CreateComment(25, post.Id, author.Id);
+        var mark = new CommentImageMark
+        {
+            CommentId = comment.Id,
+            PostImageId = image.Id,
+            NormalizedX = 0.5m,
+            NormalizedY = 0.5m
+        };
+
+        await context.Users.AddAsync(author);
+        await context.Posts.AddAsync(post);
+        await context.PostImages.AddAsync(image);
+        await context.Comments.AddAsync(comment);
+        await context.CommentImageMarks.AddAsync(mark);
+        await context.SaveChangesAsync();
+
+        var service = new CommentMarkService(context);
+
+        var act = async () => await service.DeleteAsync(comment.Id, author.Id);
+
+        await act.Should().ThrowAsync<NotFoundException>()
+            .WithMessage("Comment mark not found.");
+    }
 }
