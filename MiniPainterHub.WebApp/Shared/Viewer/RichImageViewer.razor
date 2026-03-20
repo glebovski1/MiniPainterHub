@@ -731,18 +731,17 @@ else
         }
 
         var fit = GetFitRect(CurrentImage);
-        if (relativePoint.X < fit.Left || relativePoint.X > (fit.Left + fit.Width) || relativePoint.Y < fit.Top || relativePoint.Y > (fit.Top + fit.Height))
+        var normalizedPoint = TryResolveNormalizedPoint(relativePoint, fit);
+        if (normalizedPoint is null)
         {
             return;
         }
 
-        var normalizedX = Math.Clamp((relativePoint.X - fit.Left) / fit.Width, 0d, 1d);
-        var normalizedY = Math.Clamp((relativePoint.Y - fit.Top) / fit.Height, 0d, 1d);
         var draft = new ViewerMarkDraftDto
         {
             PostImageId = CurrentImage.Id,
-            NormalizedX = decimal.Round((decimal)normalizedX, 6, MidpointRounding.AwayFromZero),
-            NormalizedY = decimal.Round((decimal)normalizedY, 6, MidpointRounding.AwayFromZero)
+            NormalizedX = decimal.Round((decimal)normalizedPoint.X, 6, MidpointRounding.AwayFromZero),
+            NormalizedY = decimal.Round((decimal)normalizedPoint.Y, 6, MidpointRounding.AwayFromZero)
         };
 
         if (IsCommentPlacementMode)
@@ -761,17 +760,45 @@ else
         }
     }
 
-    private async Task<RelativePoint?> GetRelativePointAsync(double clientX, double clientY)
+    private ViewerRelativePoint? TryResolveNormalizedPoint(ViewerRelativePoint relativePoint, FitRectSnapshot fit)
+    {
+        if (fit.Width <= 0d || fit.Height <= 0d || _zoom <= 0d)
+        {
+            return null;
+        }
+
+        var centerX = fit.Left + (fit.Width / 2d);
+        var centerY = fit.Top + (fit.Height / 2d);
+
+        var unscaledX = centerX + ((relativePoint.X - centerX - _panX) / _zoom);
+        var unscaledY = centerY + ((relativePoint.Y - centerY - _panY) / _zoom);
+
+        var normalizedX = (unscaledX - fit.Left) / fit.Width;
+        var normalizedY = (unscaledY - fit.Top) / fit.Height;
+
+        if (normalizedX < 0d || normalizedX > 1d || normalizedY < 0d || normalizedY > 1d)
+        {
+            return null;
+        }
+
+        return new ViewerRelativePoint
+        {
+            X = normalizedX,
+            Y = normalizedY
+        };
+    }
+
+    private async Task<ViewerRelativePoint?> GetRelativePointAsync(double clientX, double clientY)
     {
         var module = await EnsureModuleAsync();
         if (module is null || _viewerStage is null)
         {
-            return new RelativePoint { X = clientX, Y = clientY };
+            return new ViewerRelativePoint { X = clientX, Y = clientY };
         }
 
         try
         {
-            return await module.InvokeAsync<RelativePoint>("getRelativePoint", _viewerStage.StageElement, clientX, clientY);
+            return await module.InvokeAsync<ViewerRelativePoint>("getRelativePoint", _viewerStage.StageElement, clientX, clientY);
         }
         catch
         {
@@ -1174,11 +1201,4 @@ else
         double LastY,
         string? PointerType,
         bool Moved);
-
-    private sealed class RelativePoint
-    {
-        public double X { get; set; }
-        public double Y { get; set; }
-    }
-
 }
