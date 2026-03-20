@@ -32,6 +32,13 @@ namespace MiniPainterHub.Server.Services
         }
         public async Task<CommentDto> CreateAsync(string userId, int postId, CreateCommentDto dto)
         {
+            ArgumentNullException.ThrowIfNull(dto);
+
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                throw new UnauthorizedAccessException("User must be authenticated to create comments.");
+            }
+
             if (_accountRestrictionService != null)
             {
                 await _accountRestrictionService.EnsureCanCommentAsync(userId);
@@ -73,6 +80,11 @@ namespace MiniPainterHub.Server.Services
 
         public async Task<bool> DeleteAsync(int commentId, string userId, bool isAdmin)
         {
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                throw new UnauthorizedAccessException("User must be authenticated to delete comments.");
+            }
+
             var comment = await _appDbContext.Comments
                 .FirstOrDefaultAsync(c =>
                     c.Id == commentId
@@ -182,6 +194,13 @@ namespace MiniPainterHub.Server.Services
 
         public async Task<bool> UpdateAsync(int commentId, string userId, UpdateCommentDto dto)
         {
+            ArgumentNullException.ThrowIfNull(dto);
+
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                throw new UnauthorizedAccessException("User must be authenticated to update comments.");
+            }
+
             var text = ValidateAndNormalizeText(dto.Content, "content");
 
             var comment = await _appDbContext.Comments
