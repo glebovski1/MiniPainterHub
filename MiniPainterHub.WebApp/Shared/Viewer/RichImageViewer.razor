@@ -68,11 +68,12 @@ else
                                 <div class="viewer-stage__transform @(CurrentImageReady ? "is-ready" : null)"
                                      style="@TransformStyle">
                                     <img class="viewer-stage__image"
+                                         @ref="_currentImageElement"
                                          src="@CurrentImageSource"
                                          data-testid="post-details-image"
                                          alt="@($"Artwork image {CurrentImageNumber}")"
                                          draggable="false"
-                                         @onload="@(() => OnImageLoaded(CurrentImage.Id))"
+                                         @onload="@(() => HandleImageLoadedAsync(CurrentImage.Id))"
                                          @onerror="@(() => OnImageFailed(CurrentImage.Id))" />
 
                                     <ViewerOverlay AuthorMarks="@VisibleAuthorMarks"
@@ -146,12 +147,14 @@ else
     private const double DragThreshold = 6d;
 
     private readonly Dictionary<int, int> _imageRetryTokens = new();
+    private readonly Dictionary<int, ImageDimensionsSnapshot> _resolvedImageDimensions = new();
     private readonly HashSet<int> _loadedImageIds = new();
     private readonly HashSet<int> _failedImageIds = new();
     private readonly List<AuthorMarkDto> _authorMarks = new();
 
     private ViewerStage? _viewerStage;
     private ElementReference _rootElement;
+    private ElementReference _currentImageElement;
     private IJSObjectReference? _module;
     private DotNetObjectReference<RichImageViewer>? _selfReference;
 
@@ -325,6 +328,7 @@ else
             _loadedImageIds.Clear();
             _failedImageIds.Clear();
             _imageRetryTokens.Clear();
+            _resolvedImageDimensions.Clear();
             _selectedAuthorMarkId = null;
             _authorDraft = null;
             _composerValue = new();
@@ -918,10 +922,28 @@ else
         return Task.CompletedTask;
     }
 
-    private void OnImageLoaded(int imageId)
+    private async Task HandleImageLoadedAsync(int imageId)
     {
         _failedImageIds.Remove(imageId);
         _loadedImageIds.Add(imageId);
+
+        if (CurrentImage?.Id != imageId)
+        {
+            return;
+        }
+
+        var dimensions = await TryGetImageDimensionsAsync();
+        if (dimensions is null)
+        {
+            return;
+        }
+
+        _resolvedImageDimensions[imageId] = dimensions;
+
+        if (CurrentImage.Width.GetValueOrDefault() <= 0 || CurrentImage.Height.GetValueOrDefault() <= 0)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private void OnImageFailed(int imageId)
@@ -999,8 +1021,8 @@ else
 
     private FitRectSnapshot GetFitRect(PostViewerImageDto image)
     {
-        var imageWidth = image.Width.GetValueOrDefault() > 0 ? image.Width!.Value : 1600d;
-        var imageHeight = image.Height.GetValueOrDefault() > 0 ? image.Height!.Value : 1000d;
+        var imageWidth = ResolveImageWidth(image);
+        var imageHeight = ResolveImageHeight(image);
         var scale = Math.Min(_stage.Width / imageWidth, _stage.Height / imageHeight);
         var width = imageWidth * scale;
         var height = imageHeight * scale;
@@ -1067,6 +1089,55 @@ else
         return $"{url}{separator}retry={token}";
     }
 
+    private async Task<ImageDimensionsSnapshot?> TryGetImageDimensionsAsync()
+    {
+        var module = await EnsureModuleAsync();
+        if (module is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var dimensions = await module.InvokeAsync<ImageDimensionsSnapshot?>("getImageDimensions", _currentImageElement);
+            return dimensions is { Width: > 0d, Height: > 0d } ? dimensions : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private double ResolveImageWidth(PostViewerImageDto image)
+    {
+        if (image.Width.GetValueOrDefault() > 0)
+        {
+            return image.Width ?? 1600d;
+        }
+
+        if (_resolvedImageDimensions.TryGetValue(image.Id, out var inferred) && inferred.Width > 0d)
+        {
+            return inferred.Width;
+        }
+
+        return 1600d;
+    }
+
+    private double ResolveImageHeight(PostViewerImageDto image)
+    {
+        if (image.Height.GetValueOrDefault() > 0)
+        {
+            return image.Height ?? 1000d;
+        }
+
+        if (_resolvedImageDimensions.TryGetValue(image.Id, out var inferred) && inferred.Height > 0d)
+        {
+            return inferred.Height;
+        }
+
+        return 1000d;
+    }
+
     private static string? NormalizeText(string? value)
     {
         var trimmed = value?.Trim();
@@ -1109,4 +1180,5 @@ else
         public double X { get; set; }
         public double Y { get; set; }
     }
+
 }

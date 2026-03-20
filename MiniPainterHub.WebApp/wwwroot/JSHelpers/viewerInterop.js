@@ -102,3 +102,14 @@ export function getRelativePoint(element, clientX, clientY) {
         y: clientY - rect.top
     };
 }
+
+export function getImageDimensions(element) {
+    if (!element) {
+        return { width: 0, height: 0 };
+    }
+
+    return {
+        width: element.naturalWidth ?? 0,
+        height: element.naturalHeight ?? 0
+    };
+}
