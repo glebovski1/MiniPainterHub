@@ -6,7 +6,7 @@
 @inject IJSRuntime JS
 @inject MiniPainterHub.WebApp.Services.Interfaces.IAuthorMarkService AuthorMarkService
 
-@if (Viewer.Images.Count == 0)
+@if (IsOpen && Viewer.Images.Count == 0)
 {
     <section class="viewer-empty" data-testid="viewer-empty">
         <div class="viewer-empty__icon"><i class="bi bi-image" aria-hidden="true"></i></div>
@@ -14,160 +14,194 @@
         <p class="viewer-empty__text">This post does not have any images to inspect yet.</p>
     </section>
 }
-else
+else if (IsOpen)
 {
-    <section class="viewer-shell @(_isFullscreen ? "is-fullscreen" : null)"
-             data-testid="rich-image-viewer"
-             @ref="_rootElement"
-             tabindex="-1">
-        <div class="viewer-shell__backdrop" style="@BackdropStyle"></div>
-        <div class="viewer-shell__wash"></div>
+    <div class="viewer-modal" data-testid="rich-image-viewer-modal">
+        <button type="button"
+                class="viewer-modal__backdrop"
+                aria-label="Close viewer"
+                data-testid="viewer-backdrop"
+                @onclick="CloseAsync"></button>
 
-        <div class="viewer-shell__content">
-            <ViewerToolbar Title="Premium viewer"
-                           CurrentIndex="@CurrentImageNumber"
-                           TotalCount="@Viewer.Images.Count"
-                           ZoomPercent="@ZoomPercent"
-                           CanGoPrevious="@(Viewer.Images.Count > 1)"
-                           CanGoNext="@(Viewer.Images.Count > 1)"
-                           CanAddAuthorMark="@Viewer.CanManageAuthorMarks"
-                           IsAuthorPlacementMode="@_isAuthorPlacementMode"
-                           CanToggleFullscreen="@_isFullscreenSupported"
-                           IsFullscreen="@_isFullscreen"
-                           OnPrevious="PreviousImageAsync"
-                           OnNext="NextImageAsync"
-                           OnZoomIn="ZoomInAsync"
-                           OnZoomOut="ZoomOutAsync"
-                           OnResetView="ResetViewAsync"
-                           OnToggleFullscreen="ToggleFullscreenAsync"
-                           OnToggleAuthorPlacement="ToggleAuthorPlacementAsync" />
+        <section class="viewer-shell @(_isFullscreen ? "is-fullscreen" : null)"
+                 data-testid="rich-image-viewer"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-labelledby="@TitleId"
+                 @ref="_rootElement"
+                 tabindex="-1"
+                 @onkeydown="HandleModalKeyDown">
+            <div class="viewer-shell__backdrop" style="@BackdropStyle"></div>
+            <div class="viewer-shell__wash"></div>
 
-            @if (!string.IsNullOrWhiteSpace(CurrentInteractionHint))
-            {
-                <div class="viewer-banner" role="status" aria-live="polite" data-testid="viewer-banner">
-                    <i class="bi bi-stars" aria-hidden="true"></i>
-                    <span>@CurrentInteractionHint</span>
-                </div>
-            }
+            <div class="viewer-shell__content">
+                <div class="viewer-shell__body">
+                    <aside class="viewer-shell__control-rail" data-testid="viewer-control-rail">
+                        <ViewerToolbar Eyebrow="@Eyebrow"
+                                       Title="@Title"
+                                       TitleId="@TitleId"
+                                       CurrentIndex="@CurrentImageNumber"
+                                       TotalCount="@Viewer.Images.Count"
+                                       ZoomPercent="@ZoomPercent"
+                                       CanGoPrevious="@(Viewer.Images.Count > 1)"
+                                       CanGoNext="@(Viewer.Images.Count > 1)"
+                                       CanAddAuthorMark="@Viewer.CanManageAuthorMarks"
+                                       IsAuthorPlacementMode="@_isAuthorPlacementMode"
+                                       CanToggleFullscreen="@_isFullscreenSupported"
+                                       IsFullscreen="@_isFullscreen"
+                                       OnPrevious="PreviousImageAsync"
+                                       OnNext="NextImageAsync"
+                                       OnZoomIn="ZoomInAsync"
+                                       OnZoomOut="ZoomOutAsync"
+                                       OnResetView="ResetViewAsync"
+                                       OnToggleFullscreen="ToggleFullscreenAsync"
+                                       OnToggleAuthorPlacement="ToggleAuthorPlacementAsync"
+                                       OnClose="CloseAsync" />
 
-            <ViewerStage @ref="_viewerStage"
-                         StageClass="@StageClass"
-                         Style="@StageStyle"
-                         OnPointerDown="HandlePointerDown"
-                         OnPointerMove="HandlePointerMove"
-                         OnPointerUp="HandlePointerUpAsync"
-                         OnPointerLeave="HandlePointerLeave"
-                         OnWheel="HandleWheelAsync"
-                         OnKeyDown="HandleKeyDown">
-                <div class="viewer-stage__frame">
-                    @if (CurrentImage is not null)
-                    {
-                        <div class="viewer-stage__fitbox" style="@FitBoxStyle">
-                            @if (!CurrentImageFailed)
-                            {
-                                <div class="viewer-stage__transform @(CurrentImageReady ? "is-ready" : null)"
-                                     style="@TransformStyle">
-                                    <img class="viewer-stage__image"
-                                         @ref="_currentImageElement"
-                                         src="@CurrentImageSource"
-                                         data-testid="post-details-image"
-                                         alt="@($"Artwork image {CurrentImageNumber}")"
-                                         draggable="false"
-                                         @onload="@(() => HandleImageLoadedAsync(CurrentImage.Id))"
-                                         @onerror="@(() => OnImageFailed(CurrentImage.Id))" />
+                        <ThumbnailRail Images="@Viewer.Images"
+                                       ActiveImageId="@ResolvedImageId"
+                                       OnSelect="SelectImageAsync" />
 
-                                    <ViewerOverlay AuthorMarks="@VisibleAuthorMarks"
-                                                   SelectedAuthorMarkId="@_selectedAuthorMarkId"
-                                                   ActiveCommentMark="@VisibleCommentMark"
-                                                   DraftCommentMark="@VisibleDraftCommentMark"
-                                                   OnAuthorMarkSelected="HandleAuthorMarkSelectedAsync" />
-                                </div>
-                            }
+                        <div class="viewer-helptext">
+                            <span>Arrows browse images.</span>
+                            <span><kbd>+</kbd>/<kbd>-</kbd> zoom.</span>
+                            <span><kbd>0</kbd> reset.</span>
+                            <span><kbd>F</kbd> fullscreen.</span>
+                            <span><kbd>Esc</kbd> close.</span>
                         </div>
+                    </aside>
 
-                        @if (CurrentImageFailed)
+                    <div class="viewer-shell__stage-column">
+                        @if (!string.IsNullOrWhiteSpace(CurrentInteractionHint))
                         {
-                            <div class="viewer-stage__status viewer-stage__status--error" role="alert" data-testid="viewer-image-error">
-                                <div class="viewer-stage__status-icon"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i></div>
-                                <div>
-                                    <div class="viewer-stage__status-title">Image failed to load</div>
-                                    <p class="viewer-stage__status-text mb-0">Retry the image or switch to another thumbnail.</p>
-                                </div>
-                                <button type="button" class="btn btn-sm btn-outline-light" @onclick="RetryCurrentImageAsync">Retry</button>
+                            <div class="viewer-banner" role="status" aria-live="polite" data-testid="viewer-banner">
+                                <i class="bi bi-stars" aria-hidden="true"></i>
+                                <span>@CurrentInteractionHint</span>
                             </div>
                         }
-                        else if (CurrentImageLoading)
+
+                        <div class="viewer-shell__stage-surface">
+                            <ViewerStage @ref="_viewerStage"
+                                         StageClass="@StageClass"
+                                         Style="@StageStyle"
+                                         OnPointerDown="HandlePointerDown"
+                                         OnPointerMove="HandlePointerMove"
+                                         OnPointerUp="HandlePointerUpAsync"
+                                         OnPointerLeave="HandlePointerLeave"
+                                         OnWheel="HandleWheelAsync"
+                                         OnTouchStart="HandleTouchStart"
+                                         OnTouchMove="HandleTouchMove"
+                                         OnTouchEnd="HandleTouchEndAsync"
+                                         OnClick="HandleStageClickAsync"
+                                         OnKeyDown="HandleKeyDown">
+                                <div class="viewer-stage__viewport" data-testid="viewer-stage-viewport">
+                                    @if (CurrentImage is not null)
+                                    {
+                                        <div class="viewer-stage__frame">
+                                            @if (!CurrentImageFailed)
+                                            {
+                                                <div class="viewer-stage__fitbox" data-testid="viewer-stage-fitbox" style="@FitBoxStyle">
+                                                    <div class="viewer-stage__transform @(CurrentImageReady ? "is-ready" : null)"
+                                                         data-testid="viewer-stage-transform"
+                                                         style="@TransformStyle">
+                                                        <img class="viewer-stage__image"
+                                                             src="@CurrentImageSource"
+                                                             data-testid="viewer-stage-image"
+                                                             alt="@($"Artwork image {CurrentImageNumber}")"
+                                                             draggable="false"
+                                                             @ref="_imageElement"
+                                                             @onload="@(() => OnImageLoaded(CurrentImage.Id))"
+                                                             @onerror="@(() => OnImageFailed(CurrentImage.Id))" />
+
+                                                        <ViewerOverlay AuthorMarks="@VisibleAuthorMarks"
+                                                                       SelectedAuthorMarkId="@_selectedAuthorMarkId"
+                                                                       ActiveCommentMark="@VisibleCommentMark"
+                                                                       DraftCommentMark="@VisibleDraftCommentMark"
+                                                                       OnAuthorMarkSelected="HandleAuthorMarkSelectedAsync" />
+                                                    </div>
+                                                </div>
+                                            }
+
+                                            @if (CurrentImageFailed)
+                                            {
+                                                <div class="viewer-stage__status viewer-stage__status--error" role="alert" data-testid="viewer-image-error">
+                                                    <div class="viewer-stage__status-icon"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i></div>
+                                                    <div>
+                                                        <div class="viewer-stage__status-title">Image failed to load</div>
+                                                        <p class="viewer-stage__status-text mb-0">Retry the image or switch to another thumbnail.</p>
+                                                    </div>
+                                                    <button type="button" class="btn btn-sm btn-outline-light" @onclick="RetryCurrentImageAsync">Retry</button>
+                                                </div>
+                                            }
+                                            else if (CurrentImageLoading)
+                                            {
+                                                <ViewerSkeleton />
+                                            }
+
+                                            @if (ShowComposer)
+                                            {
+                                                <MarkComposer Title="@ComposerTitle"
+                                                              Subtitle="@ComposerSubtitle"
+                                                              Style="@ComposerStyle"
+                                                              IsReadOnly="@ComposerIsReadOnly"
+                                                              IsBusy="@_authorMarkBusy"
+                                                              CanDelete="@CanDeleteSelectedAuthorMark"
+                                                              SaveLabel="Save note"
+                                                              Error="@_authorMarkError"
+                                                              Value="@_composerValue"
+                                                              OnSave="SaveAuthorMarkAsync"
+                                                              OnDelete="DeleteAuthorMarkAsync"
+                                                              OnCancel="DismissComposerAsync" />
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </ViewerStage>
+                        </div>
+                    </div>
+
+                    <aside class="viewer-shell__side-panel" data-testid="viewer-side-panel">
+                        @if (SidePanelContent is not null)
                         {
-                            <ViewerSkeleton />
+                            @SidePanelContent
                         }
-
-                        @if (ShowComposer)
-                        {
-                            <MarkComposer Title="@ComposerTitle"
-                                          Subtitle="@ComposerSubtitle"
-                                          Style="@ComposerStyle"
-                                          IsReadOnly="@ComposerIsReadOnly"
-                                          IsBusy="@_authorMarkBusy"
-                                          CanDelete="@CanDeleteSelectedAuthorMark"
-                                          SaveLabel="Save note"
-                                          Error="@_authorMarkError"
-                                          Value="@_composerValue"
-                                          OnSave="SaveAuthorMarkAsync"
-                                          OnDelete="DeleteAuthorMarkAsync"
-                                          OnCancel="DismissComposerAsync" />
-                        }
-                    }
+                    </aside>
                 </div>
-            </ViewerStage>
-
-            @if (VisibleCommentMark is not null && ActiveCommentId.HasValue)
-            {
-                <div class="viewer-comment-state" data-testid="viewer-comment-state">
-                    <i class="bi bi-chat-square-text" aria-hidden="true"></i>
-                    <span>Showing the marker for comment #@ActiveCommentId.Value.</span>
-                </div>
-            }
-
-            <ThumbnailRail Images="@Viewer.Images"
-                           ActiveImageId="@ResolvedImageId"
-                           OnSelect="SelectImageAsync" />
-
-            <div class="viewer-helptext">
-                Arrows move between images, <kbd>+</kbd> and <kbd>-</kbd> zoom, <kbd>0</kbd> resets, <kbd>F</kbd> toggles fullscreen, <kbd>Esc</kbd> exits placement.
             </div>
-        </div>
-    </section>
+        </section>
+    </div>
 }
 
 @code {
-    private const double MinZoom = 1d;
-    private const double MaxZoom = 5d;
-    private const double ZoomStep = 0.25d;
     private const double SwipeThreshold = 60d;
     private const double DragThreshold = 6d;
 
     private readonly Dictionary<int, int> _imageRetryTokens = new();
-    private readonly Dictionary<int, ImageDimensionsSnapshot> _resolvedImageDimensions = new();
     private readonly HashSet<int> _loadedImageIds = new();
     private readonly HashSet<int> _failedImageIds = new();
     private readonly List<AuthorMarkDto> _authorMarks = new();
+    private readonly ViewerTransformState _transform = new();
 
     private ViewerStage? _viewerStage;
     private ElementReference _rootElement;
-    private ElementReference _currentImageElement;
+    private ElementReference _imageElement;
     private IJSObjectReference? _module;
     private DotNetObjectReference<RichImageViewer>? _selfReference;
 
-    private StageSnapshot _stage = new(960d, 640d);
     private PointerSnapshot? _pointer;
     private MarkComposerValue _composerValue = new();
 
     private bool _moduleLoadFailed;
+    private bool _isModalActive;
+    private bool _isStageObserved;
     private bool _isFullscreenSupported;
     private bool _isFullscreen;
     private bool _isAuthorPlacementMode;
     private bool _authorMarkBusy;
     private bool _pendingFocusCommentMark;
+    private bool _pendingScrollActiveComment;
+    private bool _suppressNextPlacementClick;
+    private bool _wasOpenLastRender;
     private int? _selectedAuthorMarkId;
     private int? _syncedPostId;
     private int? _observedImageId;
@@ -176,6 +210,10 @@ else
     private string? _authorMarkError;
     private ViewerMarkDraftDto? _authorDraft;
 
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public string Eyebrow { get; set; } = "Premium viewer";
+    [Parameter] public string Title { get; set; } = "Image viewer";
+    [Parameter] public RenderFragment? SidePanelContent { get; set; }
     [Parameter, EditorRequired] public PostViewerDto Viewer { get; set; } = new();
     [Parameter] public int ActiveImageId { get; set; }
     [Parameter] public EventCallback<int> ActiveImageIdChanged { get; set; }
@@ -186,6 +224,7 @@ else
     [Parameter] public EventCallback<ViewerMarkDraftDto> OnCommentPlacementSelected { get; set; }
     [Parameter] public EventCallback OnCommentPlacementCancelled { get; set; }
     [Parameter] public EventCallback OnClearActiveCommentMark { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
 
     private PostViewerImageDto? CurrentImage => Viewer.Images.FirstOrDefault(i => i.Id == ResolvedImageId) ?? Viewer.Images.FirstOrDefault();
 
@@ -205,6 +244,8 @@ else
             ? ActiveImageId
             : Viewer.Images.FirstOrDefault()?.Id ?? 0;
 
+    private string TitleId => $"viewer-title-{Viewer.PostId}";
+
     private int CurrentImageNumber
     {
         get
@@ -219,7 +260,7 @@ else
         }
     }
 
-    private int ZoomPercent => (int)Math.Round(_zoom * 100d, MidpointRounding.AwayFromZero);
+    private int ZoomPercent => (int)Math.Round(_transform.Zoom * 100d, MidpointRounding.AwayFromZero);
 
     private bool CurrentImageLoading => CurrentImage is not null && !_loadedImageIds.Contains(CurrentImage.Id) && !_failedImageIds.Contains(CurrentImage.Id);
 
@@ -247,14 +288,12 @@ else
             ? "Tap the artwork to place the comment marker."
             : _isAuthorPlacementMode
                 ? "Tap the artwork to place the author note."
-                : VisibleCommentMark is not null
-                    ? "The active comment marker is centered in the viewer."
-                    : "Swipe when fitted, drag when zoomed, and keep the image as the focal point.";
+                : null;
 
     private string StageClass =>
-        $"viewer-stage-shell {(CanPan ? "is-pannable" : "is-slide-mode")} {(IsPlacementMode ? "is-placement-mode" : null)}";
+        $"viewer-stage-shell {(_transform.CanPan ? "is-pannable" : "is-slide-mode")} {(IsPlacementMode ? "is-placement-mode" : null)}";
 
-    private string StageStyle => $"touch-action:{(CanPan || IsPlacementMode ? "none" : "pan-y")};";
+    private string StageStyle => $"touch-action:{(_transform.CanPan || IsPlacementMode ? "none" : "pan-y")};";
 
     private string BackdropStyle =>
         $"background-image:url('{(CurrentImage?.PreviewUrl ?? CurrentImage?.ImageUrl ?? string.Empty)}');";
@@ -268,13 +307,13 @@ else
                 return string.Empty;
             }
 
-            var fit = GetFitRect(CurrentImage);
+            var fit = _transform.GetFitRect(CurrentImage);
             return FormattableString.Invariant($"left:{fit.Left:F2}px;top:{fit.Top:F2}px;width:{fit.Width:F2}px;height:{fit.Height:F2}px;");
         }
     }
 
     private string TransformStyle =>
-        FormattableString.Invariant($"transform:translate({_panX:F2}px,{_panY:F2}px) scale({_zoom.ToString("0.###", CultureInfo.InvariantCulture)});");
+        FormattableString.Invariant($"transform:translate({_transform.PanX:F2}px,{_transform.PanY:F2}px) scale({_transform.Zoom.ToString("0.###", CultureInfo.InvariantCulture)});");
 
     private string CurrentImageSource =>
         CurrentImage is null
@@ -296,30 +335,27 @@ else
                     ? (SelectedAuthorMark.NormalizedX, SelectedAuthorMark.NormalizedY)
                     : ((decimal)0.5m, (decimal)0.5m);
 
-            var fit = GetFitRect(CurrentImage);
-            var screenX = fit.Left + (fit.Width / 2d) + _panX + (((double)anchor.Item1 - 0.5d) * fit.Width * _zoom);
-            var screenY = fit.Top + (fit.Height / 2d) + _panY + (((double)anchor.Item2 - 0.5d) * fit.Height * _zoom);
+            const double safeInset = 20d;
+            var dockToRight = (double)anchor.Item1 <= 0.5d;
 
-            var left = Math.Clamp(screenX + 20d, 12d, Math.Max(12d, _stage.Width - 340d));
-            var top = Math.Clamp(screenY + 20d, 12d, Math.Max(12d, _stage.Height - 260d));
-
-            return FormattableString.Invariant($"left:{left:F2}px;top:{top:F2}px;");
+            return dockToRight
+                ? FormattableString.Invariant($"right:{safeInset:F2}px;bottom:{safeInset:F2}px;")
+                : FormattableString.Invariant($"left:{safeInset:F2}px;bottom:{safeInset:F2}px;");
         }
     }
 
     private bool IsPlacementMode => IsCommentPlacementMode || _isAuthorPlacementMode;
-
-    private bool CanPan => _zoom > (MinZoom + 0.001d);
-
-    private double _zoom = MinZoom;
-    private double _panX;
-    private double _panY;
 
     private AuthorMarkDto? SelectedAuthorMark =>
         _selectedAuthorMarkId.HasValue ? _authorMarks.FirstOrDefault(mark => mark.Id == _selectedAuthorMarkId.Value) : null;
 
     protected override async Task OnParametersSetAsync()
     {
+        if (!IsOpen && (_isModalActive || _isStageObserved))
+        {
+            await DeactivateModalAsync();
+        }
+
         if (_syncedPostId != Viewer.PostId)
         {
             _syncedPostId = Viewer.PostId;
@@ -328,7 +364,6 @@ else
             _loadedImageIds.Clear();
             _failedImageIds.Clear();
             _imageRetryTokens.Clear();
-            _resolvedImageDimensions.Clear();
             _selectedAuthorMarkId = null;
             _authorDraft = null;
             _composerValue = new();
@@ -369,21 +404,33 @@ else
         {
             _lastFocusedCommentId = ActiveCommentMark.CommentId;
             _pendingFocusCommentMark = true;
+            _pendingScrollActiveComment = true;
         }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (IsOpen)
         {
-            await InitializeInteropAsync();
+            await EnsureViewerInteropAsync();
+
+            if (!_wasOpenLastRender)
+            {
+                await FocusStageAsync();
+            }
         }
 
         if (_pendingFocusCommentMark && ActiveCommentMark is not null && CurrentImage is not null && ActiveCommentMark.PostImageId == CurrentImage.Id)
         {
-            CenterOnMark(ActiveCommentMark.NormalizedX, ActiveCommentMark.NormalizedY, promoteZoom: true);
+            _transform.CenterOn(ActiveCommentMark.NormalizedX, ActiveCommentMark.NormalizedY, promoteZoom: true, CurrentImage);
             _pendingFocusCommentMark = false;
             await InvokeAsync(StateHasChanged);
+        }
+
+        if (_pendingScrollActiveComment && ActiveCommentId.HasValue)
+        {
+            _pendingScrollActiveComment = false;
+            await ScrollActiveCommentIntoViewAsync();
         }
 
         if (CurrentImage is not null && _lastPreloadedImageId != CurrentImage.Id)
@@ -391,18 +438,14 @@ else
             _lastPreloadedImageId = CurrentImage.Id;
             await PreloadAdjacentImagesAsync();
         }
+
+        _wasOpenLastRender = IsOpen;
     }
 
     [JSInvokable]
     public Task OnStageResized(double width, double height)
     {
-        if (width <= 0d || height <= 0d)
-        {
-            return Task.CompletedTask;
-        }
-
-        _stage = new StageSnapshot(width, height);
-        ClampPan();
+        _transform.SetStage(width, height, CurrentImage);
         return InvokeAsync(StateHasChanged);
     }
 
@@ -413,7 +456,7 @@ else
         return InvokeAsync(StateHasChanged);
     }
 
-    private async Task InitializeInteropAsync()
+    private async Task EnsureViewerInteropAsync()
     {
         var module = await EnsureModuleAsync();
         if (module is null || _viewerStage is null)
@@ -425,13 +468,65 @@ else
 
         try
         {
+            if (!_isModalActive)
+            {
+                await module.InvokeVoidAsync("activateModal", _rootElement);
+                await module.InvokeVoidAsync("registerFullscreenChange", _rootElement, _selfReference);
+                _isModalActive = true;
+            }
+
             _isFullscreenSupported = await module.InvokeAsync<bool>("isFullscreenSupported");
-            await module.InvokeVoidAsync("observeStageSize", _viewerStage.StageElement, _selfReference);
-            await module.InvokeVoidAsync("registerFullscreenChange", _rootElement, _selfReference);
+
+            if (!_isStageObserved)
+            {
+                await module.InvokeVoidAsync("observeStageSize", _viewerStage.StageElement, _selfReference);
+                _isStageObserved = true;
+            }
         }
         catch
         {
             _isFullscreenSupported = false;
+        }
+    }
+
+    private async Task DeactivateModalAsync()
+    {
+        if (_module is null)
+        {
+            _isStageObserved = false;
+            _isModalActive = false;
+            _isFullscreen = false;
+            _pointer = null;
+            _suppressNextPlacementClick = false;
+            ResetViewState();
+            return;
+        }
+
+        try
+        {
+            if (_isStageObserved && _viewerStage is not null)
+            {
+                await _module.InvokeVoidAsync("unobserveStageSize", _viewerStage.StageElement);
+            }
+
+            if (_isModalActive)
+            {
+                await _module.InvokeVoidAsync("unregisterFullscreenChange", _rootElement);
+                await _module.InvokeVoidAsync("deactivateModal", _rootElement);
+            }
+        }
+        catch
+        {
+            // Ignore teardown failures while the modal is closing.
+        }
+        finally
+        {
+            _isStageObserved = false;
+            _isModalActive = false;
+            _isFullscreen = false;
+            _pointer = null;
+            _suppressNextPlacementClick = false;
+            ResetViewState();
         }
     }
 
@@ -449,7 +544,7 @@ else
 
         try
         {
-            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./JSHelpers/viewerInterop.js");
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "/JSHelpers/viewerInterop.js");
             return _module;
         }
         catch
@@ -459,16 +554,64 @@ else
         }
     }
 
+    private async Task FocusStageAsync()
+    {
+        if (_viewerStage is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _viewerStage.StageElement.FocusAsync();
+        }
+        catch
+        {
+            // Ignore focus failures in test or teardown environments.
+        }
+    }
+
+    private async Task ScrollActiveCommentIntoViewAsync()
+    {
+        var module = await EnsureModuleAsync();
+        if (module is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await module.InvokeVoidAsync("scrollIntoViewIfNeeded", "[data-testid='viewer-side-panel'] .comment-item--active");
+        }
+        catch
+        {
+            // Ignore scrolling failures while the viewer is updating.
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        await DeactivateModalAsync();
+
+        if (OnClose.HasDelegate)
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+
     private async Task SelectImageAsync(int imageId)
     {
         if (imageId == ResolvedImageId)
         {
+            await FocusStageAsync();
             return;
         }
 
         await ActiveImageIdChanged.InvokeAsync(imageId);
 
-        if (ActiveCommentMark is not null && ActiveCommentMark.PostImageId != imageId && OnClearActiveCommentMark.HasDelegate)
+        if (ActiveCommentId.HasValue
+            && (ActiveCommentMark is null || ActiveCommentMark.PostImageId != imageId)
+            && OnClearActiveCommentMark.HasDelegate)
         {
             await OnClearActiveCommentMark.InvokeAsync();
         }
@@ -477,6 +620,8 @@ else
         {
             await OnCommentPlacementCancelled.InvokeAsync();
         }
+
+        await FocusStageAsync();
     }
 
     private async Task PreviousImageAsync()
@@ -505,13 +650,13 @@ else
 
     private Task ZoomInAsync()
     {
-        SetZoom(_zoom + ZoomStep);
+        _transform.SetZoom(_transform.Zoom + ViewerTransformState.ZoomStep, CurrentImage);
         return Task.CompletedTask;
     }
 
     private Task ZoomOutAsync()
     {
-        SetZoom(_zoom - ZoomStep);
+        _transform.SetZoom(_transform.Zoom - ViewerTransformState.ZoomStep, CurrentImage);
         return Task.CompletedTask;
     }
 
@@ -532,7 +677,7 @@ else
         try
         {
             _isFullscreen = await module.InvokeAsync<bool>("requestFullscreen", _rootElement);
-            await _rootElement.FocusAsync();
+            await FocusStageAsync();
         }
         catch
         {
@@ -552,10 +697,13 @@ else
         {
             await OnCommentPlacementCancelled.InvokeAsync();
         }
+
+        await FocusStageAsync();
     }
 
     private Task HandlePointerDown(PointerEventArgs args)
     {
+        _suppressNextPlacementClick = false;
         _pointer = new PointerSnapshot(
             args.ClientX,
             args.ClientY,
@@ -580,11 +728,9 @@ else
         var totalY = args.ClientY - _pointer.StartY;
         var moved = _pointer.Moved || Math.Abs(totalX) >= DragThreshold || Math.Abs(totalY) >= DragThreshold;
 
-        if (CanPan)
+        if (_transform.CanPan)
         {
-            _panX += deltaX;
-            _panY += deltaY;
-            ClampPan();
+            _transform.PanBy(deltaX, deltaY, CurrentImage);
         }
 
         _pointer = _pointer with
@@ -613,11 +759,11 @@ else
 
         if (!moved && IsPlacementMode)
         {
-            await PlaceMarkAsync(args);
+            _suppressNextPlacementClick = await PlaceMarkAsync(args.ClientX, args.ClientY);
             return;
         }
 
-        if (!CanPan && !IsPlacementMode && Math.Abs(totalX) >= SwipeThreshold && Math.Abs(totalX) > Math.Abs(totalY))
+        if (!_transform.CanPan && !IsPlacementMode && Math.Abs(totalX) >= SwipeThreshold && Math.Abs(totalX) > Math.Abs(totalY))
         {
             if (totalX > 0)
             {
@@ -638,8 +784,122 @@ else
 
     private Task HandleWheelAsync(WheelEventArgs args)
     {
-        SetZoom(args.DeltaY < 0 ? _zoom + ZoomStep : _zoom - ZoomStep);
+        _transform.SetZoom(args.DeltaY < 0 ? _transform.Zoom + ViewerTransformState.ZoomStep : _transform.Zoom - ViewerTransformState.ZoomStep, CurrentImage);
         return Task.CompletedTask;
+    }
+
+    private Task HandleTouchStart(TouchEventArgs args)
+    {
+        var touch = GetTouchPoint(args);
+        if (touch is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        _pointer = new PointerSnapshot(
+            touch.ClientX,
+            touch.ClientY,
+            touch.ClientX,
+            touch.ClientY,
+            PointerType: "touch",
+            Moved: false);
+
+        return Task.CompletedTask;
+    }
+
+    private Task HandleTouchMove(TouchEventArgs args)
+    {
+        var touch = GetTouchPoint(args);
+        if (_pointer is null || touch is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var deltaX = touch.ClientX - _pointer.LastX;
+        var deltaY = touch.ClientY - _pointer.LastY;
+        var totalX = touch.ClientX - _pointer.StartX;
+        var totalY = touch.ClientY - _pointer.StartY;
+        var moved = _pointer.Moved || Math.Abs(totalX) >= DragThreshold || Math.Abs(totalY) >= DragThreshold;
+
+        if (_transform.CanPan)
+        {
+            _transform.PanBy(deltaX, deltaY, CurrentImage);
+        }
+
+        _pointer = _pointer with
+        {
+            LastX = touch.ClientX,
+            LastY = touch.ClientY,
+            Moved = moved
+        };
+
+        return Task.CompletedTask;
+    }
+
+    private async Task HandleTouchEndAsync(TouchEventArgs args)
+    {
+        if (_pointer is null)
+        {
+            return;
+        }
+
+        var pointer = _pointer;
+        _pointer = null;
+        var touch = GetTouchPoint(args, useChangedTouches: true);
+        var endX = touch?.ClientX ?? pointer.LastX;
+        var endY = touch?.ClientY ?? pointer.LastY;
+        var totalX = endX - pointer.StartX;
+        var totalY = endY - pointer.StartY;
+        var moved = pointer.Moved || Math.Abs(totalX) >= DragThreshold || Math.Abs(totalY) >= DragThreshold;
+
+        if (!moved && IsPlacementMode)
+        {
+            _suppressNextPlacementClick = await PlaceMarkAsync(endX, endY);
+            return;
+        }
+
+        if (!_transform.CanPan && !IsPlacementMode && Math.Abs(totalX) >= SwipeThreshold && Math.Abs(totalX) > Math.Abs(totalY))
+        {
+            if (totalX > 0)
+            {
+                await PreviousImageAsync();
+            }
+            else
+            {
+                await NextImageAsync();
+            }
+        }
+    }
+
+    private async Task HandleModalKeyDown(KeyboardEventArgs args)
+    {
+        if (!string.Equals(args.Key, "Escape", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (_isFullscreen && _isFullscreenSupported)
+        {
+            await ToggleFullscreenAsync();
+            return;
+        }
+
+        if (IsCommentPlacementMode && OnCommentPlacementCancelled.HasDelegate)
+        {
+            await OnCommentPlacementCancelled.InvokeAsync();
+            return;
+        }
+
+        if (_isAuthorPlacementMode || _authorDraft is not null || _selectedAuthorMarkId.HasValue)
+        {
+            _isAuthorPlacementMode = false;
+            _authorDraft = null;
+            _selectedAuthorMarkId = null;
+            _authorMarkError = null;
+            return;
+        }
+
+        await CloseAsync();
     }
 
     private async Task HandleKeyDown(KeyboardEventArgs args)
@@ -647,9 +907,9 @@ else
         switch (args.Key)
         {
             case "ArrowLeft":
-                if (CanPan)
+                if (_transform.CanPan)
                 {
-                    PanBy(36d, 0d);
+                    _transform.PanBy(36d, 0d, CurrentImage);
                 }
                 else
                 {
@@ -658,9 +918,9 @@ else
 
                 break;
             case "ArrowRight":
-                if (CanPan)
+                if (_transform.CanPan)
                 {
-                    PanBy(-36d, 0d);
+                    _transform.PanBy(-36d, 0d, CurrentImage);
                 }
                 else
                 {
@@ -669,45 +929,53 @@ else
 
                 break;
             case "ArrowUp":
-                if (CanPan)
+                if (_transform.CanPan)
                 {
-                    PanBy(0d, 36d);
+                    _transform.PanBy(0d, 36d, CurrentImage);
                 }
 
                 break;
             case "ArrowDown":
-                if (CanPan)
+                if (_transform.CanPan)
                 {
-                    PanBy(0d, -36d);
+                    _transform.PanBy(0d, -36d, CurrentImage);
                 }
 
                 break;
             case "+":
             case "=":
-                SetZoom(_zoom + ZoomStep);
+                _transform.SetZoom(_transform.Zoom + ViewerTransformState.ZoomStep, CurrentImage);
                 break;
             case "-":
             case "_":
-                SetZoom(_zoom - ZoomStep);
+                _transform.SetZoom(_transform.Zoom - ViewerTransformState.ZoomStep, CurrentImage);
                 break;
             case "0":
                 ResetViewState();
                 break;
             case "Escape":
-                if (IsCommentPlacementMode && OnCommentPlacementCancelled.HasDelegate)
-                {
-                    await OnCommentPlacementCancelled.InvokeAsync();
-                }
-
-                _isAuthorPlacementMode = false;
-                _authorDraft = null;
-                _selectedAuthorMarkId = null;
-                _authorMarkError = null;
-
                 if (_isFullscreen && _isFullscreenSupported)
                 {
                     await ToggleFullscreenAsync();
+                    break;
                 }
+
+                if (IsCommentPlacementMode && OnCommentPlacementCancelled.HasDelegate)
+                {
+                    await OnCommentPlacementCancelled.InvokeAsync();
+                    break;
+                }
+
+                if (_isAuthorPlacementMode || _authorDraft is not null || _selectedAuthorMarkId.HasValue)
+                {
+                    _isAuthorPlacementMode = false;
+                    _authorDraft = null;
+                    _selectedAuthorMarkId = null;
+                    _authorMarkError = null;
+                    break;
+                }
+
+                await CloseAsync();
 
                 break;
             case "f":
@@ -717,37 +985,44 @@ else
         }
     }
 
-    private async Task PlaceMarkAsync(PointerEventArgs args)
+    private async Task<bool> PlaceMarkAsync(double clientX, double clientY)
     {
         if (CurrentImage is null)
         {
-            return;
+            return false;
         }
 
-        var relativePoint = await GetRelativePointAsync(args.ClientX, args.ClientY);
+        var relativePoint = await GetRelativePointAsync(clientX, clientY);
         if (relativePoint is null)
         {
-            return;
+            return false;
         }
 
-        var fit = GetFitRect(CurrentImage);
-        var normalizedPoint = TryResolveNormalizedPoint(relativePoint, fit);
-        if (normalizedPoint is null)
+        var imageRect = await GetRenderedImageRectAsync();
+        if (imageRect is null
+            || imageRect.Width <= 0d
+            || imageRect.Height <= 0d
+            || relativePoint.X < imageRect.Left
+            || relativePoint.X > (imageRect.Left + imageRect.Width)
+            || relativePoint.Y < imageRect.Top
+            || relativePoint.Y > (imageRect.Top + imageRect.Height))
         {
-            return;
+            return false;
         }
 
+        var normalizedX = Math.Clamp((relativePoint.X - imageRect.Left) / imageRect.Width, 0d, 1d);
+        var normalizedY = Math.Clamp((relativePoint.Y - imageRect.Top) / imageRect.Height, 0d, 1d);
         var draft = new ViewerMarkDraftDto
         {
             PostImageId = CurrentImage.Id,
-            NormalizedX = decimal.Round((decimal)normalizedPoint.X, 6, MidpointRounding.AwayFromZero),
-            NormalizedY = decimal.Round((decimal)normalizedPoint.Y, 6, MidpointRounding.AwayFromZero)
+            NormalizedX = decimal.Round((decimal)normalizedX, 6, MidpointRounding.AwayFromZero),
+            NormalizedY = decimal.Round((decimal)normalizedY, 6, MidpointRounding.AwayFromZero)
         };
 
         if (IsCommentPlacementMode)
         {
             await OnCommentPlacementSelected.InvokeAsync(draft);
-            return;
+            return true;
         }
 
         if (_isAuthorPlacementMode)
@@ -757,52 +1032,61 @@ else
             _composerValue = new();
             _authorMarkError = null;
             _isAuthorPlacementMode = false;
+            return true;
         }
+
+        return false;
     }
 
-    private ViewerRelativePoint? TryResolveNormalizedPoint(ViewerRelativePoint relativePoint, FitRectSnapshot fit)
+    private async Task HandleStageClickAsync(MouseEventArgs args)
     {
-        if (fit.Width <= 0d || fit.Height <= 0d || _zoom <= 0d)
+        if (!IsPlacementMode)
         {
-            return null;
+            return;
         }
 
-        var centerX = fit.Left + (fit.Width / 2d);
-        var centerY = fit.Top + (fit.Height / 2d);
-
-        var unscaledX = centerX + ((relativePoint.X - centerX - _panX) / _zoom);
-        var unscaledY = centerY + ((relativePoint.Y - centerY - _panY) / _zoom);
-
-        var normalizedX = (unscaledX - fit.Left) / fit.Width;
-        var normalizedY = (unscaledY - fit.Top) / fit.Height;
-
-        if (normalizedX < 0d || normalizedX > 1d || normalizedY < 0d || normalizedY > 1d)
+        if (_suppressNextPlacementClick)
         {
-            return null;
+            _suppressNextPlacementClick = false;
+            return;
         }
 
-        return new ViewerRelativePoint
-        {
-            X = normalizedX,
-            Y = normalizedY
-        };
+        await PlaceMarkAsync(args.ClientX, args.ClientY);
     }
 
-    private async Task<ViewerRelativePoint?> GetRelativePointAsync(double clientX, double clientY)
+    private async Task<RelativePoint?> GetRelativePointAsync(double clientX, double clientY)
     {
         var module = await EnsureModuleAsync();
         if (module is null || _viewerStage is null)
         {
-            return new ViewerRelativePoint { X = clientX, Y = clientY };
+            return new RelativePoint { X = clientX, Y = clientY };
         }
 
         try
         {
-            return await module.InvokeAsync<ViewerRelativePoint>("getRelativePoint", _viewerStage.StageElement, clientX, clientY);
+            return await module.InvokeAsync<RelativePoint>("getRelativePoint", _viewerStage.StageElement, clientX, clientY);
         }
         catch
         {
             return null;
+        }
+    }
+
+    private async Task<RelativeRect?> GetRenderedImageRectAsync()
+    {
+        var module = await EnsureModuleAsync();
+        if (module is null || _viewerStage is null)
+        {
+            return CurrentImage is null ? null : MapFitRect(_transform.GetFitRect(CurrentImage));
+        }
+
+        try
+        {
+            return await module.InvokeAsync<RelativeRect>("getRelativeRect", _viewerStage.StageElement, _imageElement);
+        }
+        catch
+        {
+            return CurrentImage is null ? null : MapFitRect(_transform.GetFitRect(CurrentImage));
         }
     }
 
@@ -833,10 +1117,10 @@ else
 
         if (CurrentImage is not null && mark.PostImageId == CurrentImage.Id)
         {
-            CenterOnMark(mark.NormalizedX, mark.NormalizedY, promoteZoom: false);
+            _transform.CenterOn(mark.NormalizedX, mark.NormalizedY, promoteZoom: false, CurrentImage);
         }
 
-        await Task.CompletedTask;
+        await FocusStageAsync();
     }
 
     private async Task SaveAuthorMarkAsync(MarkComposerValue value)
@@ -949,28 +1233,10 @@ else
         return Task.CompletedTask;
     }
 
-    private async Task HandleImageLoadedAsync(int imageId)
+    private void OnImageLoaded(int imageId)
     {
         _failedImageIds.Remove(imageId);
         _loadedImageIds.Add(imageId);
-
-        if (CurrentImage?.Id != imageId)
-        {
-            return;
-        }
-
-        var dimensions = await TryGetImageDimensionsAsync();
-        if (dimensions is null)
-        {
-            return;
-        }
-
-        _resolvedImageDimensions[imageId] = dimensions;
-
-        if (CurrentImage.Width.GetValueOrDefault() <= 0 || CurrentImage.Height.GetValueOrDefault() <= 0)
-        {
-            await InvokeAsync(StateHasChanged);
-        }
     }
 
     private void OnImageFailed(int imageId)
@@ -979,86 +1245,9 @@ else
         _failedImageIds.Add(imageId);
     }
 
-    private void SetZoom(double nextZoom)
-    {
-        _zoom = Math.Clamp(nextZoom, MinZoom, MaxZoom);
-        if (_zoom <= MinZoom + 0.001d)
-        {
-            _zoom = MinZoom;
-            _panX = 0d;
-            _panY = 0d;
-        }
-        else
-        {
-            ClampPan();
-        }
-    }
-
-    private void PanBy(double deltaX, double deltaY)
-    {
-        _panX += deltaX;
-        _panY += deltaY;
-        ClampPan();
-    }
-
     private void ResetViewState()
     {
-        _zoom = MinZoom;
-        _panX = 0d;
-        _panY = 0d;
-    }
-
-    private void ClampPan()
-    {
-        if (CurrentImage is null)
-        {
-            _panX = 0d;
-            _panY = 0d;
-            return;
-        }
-
-        var fit = GetFitRect(CurrentImage);
-        var scaledWidth = fit.Width * _zoom;
-        var scaledHeight = fit.Height * _zoom;
-        var maxPanX = Math.Max(0d, (scaledWidth - _stage.Width) / 2d);
-        var maxPanY = Math.Max(0d, (scaledHeight - _stage.Height) / 2d);
-
-        _panX = Math.Clamp(_panX, -maxPanX, maxPanX);
-        _panY = Math.Clamp(_panY, -maxPanY, maxPanY);
-    }
-
-    private void CenterOnMark(decimal normalizedX, decimal normalizedY, bool promoteZoom)
-    {
-        if (CurrentImage is null)
-        {
-            return;
-        }
-
-        var targetZoom = promoteZoom && _zoom < 1.6d ? 1.75d : _zoom;
-        _zoom = Math.Clamp(targetZoom, MinZoom, MaxZoom);
-
-        var fit = GetFitRect(CurrentImage);
-        var deltaX = ((double)normalizedX - 0.5d) * fit.Width * _zoom;
-        var deltaY = ((double)normalizedY - 0.5d) * fit.Height * _zoom;
-
-        _panX = -deltaX;
-        _panY = -deltaY;
-        ClampPan();
-    }
-
-    private FitRectSnapshot GetFitRect(PostViewerImageDto image)
-    {
-        var imageWidth = ResolveImageWidth(image);
-        var imageHeight = ResolveImageHeight(image);
-        var scale = Math.Min(_stage.Width / imageWidth, _stage.Height / imageHeight);
-        var width = imageWidth * scale;
-        var height = imageHeight * scale;
-
-        return new FitRectSnapshot(
-            Left: (_stage.Width - width) / 2d,
-            Top: (_stage.Height - height) / 2d,
-            Width: width,
-            Height: height);
+        _transform.Reset();
     }
 
     private async Task PreloadAdjacentImagesAsync()
@@ -1116,69 +1305,49 @@ else
         return $"{url}{separator}retry={token}";
     }
 
-    private async Task<ImageDimensionsSnapshot?> TryGetImageDimensionsAsync()
-    {
-        var module = await EnsureModuleAsync();
-        if (module is null)
-        {
-            return null;
-        }
-
-        try
-        {
-            var dimensions = await module.InvokeAsync<ImageDimensionsSnapshot?>("getImageDimensions", _currentImageElement);
-            return dimensions is { Width: > 0d, Height: > 0d } ? dimensions : null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private double ResolveImageWidth(PostViewerImageDto image)
-    {
-        if (image.Width.GetValueOrDefault() > 0)
-        {
-            return image.Width ?? 1600d;
-        }
-
-        if (_resolvedImageDimensions.TryGetValue(image.Id, out var inferred) && inferred.Width > 0d)
-        {
-            return inferred.Width;
-        }
-
-        return 1600d;
-    }
-
-    private double ResolveImageHeight(PostViewerImageDto image)
-    {
-        if (image.Height.GetValueOrDefault() > 0)
-        {
-            return image.Height ?? 1000d;
-        }
-
-        if (_resolvedImageDimensions.TryGetValue(image.Id, out var inferred) && inferred.Height > 0d)
-        {
-            return inferred.Height;
-        }
-
-        return 1000d;
-    }
-
     private static string? NormalizeText(string? value)
     {
         var trimmed = value?.Trim();
         return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
     }
 
+    private static RelativeRect MapFitRect(ViewerFitRectSnapshot fit) =>
+        new()
+        {
+            Left = fit.Left,
+            Top = fit.Top,
+            Width = fit.Width,
+            Height = fit.Height
+        };
+
+    private static TouchPoint? GetTouchPoint(TouchEventArgs args, bool useChangedTouches = false)
+    {
+        var source = useChangedTouches && args.ChangedTouches.Any()
+            ? args.ChangedTouches
+            : args.Touches.Any()
+                ? args.Touches
+                : args.ChangedTouches;
+
+        return source.FirstOrDefault();
+    }
+
     public async ValueTask DisposeAsync()
     {
-        if (_module is not null && _viewerStage is not null)
+        if (_module is not null)
         {
             try
             {
-                await _module.InvokeVoidAsync("unobserveStageSize", _viewerStage.StageElement);
-                await _module.InvokeVoidAsync("unregisterFullscreenChange", _rootElement);
+                if (_isStageObserved && _viewerStage is not null)
+                {
+                    await _module.InvokeVoidAsync("unobserveStageSize", _viewerStage.StageElement);
+                }
+
+                if (_isModalActive)
+                {
+                    await _module.InvokeVoidAsync("unregisterFullscreenChange", _rootElement);
+                    await _module.InvokeVoidAsync("deactivateModal", _rootElement);
+                }
+
                 await _module.DisposeAsync();
             }
             catch
@@ -1187,12 +1356,10 @@ else
             }
         }
 
+        _isStageObserved = false;
+        _isModalActive = false;
         _selfReference?.Dispose();
     }
-
-    private sealed record StageSnapshot(double Width, double Height);
-
-    private sealed record FitRectSnapshot(double Left, double Top, double Width, double Height);
 
     private sealed record PointerSnapshot(
         double StartX,
@@ -1201,4 +1368,18 @@ else
         double LastY,
         string? PointerType,
         bool Moved);
+
+    private sealed class RelativePoint
+    {
+        public double X { get; set; }
+        public double Y { get; set; }
+    }
+
+    private sealed class RelativeRect
+    {
+        public double Left { get; set; }
+        public double Top { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
+    }
 }

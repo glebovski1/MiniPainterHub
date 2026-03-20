@@ -1,0 +1,77 @@
+.viewer-stage-shell {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    width: 100%;
+    height: 100%;
+    min-height: clamp(24rem, 65vh, 46rem);
+    overflow: hidden;
+    border-radius: calc(var(--radius-lg) + 0.2rem);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+        radial-gradient(circle at top, rgba(255, 255, 255, 0.06), transparent 40%),
+        linear-gradient(180deg, rgba(12, 17, 21, 0.92), rgba(9, 14, 18, 0.98)),
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.018) 1rem, transparent 1rem, transparent 2rem);
+    outline: none;
+}
+
+.viewer-stage-shell.is-slide-mode {
+    cursor: zoom-in;
+}
+
+.viewer-stage-shell.is-pannable {
+    cursor: grab;
+}
+
+.viewer-stage-shell.is-pannable:active {
+    cursor: grabbing;
+}
+
+.viewer-stage-shell.is-placement-mode {
+    cursor: crosshair;
+}
+
+.viewer-stage-shell:focus-visible {
+    box-shadow: 0 0 0 3px rgba(130, 208, 203, 0.24);
+}
+
+::deep .viewer-stage__viewport {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: inherit;
+    overflow: hidden;
+}
+
+::deep .viewer-stage__frame {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+::deep .viewer-stage__fitbox {
+    position: absolute;
+    overflow: visible;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+::deep .viewer-stage__transform {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-origin: center center;
+    transition: transform 160ms ease;
+    will-change: transform;
+}
+
+.viewer-stage-shell.is-pannable ::deep .viewer-stage__transform,
+.viewer-stage-shell.is-placement-mode ::deep .viewer-stage__transform {
+    transition: none;
+}
+
+@media (max-width: 991.98px) {
+    .viewer-stage-shell {
+        min-height: clamp(18rem, 48vh, 28rem);
+    }
+}

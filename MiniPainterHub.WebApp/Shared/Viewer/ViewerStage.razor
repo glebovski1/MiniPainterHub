@@ -10,6 +10,11 @@
      @onpointerleave="OnPointerLeave"
      @onwheel="OnWheel"
      @onwheel:preventDefault="PreventWheelDefault"
+     @ontouchstart="OnTouchStart"
+     @ontouchmove="OnTouchMove"
+     @ontouchmove:preventDefault="PreventTouchDefault"
+     @ontouchend="OnTouchEnd"
+     @onclick="OnClick"
      @onkeydown="OnKeyDown"
      @onkeydown:stopPropagation="true"
      data-testid="viewer-stage">
@@ -23,12 +28,17 @@
     [Parameter] public string? Style { get; set; }
     [Parameter] public int TabIndex { get; set; } = 0;
     [Parameter] public bool PreventWheelDefault { get; set; } = true;
+    [Parameter] public bool PreventTouchDefault { get; set; } = true;
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public EventCallback<PointerEventArgs> OnPointerDown { get; set; }
     [Parameter] public EventCallback<PointerEventArgs> OnPointerMove { get; set; }
     [Parameter] public EventCallback<PointerEventArgs> OnPointerUp { get; set; }
     [Parameter] public EventCallback<PointerEventArgs> OnPointerLeave { get; set; }
     [Parameter] public EventCallback<WheelEventArgs> OnWheel { get; set; }
+    [Parameter] public EventCallback<TouchEventArgs> OnTouchStart { get; set; }
+    [Parameter] public EventCallback<TouchEventArgs> OnTouchMove { get; set; }
+    [Parameter] public EventCallback<TouchEventArgs> OnTouchEnd { get; set; }
+    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
     [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }
 
     public ElementReference StageElement => _stageElement;

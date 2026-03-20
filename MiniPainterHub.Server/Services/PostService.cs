@@ -20,7 +20,7 @@ namespace MiniPainterHub.Server.Services
 {
     public class PostService : IPostService
     {
-        private const int MaxImagesPerPost = 5;
+        private const int MaxImagesPerPost = 8;
         private const long MaxUploadBytes = 20L * 1024 * 1024;
         private readonly AppDbContext _appDbContext;
         private readonly IImageService _imageService;

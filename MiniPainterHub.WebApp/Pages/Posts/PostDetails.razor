@@ -75,17 +75,73 @@
         </PageHero>
 
         <div class="split-grid post-details-grid">
-            <section class="post-details-viewer">
-                <RichImageViewer Viewer="@viewer"
-                                 ActiveImageId="@_activeImageId"
-                                 ActiveImageIdChanged="HandleActiveImageChangedAsync"
-                                 ActiveCommentMark="@_activeCommentMark"
-                                 ActiveCommentId="@_activeCommentId"
-                                 DraftCommentMark="@_draftCommentMark"
-                                 IsCommentPlacementMode="@_isCommentPlacementMode"
-                                 OnCommentPlacementSelected="HandleCommentPlacementSelectedAsync"
-                                 OnCommentPlacementCancelled="CancelCommentPlacementAsync"
-                                 OnClearActiveCommentMark="ClearActiveCommentMarkAsync" />
+            <section class="post-details-media-stack">
+                <section class="surface-card post-details-gallery" data-testid="post-details-gallery">
+                    <div class="post-details-gallery__header">
+                        <div>
+                            <p class="section-label mb-2">Gallery preview</p>
+                            <h2 class="post-details-gallery__title">Open the rich viewer from the artwork.</h2>
+                        </div>
+                        <button type="button"
+                                class="btn btn-dark post-details-gallery__launch"
+                                data-testid="post-details-open-viewer"
+                                @onclick="OpenViewerAsync">
+                            <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
+                            Launch viewer
+                        </button>
+                    </div>
+
+                    @if (CurrentPreviewImage is not null)
+                    {
+                        <button type="button"
+                                class="post-details-gallery__hero"
+                                data-testid="post-details-open-viewer-hero"
+                                @onclick="OpenViewerAsync">
+                            <img src="@GetPreviewSource(CurrentPreviewImage)"
+                                 class="post-details-gallery__image"
+                                 data-testid="post-details-image"
+                                 alt="@post.Title" />
+                            <span class="post-details-gallery__hint">
+                                <span class="post-details-gallery__hint-title">Open the premium viewer</span>
+                                <span class="post-details-gallery__hint-copy">Zoom, pan, fullscreen, marks, and discussion anchors live in the overlay.</span>
+                            </span>
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="post-details-gallery__empty">
+                            <i class="bi bi-image" aria-hidden="true"></i>
+                            <span>No post images available.</span>
+                        </div>
+                    }
+
+                    @if (viewer.Images.Count > 1)
+                    {
+                        <div class="post-details-gallery__thumbs" data-testid="post-details-thumbnails">
+                            @for (var index = 0; index < viewer.Images.Count; index++)
+                            {
+                                var image = viewer.Images[index];
+                                var isActive = image.Id == ResolvedActiveImageId;
+
+                                <button type="button"
+                                        class="post-details-gallery__thumb @(isActive ? "is-active" : null)"
+                                        data-testid="post-details-thumbnail"
+                                        @onclick="@(() => OpenViewerAtImageAsync(image.Id))">
+                                    <img src="@GetThumbnailSource(image)" alt="" loading="lazy" />
+                                    <span class="post-details-gallery__thumb-index">@((index + 1).ToString("00"))</span>
+                                </button>
+                            }
+                        </div>
+                    }
+
+                    <div class="post-details-gallery__footer">
+                        <div class="mini-stat-bar">
+                            <span class="mini-stat"><i class="bi bi-images" aria-hidden="true"></i> @viewer.Images.Count image(s)</span>
+                            <span class="mini-stat"><i class="bi bi-pin-angle" aria-hidden="true"></i> @viewer.AuthorMarks.Count author note(s)</span>
+                            <span class="mini-stat"><i class="bi bi-chat-square-text" aria-hidden="true"></i> @(viewer.CanAttachCommentMark ? "Comment anchors available" : "Sign in to add anchors")</span>
+                        </div>
+                    </div>
+                </section>
             </section>
 
             <section class="surface-card post-details-aside">
@@ -216,8 +272,129 @@
                          LoadingViewerMarkCommentId="@_markLoadingCommentId"
                          ViewerMarkErrorCommentId="@_markErrorCommentId"
                          ViewerMarkError="@_markError"
-                         OnRevealViewerMark="RevealCommentMarkAsync" />
+                         OnToggleViewerMark="ToggleCommentMarkAsync"
+                         ViewerActionLabel="Open in viewer"
+                         ViewerActionActiveLabel="Hide marker" />
         </section>
+
+        <RichImageViewer IsOpen="@_isViewerOpen"
+                         Eyebrow="Rich viewer"
+                         Title="@post.Title"
+                         Viewer="@viewer"
+                         ActiveImageId="@_activeImageId"
+                         ActiveImageIdChanged="HandleActiveImageChangedAsync"
+                         ActiveCommentMark="@_activeCommentMark"
+                         ActiveCommentId="@_activeCommentId"
+                         DraftCommentMark="@_draftCommentMark"
+                         IsCommentPlacementMode="@_isCommentPlacementMode"
+                         OnCommentPlacementSelected="HandleCommentPlacementSelectedAsync"
+                         OnCommentPlacementCancelled="CancelCommentPlacementAsync"
+                         OnClearActiveCommentMark="ClearActiveCommentMarkAsync"
+                         OnClose="CloseViewerAsync">
+            <SidePanelContent>
+                <section class="viewer-panel-section viewer-panel-section--hero">
+                    <p class="viewer-panel__eyebrow">About this piece</p>
+                    <div class="viewer-panel__meta">
+                        <NavLink class="viewer-panel__author" href="@($"/users/{post.CreatedById}")">By @post.AuthorName</NavLink>
+                        <span>@post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</span>
+                    </div>
+                    <div class="viewer-panel__copy">@post.Content</div>
+                </section>
+
+                @if (post.Tags is { Count: > 0 })
+                {
+                    <section class="viewer-panel-section">
+                        <p class="viewer-panel__eyebrow">Tags</p>
+                        <TagBadgeList Tags="post.Tags" TestId="viewer-panel-tags" />
+                    </section>
+                }
+
+                <section class="viewer-panel-section" data-testid="viewer-mark-summary">
+                    <p class="viewer-panel__eyebrow">Mark system</p>
+                    <div class="viewer-panel__legend">
+                        <div class="viewer-panel__legend-item viewer-panel__legend-item--author">
+                            <span class="viewer-panel__legend-dot"></span>
+                            <span>Author notes stay visible and are styled as permanent annotations.</span>
+                        </div>
+                        <div class="viewer-panel__legend-item viewer-panel__legend-item--comment">
+                            <span class="viewer-panel__legend-dot"></span>
+                            <span>Comment anchors load on demand and only one is active at a time.</span>
+                        </div>
+                    </div>
+
+                    @if (_activeCommentId.HasValue)
+                    {
+                        <div class="post-details-aside__callout" data-testid="viewer-comment-state">
+                            <i class="bi bi-chat-square-text" aria-hidden="true"></i>
+                            <span>Comment #@_activeCommentId.Value is highlighted on image @GetImageNumber(_activeImageId).</span>
+                        </div>
+                    }
+                    else if (_draftCommentMark is not null)
+                    {
+                        <div class="post-details-aside__callout">
+                            <i class="bi bi-crosshair2" aria-hidden="true"></i>
+                            <span>Draft anchor placed on image @GetImageNumber(_draftCommentMark.PostImageId).</span>
+                        </div>
+                    }
+                </section>
+
+                <section class="viewer-panel-section viewer-panel-section--comments">
+                    <div class="viewer-panel__comments-body">
+                        <div class="viewer-panel__comments-top" data-testid="viewer-composer-sticky">
+                            <div class="viewer-panel__comments-header">
+                                <div>
+                                    <p class="viewer-panel__eyebrow">Comments</p>
+                                    <h3 class="viewer-panel__title">Discuss the piece without leaving the viewer.</h3>
+                                </div>
+                            </div>
+
+                            <AuthorizeView>
+                                <Authorized>
+                                    <div class="viewer-panel__composer">
+                                        <CommentForm PostId="@PostId"
+                                                     CanAttachViewerMark="@(viewer.CanAttachCommentMark && viewer.Images.Count > 0)"
+                                                     ViewerPlacementActive="@_isCommentPlacementMode"
+                                                     DraftMark="@_draftCommentMark"
+                                                     AttachedImageNumber="@GetImageNumber(_draftCommentMark?.PostImageId)"
+                                                     OnRequestAttachMark="BeginCommentPlacementAsync"
+                                                     OnRemoveAttachedMark="RemoveDraftCommentMarkAsync"
+                                                     OnCommentAdded="HandleCommentAddedAsync"
+                                                     IsViewerCompact="true" />
+                                    </div>
+                                </Authorized>
+                                <NotAuthorized>
+                                    <div class="status-panel status-panel--info viewer-panel__auth-callout" role="alert">
+                                        <div class="status-panel__icon"><i class="bi bi-info-circle" aria-hidden="true"></i></div>
+                                        <div>
+                                            <div class="status-panel__title">Join the conversation</div>
+                                            <p class="status-panel__text mb-0">
+                                                Sign in to add anchored feedback.
+                                                <button class="btn btn-link p-0 align-baseline" @onclick="GoToLogin">Login</button>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </NotAuthorized>
+                            </AuthorizeView>
+                        </div>
+
+                        <div class="viewer-panel__comments-scroll" data-testid="viewer-comments-scroll">
+                            <div class="viewer-panel__comments-list">
+                                <CommentList @ref="_viewerCommentList"
+                                             PostId="@PostId"
+                                             ActiveCommentId="@_activeCommentId"
+                                             LoadingViewerMarkCommentId="@_markLoadingCommentId"
+                                             ViewerMarkErrorCommentId="@_markErrorCommentId"
+                                             ViewerMarkError="@_markError"
+                                             OnToggleViewerMark="ToggleCommentMarkAsync"
+                                             IsViewerPanel="true"
+                                             ViewerActionLabel="Reveal anchor"
+                                             ViewerActionActiveLabel="Hide anchor" />
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </SidePanelContent>
+        </RichImageViewer>
     }
 </div>
 
@@ -225,6 +402,7 @@
     [Parameter] public int PostId { get; set; }
 
     private CommentList? _commentList;
+    private CommentList? _viewerCommentList;
     private PostDto? post;
     private PostViewerDto? viewer;
     private bool isLoading;
@@ -233,6 +411,7 @@
     private bool _postModerationBusy;
     private string? _postModerationError;
     private string? _postModerationResult;
+    private bool _isViewerOpen;
     private int _activeImageId;
     private bool _isCommentPlacementMode;
     private ViewerMarkDraftDto? _draftCommentMark;
@@ -243,6 +422,14 @@
     private string? _markError;
     private int _commentMarkRequestVersion;
     private readonly Dictionary<int, CommentMarkDto> _commentMarkCache = new();
+
+    private PostViewerImageDto? CurrentPreviewImage =>
+        viewer?.Images.FirstOrDefault(image => image.Id == ResolvedActiveImageId) ?? viewer?.Images.FirstOrDefault();
+
+    private int ResolvedActiveImageId =>
+        viewer?.Images.Any(image => image.Id == _activeImageId) == true
+            ? _activeImageId
+            : viewer?.Images.FirstOrDefault()?.Id ?? 0;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -273,6 +460,7 @@
                 post = postResponse.Value;
                 viewer = viewerResponse.Value;
                 _activeImageId = viewer.Images.FirstOrDefault()?.Id ?? 0;
+                _isViewerOpen = false;
                 ResetCommentViewerState();
             }
             else
@@ -303,6 +491,11 @@
         if (_commentList is not null)
         {
             await _commentList.ReloadAsync();
+        }
+
+        if (_viewerCommentList is not null)
+        {
+            await _viewerCommentList.ReloadAsync();
         }
     }
 
@@ -353,14 +546,58 @@
     {
         _activeImageId = imageId;
 
-        if (_activeCommentMark is not null && _activeCommentMark.PostImageId != imageId)
+        if (_activeCommentId.HasValue && (_activeCommentMark is null || _activeCommentMark.PostImageId != imageId))
         {
             await ClearActiveCommentMarkAsync();
         }
     }
 
+    private Task OpenViewerAsync()
+    {
+        if (viewer is null || viewer.Images.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        _activeImageId = ResolvedActiveImageId == 0 ? viewer.Images[0].Id : ResolvedActiveImageId;
+        _isViewerOpen = true;
+        return Task.CompletedTask;
+    }
+
+    private async Task OpenViewerAtImageAsync(int imageId)
+    {
+        _isViewerOpen = true;
+        await HandleActiveImageChangedAsync(imageId);
+    }
+
+    private async Task CloseViewerAsync()
+    {
+        _isViewerOpen = false;
+        await ClearActiveCommentMarkAsync();
+        _markLoadingCommentId = null;
+        _markErrorCommentId = null;
+        _markError = null;
+
+        if (_isCommentPlacementMode)
+        {
+            _isCommentPlacementMode = false;
+        }
+    }
+
     private Task BeginCommentPlacementAsync()
     {
+        if (viewer is null || viewer.Images.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        _isViewerOpen = true;
+        _activeImageId = _draftCommentMark?.PostImageId ?? ResolvedActiveImageId;
+        if (_activeImageId == 0)
+        {
+            _activeImageId = viewer.Images[0].Id;
+        }
+
         _isCommentPlacementMode = true;
         _activeCommentMark = null;
         _activeCommentId = null;
@@ -418,11 +655,23 @@
         await ReloadCommentsAsync();
     }
 
-    private async Task RevealCommentMarkAsync(CommentDto comment)
+    private async Task ToggleCommentMarkAsync(CommentDto comment)
     {
+        if (_activeCommentId == comment.Id)
+        {
+            await ClearActiveCommentMarkAsync();
+            return;
+        }
+
         _commentMarkRequestVersion++;
         var requestVersion = _commentMarkRequestVersion;
 
+        if (comment.MarkedPostImageId.HasValue)
+        {
+            _activeImageId = comment.MarkedPostImageId.Value;
+        }
+
+        _isViewerOpen = true;
         _activeCommentId = comment.Id;
         _activeCommentMark = null;
         _markErrorCommentId = null;
@@ -489,6 +738,7 @@
     private void ResetCommentViewerState()
     {
         _commentMarkCache.Clear();
+        _isViewerOpen = false;
         _activeCommentId = null;
         _activeCommentMark = null;
         _draftCommentMark = null;
@@ -498,4 +748,13 @@
         _markError = null;
         _commentMarkRequestVersion = 0;
     }
+
+    private static string GetThumbnailSource(PostViewerImageDto image) =>
+        image.ThumbnailUrl
+        ?? image.PreviewUrl
+        ?? image.ImageUrl;
+
+    private static string GetPreviewSource(PostViewerImageDto image) =>
+        image.PreviewUrl
+        ?? image.ImageUrl;
 }

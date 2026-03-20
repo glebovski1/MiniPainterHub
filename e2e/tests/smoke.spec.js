@@ -1,5 +1,6 @@
 const { test, expect } = require("@playwright/test");
 const path = require("path");
+const { createRichViewerPost, getPathSegment, openViewerFromDetails } = require("./helpers/viewer-scenario");
 
 test.describe.configure({ mode: "serial" });
 const RESET_TOKEN = process.env.E2E_RESET_TOKEN || "local-e2e-reset-token";
@@ -7,6 +8,18 @@ const SAMPLE_IMAGE_PATH = path.resolve(
   __dirname,
   "../../MiniPainterHub.Server/wwwroot/uploads/images/9_minis1.jpg",
 );
+const VIEWER_RATIO_EXPECTATIONS = [
+  { key: "portrait916", ratio: 9 / 16 },
+  { key: "portrait23", ratio: 2 / 3 },
+  { key: "square", ratio: 1 },
+  { key: "landscape43", ratio: 4 / 3 },
+  { key: "wide169", ratio: 16 / 9 },
+  { key: "panorama219", ratio: 21 / 9 },
+];
+
+function expectWithinTolerance(actual, expected, tolerance = 4) {
+  expect(Math.abs(actual - expected)).toBeLessThanOrEqual(tolerance);
+}
 
 async function resetAppState(request) {
   const response = await request.post("/api/test-support/reset", {
@@ -193,6 +206,340 @@ test("comment and like flow works on post details", async ({ page }) => {
 
   await likeButton.click();
   await expect(likeCount).toHaveText(String(initial));
+});
+
+test("rich viewer overlay keeps post details intact and supports core interactions", async ({ page, request }) => {
+  await loginAsSeedUser(page);
+  const viewerPost = await createRichViewerPost(page, request, "desktop-flow");
+  const secondaryIndex = viewerPost.viewer.images.findIndex((image) => image.id === viewerPost.secondaryImage.id);
+  const panoramaIndex = viewerPost.viewer.images.findIndex((image) => image.id === viewerPost.panoramaImage.id);
+  const secondaryImagePath = getPathSegment(new URL(viewerPost.secondaryImage.imageUrl, page.url()).toString(), "/uploads/images/");
+  const squareImagePath = getPathSegment(new URL(viewerPost.squareImage.imageUrl, page.url()).toString(), "/uploads/images/");
+  const panoramaImagePath = getPathSegment(new URL(viewerPost.panoramaImage.imageUrl, page.url()).toString(), "/uploads/images/");
+
+  const commentMarkRequests = [];
+  page.on("request", (requestInfo) => {
+    if (requestInfo.method() === "GET" && /\/api\/comments\/\d+\/mark/.test(requestInfo.url())) {
+      commentMarkRequests.push(requestInfo.url());
+    }
+  });
+
+  await expect(page.getByTestId("post-title")).toHaveText(viewerPost.title);
+  await expect(page.getByTestId("post-details-image")).toBeVisible();
+  await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
+
+  await openViewerFromDetails(page);
+  await expect(page.getByTestId("viewer-author-mark")).toHaveCount(1);
+  await expect(page.getByTestId("viewer-comment-mark")).toHaveCount(0);
+  await expect(page.getByTestId("viewer-side-panel")).toContainText("About this piece");
+  await expect(page.getByTestId("viewer-control-rail")).toBeVisible();
+  await expect(page.getByTestId("viewer-stage-viewport")).toBeVisible();
+  await expect(page.getByTestId("viewer-thumbnail-rail")).toBeVisible();
+  await expect(page.getByTestId("viewer-close")).toBeVisible();
+
+  const stage = page.getByTestId("viewer-stage");
+  const stageViewport = page.getByTestId("viewer-stage-viewport");
+  const stageImage = page.getByTestId("viewer-stage-image");
+  const toolbarStatus = page.locator(".viewer-toolbar__status");
+  const controlRail = page.getByTestId("viewer-control-rail");
+  const sidePanel = page.getByTestId("viewer-side-panel");
+  const modal = page.getByTestId("rich-image-viewer");
+
+  const [railBox, stageBox, panelBox, modalBox] = await Promise.all([
+    controlRail.boundingBox(),
+    stageViewport.boundingBox(),
+    sidePanel.boundingBox(),
+    modal.boundingBox(),
+  ]);
+  expect(railBox).toBeTruthy();
+  expect(stageBox).toBeTruthy();
+  expect(panelBox).toBeTruthy();
+  expect(modalBox).toBeTruthy();
+  expect(stageBox.width).toBeGreaterThan(panelBox.width);
+  expect(railBox.x + railBox.width).toBeLessThanOrEqual(stageBox.x + 1);
+  expect(stageBox.x + stageBox.width).toBeLessThanOrEqual(panelBox.x + 1);
+  expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(modalBox.x + modalBox.width + 1);
+
+  const panelCanScroll = await sidePanel.evaluate((element) => {
+    element.scrollTop = 0;
+    return element.scrollHeight > element.clientHeight;
+  });
+  expect(panelCanScroll).toBeTruthy();
+  await sidePanel.hover();
+  await page.mouse.wheel(0, 1200);
+  await expect.poll(() => sidePanel.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await sidePanel.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+
+  await page.evaluate(() => document.querySelector("[data-testid='viewer-stage']")?.focus());
+  await stage.press("=");
+  await expect(toolbarStatus).toContainText("125%");
+
+  const transform = page.locator(".viewer-stage__transform");
+  const transformBeforePan = await transform.getAttribute("style");
+  await stage.press("=");
+  await expect(toolbarStatus).toContainText("150%");
+
+  const dragStartX = stageBox.x + stageBox.width * 0.55;
+  const dragStartY = stageBox.y + stageBox.height * 0.45;
+  await page.mouse.move(dragStartX, dragStartY);
+  await page.mouse.down();
+  await page.mouse.move(dragStartX - 80, dragStartY - 48, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(() => transform.getAttribute("style")).not.toBe(transformBeforePan);
+
+  await stage.press("0");
+  await expect(toolbarStatus).toContainText("100%");
+
+  const firstImageSrc = await stageImage.getAttribute("src");
+  await page.getByTestId("viewer-thumbnail").nth(secondaryIndex).click({ force: true });
+  await expect.poll(() => stageImage.getAttribute("src")).not.toBe(firstImageSrc);
+
+  await expect.poll(() => commentMarkRequests.length).toBe(0);
+
+  const secondaryComment = page
+    .getByTestId("viewer-side-panel")
+    .getByTestId("comment-item")
+    .filter({ hasText: "Portrait follow-up anchor sits on the second portrait image" })
+    .first();
+  await secondaryComment.click();
+  await expect.poll(() => commentMarkRequests.length).toBe(1);
+  await expect.poll(() => stageImage.getAttribute("src")).toContain(secondaryImagePath);
+  await expect(page.getByTestId("viewer-comment-mark")).toBeVisible();
+  await expect(page.getByTestId("viewer-comment-state")).toContainText(`#${viewerPost.markedCommentOne.id}`);
+  await expect
+    .poll(() => page.getByTestId("viewer-stage-transform").getAttribute("style"))
+    .not.toContain("scale(1)");
+
+  const squareComment = page
+    .getByTestId("viewer-side-panel")
+    .getByTestId("comment-item")
+    .filter({ hasText: "Square image anchor should stay centered" })
+    .first();
+  await squareComment.click();
+  await expect.poll(() => commentMarkRequests.length).toBe(2);
+  await expect.poll(() => stageImage.getAttribute("src")).toContain(squareImagePath);
+  await expect(page.getByTestId("viewer-comment-state")).toContainText(`#${viewerPost.markedCommentTwo.id}`);
+  const [activeRailBox, activeStageBox, activeImageBox, activePanelBox] = await Promise.all([
+    page.getByTestId("viewer-control-rail").boundingBox(),
+    page.getByTestId("viewer-stage-viewport").boundingBox(),
+    page.getByTestId("viewer-stage-image").boundingBox(),
+    page.getByTestId("viewer-side-panel").boundingBox(),
+  ]);
+  expect(activeRailBox).toBeTruthy();
+  expect(activeStageBox).toBeTruthy();
+  expect(activeImageBox).toBeTruthy();
+  expect(activePanelBox).toBeTruthy();
+  expect(activeRailBox.width).toBeGreaterThan(90);
+  expect(activeImageBox.width).toBeGreaterThan(150);
+  expect(activeImageBox.height).toBeGreaterThan(150);
+  expect(activeStageBox.x + activeStageBox.width).toBeLessThanOrEqual(activePanelBox.x + 1);
+
+  const activeCommentLayout = await page.evaluate(() => {
+    const shell = document.querySelector("[data-testid='rich-image-viewer']");
+    const panel = document.querySelector("[data-testid='viewer-side-panel']");
+    const comment = document.querySelector("[data-testid='viewer-side-panel'] .comment-item--active");
+    const closeButton = document.querySelector("[data-testid='viewer-close']");
+
+    if (!(shell instanceof HTMLElement)
+      || !(panel instanceof HTMLElement)
+      || !(comment instanceof HTMLElement)
+      || !(closeButton instanceof HTMLElement)) {
+      return null;
+    }
+
+    const panelRect = panel.getBoundingClientRect();
+    const commentRect = comment.getBoundingClientRect();
+    const closeRect = closeButton.getBoundingClientRect();
+
+    return {
+      shellScrollTop: shell.scrollTop,
+      panelScrollTop: panel.scrollTop,
+      panelTop: panelRect.top,
+      panelBottom: panelRect.bottom,
+      commentTop: commentRect.top,
+      commentBottom: commentRect.bottom,
+      closeTop: closeRect.top,
+      closeBottom: closeRect.bottom,
+    };
+  });
+
+  expect(activeCommentLayout).toBeTruthy();
+  expect(activeCommentLayout.shellScrollTop).toBe(0);
+  expect(activeCommentLayout.panelScrollTop).toBeGreaterThan(0);
+  expect(activeCommentLayout.closeTop).toBeGreaterThanOrEqual(0);
+  expect(activeCommentLayout.commentTop).toBeGreaterThanOrEqual(activeCommentLayout.panelTop - 1);
+  expect(activeCommentLayout.commentBottom).toBeLessThanOrEqual(activeCommentLayout.panelBottom + 1);
+
+  await page.getByTestId("viewer-thumbnail").nth(panoramaIndex).click({ force: true });
+  await expect.poll(() => stageImage.getAttribute("src")).toContain(panoramaImagePath);
+  await expect(page.getByTestId("viewer-comment-mark")).toHaveCount(0);
+  await expect(page.getByTestId("viewer-comment-state")).toHaveCount(0);
+
+  const panoramaComment = page
+    .getByTestId("viewer-side-panel")
+    .getByTestId("comment-item")
+    .filter({ hasText: "Panorama anchor is here to verify active-comment switching" })
+    .first();
+  await panoramaComment.click();
+  await expect.poll(() => commentMarkRequests.length).toBe(3);
+  await expect(page.getByTestId("viewer-comment-state")).toContainText(`#${viewerPost.markedCommentThree.id}`);
+  await expect(page.getByTestId("viewer-comment-mark")).toBeVisible();
+
+  await panoramaComment.click();
+  await expect(page.getByTestId("viewer-comment-mark")).toHaveCount(0);
+  await expect(page.getByTestId("viewer-comment-state")).toHaveCount(0);
+
+  await panoramaComment.click();
+  await expect.poll(() => commentMarkRequests.length).toBe(3);
+  await expect(page.getByTestId("viewer-comment-mark")).toBeVisible();
+
+  await stage.hover();
+  await page.mouse.wheel(0, -250);
+  await expect(toolbarStatus).not.toContainText("100%");
+
+  const fullscreenButton = page.getByTestId("viewer-fullscreen");
+  if (await fullscreenButton.isVisible()) {
+    await fullscreenButton.click();
+    await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBeTruthy();
+    await fullscreenButton.click();
+    await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBeFalsy();
+  }
+
+  await page.getByTestId("viewer-close").click();
+  await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
+  await expect(page.getByTestId("post-details-image")).toBeVisible();
+});
+
+test("rich viewer preserves image fit across the aspect-ratio matrix", async ({ page, request }) => {
+  await loginAsSeedUser(page);
+  const viewerPost = await createRichViewerPost(page, request, "ratio-matrix");
+
+  await openViewerFromDetails(page);
+  const expectedRatios = VIEWER_RATIO_EXPECTATIONS
+    .map((expectation) => Number(expectation.ratio.toFixed(3)))
+    .sort((left, right) => left - right);
+  const observedRatios = [];
+  const observedSources = new Set();
+
+  for (let index = 0; index < viewerPost.viewer.images.length; index += 1) {
+    if (index > 0) {
+      const previousSrc = await page.getByTestId("viewer-stage-image").getAttribute("src");
+      await page.getByTestId("viewer-next").click();
+      await expect.poll(() => page.getByTestId("viewer-stage-image").getAttribute("src")).not.toBe(previousSrc);
+    }
+
+    await expect(page.getByTestId("viewer-comment-mark")).toHaveCount(0);
+
+    const currentSrc = await page.getByTestId("viewer-stage-image").getAttribute("src");
+    observedSources.add(currentSrc);
+
+    const [stageBox, fitBox, imageBox] = await Promise.all([
+      page.getByTestId("viewer-stage-viewport").boundingBox(),
+      page.getByTestId("viewer-stage-fitbox").boundingBox(),
+      page.getByTestId("viewer-stage-image").boundingBox(),
+    ]);
+    expect(stageBox).toBeTruthy();
+    expect(fitBox).toBeTruthy();
+    expect(imageBox).toBeTruthy();
+    expect(fitBox.x).toBeGreaterThanOrEqual(stageBox.x - 1);
+    expect(fitBox.y).toBeGreaterThanOrEqual(stageBox.y - 1);
+    expect(fitBox.x + fitBox.width).toBeLessThanOrEqual(stageBox.x + stageBox.width + 1);
+    expect(fitBox.y + fitBox.height).toBeLessThanOrEqual(stageBox.y + stageBox.height + 1);
+    expectWithinTolerance(imageBox.width, fitBox.width, 2);
+    expectWithinTolerance(imageBox.height, fitBox.height, 2);
+    expectWithinTolerance(
+      fitBox.x - stageBox.x,
+      (stageBox.width - fitBox.width) / 2,
+      4,
+    );
+    expectWithinTolerance(
+      fitBox.y - stageBox.y,
+      (stageBox.height - fitBox.height) / 2,
+      4,
+    );
+    expect(fitBox.width).toBeGreaterThan(0);
+    expect(fitBox.height).toBeGreaterThan(0);
+    observedRatios.push(Number((fitBox.width / fitBox.height).toFixed(3)));
+  }
+
+  expect(observedSources.size).toBe(VIEWER_RATIO_EXPECTATIONS.length);
+  expect(observedRatios.sort((left, right) => left - right)).toEqual(expectedRatios);
+});
+
+test("author note controls are author-only and author marks can be created then deleted", async ({ page, request }) => {
+  await loginAsSeedUser(page);
+  const viewerPost = await createRichViewerPost(page, request, "author-controls");
+
+  await openViewerFromDetails(page);
+  await expect(page.getByTestId("viewer-add-note")).toBeVisible();
+
+  await page.getByTestId("viewer-add-note").click();
+  const [stageBox, fitBox] = await Promise.all([
+    page.getByTestId("viewer-stage").boundingBox(),
+    page.getByTestId("viewer-stage-fitbox").boundingBox(),
+  ]);
+  expect(stageBox).toBeTruthy();
+  expect(fitBox).toBeTruthy();
+  await page.getByTestId("viewer-stage").click({
+    position: {
+      x: Math.round((fitBox.x - stageBox.x) + (fitBox.width * 0.52)),
+      y: Math.round((fitBox.y - stageBox.y) + (fitBox.height * 0.42)),
+    },
+  });
+
+  await expect(page.getByTestId("viewer-mark-composer")).toBeVisible();
+  await page.getByTestId("viewer-mark-tag").fill("edge glow");
+  await page.getByTestId("viewer-mark-message").fill("Secondary edge light is here to verify author-only note mutation from the overlay.");
+  await page.getByTestId("viewer-mark-composer").locator("form").evaluate((form) => form.requestSubmit());
+  await expect(page.getByTestId("viewer-author-mark")).toHaveCount(2);
+  await expect(page.getByTestId("viewer-mark-delete")).toBeVisible();
+  await page.getByTestId("viewer-mark-delete").evaluate((button) => button.click());
+  await expect(page.getByTestId("viewer-author-mark")).toHaveCount(1);
+
+  await clearAuth(page);
+  await loginAsAdmin(page);
+  await page.goto(`/posts/${viewerPost.postId}`);
+  await openViewerFromDetails(page);
+  await expect(page.getByTestId("viewer-add-note")).toHaveCount(0);
+  await expect(page.getByTestId("viewer-author-mark")).toHaveCount(1);
+});
+
+test("rich viewer mobile layout plus loading and error states work", async ({ page, request }) => {
+  await loginAsSeedUser(page);
+  const viewerPost = await createRichViewerPost(page, request, "mobile-flow");
+
+  const delayedImagePattern = new RegExp(viewerPost.primaryImage.imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  await page.route(delayedImagePattern, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    await route.continue();
+  });
+
+  await openViewerFromDetails(page, { waitForImage: false });
+  await expect(page.getByTestId("viewer-skeleton")).toHaveCount(1);
+  await expect(page.getByTestId("viewer-skeleton")).toHaveCount(0);
+  await page.unroute(delayedImagePattern);
+
+  const failingImagePattern = /\/uploads\/images\/.*_max\.(webp|jpg|png)$/;
+  await page.route(failingImagePattern, async (route) => {
+    if (route.request().url().includes(viewerPost.primaryImage.imageUrl)) {
+      await route.continue();
+      return;
+    }
+
+    await route.abort("failed");
+  });
+
+  await page.getByTestId("viewer-thumbnail").nth(1).click({ force: true });
+  await expect(page.getByTestId("viewer-image-error")).toBeVisible();
+
+  await page.unroute(failingImagePattern);
+  await page.getByTestId("viewer-thumbnail").nth(0).click({ force: true });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(250);
+  await expect(page.getByTestId("viewer-side-panel")).toBeVisible();
 });
 
 test("search by title and tag works, and public profiles open from search", async ({ page }) => {

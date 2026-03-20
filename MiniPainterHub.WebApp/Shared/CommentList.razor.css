@@ -1,0 +1,8 @@
+.comment-list--viewer-panel {
+    display: grid;
+    gap: 0.95rem;
+}
+
+.comment-list--viewer-panel nav {
+    margin-top: 0.15rem;
+}

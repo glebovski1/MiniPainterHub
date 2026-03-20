@@ -170,6 +170,7 @@
 </div>
 
 @code {
+    private const int MaxImageFiles = 8;
     private CreatePostDto newPost = new();
     private IReadOnlyList<IBrowserFile> selectedFiles = Array.Empty<IBrowserFile>();
     private List<string> previewUrls = new();
@@ -199,7 +200,7 @@
 
     private void OnFilesSelected(InputFileChangeEventArgs e)
     {
-        selectedFiles = e.GetMultipleFiles(5);
+        selectedFiles = e.GetMultipleFiles(MaxImageFiles);
         previewUrls.Clear();
         foreach (var file in selectedFiles)
         {

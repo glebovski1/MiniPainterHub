@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { expect } = require("@playwright/test");
 const { loadMatrix } = require("../../scripts/resolve-ui-review-scope");
+const { createRichViewerPost, openViewerFromDetails } = require("./viewer-scenario");
 
 const RESET_TOKEN = process.env.E2E_RESET_TOKEN || "local-e2e-reset-token";
 const REPO_ROOT = path.resolve(__dirname, "../../..");
@@ -94,6 +95,51 @@ function writeArtifacts(scope, manifest) {
 async function settle(page, milliseconds = 450) {
   await page.waitForLoadState("domcontentloaded");
   await page.waitForTimeout(milliseconds);
+}
+
+async function waitForViewerLayout(page) {
+  await page.waitForFunction(() => {
+    const image = document.querySelector("[data-testid='viewer-stage-image']");
+    const rail = document.querySelector("[data-testid='viewer-control-rail']");
+    const panel = document.querySelector("[data-testid='viewer-side-panel']");
+    if (!(image instanceof HTMLElement) || !(rail instanceof HTMLElement) || !(panel instanceof HTMLElement)) {
+      return false;
+    }
+
+    const imageRect = image.getBoundingClientRect();
+    const railRect = rail.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    return imageRect.width > 150
+      && imageRect.height > 150
+      && railRect.width > 90
+      && panelRect.width > 220;
+  });
+}
+
+async function getViewerFitRatio(page) {
+  return page.locator(".viewer-stage__fitbox").evaluate((element) => {
+    const width = Number.parseFloat(element.style.width);
+    const height = Number.parseFloat(element.style.height);
+    return width > 0 && height > 0 ? width / height : 0;
+  });
+}
+
+async function cycleViewerToRatio(page, targetRatio) {
+  const tolerance = 0.03;
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const currentRatio = await getViewerFitRatio(page);
+    if (Math.abs(currentRatio - targetRatio) <= tolerance) {
+      return;
+    }
+
+    const previousSrc = await page.getByTestId("viewer-stage-image").getAttribute("src");
+    await clickReliably(page.getByTestId("viewer-next"));
+    await expect.poll(() => page.getByTestId("viewer-stage-image").getAttribute("src")).not.toBe(previousSrc);
+    await settle(page, 200);
+  }
+
+  throw new Error(`Viewer never reached the expected ratio ${targetRatio.toFixed(3)}.`);
 }
 
 async function clickReliably(locator) {
@@ -212,12 +258,22 @@ async function capture(page, manifest, options) {
   const fileName = `${sequence}-${sanitizeFileToken(options.name)}-${options.viewport.name}.png`;
   const filePath = path.join(OUTPUT_DIR, fileName);
 
+  await page.evaluate(() => window.scrollTo(0, 0));
   await settle(page);
-  await page.screenshot({
-    path: filePath,
-    fullPage: true,
-    animations: "disabled"
-  });
+  if (options.elementTestId) {
+    const target = page.getByTestId(options.elementTestId);
+    await expect(target).toBeVisible();
+    await target.screenshot({
+      path: filePath,
+      animations: "disabled"
+    });
+  } else {
+    await page.screenshot({
+      path: filePath,
+      fullPage: options.fullPage ?? true,
+      animations: "disabled"
+    });
+  }
 
   manifest.captures.push({
     name: options.name,
@@ -512,6 +568,202 @@ const scenarioGroups = {
       viewport: VIEWPORTS.desktop,
       authState: "seed-user",
       stateTags: ["posts", "desktop", "details", "populated"]
+    });
+
+    const richViewerPost = await createRichViewerPost(page, request, "ui-review");
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-closed",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      stateTags: ["posts", "desktop", "details", "viewer-closed", "populated"]
+    });
+
+    await openViewerFromDetails(page);
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-open-portrait",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "desktop", "viewer-open", "portrait"]
+    });
+
+    await cycleViewerToRatio(page, 1);
+    await settle(page, 300);
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-open-square",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "desktop", "viewer-open", "square"]
+    });
+
+    await cycleViewerToRatio(page, 21 / 9);
+    await settle(page, 300);
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-open-panorama",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "desktop", "viewer-open", "panorama"]
+    });
+
+    await clickReliably(page.getByTestId("viewer-close"));
+    await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
+    const pageComment = page
+      .locator("[data-testid='comment-list-container']")
+      .first()
+      .getByTestId("comment-item")
+      .filter({ hasText: "Square image anchor should stay centered while the comment panel highlights this thread" })
+      .first();
+    await clickReliably(pageComment.getByTestId("comment-show-mark"));
+    await expect(page.getByTestId("viewer-comment-mark")).toBeVisible();
+    await expect(page.getByTestId("viewer-comment-state")).toContainText(`#${richViewerPost.markedCommentTwo.id}`);
+    await expect(page.getByTestId("viewer-skeleton")).toHaveCount(0);
+    await expect(page.getByTestId("viewer-stage-image")).toBeVisible();
+    await expect(page.getByTestId("viewer-control-rail")).toBeVisible();
+    await waitForViewerLayout(page);
+    await settle(page, 500);
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-active-comment",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "desktop", "viewer-open", "active-comment-mark"]
+    });
+
+    await clickReliably(page.getByTestId("viewer-close"));
+    await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
+    await page.goto(`/posts/${richViewerPost.postId}`);
+    await settle(page, 700);
+    await openViewerFromDetails(page);
+
+    const stage = page.getByTestId("viewer-stage");
+    const stageBox = await stage.boundingBox();
+    expect(stageBox).toBeTruthy();
+    await page.mouse.move(stageBox.x + stageBox.width * 0.55, stageBox.y + stageBox.height * 0.52);
+    await page.mouse.wheel(0, -260);
+    await page.mouse.down();
+    await page.mouse.move(stageBox.x + stageBox.width * 0.4, stageBox.y + stageBox.height * 0.42, { steps: 7 });
+    await page.mouse.up();
+    await waitForViewerLayout(page);
+    await settle(page, 300);
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-zoomed-pan",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "desktop", "viewer-open", "zoomed", "panned"]
+    });
+
+    await clickReliably(page.getByTestId("viewer-close"));
+    await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
+    await openViewerFromDetails(page);
+    await clickReliably(page.getByTestId("viewer-add-note"));
+    const [placementStageBox, fitBox] = await Promise.all([
+      page.getByTestId("viewer-stage").boundingBox(),
+      page.getByTestId("viewer-stage-fitbox").boundingBox(),
+    ]);
+    expect(placementStageBox).toBeTruthy();
+    expect(fitBox).toBeTruthy();
+    await page.getByTestId("viewer-stage").click({
+      position: {
+        x: Math.round((fitBox.x - placementStageBox.x) + (fitBox.width * 0.6)),
+        y: Math.round((fitBox.y - placementStageBox.y) + (fitBox.height * 0.44)),
+      },
+    });
+    await expect(page.getByTestId("viewer-mark-composer")).toBeVisible();
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-author-note-composer",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "desktop", "viewer-open", "author-note", "composer"]
+    });
+    await clickReliably(page.getByTestId("viewer-mark-close"));
+
+    const delayedImagePattern = /\/uploads\/images\/.*_max\.(webp|jpg|png)$/;
+    await page.route(delayedImagePattern, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+      await route.continue();
+    });
+    await clickReliably(page.getByTestId("viewer-close"));
+    await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
+    await page.goto(`/posts/${richViewerPost.postId}`);
+    await settle(page, 700);
+    await openViewerFromDetails(page, { waitForImage: false });
+    await expect(page.getByTestId("viewer-skeleton")).toHaveCount(1);
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-loading",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "desktop", "viewer-open", "loading"]
+    });
+    await expect(page.getByTestId("viewer-skeleton")).toHaveCount(0);
+    await page.unroute(delayedImagePattern);
+
+    const failingImagePattern = /\/uploads\/images\/.*_max\.(webp|jpg|png)$/;
+    await page.route(failingImagePattern, async (route) => {
+      if (route.request().url().includes(richViewerPost.primaryImage.imageUrl)) {
+        await route.continue();
+        return;
+      }
+
+      await route.abort("failed");
+    });
+    await clickReliably(page.getByTestId("viewer-next"));
+    await expect(page.getByTestId("viewer-image-error")).toBeVisible();
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-error",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "desktop", "viewer-open", "error"]
+    });
+    await page.unroute(failingImagePattern);
+
+    await clickReliably(page.getByTestId("viewer-close"));
+    await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
+
+    await setViewport(page, VIEWPORTS.mobile);
+    await page.goto(`/posts/${richViewerPost.postId}`);
+    await settle(page, 700);
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-closed-mobile",
+      group: "posts",
+      viewport: VIEWPORTS.mobile,
+      authState: "seed-user",
+      stateTags: ["posts", "mobile", "details", "viewer-closed", "populated"]
+    });
+
+    await openViewerFromDetails(page);
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-open-mobile-portrait",
+      group: "posts",
+      viewport: VIEWPORTS.mobile,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "mobile", "viewer-open", "portrait"]
+    });
+
+    await cycleViewerToRatio(page, 21 / 9);
+    await settle(page, 250);
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-open-mobile-panorama",
+      group: "posts",
+      viewport: VIEWPORTS.mobile,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "mobile", "viewer-open", "panorama"]
     });
 
     await page.goto("/posts/mine");

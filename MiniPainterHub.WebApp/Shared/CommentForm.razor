@@ -20,7 +20,7 @@
     </div>
 }
 
-<EditForm Model="_model" OnValidSubmit="HandleSubmit" class="form-grid">
+<EditForm Model="_model" OnValidSubmit="HandleSubmit" class="@FormClass">
     <DataAnnotationsValidator />
     <ValidationSummary class="text-danger small mb-0" />
 
@@ -28,13 +28,13 @@
                    class="form-control"
                    placeholder="Write your comment..."
                    data-testid="comment-input"
-                   rows="3" />
+                   rows="@(IsViewerCompact ? 2 : 3)" />
 
     @if (CanAttachViewerMark)
     {
         <div class="d-flex flex-wrap align-items-center gap-2 mt-2" data-testid="comment-mark-controls">
             <button type="button"
-                    class="btn btn-outline-secondary"
+                    class="btn @(IsViewerCompact ? "btn-outline-light btn-sm" : "btn-outline-secondary")"
                     data-testid="comment-attach-mark"
                     disabled="@(_isSubmitting || ViewerPlacementActive)"
                     @onclick="RequestAttachMarkAsync">
@@ -60,7 +60,7 @@
 
     <div class="d-flex flex-wrap gap-2 mt-2">
         <button type="submit"
-                class="btn btn-primary"
+                class="btn @(IsViewerCompact ? "btn-primary btn-sm" : "btn-primary")"
                 data-testid="comment-submit"
                 disabled="@_isSubmitting">
             @(_isSubmitting ? "Posting..." : "Post Comment")
@@ -92,6 +92,11 @@
 
     [Parameter]
     public EventCallback OnRemoveAttachedMark { get; set; }
+
+    [Parameter]
+    public bool IsViewerCompact { get; set; }
+
+    private string FormClass => IsViewerCompact ? "form-grid form-grid--compact" : "form-grid";
 
     private CreateCommentDto _model = new();
     private bool _isSubmitting;

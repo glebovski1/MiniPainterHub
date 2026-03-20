@@ -1,0 +1,48 @@
+.viewer-skeleton {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    align-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem;
+    background: linear-gradient(180deg, rgba(10, 14, 17, 0.16), rgba(10, 14, 17, 0.4));
+    z-index: 4;
+}
+
+.viewer-skeleton__hero,
+.viewer-skeleton__thumb {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.viewer-skeleton__hero {
+    min-height: 80%;
+}
+
+.viewer-skeleton__rail {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.8rem;
+}
+
+.viewer-skeleton__thumb {
+    aspect-ratio: 1;
+}
+
+.viewer-skeleton__hero::after,
+.viewer-skeleton__thumb::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+    transform: translateX(-100%);
+    animation: viewer-skeleton-sheen 1.35s linear infinite;
+}
+
+@keyframes viewer-skeleton-sheen {
+    100% {
+        transform: translateX(100%);
+    }
+}

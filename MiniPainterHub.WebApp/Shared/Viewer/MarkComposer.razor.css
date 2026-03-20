@@ -1,0 +1,74 @@
+.viewer-composer {
+    position: absolute;
+    width: min(18.5rem, calc(100% - 1.75rem));
+    padding: 0.95rem;
+    border-radius: calc(var(--radius-md) + 0.1rem);
+    background: rgba(10, 14, 18, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 1.6rem 3rem rgba(0, 0, 0, 0.3);
+    color: var(--viewer-text, #f8f4ec);
+    z-index: 6;
+}
+
+.viewer-composer__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.8rem;
+}
+
+.viewer-composer__eyebrow {
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--viewer-muted, rgba(248, 244, 236, 0.72));
+}
+
+.viewer-composer__subtitle {
+    font-weight: 700;
+}
+
+.viewer-composer__body {
+    margin: 0;
+    color: var(--viewer-text, #f8f4ec);
+    white-space: pre-wrap;
+}
+
+.viewer-composer__tag {
+    display: inline-flex;
+    margin-bottom: 0.7rem;
+    padding: 0.3rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(130, 208, 203, 0.16);
+    color: var(--viewer-accent, #82d0cb);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.viewer-composer .form-label {
+    font-size: 0.82rem;
+    color: var(--viewer-muted, rgba(248, 244, 236, 0.72));
+}
+
+.viewer-composer .form-control {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--viewer-text, #f8f4ec);
+}
+
+.viewer-composer__actions {
+    display: flex;
+    gap: 0.55rem;
+    justify-content: flex-start;
+}
+
+@media (max-width: 767.98px) {
+    .viewer-composer {
+        left: 0.75rem !important;
+        right: 0.75rem;
+        top: auto !important;
+        bottom: 0.75rem;
+        width: auto;
+    }
+}
