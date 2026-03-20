@@ -1,0 +1,33 @@
+.form-grid--compact {
+    gap: 0.65rem;
+}
+
+.form-grid--compact .form-control {
+    min-height: 6.35rem;
+    resize: vertical;
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: rgba(248, 244, 236, 0.94);
+}
+
+.form-grid--compact .form-control::placeholder {
+    color: rgba(248, 244, 236, 0.48);
+}
+
+.form-grid--compact .btn-outline-light {
+    color: rgba(248, 244, 236, 0.9);
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+.form-grid--compact .btn-outline-light:hover,
+.form-grid--compact .btn-outline-light:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.form-grid--compact [data-testid="comment-mark-controls"] {
+    margin-top: 0;
+}
+
+.form-grid--compact [data-testid="comment-submit"] {
+    min-width: 8.5rem;
+}

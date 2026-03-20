@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-19T20:26:28.167Z",
+  "generatedAt": "2026-03-20T04:28:01.637Z",
   "scope": "targeted",
   "reviewCommand": "npm --prefix e2e run test:ui-review",
   "groups": [
@@ -7,7 +7,7 @@
     "posts"
   ],
   "reasons": [
-    "posts: MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor"
+    "posts: MiniPainterHub.WebApp/Pages/Posts/Create.razor"
   ],
   "captures": [
     {
@@ -106,6 +106,178 @@
       "relativeFile": "output/playwright/ui-review/07-posts-detail-seeded-desktop.png"
     },
     {
+      "name": "posts-detail-rich-viewer-closed",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/3",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "posts",
+        "desktop",
+        "details",
+        "viewer-closed",
+        "populated"
+      ],
+      "relativeFile": "output/playwright/ui-review/08-posts-detail-rich-viewer-closed-desktop.png"
+    },
+    {
+      "name": "posts-detail-rich-viewer-open-portrait",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/3",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "posts",
+        "desktop",
+        "viewer-open",
+        "portrait"
+      ],
+      "relativeFile": "output/playwright/ui-review/09-posts-detail-rich-viewer-open-portrait-desktop.png"
+    },
+    {
+      "name": "posts-detail-rich-viewer-open-square",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/3",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "posts",
+        "desktop",
+        "viewer-open",
+        "square"
+      ],
+      "relativeFile": "output/playwright/ui-review/10-posts-detail-rich-viewer-open-square-desktop.png"
+    },
+    {
+      "name": "posts-detail-rich-viewer-open-panorama",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/3",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "posts",
+        "desktop",
+        "viewer-open",
+        "panorama"
+      ],
+      "relativeFile": "output/playwright/ui-review/11-posts-detail-rich-viewer-open-panorama-desktop.png"
+    },
+    {
+      "name": "posts-detail-rich-viewer-active-comment",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/3",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "posts",
+        "desktop",
+        "viewer-open",
+        "active-comment-mark"
+      ],
+      "relativeFile": "output/playwright/ui-review/12-posts-detail-rich-viewer-active-comment-desktop.png"
+    },
+    {
+      "name": "posts-detail-rich-viewer-zoomed-pan",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/3",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "posts",
+        "desktop",
+        "viewer-open",
+        "zoomed",
+        "panned"
+      ],
+      "relativeFile": "output/playwright/ui-review/13-posts-detail-rich-viewer-zoomed-pan-desktop.png"
+    },
+    {
+      "name": "posts-detail-rich-viewer-author-note-composer",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/3",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "posts",
+        "desktop",
+        "viewer-open",
+        "author-note",
+        "composer"
+      ],
+      "relativeFile": "output/playwright/ui-review/14-posts-detail-rich-viewer-author-note-composer-desktop.png"
+    },
+    {
+      "name": "posts-detail-rich-viewer-loading",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/3",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "posts",
+        "desktop",
+        "viewer-open",
+        "loading"
+      ],
+      "relativeFile": "output/playwright/ui-review/15-posts-detail-rich-viewer-loading-desktop.png"
+    },
+    {
+      "name": "posts-detail-rich-viewer-error",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/3",
+      "viewport": "desktop",
+      "authState": "seed-user",
+      "stateTags": [
+        "posts",
+        "desktop",
+        "viewer-open",
+        "error"
+      ],
+      "relativeFile": "output/playwright/ui-review/16-posts-detail-rich-viewer-error-desktop.png"
+    },
+    {
+      "name": "posts-detail-rich-viewer-closed-mobile",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/3",
+      "viewport": "mobile",
+      "authState": "seed-user",
+      "stateTags": [
+        "posts",
+        "mobile",
+        "details",
+        "viewer-closed",
+        "populated"
+      ],
+      "relativeFile": "output/playwright/ui-review/17-posts-detail-rich-viewer-closed-mobile-mobile.png"
+    },
+    {
+      "name": "posts-detail-rich-viewer-open-mobile-portrait",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/3",
+      "viewport": "mobile",
+      "authState": "seed-user",
+      "stateTags": [
+        "posts",
+        "mobile",
+        "viewer-open",
+        "portrait"
+      ],
+      "relativeFile": "output/playwright/ui-review/18-posts-detail-rich-viewer-open-mobile-portrait-mobile.png"
+    },
+    {
+      "name": "posts-detail-rich-viewer-open-mobile-panorama",
+      "group": "posts",
+      "url": "http://127.0.0.1:5176/posts/3",
+      "viewport": "mobile",
+      "authState": "seed-user",
+      "stateTags": [
+        "posts",
+        "mobile",
+        "viewer-open",
+        "panorama"
+      ],
+      "relativeFile": "output/playwright/ui-review/19-posts-detail-rich-viewer-open-mobile-panorama-mobile.png"
+    },
+    {
       "name": "posts-mine-desktop",
       "group": "posts",
       "url": "http://127.0.0.1:5176/posts/mine",
@@ -117,10 +289,10 @@
         "mine",
         "populated"
       ],
-      "relativeFile": "output/playwright/ui-review/08-posts-mine-desktop-desktop.png"
+      "relativeFile": "output/playwright/ui-review/20-posts-mine-desktop-desktop.png"
     }
   ],
   "failures": [],
-  "completedAt": "2026-03-19T20:26:51.716Z",
-  "captureCount": 8
+  "completedAt": "2026-03-20T04:28:57.652Z",
+  "captureCount": 20
 }

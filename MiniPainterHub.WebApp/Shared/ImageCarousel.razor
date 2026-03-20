@@ -109,7 +109,7 @@ else
         if (!_initialized && Mode == CarouselMode.Auto && (Slides?.Count ?? 0) > 1)
         {
             _initialized = true;
-            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./JSHelpers/carouselInterop.js");
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "/JSHelpers/carouselInterop.js");
             await _module.InvokeVoidAsync("initCarousel", _carouselElement, IntervalMs);
         }
     }

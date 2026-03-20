@@ -107,16 +107,16 @@ public class PostServiceTests
             Title = dto.Title,
             Content = dto.Content,
             AuthorName = user.UserName,
-            Images = dto.Images!.Take(5).Select(i => new { i.ImageUrl, i.ThumbnailUrl }).ToList()
+            Images = dto.Images!.Take(6).Select(i => new { i.ImageUrl, i.ThumbnailUrl }).ToList()
         }, options => options.ExcludingMissingMembers());
-        result.Images.Should().HaveCount(5);
+        result.Images.Should().HaveCount(6);
         result.ImageUrl.Should().Be(dto.Images.First().ImageUrl);
 
         var storedPost = await context.Posts.Include(p => p.Images).SingleAsync();
         storedPost.CreatedById.Should().Be(user.Id);
-        storedPost.Images.Should().HaveCount(5);
+        storedPost.Images.Should().HaveCount(6);
         storedPost.Images.Select(i => i.ImageUrl)
-            .Should().BeEquivalentTo(dto.Images.Take(5).Select(i => i.ImageUrl));
+            .Should().BeEquivalentTo(dto.Images.Take(6).Select(i => i.ImageUrl));
     }
 
     [Fact]
@@ -164,20 +164,20 @@ public class PostServiceTests
 
         var result = await service.AddImagesAsync(post.Id, newImages);
 
-        // Capped at 5 total
-        result.Should().HaveCount(5);
+        // Capped at 8 total
+        result.Should().HaveCount(7);
 
         // No duplicate IDs or URLs
         result.Should().OnlyHaveUniqueItems(i => i.Id);
         result.Select(i => i.ImageUrl).Should().OnlyHaveUniqueItems();
 
-        // Content check: all existing + first new image only
+        // Content check: all existing + all new images while still below the cap
         result.Select(i => i.ImageUrl)
-            .Should().BeEquivalentTo(existingImageUrls.Concat(new[] { newImages.First().ImageUrl }));
+            .Should().BeEquivalentTo(existingImageUrls.Concat(newImages.Select(image => image.ImageUrl)));
 
         // DB state mirrors expectations
         var storedPost = await context.Posts.Include(p => p.Images).SingleAsync();
-        storedPost.Images.Should().HaveCount(5);
+        storedPost.Images.Should().HaveCount(7);
         storedPost.Images.Select(i => i.Id).Should().OnlyHaveUniqueItems();
     }
 

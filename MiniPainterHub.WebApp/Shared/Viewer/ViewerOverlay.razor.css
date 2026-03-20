@@ -1,0 +1,69 @@
+.viewer-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.viewer-mark {
+    position: absolute;
+    display: inline-grid;
+    place-items: center;
+    width: 2.35rem;
+    height: 2.35rem;
+    transform: translate(-50%, -50%);
+    border-radius: 999px;
+    border: 0;
+    padding: 0;
+    pointer-events: auto;
+    background: transparent;
+    color: #102127;
+}
+
+.viewer-mark__pulse,
+.viewer-mark__core {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+}
+
+.viewer-mark__pulse {
+    background: rgba(255, 255, 255, 0.24);
+    transform: scale(1.18);
+}
+
+.viewer-mark__core {
+    display: grid;
+    place-items: center;
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.viewer-mark--author .viewer-mark__core {
+    background: var(--viewer-author, #f6efe3);
+    box-shadow: 0 0.8rem 1.6rem rgba(0, 0, 0, 0.22);
+}
+
+.viewer-mark--comment .viewer-mark__core {
+    background: var(--viewer-highlight, #f1ba4e);
+    box-shadow: 0 0.8rem 1.6rem rgba(120, 88, 20, 0.28);
+}
+
+.viewer-mark--draft .viewer-mark__core {
+    background: var(--viewer-accent, #82d0cb);
+    box-shadow: 0 0.8rem 1.6rem rgba(24, 74, 72, 0.28);
+}
+
+.viewer-mark.is-selected .viewer-mark__pulse {
+    background: rgba(255, 255, 255, 0.38);
+    transform: scale(1.34);
+}
+
+.viewer-mark--author:hover .viewer-mark__pulse,
+.viewer-mark--author:focus-visible .viewer-mark__pulse {
+    background: rgba(255, 255, 255, 0.34);
+    transform: scale(1.28);
+}
+
+.viewer-mark:focus-visible {
+    outline: none;
+}

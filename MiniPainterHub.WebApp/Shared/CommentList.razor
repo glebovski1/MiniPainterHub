@@ -4,7 +4,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject ICommentService CommentService
 
-<div data-testid="comment-list-container">
+<div class="comment-list @(IsViewerPanel ? "comment-list--viewer-panel" : null)" data-testid="comment-list-container">
     <AuthorizeView Roles="Moderator,Admin">
         <Authorized>
             <div class="mini-stat-bar mb-3" data-testid="comment-visibility-filter">
@@ -64,10 +64,13 @@
         {
             <CommentItem Comment="comment"
                          IsActive="@(ActiveCommentId == comment.Id)"
-                         CanRevealViewerMark="@(comment.HasViewerMark && (!comment.IsDeleted || _visibilityFilter != "active"))"
+                         CanToggleViewerMark="@(comment.HasViewerMark && (!comment.IsDeleted || _visibilityFilter != "active"))"
                          IsViewerMarkLoading="@(LoadingViewerMarkCommentId == comment.Id)"
                          ViewerMarkError="@(ViewerMarkErrorCommentId == comment.Id ? ViewerMarkError : null)"
-                         OnRevealViewerMark="@(() => RevealViewerMarkAsync(comment))"
+                         OnToggleViewerMark="@(() => ToggleViewerMarkAsync(comment))"
+                         IsViewerPanel="@IsViewerPanel"
+                         ViewerActionLabel="@ViewerActionLabel"
+                         ViewerActionActiveLabel="@ViewerActionActiveLabel"
                          OnModerated="ReloadAsync" />
         }
 
@@ -97,7 +100,10 @@
     [Parameter] public int? LoadingViewerMarkCommentId { get; set; }
     [Parameter] public int? ViewerMarkErrorCommentId { get; set; }
     [Parameter] public string? ViewerMarkError { get; set; }
-    [Parameter] public EventCallback<CommentDto> OnRevealViewerMark { get; set; }
+    [Parameter] public EventCallback<CommentDto> OnToggleViewerMark { get; set; }
+    [Parameter] public bool IsViewerPanel { get; set; }
+    [Parameter] public string ViewerActionLabel { get; set; } = "Show on image";
+    [Parameter] public string ViewerActionActiveLabel { get; set; } = "Hide marker";
 
     private PagedResult<CommentDto>? _comments;
     private int _page = 1;
@@ -106,9 +112,19 @@
     private HttpStatusCode? _errorStatus;
     private string _visibilityFilter = "active";
     private bool isLoading => _comments == null && string.IsNullOrWhiteSpace(_loadError);
+    private int? _loadedPostId;
 
     protected override async Task OnParametersSetAsync()
-        => await LoadPageAsync();
+    {
+        if (_loadedPostId == PostId && _comments is not null)
+        {
+            return;
+        }
+
+        _loadedPostId = PostId;
+        _page = 1;
+        await LoadPageAsync();
+    }
 
     public async Task ReloadAsync()
     {
@@ -170,6 +186,6 @@
         await LoadPageAsync();
     }
 
-    private Task RevealViewerMarkAsync(CommentDto comment) =>
-        OnRevealViewerMark.HasDelegate ? OnRevealViewerMark.InvokeAsync(comment) : Task.CompletedTask;
+    private Task ToggleViewerMarkAsync(CommentDto comment) =>
+        OnToggleViewerMark.HasDelegate ? OnToggleViewerMark.InvokeAsync(comment) : Task.CompletedTask;
 }
