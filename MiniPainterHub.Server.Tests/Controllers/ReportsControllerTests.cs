@@ -105,6 +105,53 @@ public class ReportsControllerTests
         });
     }
 
+    [Fact]
+    public async Task GetQueue_WhenPaginationIsInvalid_ReturnsValidationProblemDetails()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateAuthenticatedClient("moderator", "moderator", "Moderator");
+
+        var response = await client.GetAsync("/api/reports?page=0&pageSize=-1");
+
+        await ProblemDetailsAssertions.AssertAsync(
+            response,
+            HttpStatusCode.BadRequest,
+            "Validation error",
+            expectedErrorKeys: new[] { "page", "pageSize" });
+    }
+
+    [Fact]
+    public async Task Resolve_WhenReportAlreadyResolved_ReturnsValidationProblemDetails()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await SeedUserAsync(factory, "reporter", "reporter", "Viewer");
+        await SeedReportAsync(factory, "reporter", ReportTargetTypes.User, "target-user", ReportStatuses.Reviewed);
+        using var client = factory.CreateAuthenticatedClient("moderator", "moderator", "Moderator");
+
+        var response = await client.PostAsJsonAsync("/api/reports/1/resolve", new ResolveReportRequestDto
+        {
+            Status = ReportStatuses.Actioned,
+            ResolutionNote = "Should not overwrite."
+        });
+
+        await ProblemDetailsAssertions.AssertAsync(
+            response,
+            HttpStatusCode.BadRequest,
+            "Validation error",
+            expectedErrorKeys: new[] { "status" });
+
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            var report = db.ContentReports.Single();
+            report.Status.Should().Be(ReportStatuses.Reviewed);
+            report.ReviewedByUserId.Should().BeNull();
+            report.ResolutionNote.Should().BeNull();
+            await Task.CompletedTask;
+        });
+    }
+
     private static Task SeedUserAsync(
         IntegrationTestApplicationFactory factory,
         string userId,
@@ -156,7 +203,8 @@ public class ReportsControllerTests
         IntegrationTestApplicationFactory factory,
         string reporterUserId,
         string targetType,
-        string targetId)
+        string targetId,
+        string status = ReportStatuses.Open)
     {
         return factory.ExecuteDbContextAsync(async db =>
         {
@@ -169,7 +217,7 @@ public class ReportsControllerTests
                 TargetType = targetType,
                 TargetId = targetId,
                 ReasonCode = ReportReasonCodes.Spam,
-                Status = ReportStatuses.Open
+                Status = status
             });
 
             await db.SaveChangesAsync();
