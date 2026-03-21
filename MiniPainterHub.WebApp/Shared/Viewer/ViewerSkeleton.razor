@@ -1,9 +1,25 @@
 <div class="viewer-skeleton" data-testid="viewer-skeleton" aria-hidden="true">
-    <div class="viewer-skeleton__hero"></div>
-    <div class="viewer-skeleton__rail">
-        @for (var index = 0; index < 4; index++)
-        {
-            <span class="viewer-skeleton__thumb"></span>
-        }
+    <span class="viewer-skeleton__glow viewer-skeleton__glow--primary"></span>
+    <span class="viewer-skeleton__glow viewer-skeleton__glow--secondary"></span>
+
+    <div class="viewer-skeleton__frame">
+        <div class="viewer-skeleton__header">
+            <div class="viewer-skeleton__status">
+                <span class="viewer-skeleton__status-dot"></span>
+                <span class="viewer-skeleton__status-text">Loading artwork</span>
+            </div>
+
+            <span class="viewer-skeleton__line viewer-skeleton__line--eyebrow"></span>
+            <span class="viewer-skeleton__line viewer-skeleton__line--title"></span>
+            <span class="viewer-skeleton__line viewer-skeleton__line--meta"></span>
+        </div>
+
+        <span class="viewer-skeleton__shape viewer-skeleton__shape--primary"></span>
+        <span class="viewer-skeleton__shape viewer-skeleton__shape--secondary"></span>
+
+        <div class="viewer-skeleton__footer">
+            <span class="viewer-skeleton__anchor"></span>
+            <span class="viewer-skeleton__line viewer-skeleton__line--caption"></span>
+        </div>
     </div>
 </div>

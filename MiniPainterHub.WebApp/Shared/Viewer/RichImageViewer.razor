@@ -124,12 +124,20 @@ else if (IsOpen)
                                                              @onload="@(() => OnImageLoaded(CurrentImage.Id))"
                                                              @onerror="@(() => OnImageFailed(CurrentImage.Id))" />
 
-                                                        <ViewerOverlay AuthorMarks="@VisibleAuthorMarks"
-                                                                       SelectedAuthorMarkId="@_selectedAuthorMarkId"
-                                                                       ActiveCommentMark="@VisibleCommentMark"
-                                                                       DraftCommentMark="@VisibleDraftCommentMark"
-                                                                       OnAuthorMarkSelected="HandleAuthorMarkSelectedAsync" />
+                                                        @if (CurrentImageReady)
+                                                        {
+                                                            <ViewerOverlay AuthorMarks="@VisibleAuthorMarks"
+                                                                           SelectedAuthorMarkId="@_selectedAuthorMarkId"
+                                                                           ActiveCommentMark="@VisibleCommentMark"
+                                                                           DraftCommentMark="@VisibleDraftCommentMark"
+                                                                           OnAuthorMarkSelected="HandleAuthorMarkSelectedAsync" />
+                                                        }
                                                     </div>
+
+                                                    @if (CurrentImageLoading)
+                                                    {
+                                                        <ViewerSkeleton />
+                                                    }
                                                 </div>
                                             }
 
@@ -144,11 +152,6 @@ else if (IsOpen)
                                                     <button type="button" class="btn btn-sm btn-outline-light" @onclick="RetryCurrentImageAsync">Retry</button>
                                                 </div>
                                             }
-                                            else if (CurrentImageLoading)
-                                            {
-                                                <ViewerSkeleton />
-                                            }
-
                                             @if (ShowComposer)
                                             {
                                                 <MarkComposer Title="@ComposerTitle"

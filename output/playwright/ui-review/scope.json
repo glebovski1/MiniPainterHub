@@ -1,12 +1,11 @@
 {
   "scope": "targeted",
   "changedFiles": [
-    "MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor",
-    "MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor.css",
     "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor",
     "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor.css",
     "MiniPainterHub.WebApp/Shared/Viewer/ThumbnailRail.razor.css",
-    "MiniPainterHub.WebApp/Shared/Viewer/ViewerStage.razor.css",
+    "MiniPainterHub.WebApp/Shared/Viewer/ViewerSkeleton.razor",
+    "MiniPainterHub.WebApp/Shared/Viewer/ViewerSkeleton.razor.css",
     "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor",
     "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor.css",
     "output/playwright/ui-review/08-posts-detail-rich-viewer-closed-desktop.png",
@@ -28,12 +27,11 @@
     "output/playwright/ui-review/scope.json"
   ],
   "uiChangedFiles": [
-    "MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor",
-    "MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor.css",
     "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor",
     "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor.css",
     "MiniPainterHub.WebApp/Shared/Viewer/ThumbnailRail.razor.css",
-    "MiniPainterHub.WebApp/Shared/Viewer/ViewerStage.razor.css",
+    "MiniPainterHub.WebApp/Shared/Viewer/ViewerSkeleton.razor",
+    "MiniPainterHub.WebApp/Shared/Viewer/ViewerSkeleton.razor.css",
     "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor",
     "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor.css"
   ],
@@ -42,10 +40,10 @@
     "posts"
   ],
   "matchedByGroup": {
-    "posts": "MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor"
+    "posts": "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor"
   },
   "reasons": [
-    "posts: MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor"
+    "posts: MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor"
   ],
   "reviewCommand": "npm --prefix e2e run test:ui-review"
 }
