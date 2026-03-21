@@ -779,12 +779,20 @@ input[type="file"].form-control::file-selector-button {
     content: "An error has occurred.";
 }
 
+.loading-progress-shell {
+    display: grid;
+    justify-items: center;
+    align-content: start;
+    gap: 1.25rem;
+    width: min(10rem, calc(100vw - 3rem));
+    margin: 20vh auto 0;
+}
+
 .loading-progress {
-    position: relative;
     display: block;
     width: 8rem;
     height: 8rem;
-    margin: 20vh auto 1rem auto;
+    margin: 0;
 }
 
 .loading-progress circle {
@@ -802,11 +810,11 @@ input[type="file"].form-control::file-selector-button {
 }
 
 .loading-progress-text {
-    position: absolute;
     text-align: center;
     font-weight: 800;
     color: var(--ink-900);
-    inset: calc(20vh + 3.25rem) 0 auto 0.2rem;
+    width: 100%;
+    margin: 0;
 }
 
 .loading-progress-text:after {
