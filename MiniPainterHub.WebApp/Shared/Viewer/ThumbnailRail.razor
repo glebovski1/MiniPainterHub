@@ -2,7 +2,7 @@
 
 @if (Images.Count > 1)
 {
-    <div class="viewer-thumbnails" data-testid="viewer-thumbnail-rail" role="tablist" aria-label="Image thumbnails">
+    <div class="viewer-thumbnails" role="tablist" aria-label="Image thumbnails">
         @for (var index = 0; index < Images.Count; index++)
         {
             var image = Images[index];
@@ -18,7 +18,11 @@
                 <img src="@GetThumbnailSource(image)"
                      alt=""
                      loading="lazy" />
-                <span class="viewer-thumbnail__index">@((index + 1).ToString("00"))</span>
+                <span class="viewer-thumbnail__scrim" aria-hidden="true"></span>
+                <span class="viewer-thumbnail__meta">
+                    <span class="viewer-thumbnail__index">@((index + 1).ToString("00"))</span>
+                    <span class="viewer-thumbnail__state">@(isActive ? "Current" : "Open")</span>
+                </span>
             </button>
         }
     </div>

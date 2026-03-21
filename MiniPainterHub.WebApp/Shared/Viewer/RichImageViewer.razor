@@ -65,18 +65,52 @@ else if (IsOpen)
 
                         @if (!_isControlRailCollapsed)
                         {
-                        <ThumbnailRail Images="@Viewer.Images"
-                                       ActiveImageId="@ResolvedImageId"
-                                       OnSelect="SelectImageAsync" />
+                            @if (Viewer.Images.Count > 1)
+                            {
+                                <section class="viewer-rail-section viewer-rail-section--thumbnails" data-testid="viewer-thumbnail-rail">
+                                    <div class="viewer-rail-section__head">
+                                        <div class="viewer-rail-section__identity">
+                                            <span class="viewer-rail-section__eyebrow">Sequence</span>
+                                            <strong class="viewer-rail-section__title">Jump between frames</strong>
+                                        </div>
+                                        <span class="viewer-rail-section__detail">@($"{Viewer.Images.Count} shots")</span>
+                                    </div>
 
-                        <div class="viewer-helptext" data-testid="viewer-shortcuts">
-                            <span><kbd>←</kbd><kbd>→</kbd> browse</span>
-                            <span class="viewer-helptext__nav-fallback"><kbd>Left</kbd><kbd>Right</kbd> navigate</span>
-                            <span><kbd>+</kbd><kbd>-</kbd> zoom</span>
-                            <span><kbd>0</kbd> fit</span>
-                            <span><kbd>F</kbd> fullscreen</span>
-                            <span><kbd>Esc</kbd> close</span>
-                        </div>
+                                    <ThumbnailRail Images="@Viewer.Images"
+                                                   ActiveImageId="@ResolvedImageId"
+                                                   OnSelect="SelectImageAsync" />
+
+                                    <section class="viewer-helptext" data-testid="viewer-shortcuts" aria-label="Viewer shortcuts">
+                                        <div class="viewer-helptext__head">
+                                            <span class="viewer-rail-section__eyebrow">Controls</span>
+                                            <span class="viewer-helptext__detail">Quick access</span>
+                                        </div>
+
+                                        <div class="viewer-helptext__grid">
+                                            <div class="viewer-helptext__item">
+                                                <span class="viewer-helptext__label">Browse</span>
+                                                <span class="viewer-helptext__keys"><kbd>Left</kbd><kbd>Right</kbd></span>
+                                            </div>
+                                            <div class="viewer-helptext__item">
+                                                <span class="viewer-helptext__label">Zoom</span>
+                                                <span class="viewer-helptext__keys"><kbd>+</kbd><kbd>-</kbd></span>
+                                            </div>
+                                            <div class="viewer-helptext__item">
+                                                <span class="viewer-helptext__label">Reset</span>
+                                                <span class="viewer-helptext__keys"><kbd>0</kbd></span>
+                                            </div>
+                                            <div class="viewer-helptext__item">
+                                                <span class="viewer-helptext__label">Fullscreen</span>
+                                                <span class="viewer-helptext__keys"><kbd>F</kbd></span>
+                                            </div>
+                                            <div class="viewer-helptext__item">
+                                                <span class="viewer-helptext__label">Close</span>
+                                                <span class="viewer-helptext__keys"><kbd>Esc</kbd></span>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </section>
+                            }
                         }
                     </aside>
 
