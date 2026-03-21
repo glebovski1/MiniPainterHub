@@ -33,44 +33,10 @@
 
     <div class="viewer-toolbar__body">
         <div class="viewer-toolbar__groups">
-            @if (HasSequence)
-            {
-                <section class="viewer-toolbar__section viewer-toolbar__section--navigation" data-testid="viewer-rail-navigation" aria-label="Image navigation">
-                    <div class="viewer-toolbar__section-head">
-                        <span class="viewer-toolbar__label">Frame</span>
-                        <span class="viewer-toolbar__section-detail">@CurrentPositionNarration</span>
-                    </div>
-
-                    <div class="viewer-toolbar__button-trio" role="group" aria-label="Image navigation">
-                        <button type="button"
-                                class="btn btn-outline-light"
-                                data-testid="viewer-prev"
-                                disabled="@(!CanGoPrevious)"
-                                @onclick="OnPrevious">
-                            <i class="bi bi-arrow-left" aria-hidden="true"></i>
-                            <span class="visually-hidden">Previous image</span>
-                        </button>
-
-                        <div class="viewer-toolbar__value-box" aria-live="polite">
-                            @CurrentPositionText
-                        </div>
-
-                        <button type="button"
-                                class="btn btn-outline-light"
-                                data-testid="viewer-next"
-                                disabled="@(!CanGoNext)"
-                                @onclick="OnNext">
-                            <i class="bi bi-arrow-right" aria-hidden="true"></i>
-                            <span class="visually-hidden">Next image</span>
-                        </button>
-                    </div>
-                </section>
-            }
-
             <section class="viewer-toolbar__section viewer-toolbar__section--zoom" data-testid="viewer-rail-zoom" aria-label="Zoom controls">
                 <div class="viewer-toolbar__section-head">
-                    <span class="viewer-toolbar__label">Inspect</span>
-                    <span class="viewer-toolbar__section-detail">@ScaleModeLabel</span>
+                    <span class="viewer-toolbar__section-title">Zoom</span>
+                    <span class="viewer-toolbar__section-detail">@ResolvedScaleModeDescription</span>
                 </div>
 
                 <div class="viewer-toolbar__button-trio viewer-toolbar__button-trio--accent" role="group" aria-label="Zoom controls">
@@ -111,14 +77,48 @@
                 </div>
             </section>
 
+            @if (HasSequence)
+            {
+                <section class="viewer-toolbar__section viewer-toolbar__section--navigation" data-testid="viewer-rail-navigation" aria-label="Image navigation">
+                    <div class="viewer-toolbar__section-head">
+                        <span class="viewer-toolbar__section-title">Browse</span>
+                        <span class="viewer-toolbar__section-detail">@CurrentPositionNarration</span>
+                    </div>
+
+                    <div class="viewer-toolbar__button-trio" role="group" aria-label="Image navigation">
+                        <button type="button"
+                                class="btn btn-outline-light"
+                                data-testid="viewer-prev"
+                                disabled="@(!CanGoPrevious)"
+                                @onclick="OnPrevious">
+                            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                            <span class="visually-hidden">Previous image</span>
+                        </button>
+
+                        <div class="viewer-toolbar__value-box" aria-live="polite">
+                            @CurrentPositionText
+                        </div>
+
+                        <button type="button"
+                                class="btn btn-outline-light"
+                                data-testid="viewer-next"
+                                disabled="@(!CanGoNext)"
+                                @onclick="OnNext">
+                            <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                            <span class="visually-hidden">Next image</span>
+                        </button>
+                    </div>
+                </section>
+            }
+
             @if (CanToggleFullscreen || CanAddAuthorMark)
             {
                 <section class="viewer-toolbar__section viewer-toolbar__section--utility" data-testid="viewer-rail-utility" aria-label="Viewer tools">
                     <div class="viewer-toolbar__section-head">
-                        <span class="viewer-toolbar__label">Tools</span>
+                        <span class="viewer-toolbar__section-title">Actions</span>
                         @if (IsAuthorPlacementMode)
                         {
-                            <span class="viewer-toolbar__section-detail">Marking</span>
+                            <span class="viewer-toolbar__section-detail">Placing note</span>
                         }
                     </div>
 
@@ -164,12 +164,15 @@
     private bool HasSequence => TotalCount > 1;
     private string CurrentPositionText => $"{Math.Max(CurrentIndex, 1)} / {Math.Max(TotalCount, 1)}";
     private string CurrentPositionNarration => $"{Math.Max(CurrentIndex, 1)} of {Math.Max(TotalCount, 1)}";
-    private string ScaleModeLabel => ScaleMode switch
-    {
-        ViewerScaleMode.Fill => "Fill",
-        ViewerScaleMode.ActualSize => "Actual",
-        _ => "Fit"
-    };
+    private string ResolvedScaleModeDescription =>
+        !string.IsNullOrWhiteSpace(ScaleModeDescription)
+            ? ScaleModeDescription
+            : ScaleMode switch
+            {
+                ViewerScaleMode.Fill => "Fill frame",
+                ViewerScaleMode.ActualSize => "Actual size",
+                _ => "Fit"
+            };
 
     [Parameter] public string Eyebrow { get; set; } = "Rich viewer";
     [Parameter] public string Title { get; set; } = "Image viewer";
@@ -178,6 +181,7 @@
     [Parameter] public int TotalCount { get; set; }
     [Parameter] public int ZoomPercent { get; set; }
     [Parameter] public ViewerScaleMode ScaleMode { get; set; }
+    [Parameter] public string? ScaleModeDescription { get; set; }
     [Parameter] public bool CanGoPrevious { get; set; }
     [Parameter] public bool CanGoNext { get; set; }
     [Parameter] public bool CanAddAuthorMark { get; set; }

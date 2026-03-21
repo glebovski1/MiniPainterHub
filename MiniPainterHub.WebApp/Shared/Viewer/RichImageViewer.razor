@@ -44,6 +44,7 @@ else if (IsOpen)
                                        TotalCount="@Viewer.Images.Count"
                                        ZoomPercent="@ZoomPercent"
                                        ScaleMode="@_transform.ScaleMode"
+                                       ScaleModeDescription="@ScaleModeDescription"
                                        CanGoPrevious="@(Viewer.Images.Count > 1)"
                                        CanGoNext="@(Viewer.Images.Count > 1)"
                                        CanAddAuthorMark="@Viewer.CanManageAuthorMarks"
@@ -65,8 +66,7 @@ else if (IsOpen)
                         {
                             <section class="viewer-rail-section viewer-rail-section--thumbnails" data-testid="viewer-thumbnail-rail">
                                 <div class="viewer-rail-section__head">
-                                    <span class="viewer-rail-section__eyebrow">Filmstrip</span>
-                                    <span class="viewer-rail-section__detail">@($"{Viewer.Images.Count} frames")</span>
+                                    <span class="viewer-rail-section__eyebrow">Frames</span>
                                 </div>
 
                                 <ThumbnailRail Images="@Viewer.Images"
@@ -305,6 +305,14 @@ else if (IsOpen)
                 ? "Tap the artwork to place the author note."
                 : null;
 
+    private string ScaleModeDescription =>
+        _transform.ScaleMode switch
+        {
+            ViewerScaleMode.Fill => "Fill frame",
+            ViewerScaleMode.ActualSize => "Actual size",
+            _ => GetFitModeDescription()
+        };
+
     private string StageClass =>
         $"viewer-stage-shell {(_transform.CanPan ? "is-pannable" : "is-slide-mode")} {(IsPlacementMode ? "is-placement-mode" : null)}";
 
@@ -312,6 +320,31 @@ else if (IsOpen)
 
     private string BackdropStyle =>
         $"background-image:url('{(CurrentImage?.PreviewUrl ?? CurrentImage?.ImageUrl ?? string.Empty)}');";
+
+    private string GetFitModeDescription()
+    {
+        if (CurrentImage is null)
+        {
+            return "Fit";
+        }
+
+        var imageRect = _transform.GetImageRect(CurrentImage);
+        const double tolerance = 4d;
+        var fitsWidth = Math.Abs(imageRect.Width - _transform.StageWidth) <= tolerance;
+        var fitsHeight = Math.Abs(imageRect.Height - _transform.StageHeight) <= tolerance;
+
+        if (fitsHeight && !fitsWidth)
+        {
+            return "Fit height";
+        }
+
+        if (fitsWidth && !fitsHeight)
+        {
+            return "Fit width";
+        }
+
+        return "Balanced fit";
+    }
 
     private string FitBoxStyle
     {

@@ -295,131 +295,142 @@
                 <div class="viewer-panel">
                     <div class="viewer-panel__tabs" role="tablist" aria-label="Viewer details" data-testid="viewer-side-tabs">
                         <button type="button"
+                                id="@ViewerInfoTabId"
                                 class="viewer-panel__tab @(_viewerSideTab == ViewerSideTab.Info ? "is-active" : null)"
+                                role="tab"
                                 data-testid="viewer-side-tab-info"
-                                aria-pressed="@(_viewerSideTab == ViewerSideTab.Info)"
+                                aria-selected="@(_viewerSideTab == ViewerSideTab.Info)"
+                                aria-controls="@ViewerInfoPanelId"
                                 @onclick='() => SetViewerSideTab(ViewerSideTab.Info)'>
                             Info
                         </button>
                         <button type="button"
+                                id="@ViewerCommentsTabId"
                                 class="viewer-panel__tab @(_viewerSideTab == ViewerSideTab.Comments ? "is-active" : null)"
+                                role="tab"
                                 data-testid="viewer-side-tab-comments"
-                                aria-pressed="@(_viewerSideTab == ViewerSideTab.Comments)"
+                                aria-selected="@(_viewerSideTab == ViewerSideTab.Comments)"
+                                aria-controls="@ViewerCommentsPanelId"
                                 @onclick='() => SetViewerSideTab(ViewerSideTab.Comments)'>
                             Comments
                         </button>
                     </div>
 
-                    @if (_viewerSideTab == ViewerSideTab.Info)
-                    {
-                        <div class="viewer-panel__content" data-testid="viewer-panel-info">
-                            <section class="viewer-panel-section viewer-panel-section--hero">
-                                <p class="viewer-panel__eyebrow">About this piece</p>
-                                <div class="viewer-panel__meta">
-                                    <NavLink class="viewer-panel__author" href="@($"/users/{post.CreatedById}")">By @post.AuthorName</NavLink>
-                                    <span>@post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</span>
-                                </div>
-                                <div class="viewer-panel__copy">@post.Content</div>
+                    <div id="@ViewerInfoPanelId"
+                         class="viewer-panel__content viewer-panel__content--info"
+                         data-testid="viewer-panel-info"
+                         role="tabpanel"
+                         aria-labelledby="@ViewerInfoTabId"
+                         hidden="@(_viewerSideTab != ViewerSideTab.Info)">
+                        <section class="viewer-panel-section viewer-panel-section--hero">
+                            <p class="viewer-panel__eyebrow">About this piece</p>
+                            <div class="viewer-panel__meta">
+                                <NavLink class="viewer-panel__author" href="@($"/users/{post.CreatedById}")">By @post.AuthorName</NavLink>
+                                <span>@post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</span>
+                            </div>
+                            <div class="viewer-panel__copy">@post.Content</div>
+                        </section>
+
+                        @if (post.Tags is { Count: > 0 })
+                        {
+                            <section class="viewer-panel-section">
+                                <p class="viewer-panel__eyebrow">Tags</p>
+                                <TagBadgeList Tags="post.Tags" TestId="viewer-panel-tags" />
                             </section>
+                        }
 
-                            @if (post.Tags is { Count: > 0 })
-                            {
-                                <section class="viewer-panel-section">
-                                    <p class="viewer-panel__eyebrow">Tags</p>
-                                    <TagBadgeList Tags="post.Tags" TestId="viewer-panel-tags" />
-                                </section>
-                            }
+                        <section class="viewer-panel-section" data-testid="viewer-mark-summary">
+                            <p class="viewer-panel__eyebrow">Mark system</p>
+                            <div class="viewer-panel__legend">
+                                <div class="viewer-panel__legend-item viewer-panel__legend-item--author">
+                                    <span class="viewer-panel__legend-dot"></span>
+                                    <span>Author notes stay visible and are styled as permanent annotations.</span>
+                                </div>
+                                <div class="viewer-panel__legend-item viewer-panel__legend-item--comment">
+                                    <span class="viewer-panel__legend-dot"></span>
+                                    <span>Comment anchors load on demand and only one is active at a time.</span>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
 
-                            <section class="viewer-panel-section" data-testid="viewer-mark-summary">
-                                <p class="viewer-panel__eyebrow">Mark system</p>
-                                <div class="viewer-panel__legend">
-                                    <div class="viewer-panel__legend-item viewer-panel__legend-item--author">
-                                        <span class="viewer-panel__legend-dot"></span>
-                                        <span>Author notes stay visible and are styled as permanent annotations.</span>
-                                    </div>
-                                    <div class="viewer-panel__legend-item viewer-panel__legend-item--comment">
-                                        <span class="viewer-panel__legend-dot"></span>
-                                        <span>Comment anchors load on demand and only one is active at a time.</span>
+                    <div id="@ViewerCommentsPanelId"
+                         class="viewer-panel__content viewer-panel__content--comments"
+                         data-testid="viewer-panel-comments"
+                         role="tabpanel"
+                         aria-labelledby="@ViewerCommentsTabId"
+                         hidden="@(_viewerSideTab != ViewerSideTab.Comments)">
+                        @if (_activeCommentId.HasValue)
+                        {
+                            <div class="post-details-aside__callout" data-testid="viewer-comment-state">
+                                <i class="bi bi-chat-square-text" aria-hidden="true"></i>
+                                <span>Comment #@_activeCommentId.Value is highlighted on image @GetImageNumber(_activeImageId).</span>
+                            </div>
+                        }
+                        else if (_draftCommentMark is not null)
+                        {
+                            <div class="post-details-aside__callout" data-testid="viewer-draft-state">
+                                <i class="bi bi-crosshair2" aria-hidden="true"></i>
+                                <span>Draft anchor placed on image @GetImageNumber(_draftCommentMark.PostImageId).</span>
+                            </div>
+                        }
+
+                        <section class="viewer-panel-section viewer-panel-section--comments">
+                            <div class="viewer-panel__comments-header">
+                                <div>
+                                    <p class="viewer-panel__eyebrow">Comments</p>
+                                    <h3 class="viewer-panel__title">Discuss the piece without leaving the viewer.</h3>
+                                </div>
+                            </div>
+
+                            <div class="viewer-panel__comments-thread" data-testid="viewer-comments-thread">
+                                <div class="viewer-panel__comments-scroll" data-testid="viewer-comments-scroll">
+                                    <div class="viewer-panel__comments-list">
+                                        <CommentList @ref="_viewerCommentList"
+                                                     PostId="@PostId"
+                                                     ActiveCommentId="@_activeCommentId"
+                                                     LoadingViewerMarkCommentId="@_markLoadingCommentId"
+                                                     ViewerMarkErrorCommentId="@_markErrorCommentId"
+                                                     ViewerMarkError="@_markError"
+                                                     OnToggleViewerMark="ToggleCommentMarkAsync"
+                                                     IsViewerPanel="true"
+                                                     ViewerActionLabel="Reveal anchor"
+                                                     ViewerActionActiveLabel="Hide anchor" />
                                     </div>
                                 </div>
-                            </section>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="viewer-panel__content viewer-panel__content--comments" data-testid="viewer-panel-comments">
-                            @if (_activeCommentId.HasValue)
-                            {
-                                <div class="post-details-aside__callout" data-testid="viewer-comment-state">
-                                    <i class="bi bi-chat-square-text" aria-hidden="true"></i>
-                                    <span>Comment #@_activeCommentId.Value is highlighted on image @GetImageNumber(_activeImageId).</span>
-                                </div>
-                            }
-                            else if (_draftCommentMark is not null)
-                            {
-                                <div class="post-details-aside__callout" data-testid="viewer-draft-state">
-                                    <i class="bi bi-crosshair2" aria-hidden="true"></i>
-                                    <span>Draft anchor placed on image @GetImageNumber(_draftCommentMark.PostImageId).</span>
-                                </div>
-                            }
 
-                            <section class="viewer-panel-section viewer-panel-section--comments">
-                                <div class="viewer-panel__comments-header">
-                                    <div>
-                                        <p class="viewer-panel__eyebrow">Comments</p>
-                                        <h3 class="viewer-panel__title">Discuss the piece without leaving the viewer.</h3>
-                                    </div>
-                                </div>
-
-                                <div class="viewer-panel__comments-thread" data-testid="viewer-comments-thread">
-                                    <div class="viewer-panel__comments-scroll" data-testid="viewer-comments-scroll">
-                                        <div class="viewer-panel__comments-list">
-                                            <CommentList @ref="_viewerCommentList"
-                                                         PostId="@PostId"
-                                                         ActiveCommentId="@_activeCommentId"
-                                                         LoadingViewerMarkCommentId="@_markLoadingCommentId"
-                                                         ViewerMarkErrorCommentId="@_markErrorCommentId"
-                                                         ViewerMarkError="@_markError"
-                                                         OnToggleViewerMark="ToggleCommentMarkAsync"
-                                                         IsViewerPanel="true"
-                                                         ViewerActionLabel="Reveal anchor"
-                                                         ViewerActionActiveLabel="Hide anchor" />
-                                        </div>
-                                    </div>
-
-                                    <div class="viewer-panel__composer-sticky" data-testid="viewer-composer-sticky">
-                                        <AuthorizeView>
-                                            <Authorized>
-                                                <div class="viewer-panel__composer" data-testid="viewer-comment-composer">
-                                                    <CommentForm PostId="@PostId"
-                                                                 CanAttachViewerMark="@(viewer.CanAttachCommentMark && viewer.Images.Count > 0)"
-                                                                 ViewerPlacementActive="@_isCommentPlacementMode"
-                                                                 DraftMark="@_draftCommentMark"
-                                                                 AttachedImageNumber="@GetImageNumber(_draftCommentMark?.PostImageId)"
-                                                                 OnRequestAttachMark="BeginCommentPlacementAsync"
-                                                                 OnRemoveAttachedMark="RemoveDraftCommentMarkAsync"
-                                                                 OnCommentAdded="HandleCommentAddedAsync"
-                                                                 IsViewerCompact="true" />
+                                <div class="viewer-panel__composer-sticky" data-testid="viewer-composer-sticky">
+                                    <AuthorizeView>
+                                        <Authorized>
+                                            <div class="viewer-panel__composer" data-testid="viewer-comment-composer">
+                                                <CommentForm PostId="@PostId"
+                                                             CanAttachViewerMark="@(viewer.CanAttachCommentMark && viewer.Images.Count > 0)"
+                                                             ViewerPlacementActive="@_isCommentPlacementMode"
+                                                             DraftMark="@_draftCommentMark"
+                                                             AttachedImageNumber="@GetImageNumber(_draftCommentMark?.PostImageId)"
+                                                             OnRequestAttachMark="BeginCommentPlacementAsync"
+                                                             OnRemoveAttachedMark="RemoveDraftCommentMarkAsync"
+                                                             OnCommentAdded="HandleCommentAddedAsync"
+                                                             IsViewerCompact="true" />
+                                            </div>
+                                        </Authorized>
+                                        <NotAuthorized>
+                                            <div class="status-panel status-panel--info viewer-panel__auth-callout" role="alert">
+                                                <div class="status-panel__icon"><i class="bi bi-info-circle" aria-hidden="true"></i></div>
+                                                <div>
+                                                    <div class="status-panel__title">Join the conversation</div>
+                                                    <p class="status-panel__text mb-0">
+                                                        Sign in to add anchored feedback.
+                                                        <button class="btn btn-link p-0 align-baseline" @onclick="GoToLogin">Login</button>
+                                                    </p>
                                                 </div>
-                                            </Authorized>
-                                            <NotAuthorized>
-                                                <div class="status-panel status-panel--info viewer-panel__auth-callout" role="alert">
-                                                    <div class="status-panel__icon"><i class="bi bi-info-circle" aria-hidden="true"></i></div>
-                                                    <div>
-                                                        <div class="status-panel__title">Join the conversation</div>
-                                                        <p class="status-panel__text mb-0">
-                                                            Sign in to add anchored feedback.
-                                                            <button class="btn btn-link p-0 align-baseline" @onclick="GoToLogin">Login</button>
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </NotAuthorized>
-                                        </AuthorizeView>
-                                    </div>
+                                            </div>
+                                        </NotAuthorized>
+                                    </AuthorizeView>
                                 </div>
-                            </section>
-                        </div>
-                    }
+                            </div>
+                        </section>
+                    </div>
                 </div>
             </SidePanelContent>
         </RichImageViewer>
@@ -451,6 +462,11 @@
     private string? _markError;
     private int _commentMarkRequestVersion;
     private readonly Dictionary<int, CommentMarkDto> _commentMarkCache = new();
+
+    private string ViewerInfoTabId => $"viewer-side-tab-info-{PostId}";
+    private string ViewerCommentsTabId => $"viewer-side-tab-comments-{PostId}";
+    private string ViewerInfoPanelId => $"viewer-side-panel-info-{PostId}";
+    private string ViewerCommentsPanelId => $"viewer-side-panel-comments-{PostId}";
 
     private PostViewerImageDto? CurrentPreviewImage =>
         viewer?.Images.FirstOrDefault(image => image.Id == ResolvedActiveImageId) ?? viewer?.Images.FirstOrDefault();

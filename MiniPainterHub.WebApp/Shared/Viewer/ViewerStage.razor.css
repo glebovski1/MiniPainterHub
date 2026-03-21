@@ -8,11 +8,10 @@
     min-height: 0;
     overflow: hidden;
     border-radius: calc(var(--radius-lg) + 0.2rem);
-    border: 1px solid rgba(255, 255, 255, 0.075);
+    border: 1px solid rgba(255, 255, 255, 0.045);
     background:
-        radial-gradient(circle at top, rgba(255, 255, 255, 0.045), transparent 38%),
-        linear-gradient(180deg, rgba(11, 16, 20, 0.94), rgba(8, 13, 17, 0.985)),
-        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.012), rgba(255, 255, 255, 0.012) 1rem, transparent 1rem, transparent 2rem);
+        radial-gradient(circle at top, rgba(255, 255, 255, 0.035), transparent 42%),
+        linear-gradient(180deg, rgba(10, 15, 18, 0.955), rgba(7, 11, 15, 0.99));
     outline: none;
 }
 
@@ -38,7 +37,8 @@
 
 ::deep .viewer-stage__viewport {
     position: relative;
-    display: block;
+    display: grid;
+    place-items: center;
     width: 100%;
     height: 100%;
     min-height: 0;
