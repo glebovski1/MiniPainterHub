@@ -12,6 +12,13 @@ This file adds repo-wide context minimization rules. Follow `AGENT.md` for the b
 - Give an explicit justification before expanding scope.
 - Treat repeated over-reading as behavior to avoid and correct by shrinking scope.
 
+## Complex UI Overlay
+
+- After scoping a complex UI/UX task, use `$ui-iteration-guard` at `.codex/skills/ui-iteration-guard`.
+- Do not do large UI changes in one pass; plan first and move layer by layer.
+- Visually validate each layer before continuing.
+- If a major regression appears, step back to the last stable layer before moving forward again.
+
 ## When To Use The Skill
 
 - UI work

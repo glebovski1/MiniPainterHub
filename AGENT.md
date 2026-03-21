@@ -53,6 +53,8 @@ Treat a task as a `UI Change` when it edits any of the following:
 - Shared UI primitives, shell, empty/loading/error states, or auth/panel presentation
 
 For any `UI Change`, also follow `docs/ai/UI_QUALITY_PLAYBOOK.md`.
+For complex UI/UX implementation, redesigns, layout refactors, responsive fixes, modal/viewer/panel/sidebar work, or visual bug fixing, also use `.codex/skills/ui-iteration-guard/SKILL.md`.
+Do not implement large UI changes in one pass. Plan the screen first, build in layers, visually validate each layer, and return to the last stable layer before continuing if a major regression appears.
 Playwright is the authoritative UI verification tool in this repository. Optional browser-use scripts are diagnostics only and do not replace the Playwright review workflow.
 For UI work, do not stop at defect reporting. If the Playwright review shows obvious in-scope defects, fix them and rerun the review loop until the reviewed scope is clean or a real blocker is documented.
 
