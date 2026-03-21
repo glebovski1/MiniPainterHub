@@ -4,6 +4,7 @@ Thanks for contributing. This guide keeps changes consistent and reviewable.
 
 ## 1) Docs to Read First
 
+- `AGENTS.md`
 - `AGENT.md`
 - `docs/ARCHITECTURE.md`
 - `docs/CODE_STYLE.md`
@@ -19,7 +20,7 @@ Thanks for contributing. This guide keeps changes consistent and reviewable.
 
 ## 3) Change Workflow
 
-1. Understand impacted flow and files.
+1. Resolve the minimal relevant file scope first. For non-trivial work, use `AGENTS.md` and `.agents/skills/context-scope-guard`.
 2. Make the smallest coherent change set.
 3. Add/update tests when behavior changes.
 4. Run required validation.
@@ -39,13 +40,16 @@ Backend-impacting changes:
 - Coverage gate baseline: `80%` line coverage for `MiniPainterHub.Server` (excluding EF migration generated files).
 
 UI-impacting changes:
-- Build solution
-- Run impacted page manually
-- Optional snapshot check:
+- `dotnet build MiniPainterHub.sln`
+- `npm --prefix e2e ci`
+- `npm --prefix e2e run ui-review:scope`
+- Run `npm --prefix e2e run test:ui-review` for localized review or `npm --prefix e2e run test:ui-review:full` for full sweeps
+- Review screenshots and manifest in `output/playwright/ui-review/`
+- Fix obvious in-scope UI defects and rerun the same review scope until it is clean or a real blocker is documented
+- `npm --prefix e2e run test:smoke`
+- Optional diagnostics:
   - `./.venv/Scripts/python tools/ui_snapshot_panel.py`
-- Optional behavioral smoke check:
-  - `npm --prefix e2e ci`
-  - `npm --prefix e2e run test:smoke`
+  - `python tools/ui_audit_browser_use.py`
 
 ## 5) Coding Expectations
 

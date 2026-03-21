@@ -1,6 +1,6 @@
 # AI Workflow Playbook
 
-Use this playbook with `AGENT.md` for task execution.
+Use this playbook with `AGENT.md` for task execution and `AGENTS.md` for repo-wide context minimization.
 
 ## 1) Mode Selection
 
@@ -68,6 +68,7 @@ UI remediation loop:
 ## 3) Retrieval Strategy
 
 When answering or implementing:
+- Resolve the minimal file scope first with `AGENTS.md` for non-trivial work.
 - Start from `AGENT.md`.
 - Pull details from the most specific matching doc.
 - If docs and code conflict, follow code and patch docs in same change.

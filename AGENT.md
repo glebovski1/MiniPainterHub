@@ -11,6 +11,7 @@ Extended execution examples: `docs/ai/WORKFLOW_PLAYBOOK.md`.
 
 When guidance conflicts, follow this order:
 - User request in the current task
+- `AGENTS.md`
 - `AGENT.md`
 - `docs/ARCHITECTURE.md`
 - `docs/CODE_STYLE.md`
@@ -37,7 +38,8 @@ Architecture baseline:
 ## 4) Default Execution Workflow
 
 For any non-trivial task, execute this sequence:
-1. Discover: read only files needed to understand impacted flow.
+0. Scope: use `AGENTS.md` and `.agents/skills/context-scope-guard` to identify the minimal allowed file set before broad discovery.
+1. Discover: read only files inside the current scope needed to understand impacted flow.
 2. Plan: identify minimal safe change set.
 3. Implement: keep edits focused and consistent with existing patterns.
 4. Verify: run required checks from Section 7.
@@ -84,6 +86,7 @@ Always:
 - Keep API contracts in `MiniPainterHub.Common` unless there is a strong reason not to.
 
 Never:
+- Broad-scan the repo before resolving a minimal file scope.
 - Move logic into UI/controller layer to bypass service rules.
 - Add raw SQL unless explicitly required.
 - Skip verification for risky changes.

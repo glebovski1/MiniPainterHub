@@ -1,9 +1,10 @@
-MiniPainterHub Project Structure (updated 2026-03-04)
+MiniPainterHub Project Structure (updated 2026-03-20)
 
 This map focuses on source and workflow-critical paths. Build output folders (bin/obj) are intentionally omitted.
 
 MiniPainterHub/
 |-- AGENT.md
+|-- AGENTS.md
 |-- ANALYSIS.md
 |-- README.md
 |-- MiniPainterHub.sln
@@ -20,6 +21,7 @@ MiniPainterHub/
 |       |-- decisions/
 |-- .agents/
 |   |-- skills/
+|       |-- context-scope-guard/
 |-- MiniPainterHub.Common/
 |   |-- Auth/
 |   |-- DTOs/

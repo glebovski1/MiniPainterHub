@@ -1,0 +1,4 @@
+interface:
+  display_name: "Context Scope Guard"
+  short_description: "Task-first minimal file scope for MiniPainterHub"
+  default_prompt: "Use $context-scope-guard to identify the minimal relevant file scope for this MiniPainterHub task before planning or implementation."
