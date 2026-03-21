@@ -97,8 +97,7 @@ async function settle(page, milliseconds = 450) {
   await page.waitForTimeout(milliseconds);
 }
 
-async function waitForViewerLayout(page, options = {}) {
-  const { allowCompactRail = false } = options;
+async function waitForViewerLayout(page) {
   await page.waitForFunction(() => {
     const image = document.querySelector("[data-testid='viewer-stage-image']");
     const stage = document.querySelector("[data-testid='viewer-stage']");
@@ -123,9 +122,7 @@ async function waitForViewerLayout(page, options = {}) {
       && panelRect.width > 220;
   });
 
-  if (!allowCompactRail) {
-    await expect.poll(() => page.getByTestId("viewer-control-rail").boundingBox().then((box) => (box ? box.width : 0))).toBeGreaterThan(90);
-  }
+  await expect.poll(() => page.getByTestId("viewer-control-rail").boundingBox().then((box) => (box ? box.width : 0))).toBeGreaterThan(90);
 }
 
 async function getViewerFitRatio(page) {
@@ -614,18 +611,6 @@ const scenarioGroups = {
       stateTags: ["posts", "desktop", "viewer-open", "fill"]
     });
 
-    await clickReliably(page.getByTestId("viewer-rail-toggle"));
-    await waitForViewerLayout(page, { allowCompactRail: true });
-    await settle(page, 250);
-    await capture(page, manifest, {
-      name: "posts-detail-rich-viewer-open-collapsed-rail",
-      group: "posts",
-      viewport: VIEWPORTS.desktop,
-      authState: "seed-user",
-      fullPage: false,
-      stateTags: ["posts", "desktop", "viewer-open", "compact-rail"]
-    });
-
     await clickReliably(page.getByTestId("viewer-side-tab-comments"));
     await settle(page, 250);
     await capture(page, manifest, {
@@ -637,7 +622,6 @@ const scenarioGroups = {
       stateTags: ["posts", "desktop", "viewer-open", "comments-tab"]
     });
 
-    await clickReliably(page.getByTestId("viewer-rail-toggle"));
     await clickReliably(page.getByTestId("viewer-reset"));
     await clickReliably(page.getByTestId("viewer-side-tab-info"));
     await waitForViewerLayout(page);

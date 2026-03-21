@@ -336,16 +336,8 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
 
   const expandedRailBox = await controlRail.boundingBox();
   const expandedStageBox = await stage.boundingBox();
-  await page.getByTestId("viewer-rail-toggle").click();
-  await expect(page.getByTestId("viewer-thumbnail-rail")).toHaveCount(0);
-  await expect.poll(async () => {
-    const box = await stage.boundingBox();
-    return box ? box.width : 0;
-  }).toBeGreaterThan(expandedStageBox.width + 20);
-  const compactRailBox = await controlRail.boundingBox();
-  const collapsedStageBox = await stage.boundingBox();
-  expect(compactRailBox.width).toBeLessThan(expandedRailBox.width);
-  expect(collapsedStageBox.width).toBeGreaterThan(expandedStageBox.width + 20);
+  expect(expandedRailBox.width).toBeLessThan(panelBox.width * 0.7);
+  expect(expandedRailBox.height).toBeGreaterThan(expandedStageBox.height - 8);
 
   await page.getByTestId("viewer-side-tab-comments").click();
   await expect(page.getByTestId("viewer-side-tab-comments")).toHaveClass(/is-active/);

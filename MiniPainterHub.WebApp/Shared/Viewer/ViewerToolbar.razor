@@ -1,157 +1,176 @@
-<header class="viewer-toolbar @(IsCompact ? "is-compact" : null)">
+<header class="viewer-toolbar @(HasSequence ? "has-sequence" : "is-single-frame")">
     <div class="viewer-toolbar__top" data-testid="viewer-rail-header">
         <div class="viewer-toolbar__identity">
             <div class="viewer-toolbar__eyebrow">@Eyebrow</div>
             <div class="viewer-toolbar__title" id="@TitleId">@Title</div>
         </div>
 
-        <div class="viewer-toolbar__top-actions">
-            <button type="button"
-                    class="btn btn-sm btn-outline-light viewer-toolbar__icon-action viewer-toolbar__toggle"
-                    data-testid="viewer-rail-toggle"
-                    aria-expanded="@(!IsCompact)"
-                    aria-label="@(IsCompact ? "Expand viewer tools" : "Collapse viewer tools")"
-                    title="@(IsCompact ? "Expand viewer tools" : "Collapse viewer tools")"
-                    @onclick="OnToggleRail">
-                <i class="bi @(IsCompact ? "bi-layout-sidebar-inset-reverse" : "bi-layout-sidebar-inset")" aria-hidden="true"></i>
-                <span class="visually-hidden">@(IsCompact ? "Expand viewer tools" : "Collapse viewer tools")</span>
-            </button>
-
-            <button type="button"
-                    class="btn btn-sm btn-outline-light viewer-toolbar__icon-action viewer-toolbar__close"
-                    data-testid="viewer-close"
-                    aria-label="Close viewer"
-                    title="Close viewer"
-                    @onclick="OnClose">
-                <i class="bi bi-x-lg" aria-hidden="true"></i>
-                <span class="visually-hidden">Close viewer</span>
-            </button>
-        </div>
+        <button type="button"
+                class="btn btn-sm btn-outline-light viewer-toolbar__icon-action viewer-toolbar__close"
+                data-testid="viewer-close"
+                aria-label="Close viewer"
+                title="Close viewer"
+                @onclick="OnClose">
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+            <span class="visually-hidden">Close viewer</span>
+        </button>
     </div>
 
     <div class="viewer-toolbar__status" data-testid="viewer-rail-status">
-        <div class="viewer-toolbar__status-pill">
-            <span class="viewer-toolbar__status-label">Image</span>
-            <strong>@Math.Max(CurrentIndex, 1) / @Math.Max(TotalCount, 1)</strong>
-        </div>
-        <div class="viewer-toolbar__status-pill">
+        @if (HasSequence)
+        {
+            <div class="viewer-toolbar__status-pill">
+                <span class="viewer-toolbar__status-label">Frame</span>
+                <strong>@CurrentPositionText</strong>
+            </div>
+        }
+
+        <div class="viewer-toolbar__status-pill viewer-toolbar__status-pill--accent">
             <span class="viewer-toolbar__status-label">Zoom</span>
             <strong>@ZoomPercent%</strong>
         </div>
     </div>
 
-    <div class="viewer-toolbar__groups">
-        <section class="viewer-toolbar__section" data-testid="viewer-rail-navigation" aria-label="Image navigation">
-            <div class="viewer-toolbar__section-head">
-                <span class="viewer-toolbar__label">Browse</span>
-                <span class="viewer-toolbar__section-detail">@Math.Max(CurrentIndex, 1) of @Math.Max(TotalCount, 1)</span>
-            </div>
+    <div class="viewer-toolbar__body">
+        <div class="viewer-toolbar__groups">
+            @if (HasSequence)
+            {
+                <section class="viewer-toolbar__section viewer-toolbar__section--navigation" data-testid="viewer-rail-navigation" aria-label="Image navigation">
+                    <div class="viewer-toolbar__section-head">
+                        <span class="viewer-toolbar__label">Frame</span>
+                        <span class="viewer-toolbar__section-detail">@CurrentPositionNarration</span>
+                    </div>
 
-            <div class="viewer-toolbar__button-trio" role="group" aria-label="Image navigation">
-                <button type="button"
-                        class="btn btn-outline-light"
-                        data-testid="viewer-prev"
-                        disabled="@(!CanGoPrevious)"
-                        @onclick="OnPrevious">
-                    <i class="bi bi-arrow-left" aria-hidden="true"></i>
-                    <span class="visually-hidden">Previous image</span>
-                </button>
+                    <div class="viewer-toolbar__button-trio" role="group" aria-label="Image navigation">
+                        <button type="button"
+                                class="btn btn-outline-light"
+                                data-testid="viewer-prev"
+                                disabled="@(!CanGoPrevious)"
+                                @onclick="OnPrevious">
+                            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                            <span class="visually-hidden">Previous image</span>
+                        </button>
 
-                <div class="viewer-toolbar__value-box" aria-live="polite">
-                    @Math.Max(CurrentIndex, 1) / @Math.Max(TotalCount, 1)
-                </div>
+                        <div class="viewer-toolbar__value-box" aria-live="polite">
+                            @CurrentPositionText
+                        </div>
 
-                <button type="button"
-                        class="btn btn-outline-light"
-                        data-testid="viewer-next"
-                        disabled="@(!CanGoNext)"
-                        @onclick="OnNext">
-                    <i class="bi bi-arrow-right" aria-hidden="true"></i>
-                    <span class="visually-hidden">Next image</span>
-                </button>
-            </div>
-        </section>
+                        <button type="button"
+                                class="btn btn-outline-light"
+                                data-testid="viewer-next"
+                                disabled="@(!CanGoNext)"
+                                @onclick="OnNext">
+                            <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                            <span class="visually-hidden">Next image</span>
+                        </button>
+                    </div>
+                </section>
+            }
 
-        <section class="viewer-toolbar__section" data-testid="viewer-rail-zoom" aria-label="Zoom controls">
-            <div class="viewer-toolbar__section-head">
-                <span class="viewer-toolbar__label">Zoom</span>
-                <span class="viewer-toolbar__section-detail">@ZoomPercent%</span>
-            </div>
-
-            <div class="viewer-toolbar__button-trio" role="group" aria-label="Zoom controls">
-                <button type="button" class="btn btn-outline-light" data-testid="viewer-zoom-out" @onclick="OnZoomOut">
-                    <i class="bi bi-dash-lg" aria-hidden="true"></i>
-                    <span class="visually-hidden">Zoom out</span>
-                </button>
-
-                <div class="viewer-toolbar__value-box viewer-toolbar__value-box--accent" aria-live="polite">
-                    @ZoomPercent%
-                </div>
-
-                <button type="button" class="btn btn-outline-light" data-testid="viewer-zoom-in" @onclick="OnZoomIn">
-                    <i class="bi bi-plus-lg" aria-hidden="true"></i>
-                    <span class="visually-hidden">Zoom in</span>
-                </button>
-            </div>
-
-            <div class="viewer-toolbar__mode-buttons" role="group" aria-label="View modes">
-                <button type="button"
-                        class="btn @(ScaleMode == ViewerScaleMode.Fit ? "btn-light viewer-toolbar__mode is-active" : "btn-outline-light viewer-toolbar__mode")"
-                        data-testid="viewer-reset"
-                        @onclick="OnSetFitMode">
-                    Fit
-                </button>
-                <button type="button"
-                        class="btn @(ScaleMode == ViewerScaleMode.Fill ? "btn-light viewer-toolbar__mode is-active" : "btn-outline-light viewer-toolbar__mode")"
-                        data-testid="viewer-view-fill"
-                        @onclick="OnSetFillMode">
-                    Fill
-                </button>
-                <button type="button"
-                        class="btn @(ScaleMode == ViewerScaleMode.ActualSize ? "btn-light viewer-toolbar__mode is-active" : "btn-outline-light viewer-toolbar__mode")"
-                        data-testid="viewer-view-actual"
-                        @onclick="OnSetActualSizeMode">
-                    100%
-                </button>
-            </div>
-        </section>
-
-        @if (CanToggleFullscreen || CanAddAuthorMark)
-        {
-            <section class="viewer-toolbar__section viewer-toolbar__section--utility" data-testid="viewer-rail-utility" aria-label="Viewer tools">
+            <section class="viewer-toolbar__section viewer-toolbar__section--zoom" data-testid="viewer-rail-zoom" aria-label="Zoom controls">
                 <div class="viewer-toolbar__section-head">
-                    <span class="viewer-toolbar__label">Tools</span>
+                    <span class="viewer-toolbar__label">Inspect</span>
+                    <span class="viewer-toolbar__section-detail">@ScaleModeLabel</span>
                 </div>
 
-                <div class="viewer-toolbar__utility-buttons">
-                    @if (CanToggleFullscreen)
-                    {
-                        <button type="button"
-                                class="btn btn-outline-light viewer-toolbar__wide-action"
-                                data-testid="viewer-fullscreen"
-                                @onclick="OnToggleFullscreen">
-                            <i class="bi @(IsFullscreen ? "bi-fullscreen-exit" : "bi-arrows-fullscreen")" aria-hidden="true"></i>
-                            <span>@(IsFullscreen ? "Exit fullscreen" : "Fullscreen")</span>
-                        </button>
-                    }
+                <div class="viewer-toolbar__button-trio viewer-toolbar__button-trio--accent" role="group" aria-label="Zoom controls">
+                    <button type="button" class="btn btn-outline-light" data-testid="viewer-zoom-out" @onclick="OnZoomOut">
+                        <i class="bi bi-dash-lg" aria-hidden="true"></i>
+                        <span class="visually-hidden">Zoom out</span>
+                    </button>
 
-                    @if (CanAddAuthorMark)
-                    {
-                        <button type="button"
-                                class="btn @(IsAuthorPlacementMode ? "btn-warning" : "btn-outline-light") viewer-toolbar__wide-action"
-                                data-testid="viewer-add-note"
-                                @onclick="OnToggleAuthorPlacement">
-                            <i class="bi bi-pin-angle" aria-hidden="true"></i>
-                            <span>@(IsAuthorPlacementMode ? "Cancel note" : "Add note")</span>
-                        </button>
-                    }
+                    <div class="viewer-toolbar__value-box viewer-toolbar__value-box--accent" aria-live="polite">
+                        @ZoomPercent%
+                    </div>
+
+                    <button type="button" class="btn btn-outline-light" data-testid="viewer-zoom-in" @onclick="OnZoomIn">
+                        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                        <span class="visually-hidden">Zoom in</span>
+                    </button>
+                </div>
+
+                <div class="viewer-toolbar__mode-buttons" role="group" aria-label="View modes">
+                    <button type="button"
+                            class="btn @(ScaleMode == ViewerScaleMode.Fit ? "btn-light viewer-toolbar__mode is-active" : "btn-outline-light viewer-toolbar__mode")"
+                            data-testid="viewer-reset"
+                            @onclick="OnSetFitMode">
+                        Fit
+                    </button>
+                    <button type="button"
+                            class="btn @(ScaleMode == ViewerScaleMode.Fill ? "btn-light viewer-toolbar__mode is-active" : "btn-outline-light viewer-toolbar__mode")"
+                            data-testid="viewer-view-fill"
+                            @onclick="OnSetFillMode">
+                        Fill
+                    </button>
+                    <button type="button"
+                            class="btn @(ScaleMode == ViewerScaleMode.ActualSize ? "btn-light viewer-toolbar__mode is-active" : "btn-outline-light viewer-toolbar__mode")"
+                            data-testid="viewer-view-actual"
+                            @onclick="OnSetActualSizeMode">
+                        100%
+                    </button>
                 </div>
             </section>
+
+            @if (CanToggleFullscreen || CanAddAuthorMark)
+            {
+                <section class="viewer-toolbar__section viewer-toolbar__section--utility" data-testid="viewer-rail-utility" aria-label="Viewer tools">
+                    <div class="viewer-toolbar__section-head">
+                        <span class="viewer-toolbar__label">Tools</span>
+                        @if (IsAuthorPlacementMode)
+                        {
+                            <span class="viewer-toolbar__section-detail">Marking</span>
+                        }
+                    </div>
+
+                    <div class="viewer-toolbar__utility-buttons">
+                        @if (CanToggleFullscreen)
+                        {
+                            <button type="button"
+                                    class="btn btn-outline-light viewer-toolbar__wide-action"
+                                    data-testid="viewer-fullscreen"
+                                    @onclick="OnToggleFullscreen">
+                                <i class="bi @(IsFullscreen ? "bi-fullscreen-exit" : "bi-arrows-fullscreen")" aria-hidden="true"></i>
+                                <span>@(IsFullscreen ? "Window" : "Fullscreen")</span>
+                            </button>
+                        }
+
+                        @if (CanAddAuthorMark)
+                        {
+                            <button type="button"
+                                    class="btn @(IsAuthorPlacementMode ? "btn-warning" : "btn-outline-light") viewer-toolbar__wide-action"
+                                    data-testid="viewer-add-note"
+                                    @onclick="OnToggleAuthorPlacement">
+                                <i class="bi bi-pin-angle" aria-hidden="true"></i>
+                                <span>@(IsAuthorPlacementMode ? "Cancel note" : "Add note")</span>
+                            </button>
+                        }
+                    </div>
+                </section>
+            }
+        </div>
+
+        @if (!HasSequence)
+        {
+            <div class="viewer-toolbar__footer" data-testid="viewer-rail-hints" aria-label="Viewer hints">
+                <span><kbd>Wheel</kbd> zoom</span>
+                <span><kbd>Drag</kbd> pan</span>
+                <span><kbd>Esc</kbd> close</span>
+            </div>
         }
     </div>
 </header>
 
 @code {
+    private bool HasSequence => TotalCount > 1;
+    private string CurrentPositionText => $"{Math.Max(CurrentIndex, 1)} / {Math.Max(TotalCount, 1)}";
+    private string CurrentPositionNarration => $"{Math.Max(CurrentIndex, 1)} of {Math.Max(TotalCount, 1)}";
+    private string ScaleModeLabel => ScaleMode switch
+    {
+        ViewerScaleMode.Fill => "Fill",
+        ViewerScaleMode.ActualSize => "Actual",
+        _ => "Fit"
+    };
+
     [Parameter] public string Eyebrow { get; set; } = "Rich viewer";
     [Parameter] public string Title { get; set; } = "Image viewer";
     [Parameter] public string? TitleId { get; set; }
@@ -159,7 +178,6 @@
     [Parameter] public int TotalCount { get; set; }
     [Parameter] public int ZoomPercent { get; set; }
     [Parameter] public ViewerScaleMode ScaleMode { get; set; }
-    [Parameter] public bool IsCompact { get; set; }
     [Parameter] public bool CanGoPrevious { get; set; }
     [Parameter] public bool CanGoNext { get; set; }
     [Parameter] public bool CanAddAuthorMark { get; set; }
@@ -175,6 +193,5 @@
     [Parameter] public EventCallback OnSetActualSizeMode { get; set; }
     [Parameter] public EventCallback OnToggleFullscreen { get; set; }
     [Parameter] public EventCallback OnToggleAuthorPlacement { get; set; }
-    [Parameter] public EventCallback OnToggleRail { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
 }

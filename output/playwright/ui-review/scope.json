@@ -1,10 +1,22 @@
 {
   "scope": "targeted",
   "changedFiles": [
+    "MiniPainterHub.WebApp.Tests/Shared/Viewer/RichImageViewerTests.cs",
+    "MiniPainterHub.WebApp.Tests/Shared/Viewer/ViewerToolbarTests.cs",
     "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor",
     "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor.css",
-    "MiniPainterHub.WebApp/Shared/Viewer/ThumbnailRail.razor",
     "MiniPainterHub.WebApp/Shared/Viewer/ThumbnailRail.razor.css",
+    "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor",
+    "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor.css",
+    "e2e/tests/helpers/ui-review.js",
+    "e2e/tests/smoke.spec.js",
+    "output/playwright/ui-review/01-shell-home-panel-open-desktop.png",
+    "output/playwright/ui-review/02-shell-home-panel-collapsed-desktop.png",
+    "output/playwright/ui-review/03-shell-home-mobile-panel-open-mobile.png",
+    "output/playwright/ui-review/04-posts-new-auth-gated-desktop.png",
+    "output/playwright/ui-review/05-posts-new-composer-desktop.png",
+    "output/playwright/ui-review/06-posts-new-validation-desktop.png",
+    "output/playwright/ui-review/07-posts-detail-seeded-desktop.png",
     "output/playwright/ui-review/08-posts-detail-rich-viewer-closed-desktop.png",
     "output/playwright/ui-review/09-posts-detail-rich-viewer-open-portrait-desktop.png",
     "output/playwright/ui-review/10-posts-detail-rich-viewer-open-fill-desktop.png",
@@ -28,8 +40,10 @@
   "uiChangedFiles": [
     "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor",
     "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor.css",
-    "MiniPainterHub.WebApp/Shared/Viewer/ThumbnailRail.razor",
-    "MiniPainterHub.WebApp/Shared/Viewer/ThumbnailRail.razor.css"
+    "MiniPainterHub.WebApp/Shared/Viewer/ThumbnailRail.razor.css",
+    "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor",
+    "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor.css",
+    "e2e/tests/helpers/ui-review.js"
   ],
   "groups": [
     "shell",

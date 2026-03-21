@@ -39,4 +39,25 @@ public class ViewerToolbarTests : TestContext
         cut.Find("[data-testid='viewer-add-note']").Should().NotBeNull();
         cut.Find("[data-testid='viewer-close']").Should().NotBeNull();
     }
+
+    [Fact]
+    public void SingleFrameToolbarDropsBrowseSectionAndShowsFooterHints()
+    {
+        var cut = RenderComponent<ViewerToolbar>(parameters => parameters
+            .Add(component => component.Eyebrow, "Rich viewer")
+            .Add(component => component.Title, "Moonlit skin experiment")
+            .Add(component => component.TitleId, "viewer-title")
+            .Add(component => component.CurrentIndex, 1)
+            .Add(component => component.TotalCount, 1)
+            .Add(component => component.ZoomPercent, 110)
+            .Add(component => component.ScaleMode, ViewerScaleMode.Fit)
+            .Add(component => component.CanGoPrevious, false)
+            .Add(component => component.CanGoNext, false)
+            .Add(component => component.CanToggleFullscreen, true));
+
+        cut.FindAll("[data-testid='viewer-rail-navigation']").Should().BeEmpty();
+        cut.Find("[data-testid='viewer-rail-status']").TextContent.Should().NotContain("Frame");
+        cut.Find("[data-testid='viewer-rail-hints']").TextContent.Should().Contain("zoom");
+        cut.Find("[data-testid='viewer-fullscreen']").Should().NotBeNull();
+    }
 }

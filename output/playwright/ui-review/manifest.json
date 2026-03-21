@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-21T01:21:00.723Z",
+  "generatedAt": "2026-03-21T15:12:35.215Z",
   "scope": "targeted",
   "reviewCommand": "npm --prefix e2e run test:ui-review",
   "groups": [
@@ -149,20 +149,6 @@
       "relativeFile": "output/playwright/ui-review/10-posts-detail-rich-viewer-open-fill-desktop.png"
     },
     {
-      "name": "posts-detail-rich-viewer-open-collapsed-rail",
-      "group": "posts",
-      "url": "http://127.0.0.1:5176/posts/3",
-      "viewport": "desktop",
-      "authState": "seed-user",
-      "stateTags": [
-        "posts",
-        "desktop",
-        "viewer-open",
-        "compact-rail"
-      ],
-      "relativeFile": "output/playwright/ui-review/11-posts-detail-rich-viewer-open-collapsed-rail-desktop.png"
-    },
-    {
       "name": "posts-detail-rich-viewer-comments-tab",
       "group": "posts",
       "url": "http://127.0.0.1:5176/posts/3",
@@ -174,7 +160,7 @@
         "viewer-open",
         "comments-tab"
       ],
-      "relativeFile": "output/playwright/ui-review/12-posts-detail-rich-viewer-comments-tab-desktop.png"
+      "relativeFile": "output/playwright/ui-review/11-posts-detail-rich-viewer-comments-tab-desktop.png"
     },
     {
       "name": "posts-detail-rich-viewer-open-square",
@@ -188,7 +174,7 @@
         "viewer-open",
         "square"
       ],
-      "relativeFile": "output/playwright/ui-review/13-posts-detail-rich-viewer-open-square-desktop.png"
+      "relativeFile": "output/playwright/ui-review/12-posts-detail-rich-viewer-open-square-desktop.png"
     },
     {
       "name": "posts-detail-rich-viewer-open-panorama",
@@ -202,7 +188,7 @@
         "viewer-open",
         "panorama"
       ],
-      "relativeFile": "output/playwright/ui-review/14-posts-detail-rich-viewer-open-panorama-desktop.png"
+      "relativeFile": "output/playwright/ui-review/13-posts-detail-rich-viewer-open-panorama-desktop.png"
     },
     {
       "name": "posts-detail-rich-viewer-active-comment",
@@ -216,7 +202,7 @@
         "viewer-open",
         "active-comment-mark"
       ],
-      "relativeFile": "output/playwright/ui-review/15-posts-detail-rich-viewer-active-comment-desktop.png"
+      "relativeFile": "output/playwright/ui-review/14-posts-detail-rich-viewer-active-comment-desktop.png"
     },
     {
       "name": "posts-detail-rich-viewer-zoomed-pan",
@@ -231,7 +217,7 @@
         "zoomed",
         "panned"
       ],
-      "relativeFile": "output/playwright/ui-review/16-posts-detail-rich-viewer-zoomed-pan-desktop.png"
+      "relativeFile": "output/playwright/ui-review/15-posts-detail-rich-viewer-zoomed-pan-desktop.png"
     },
     {
       "name": "posts-detail-rich-viewer-author-note-composer",
@@ -246,7 +232,7 @@
         "author-note",
         "composer"
       ],
-      "relativeFile": "output/playwright/ui-review/17-posts-detail-rich-viewer-author-note-composer-desktop.png"
+      "relativeFile": "output/playwright/ui-review/16-posts-detail-rich-viewer-author-note-composer-desktop.png"
     },
     {
       "name": "posts-detail-rich-viewer-loading",
@@ -260,7 +246,7 @@
         "viewer-open",
         "loading"
       ],
-      "relativeFile": "output/playwright/ui-review/18-posts-detail-rich-viewer-loading-desktop.png"
+      "relativeFile": "output/playwright/ui-review/17-posts-detail-rich-viewer-loading-desktop.png"
     },
     {
       "name": "posts-detail-rich-viewer-error",
@@ -274,7 +260,7 @@
         "viewer-open",
         "error"
       ],
-      "relativeFile": "output/playwright/ui-review/19-posts-detail-rich-viewer-error-desktop.png"
+      "relativeFile": "output/playwright/ui-review/18-posts-detail-rich-viewer-error-desktop.png"
     },
     {
       "name": "posts-detail-rich-viewer-closed-mobile",
@@ -289,7 +275,7 @@
         "viewer-closed",
         "populated"
       ],
-      "relativeFile": "output/playwright/ui-review/20-posts-detail-rich-viewer-closed-mobile-mobile.png"
+      "relativeFile": "output/playwright/ui-review/19-posts-detail-rich-viewer-closed-mobile-mobile.png"
     },
     {
       "name": "posts-detail-rich-viewer-open-mobile-portrait",
@@ -303,7 +289,7 @@
         "viewer-open",
         "portrait"
       ],
-      "relativeFile": "output/playwright/ui-review/21-posts-detail-rich-viewer-open-mobile-portrait-mobile.png"
+      "relativeFile": "output/playwright/ui-review/20-posts-detail-rich-viewer-open-mobile-portrait-mobile.png"
     },
     {
       "name": "posts-detail-rich-viewer-open-mobile-panorama",
@@ -317,7 +303,7 @@
         "viewer-open",
         "panorama"
       ],
-      "relativeFile": "output/playwright/ui-review/22-posts-detail-rich-viewer-open-mobile-panorama-mobile.png"
+      "relativeFile": "output/playwright/ui-review/21-posts-detail-rich-viewer-open-mobile-panorama-mobile.png"
     },
     {
       "name": "posts-mine-desktop",
@@ -331,10 +317,10 @@
         "mine",
         "populated"
       ],
-      "relativeFile": "output/playwright/ui-review/23-posts-mine-desktop-desktop.png"
+      "relativeFile": "output/playwright/ui-review/22-posts-mine-desktop-desktop.png"
     }
   ],
   "failures": [],
-  "completedAt": "2026-03-21T01:22:06.707Z",
-  "captureCount": 23
+  "completedAt": "2026-03-21T15:13:40.448Z",
+  "captureCount": 22
 }

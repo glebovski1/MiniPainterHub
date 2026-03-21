@@ -36,7 +36,7 @@ else if (IsOpen)
 
             <div class="viewer-shell__content">
                 <div class="viewer-shell__body">
-                    <aside class="viewer-shell__control-rail @(_isControlRailCollapsed ? "is-collapsed" : null)" data-testid="viewer-control-rail">
+                    <aside class="viewer-shell__control-rail @(Viewer.Images.Count > 1 ? "has-thumbnails" : "is-single-frame")" data-testid="viewer-control-rail">
                         <ViewerToolbar Eyebrow="@Eyebrow"
                                        Title="@Title"
                                        TitleId="@TitleId"
@@ -44,7 +44,6 @@ else if (IsOpen)
                                        TotalCount="@Viewer.Images.Count"
                                        ZoomPercent="@ZoomPercent"
                                        ScaleMode="@_transform.ScaleMode"
-                                       IsCompact="@_isControlRailCollapsed"
                                        CanGoPrevious="@(Viewer.Images.Count > 1)"
                                        CanGoNext="@(Viewer.Images.Count > 1)"
                                        CanAddAuthorMark="@Viewer.CanManageAuthorMarks"
@@ -60,57 +59,26 @@ else if (IsOpen)
                                        OnSetActualSizeMode="SetActualSizeModeAsync"
                                        OnToggleFullscreen="ToggleFullscreenAsync"
                                        OnToggleAuthorPlacement="ToggleAuthorPlacementAsync"
-                                       OnToggleRail="ToggleControlRailAsync"
                                        OnClose="CloseAsync" />
 
-                        @if (!_isControlRailCollapsed)
+                        @if (Viewer.Images.Count > 1)
                         {
-                            @if (Viewer.Images.Count > 1)
-                            {
-                                <section class="viewer-rail-section viewer-rail-section--thumbnails" data-testid="viewer-thumbnail-rail">
-                                    <div class="viewer-rail-section__head">
-                                        <div class="viewer-rail-section__identity">
-                                            <span class="viewer-rail-section__eyebrow">Sequence</span>
-                                            <strong class="viewer-rail-section__title">Jump between frames</strong>
-                                        </div>
-                                        <span class="viewer-rail-section__detail">@($"{Viewer.Images.Count} shots")</span>
-                                    </div>
+                            <section class="viewer-rail-section viewer-rail-section--thumbnails" data-testid="viewer-thumbnail-rail">
+                                <div class="viewer-rail-section__head">
+                                    <span class="viewer-rail-section__eyebrow">Filmstrip</span>
+                                    <span class="viewer-rail-section__detail">@($"{Viewer.Images.Count} frames")</span>
+                                </div>
 
-                                    <ThumbnailRail Images="@Viewer.Images"
-                                                   ActiveImageId="@ResolvedImageId"
-                                                   OnSelect="SelectImageAsync" />
+                                <ThumbnailRail Images="@Viewer.Images"
+                                               ActiveImageId="@ResolvedImageId"
+                                               OnSelect="SelectImageAsync" />
 
-                                    <section class="viewer-helptext" data-testid="viewer-shortcuts" aria-label="Viewer shortcuts">
-                                        <div class="viewer-helptext__head">
-                                            <span class="viewer-rail-section__eyebrow">Controls</span>
-                                            <span class="viewer-helptext__detail">Quick access</span>
-                                        </div>
-
-                                        <div class="viewer-helptext__grid">
-                                            <div class="viewer-helptext__item">
-                                                <span class="viewer-helptext__label">Browse</span>
-                                                <span class="viewer-helptext__keys"><kbd>Left</kbd><kbd>Right</kbd></span>
-                                            </div>
-                                            <div class="viewer-helptext__item">
-                                                <span class="viewer-helptext__label">Zoom</span>
-                                                <span class="viewer-helptext__keys"><kbd>+</kbd><kbd>-</kbd></span>
-                                            </div>
-                                            <div class="viewer-helptext__item">
-                                                <span class="viewer-helptext__label">Reset</span>
-                                                <span class="viewer-helptext__keys"><kbd>0</kbd></span>
-                                            </div>
-                                            <div class="viewer-helptext__item">
-                                                <span class="viewer-helptext__label">Fullscreen</span>
-                                                <span class="viewer-helptext__keys"><kbd>F</kbd></span>
-                                            </div>
-                                            <div class="viewer-helptext__item">
-                                                <span class="viewer-helptext__label">Close</span>
-                                                <span class="viewer-helptext__keys"><kbd>Esc</kbd></span>
-                                            </div>
-                                        </div>
-                                    </section>
-                                </section>
-                            }
+                                <p class="viewer-rail-shortcuts" data-testid="viewer-shortcuts" aria-label="Viewer shortcuts">
+                                    <span><kbd>Left</kbd><kbd>Right</kbd> navigate</span>
+                                    <span><kbd>+</kbd><kbd>-</kbd> zoom</span>
+                                    <span><kbd>Esc</kbd> close</span>
+                                </p>
+                            </section>
                         }
                     </aside>
 
@@ -241,7 +209,6 @@ else if (IsOpen)
     private bool _isFullscreenSupported;
     private bool _isFullscreen;
     private bool _isAuthorPlacementMode;
-    private bool _isControlRailCollapsed;
     private bool _authorMarkBusy;
     private bool _pendingFocusCommentMark;
     private bool _pendingScrollActiveComment;
@@ -329,7 +296,7 @@ else if (IsOpen)
                 : $"Image {CurrentImageNumber} author mark";
 
     private string ViewerShellClass =>
-        $"viewer-shell {(_isFullscreen ? "is-fullscreen" : null)} {(_isControlRailCollapsed ? "is-rail-collapsed" : null)}";
+        $"viewer-shell {(_isFullscreen ? "is-fullscreen" : null)}";
 
     private string? CurrentInteractionHint =>
         IsCommentPlacementMode
@@ -417,7 +384,6 @@ else if (IsOpen)
             _composerValue = new();
             _authorMarkError = null;
             _isAuthorPlacementMode = false;
-            _isControlRailCollapsed = false;
             ResetViewState();
             _lastFocusedCommentId = null;
             _lastPreloadedImageId = null;
@@ -564,7 +530,6 @@ else if (IsOpen)
             _isFullscreen = false;
             _pointer = null;
             _suppressNextPlacementClick = false;
-            _isControlRailCollapsed = false;
             ResetViewState();
             return;
         }
@@ -598,7 +563,6 @@ else if (IsOpen)
             _isFullscreen = false;
             _pointer = null;
             _suppressNextPlacementClick = false;
-            _isControlRailCollapsed = false;
             ResetViewState();
         }
     }
@@ -766,12 +730,6 @@ else if (IsOpen)
     private Task SetActualSizeModeAsync()
     {
         _transform.SetScaleMode(ViewerScaleMode.ActualSize, CurrentImage);
-        return Task.CompletedTask;
-    }
-
-    private Task ToggleControlRailAsync()
-    {
-        _isControlRailCollapsed = !_isControlRailCollapsed;
         return Task.CompletedTask;
     }
 

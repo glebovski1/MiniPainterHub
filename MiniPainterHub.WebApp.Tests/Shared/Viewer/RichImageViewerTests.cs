@@ -69,7 +69,7 @@ public class RichImageViewerTests : TestContext
     }
 
     [Fact]
-    public void CollapsingTheControlRailHidesTheThumbnailRail()
+    public void RailDoesNotRenderCollapseToggleAndKeepsTheFilmstripVisible()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         this.AddAuthorMarkStub();
@@ -77,18 +77,12 @@ public class RichImageViewerTests : TestContext
         var cut = RenderViewer();
 
         cut.Find("[data-testid='viewer-thumbnail-rail']");
-
-        var railToggle = cut.Find("[data-testid='viewer-rail-toggle']");
-        cut.Find("[data-testid='viewer-control-rail']").ClassList.Should().NotContain("is-collapsed");
-        railToggle.Click();
-
-        cut.Find("[data-testid='viewer-control-rail']").ClassList.Should().Contain("is-collapsed");
-        cut.FindAll("[data-testid='viewer-thumbnail-rail']").Should().BeEmpty();
+        cut.FindAll("[data-testid='viewer-rail-toggle']").Should().BeEmpty();
         cut.Find("[data-testid='viewer-close']").Should().NotBeNull();
     }
 
     [Fact]
-    public void ExpandedRailShowsKeyboardShortcutHints()
+    public void FilmstripShowsCompactShortcutHints()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         this.AddAuthorMarkStub();
@@ -96,8 +90,26 @@ public class RichImageViewerTests : TestContext
         var cut = RenderViewer();
 
         cut.Find("[data-testid='viewer-shortcuts']").TextContent.Should().Contain("navigate");
-        cut.Find("[data-testid='viewer-shortcuts']").TextContent.Should().Contain("fullscreen");
+        cut.Find("[data-testid='viewer-shortcuts']").TextContent.Should().Contain("zoom");
         cut.Find("[data-testid='viewer-shortcuts']").TextContent.Should().Contain("Esc");
+    }
+
+    [Fact]
+    public void SingleFrameRailOmitsFilmstripAndBrowseGroupButShowsHints()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var cut = RenderComponent<RichImageViewer>(parameters => parameters
+            .Add(component => component.IsOpen, true)
+            .Add(component => component.Viewer, CreateViewer(imageCount: 1))
+            .Add(component => component.ActiveImageId, 101)
+            .Add(component => component.SidePanelContent, (RenderFragment)(_ => { })));
+
+        cut.FindAll("[data-testid='viewer-thumbnail-rail']").Should().BeEmpty();
+        cut.FindAll("[data-testid='viewer-rail-navigation']").Should().BeEmpty();
+        cut.Find("[data-testid='viewer-rail-hints']").TextContent.Should().Contain("zoom");
+        cut.Find("[data-testid='viewer-rail-hints']").TextContent.Should().Contain("close");
     }
 
     [Fact]
@@ -137,37 +149,41 @@ public class RichImageViewerTests : TestContext
             .Add(component => component.SidePanelContent, (RenderFragment)(_ => { }));
     }
 
-    private static PostViewerDto CreateViewer()
+    private static PostViewerDto CreateViewer(int imageCount = 2)
     {
-        return new PostViewerDto
+        var viewer = new PostViewerDto
         {
             PostId = 19,
             Title = "Moonlit skin experiment",
             CreatedById = "author-1",
             AuthorName = "Mira Sol",
-            CreatedAt = new DateTime(2026, 3, 13, 19, 30, 0, DateTimeKind.Utc),
-            Images =
-            {
-                new PostViewerImageDto
-                {
-                    Id = 101,
-                    ImageUrl = "/images/moonlit-skin-1-full.png",
-                    PreviewUrl = "/images/moonlit-skin-1-preview.png",
-                    ThumbnailUrl = "/images/moonlit-skin-1-thumb.png",
-                    Width = 1600,
-                    Height = 900
-                },
-                new PostViewerImageDto
-                {
-                    Id = 102,
-                    ImageUrl = "/images/moonlit-skin-2-full.png",
-                    PreviewUrl = "/images/moonlit-skin-2-preview.png",
-                    ThumbnailUrl = "/images/moonlit-skin-2-thumb.png",
-                    Width = 1600,
-                    Height = 900
-                }
-            }
+            CreatedAt = new DateTime(2026, 3, 13, 19, 30, 0, DateTimeKind.Utc)
         };
+
+        viewer.Images.Add(new PostViewerImageDto
+        {
+            Id = 101,
+            ImageUrl = "/images/moonlit-skin-1-full.png",
+            PreviewUrl = "/images/moonlit-skin-1-preview.png",
+            ThumbnailUrl = "/images/moonlit-skin-1-thumb.png",
+            Width = 1600,
+            Height = 900
+        });
+
+        if (imageCount > 1)
+        {
+            viewer.Images.Add(new PostViewerImageDto
+            {
+                Id = 102,
+                ImageUrl = "/images/moonlit-skin-2-full.png",
+                PreviewUrl = "/images/moonlit-skin-2-preview.png",
+                ThumbnailUrl = "/images/moonlit-skin-2-thumb.png",
+                Width = 1600,
+                Height = 900
+            });
+        }
+
+        return viewer;
     }
 
     private static TouchEventArgs CreateTouchEventArgs(double clientX, double clientY, bool useChangedTouches = false)
