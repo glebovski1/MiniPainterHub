@@ -36,7 +36,7 @@ else if (IsOpen)
 
             <div class="viewer-shell__content">
                 <div class="viewer-shell__body">
-                    <aside class="viewer-shell__control-rail @(Viewer.Images.Count > 1 ? "has-thumbnails" : "is-single-frame")" data-testid="viewer-control-rail">
+                    <aside class="viewer-shell__control-rail @(Viewer.Images.Count > 0 ? "has-thumbnails" : "is-single-frame")" data-testid="viewer-control-rail">
                         <ViewerToolbar Eyebrow="@Eyebrow"
                                        Title="@Title"
                                        TitleId="@TitleId"
@@ -62,22 +62,25 @@ else if (IsOpen)
                                        OnToggleAuthorPlacement="ToggleAuthorPlacementAsync"
                                        OnClose="CloseAsync" />
 
-                        @if (Viewer.Images.Count > 1)
+                        @if (Viewer.Images.Count > 0)
                         {
                             <section class="viewer-rail-section viewer-rail-section--thumbnails" data-testid="viewer-thumbnail-rail">
                                 <div class="viewer-rail-section__head">
-                                    <span class="viewer-rail-section__eyebrow">Frames</span>
+                                    <span class="viewer-rail-section__eyebrow">@(Viewer.Images.Count > 1 ? "Frames" : "Preview")</span>
                                 </div>
 
                                 <ThumbnailRail Images="@Viewer.Images"
                                                ActiveImageId="@ResolvedImageId"
                                                OnSelect="SelectImageAsync" />
 
-                                <p class="viewer-rail-shortcuts" data-testid="viewer-shortcuts" aria-label="Viewer shortcuts">
-                                    <span><kbd>Left</kbd><kbd>Right</kbd> navigate</span>
-                                    <span><kbd>+</kbd><kbd>-</kbd> zoom</span>
-                                    <span><kbd>Esc</kbd> close</span>
-                                </p>
+                                @if (Viewer.Images.Count > 1)
+                                {
+                                    <p class="viewer-rail-shortcuts" data-testid="viewer-shortcuts" aria-label="Viewer shortcuts">
+                                        <span><kbd>Left</kbd><kbd>Right</kbd> navigate</span>
+                                        <span><kbd>+</kbd><kbd>-</kbd> zoom</span>
+                                        <span><kbd>Esc</kbd> close</span>
+                                    </p>
+                                }
                             </section>
                         }
                     </aside>
@@ -217,6 +220,8 @@ else if (IsOpen)
     private bool _pendingScrollActiveComment;
     private bool _suppressNextPlacementClick;
     private bool _wasOpenLastRender;
+    private int _currentImageId;
+    private int _lastIncomingImageId;
     private int? _selectedAuthorMarkId;
     private int? _syncedPostId;
     private int? _observedImageId;
@@ -254,10 +259,15 @@ else if (IsOpen)
     private ViewerMarkDraftDto? VisibleDraftCommentMark =>
         CurrentImage is not null && DraftCommentMark?.PostImageId == CurrentImage.Id ? DraftCommentMark : null;
 
-    private int ResolvedImageId =>
+    private int IncomingImageId =>
         Viewer.Images.Any(i => i.Id == ActiveImageId)
             ? ActiveImageId
             : Viewer.Images.FirstOrDefault()?.Id ?? 0;
+
+    private int ResolvedImageId =>
+        Viewer.Images.Any(i => i.Id == _currentImageId)
+            ? _currentImageId
+            : IncomingImageId;
 
     private string TitleId => $"viewer-title-{Viewer.PostId}";
 
@@ -420,10 +430,20 @@ else if (IsOpen)
             _composerValue = new();
             _authorMarkError = null;
             _isAuthorPlacementMode = false;
+            _currentImageId = IncomingImageId;
+            _lastIncomingImageId = IncomingImageId;
             ResetViewState();
             _lastFocusedCommentId = null;
             _lastPreloadedImageId = null;
         }
+
+        if (IncomingImageId != 0
+            && (_currentImageId == 0 || (IncomingImageId != _lastIncomingImageId && IncomingImageId != _currentImageId)))
+        {
+            _currentImageId = IncomingImageId;
+        }
+
+        _lastIncomingImageId = IncomingImageId;
 
         if (Viewer.Images.Count > 0 && ActiveImageId == 0 && ActiveImageIdChanged.HasDelegate)
         {
@@ -698,6 +718,7 @@ else if (IsOpen)
             return;
         }
 
+        _currentImageId = imageId;
         await ActiveImageIdChanged.InvokeAsync(imageId);
 
         if (ActiveCommentId.HasValue

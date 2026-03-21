@@ -275,7 +275,7 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
 
   const stage = page.getByTestId("viewer-stage");
   const stageImage = page.getByTestId("viewer-stage-image");
-  const toolbarStatus = page.locator(".viewer-toolbar__status");
+  const toolbarZoom = page.getByTestId("viewer-rail-zoom");
   const controlRail = page.getByTestId("viewer-control-rail");
   const sidePanel = page.getByTestId("viewer-side-panel");
   const modal = page.getByTestId("rich-image-viewer");
@@ -314,7 +314,7 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
 
   await page.getByTestId("viewer-view-actual").click();
   await expect(page.getByTestId("viewer-view-actual")).toHaveClass(/is-active/);
-  await expect(toolbarStatus).toContainText("100%");
+  await expect(toolbarZoom).toContainText("100%");
   await page.waitForTimeout(220);
   const transform = page.locator(".viewer-stage__transform");
   const transformBeforePan = await transform.getAttribute("style");

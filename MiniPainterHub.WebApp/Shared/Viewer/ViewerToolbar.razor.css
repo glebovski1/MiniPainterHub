@@ -6,7 +6,7 @@
 
 .viewer-toolbar.is-single-frame {
     height: 100%;
-    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
 }
 
 .viewer-toolbar__top {
@@ -19,22 +19,14 @@
 .viewer-toolbar__identity {
     display: grid;
     flex: 1 1 auto;
-    gap: 0.12rem;
+    gap: 0.04rem;
     min-width: 0;
-}
-
-.viewer-toolbar__eyebrow {
-    font-size: 0.58rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--viewer-muted, rgba(248, 244, 236, 0.72));
 }
 
 .viewer-toolbar__title {
     font-family: "Iowan Old Style", "Palatino Linotype", serif;
-    font-size: clamp(0.88rem, 0.92vw, 0.98rem);
-    line-height: 1.08;
+    font-size: clamp(0.82rem, 0.9vw, 0.92rem);
+    line-height: 1.04;
     color: var(--viewer-text, #f8f4ec);
     display: -webkit-box;
     overflow: hidden;
@@ -110,14 +102,14 @@
 .viewer-toolbar__body {
     display: flex;
     flex-direction: column;
-    gap: 0.64rem;
+    gap: 0.42rem;
     min-height: 0;
 }
 
 .viewer-toolbar__groups {
     display: flex;
     flex-direction: column;
-    gap: 0.7rem;
+    gap: 0.42rem;
     min-height: 0;
 }
 
@@ -127,8 +119,8 @@
 
 .viewer-toolbar__section {
     display: grid;
-    gap: 0.42rem;
-    padding-top: 0.54rem;
+    gap: 0.26rem;
+    padding-top: 0.34rem;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -145,17 +137,19 @@
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: 0.3rem;
+    gap: 0.18rem;
 }
 
 .viewer-toolbar__section-title {
-    font-size: 0.72rem;
+    font-size: 0.5rem;
     font-weight: 700;
-    color: rgba(248, 244, 236, 0.94);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(248, 244, 236, 0.68);
 }
 
 .viewer-toolbar__section-detail {
-    font-size: 0.58rem;
+    font-size: 0.48rem;
     font-weight: 600;
     letter-spacing: 0.02em;
     color: rgba(248, 244, 236, 0.62);
@@ -165,14 +159,15 @@
 .viewer-toolbar__button-trio,
 .viewer-toolbar__utility-buttons {
     display: grid;
+    width: 100%;
 }
 
 .viewer-toolbar__button-trio {
-    grid-template-columns: 1.84rem minmax(0, 1fr) 1.84rem;
+    grid-template-columns: 1.74rem minmax(0, 1fr) 1.74rem;
     align-items: center;
-    gap: 0.18rem;
-    padding: 0.16rem;
-    border-radius: 0.88rem;
+    gap: 0.12rem;
+    padding: 0.12rem;
+    border-radius: 0.8rem;
     border: 1px solid rgba(255, 255, 255, 0.05);
     background: rgba(255, 255, 255, 0.02);
 }
@@ -185,8 +180,8 @@
 .viewer-toolbar__button-trio .btn,
 .viewer-toolbar__mode-buttons .btn,
 .viewer-toolbar__wide-action {
-    min-height: 1.96rem;
-    border-radius: 0.76rem;
+    min-height: 1.72rem;
+    border-radius: 0.68rem;
 }
 
 .viewer-toolbar__button-trio .btn {
@@ -194,21 +189,24 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    aspect-ratio: 1;
 }
 
 .viewer-toolbar__value-box {
     min-width: 0;
-    min-height: 1.96rem;
-    padding: 0.24rem 0.38rem;
+    min-height: 1.72rem;
+    padding: 0.18rem 0.28rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 0.76rem;
+    border-radius: 0.68rem;
     border: 0;
     background: transparent;
     color: var(--viewer-text, #f8f4ec);
     font-size: 0.72rem;
     font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
     letter-spacing: 0.03em;
     white-space: nowrap;
 }
@@ -220,16 +218,27 @@
 .viewer-toolbar__mode-buttons {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.14rem;
-    padding: 0.14rem;
-    border-radius: 0.9rem;
+    grid-auto-rows: 1fr;
+    gap: 0.1rem;
+    padding: 0.1rem;
+    align-items: stretch;
+    border-radius: 0.8rem;
     border: 1px solid rgba(255, 255, 255, 0.05);
     background: rgba(255, 255, 255, 0.018);
 }
 
 .viewer-toolbar__mode {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    overflow: hidden;
     font-weight: 700;
-    font-size: 0.68rem;
+    font-size: 0.6rem;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    padding-inline: 0.18rem;
     border-color: transparent;
 }
 
@@ -240,33 +249,35 @@
 
 .viewer-toolbar__utility-buttons {
     grid-template-columns: minmax(0, 1fr);
-    gap: 0.3rem;
+    gap: 0.16rem;
+    align-items: stretch;
 }
 
 .viewer-toolbar__wide-action {
     display: inline-flex;
     align-items: center;
     justify-content: flex-start;
-    gap: 0.42rem;
+    gap: 0.34rem;
     width: 100%;
-    padding-inline: 0.62rem;
+    padding-inline: 0.48rem;
 }
 
 .viewer-toolbar__wide-action span {
-    font-size: 0.72rem;
-    line-height: 1.1;
+    font-size: 0.62rem;
+    line-height: 1.02;
+    white-space: nowrap;
 }
 
 .viewer-toolbar__footer {
     margin-top: auto;
     display: flex;
     flex-wrap: wrap;
-    gap: 0.28rem 0.42rem;
-    padding-top: 0.58rem;
+    gap: 0.22rem 0.28rem;
+    padding-top: 0.28rem;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
     color: rgba(248, 244, 236, 0.58);
-    font-size: 0.54rem;
-    line-height: 1.32;
+    font-size: 0.48rem;
+    line-height: 1.2;
 }
 
 .viewer-toolbar__footer span {
@@ -276,142 +287,103 @@
 }
 
 .viewer-toolbar__footer kbd {
-    min-width: 1.7rem;
-    padding-inline: 0.28rem;
+    min-width: 1.34rem;
+    padding-inline: 0.22rem;
     border-radius: 999px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: rgba(255, 255, 255, 0.06);
     color: var(--viewer-text, #f8f4ec);
     text-align: center;
-    font-size: 0.52rem;
+    font-size: 0.46rem;
 }
 
 @media (min-width: 992px) {
     .viewer-toolbar {
-        gap: 0.42rem;
+        gap: 0.28rem;
     }
 
     .viewer-toolbar__top {
-        gap: 0.22rem;
+        gap: 0.18rem;
     }
 
     .viewer-toolbar__identity {
-        gap: 0.06rem;
-    }
-
-    .viewer-toolbar__eyebrow {
-        font-size: 0.46rem;
-        letter-spacing: 0.14em;
+        gap: 0.02rem;
     }
 
     .viewer-toolbar__title {
-        font-size: clamp(0.74rem, 0.82vw, 0.85rem);
-        line-height: 1.02;
+        font-size: clamp(0.7rem, 0.78vw, 0.78rem);
+        line-height: 1;
     }
 
     .viewer-toolbar__icon-action {
-        width: 1.72rem;
-        min-height: 1.72rem;
-        border-radius: 0.66rem;
-    }
-
-    .viewer-toolbar__status {
-        gap: 0.16rem;
-    }
-
-    .viewer-toolbar__status-pill {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.22rem;
-        padding: 0.26rem 0.34rem;
-        border-radius: 0.72rem;
-    }
-
-    .viewer-toolbar__status-label {
-        font-size: 0.42rem;
-        letter-spacing: 0.14em;
-    }
-
-    .viewer-toolbar__status-pill strong {
-        font-size: 0.7rem;
+        width: 1.56rem;
+        min-height: 1.56rem;
+        border-radius: 0.6rem;
     }
 
     .viewer-toolbar__body {
-        gap: 0.42rem;
+        gap: 0.28rem;
     }
 
     .viewer-toolbar__groups {
-        gap: 0.46rem;
+        gap: 0.32rem;
     }
 
     .viewer-toolbar__section {
-        gap: 0.24rem;
-        padding-top: 0.34rem;
-    }
-
-    .viewer-toolbar__section-title {
-        font-size: 0.5rem;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: rgba(248, 244, 236, 0.68);
-    }
-
-    .viewer-toolbar__section-detail {
-        font-size: 0.47rem;
-        color: rgba(248, 244, 236, 0.54);
+        gap: 0.18rem;
+        padding-top: 0.26rem;
     }
 
     .viewer-toolbar__button-trio {
-        grid-template-columns: 1.5rem minmax(0, 1fr) 1.5rem;
-        gap: 0.1rem;
-        padding: 0.1rem;
-        border-radius: 0.76rem;
+        grid-template-columns: 1.46rem minmax(0, 1fr) 1.46rem;
+        gap: 0.08rem;
+        padding: 0.08rem;
+        border-radius: 0.7rem;
     }
 
     .viewer-toolbar__button-trio .btn,
     .viewer-toolbar__mode-buttons .btn,
     .viewer-toolbar__wide-action,
     .viewer-toolbar__value-box {
-        min-height: 1.56rem;
-        border-radius: 0.64rem;
+        min-height: 1.44rem;
+        border-radius: 0.6rem;
     }
 
     .viewer-toolbar__value-box {
-        padding: 0.16rem 0.2rem;
-        font-size: 0.64rem;
+        padding: 0.14rem 0.18rem;
+        font-size: 0.62rem;
     }
 
     .viewer-toolbar__mode-buttons {
-        gap: 0.08rem;
-        padding: 0.08rem;
-        border-radius: 0.74rem;
+        gap: 0.06rem;
+        padding: 0.06rem;
+        border-radius: 0.7rem;
     }
 
     .viewer-toolbar__mode {
-        font-size: 0.56rem;
+        font-size: 0.54rem;
     }
 
     .viewer-toolbar__utility-buttons {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.18rem;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.12rem;
     }
 
     .viewer-toolbar__wide-action {
-        flex-direction: column;
-        justify-content: center;
-        gap: 0.16rem;
-        padding: 0.36rem 0.2rem;
-        text-align: center;
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 0.28rem;
+        padding: 0.28rem 0.42rem;
+        text-align: left;
     }
 
     .viewer-toolbar__wide-action i {
-        font-size: 0.8rem;
+        font-size: 0.72rem;
     }
 
     .viewer-toolbar__wide-action span {
-        font-size: 0.53rem;
-        line-height: 1.02;
+        font-size: 0.56rem;
+        line-height: 1;
     }
 }
 
@@ -422,11 +394,15 @@
     }
 
     .viewer-toolbar__body {
-        gap: 0.62rem;
+        gap: 0.5rem;
     }
 
     .viewer-toolbar.is-single-frame .viewer-toolbar__groups {
         flex: 0 0 auto;
+    }
+
+    .viewer-toolbar__section--navigation {
+        display: none;
     }
 
     .viewer-toolbar__utility-buttons {
@@ -434,7 +410,7 @@
     }
 
     .viewer-toolbar__wide-action {
-        justify-content: center;
+        justify-content: flex-start;
         padding-inline: 0.5rem;
     }
 }
@@ -445,75 +421,54 @@
     }
 
     .viewer-toolbar__top {
-        gap: 0.16rem;
+        gap: 0.14rem;
     }
 
     .viewer-toolbar__title {
-        font-size: clamp(0.68rem, 0.78vw, 0.78rem);
-    }
-
-    .viewer-toolbar__status {
-        gap: 0.12rem;
-    }
-
-    .viewer-toolbar__status-pill {
-        gap: 0.16rem;
-        padding: 0.2rem 0.26rem;
-    }
-
-    .viewer-toolbar__status-label {
-        font-size: 0.38rem;
-    }
-
-    .viewer-toolbar__status-pill strong {
-        font-size: 0.62rem;
+        font-size: clamp(0.64rem, 0.72vw, 0.72rem);
     }
 
     .viewer-toolbar__body,
     .viewer-toolbar__groups {
-        gap: 0.32rem;
+        gap: 0.24rem;
     }
 
     .viewer-toolbar__section {
-        gap: 0.18rem;
-        padding-top: 0.24rem;
-    }
-
-    .viewer-toolbar__section-title {
-        font-size: 0.46rem;
+        gap: 0.16rem;
+        padding-top: 0.18rem;
     }
 
     .viewer-toolbar__section-detail {
-        font-size: 0.42rem;
+        font-size: 0.4rem;
     }
 
     .viewer-toolbar__button-trio .btn,
     .viewer-toolbar__mode-buttons .btn,
     .viewer-toolbar__wide-action,
     .viewer-toolbar__value-box {
-        min-height: 1.4rem;
+        min-height: 1.32rem;
     }
 
     .viewer-toolbar__button-trio {
         grid-template-columns: 1.34rem minmax(0, 1fr) 1.34rem;
-        gap: 0.08rem;
-        padding: 0.08rem;
+        gap: 0.06rem;
+        padding: 0.06rem;
     }
 
     .viewer-toolbar__icon-action {
-        width: 1.52rem;
-        min-height: 1.52rem;
+        width: 1.4rem;
+        min-height: 1.4rem;
     }
 
     .viewer-toolbar__mode {
-        font-size: 0.5rem;
+        font-size: 0.46rem;
     }
 
     .viewer-toolbar__utility-buttons {
-        gap: 0.12rem;
+        gap: 0.1rem;
     }
 
     .viewer-toolbar__wide-action span {
-        font-size: 0.46rem;
+        font-size: 0.48rem;
     }
 }

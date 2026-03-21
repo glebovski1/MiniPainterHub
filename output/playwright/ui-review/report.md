@@ -6,7 +6,7 @@
 - Captures: `22`
 
 ## Reasons
-- posts: MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor
+- posts: MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor
 
 ## Captures
 - shell-home-panel-open: http://127.0.0.1:5176/ [desktop] [seed-user] [shell, community, panel-open, desktop] -> `output/playwright/ui-review/01-shell-home-panel-open-desktop.png`

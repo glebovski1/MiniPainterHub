@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-21T18:18:18.297Z",
+  "generatedAt": "2026-03-21T21:50:57.883Z",
   "scope": "targeted",
   "reviewCommand": "npm --prefix e2e run test:ui-review",
   "groups": [
@@ -7,7 +7,7 @@
     "posts"
   ],
   "reasons": [
-    "posts: MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor"
+    "posts: MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor"
   ],
   "captures": [
     {
@@ -321,6 +321,6 @@
     }
   ],
   "failures": [],
-  "completedAt": "2026-03-21T18:19:22.920Z",
+  "completedAt": "2026-03-21T21:52:10.704Z",
   "captureCount": 22
 }

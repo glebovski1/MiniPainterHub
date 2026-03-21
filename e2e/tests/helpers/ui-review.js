@@ -143,12 +143,35 @@ async function cycleViewerToRatio(page, targetRatio) {
     }
 
     const previousSrc = await page.getByTestId("viewer-stage-image").getAttribute("src");
-    await clickReliably(page.getByTestId("viewer-next"));
+    await advanceViewer(page);
     await expect.poll(() => page.getByTestId("viewer-stage-image").getAttribute("src")).not.toBe(previousSrc);
     await settle(page, 200);
   }
 
   throw new Error(`Viewer never reached the expected ratio ${targetRatio.toFixed(3)}.`);
+}
+
+async function advanceViewer(page) {
+  const viewport = page.viewportSize();
+  const thumbnails = page.getByTestId("viewer-thumbnail");
+  const thumbnailCount = await thumbnails.count();
+
+  if (viewport && viewport.width < 992 && thumbnailCount > 1) {
+    let activeIndex = 0;
+
+    for (let index = 0; index < thumbnailCount; index += 1) {
+      const thumbnailText = await thumbnails.nth(index).textContent();
+      if (thumbnailText && thumbnailText.includes("Current")) {
+        activeIndex = index;
+        break;
+      }
+    }
+
+    await clickReliably(thumbnails.nth((activeIndex + 1) % thumbnailCount));
+    return;
+  }
+
+  await clickReliably(page.getByTestId("viewer-next"));
 }
 
 async function clickReliably(locator) {

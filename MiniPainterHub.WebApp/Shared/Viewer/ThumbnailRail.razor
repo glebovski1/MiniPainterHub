@@ -1,6 +1,22 @@
 @using MiniPainterHub.Common.DTOs
 
-@if (Images.Count > 1)
+@if (Images.Count == 1)
+{
+    var image = Images[0];
+
+    <div class="viewer-thumbnails viewer-thumbnails--single" aria-label="Current image preview">
+        <div class="viewer-thumbnail viewer-thumbnail--solo is-active" data-testid="viewer-thumbnail-static">
+            <img src="@GetThumbnailSource(image)"
+                 alt=""
+                 loading="lazy" />
+            <span class="viewer-thumbnail__scrim" aria-hidden="true"></span>
+            <span class="viewer-thumbnail__meta">
+                <span class="viewer-thumbnail__state">Current</span>
+            </span>
+        </div>
+    </div>
+}
+else if (Images.Count > 1)
 {
     <div class="viewer-thumbnails" role="tablist" aria-label="Image thumbnails">
         @for (var index = 0; index < Images.Count; index++)

@@ -37,3 +37,15 @@ Skip the skill only for tiny single-file edits where the file path and scope are
 - Plan and implement only within `Allowed now`.
 - Expand into `Conditionally allowed if needed` only when a specific blocker appears and you state that blocker explicitly.
 - Ask before widening beyond that scoped set unless the user already requested broader exploration.
+
+## UI Launch
+
+- For local UI testing in this repo, launch the ASP.NET host at `MiniPainterHub.Server/MiniPainterHub.Server.csproj`.
+- Do not assume a page URL is reachable until that server is running.
+- Treat the UI as dependent on the API/server host for manual browser checks unless a task explicitly says otherwise.
+
+## Blocker Reporting
+
+- If a major step fails or a debugging path is blocked, report it immediately in a short status update.
+- State what you tried, why it failed, and what fallback you are using next.
+- Do not silently switch to a fallback path when the failed step materially affects confidence, speed, or verification quality.

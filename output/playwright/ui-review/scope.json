@@ -1,13 +1,18 @@
 {
   "scope": "targeted",
   "changedFiles": [
+    "AGENTS.md",
+    "MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor",
+    "MiniPainterHub.WebApp/Shared/CommentForm.razor",
+    "MiniPainterHub.WebApp/Shared/CommentItem.razor",
     "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor",
     "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor.css",
+    "MiniPainterHub.WebApp/Shared/Viewer/ThumbnailRail.razor",
     "MiniPainterHub.WebApp/Shared/Viewer/ThumbnailRail.razor.css",
-    "MiniPainterHub.WebApp/Shared/Viewer/ViewerSkeleton.razor",
-    "MiniPainterHub.WebApp/Shared/Viewer/ViewerSkeleton.razor.css",
     "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor",
     "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor.css",
+    "e2e/tests/helpers/ui-review.js",
+    "e2e/tests/smoke.spec.js",
     "output/playwright/ui-review/08-posts-detail-rich-viewer-closed-desktop.png",
     "output/playwright/ui-review/09-posts-detail-rich-viewer-open-portrait-desktop.png",
     "output/playwright/ui-review/10-posts-detail-rich-viewer-open-fill-desktop.png",
@@ -27,23 +32,26 @@
     "output/playwright/ui-review/scope.json"
   ],
   "uiChangedFiles": [
+    "MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor",
+    "MiniPainterHub.WebApp/Shared/CommentForm.razor",
+    "MiniPainterHub.WebApp/Shared/CommentItem.razor",
     "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor",
     "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor.css",
+    "MiniPainterHub.WebApp/Shared/Viewer/ThumbnailRail.razor",
     "MiniPainterHub.WebApp/Shared/Viewer/ThumbnailRail.razor.css",
-    "MiniPainterHub.WebApp/Shared/Viewer/ViewerSkeleton.razor",
-    "MiniPainterHub.WebApp/Shared/Viewer/ViewerSkeleton.razor.css",
     "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor",
-    "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor.css"
+    "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor.css",
+    "e2e/tests/helpers/ui-review.js"
   ],
   "groups": [
     "shell",
     "posts"
   ],
   "matchedByGroup": {
-    "posts": "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor"
+    "posts": "MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor"
   },
   "reasons": [
-    "posts: MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor"
+    "posts: MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor"
   ],
   "reviewCommand": "npm --prefix e2e run test:ui-review"
 }

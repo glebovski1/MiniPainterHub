@@ -58,12 +58,6 @@
                     <span class="text-muted small" data-testid="comment-mark-loading">Loading marker...</span>
                 }
 
-                @if (IsViewerPanel && Comment.HasViewerMark && !IsViewerMarkLoading)
-                {
-                    <span class="small text-muted comment-item__viewer-caption">
-                        @(IsActive ? "Marker highlighted in the stage." : "Reveal this discussion anchor in the stage.")
-                    </span>
-                }
             </div>
         }
 

@@ -339,19 +339,6 @@
                             </section>
                         }
 
-                        <section class="viewer-panel-section" data-testid="viewer-mark-summary">
-                            <p class="viewer-panel__eyebrow">Mark system</p>
-                            <div class="viewer-panel__legend">
-                                <div class="viewer-panel__legend-item viewer-panel__legend-item--author">
-                                    <span class="viewer-panel__legend-dot"></span>
-                                    <span>Author notes stay visible and are styled as permanent annotations.</span>
-                                </div>
-                                <div class="viewer-panel__legend-item viewer-panel__legend-item--comment">
-                                    <span class="viewer-panel__legend-dot"></span>
-                                    <span>Comment anchors load on demand and only one is active at a time.</span>
-                                </div>
-                            </div>
-                        </section>
                     </div>
 
                     <div id="@ViewerCommentsPanelId"
@@ -376,13 +363,6 @@
                         }
 
                         <section class="viewer-panel-section viewer-panel-section--comments">
-                            <div class="viewer-panel__comments-header">
-                                <div>
-                                    <p class="viewer-panel__eyebrow">Comments</p>
-                                    <h3 class="viewer-panel__title">Discuss the piece without leaving the viewer.</h3>
-                                </div>
-                            </div>
-
                             <div class="viewer-panel__comments-thread" data-testid="viewer-comments-thread">
                                 <div class="viewer-panel__comments-scroll" data-testid="viewer-comments-scroll">
                                     <div class="viewer-panel__comments-list">
@@ -394,8 +374,8 @@
                                                      ViewerMarkError="@_markError"
                                                      OnToggleViewerMark="ToggleCommentMarkAsync"
                                                      IsViewerPanel="true"
-                                                     ViewerActionLabel="Reveal anchor"
-                                                     ViewerActionActiveLabel="Hide anchor" />
+                                                     ViewerActionLabel="Reveal"
+                                                     ViewerActionActiveLabel="Hide" />
                                     </div>
                                 </div>
 

@@ -429,9 +429,37 @@
     }
 
     .viewer-shell__control-rail {
+        display: flex;
+        flex-direction: column;
         padding: 0.76rem 0.74rem;
         align-self: stretch;
         height: auto;
+        overflow: visible;
+    }
+
+    .viewer-shell__control-rail.has-thumbnails {
+        gap: 0.62rem;
+    }
+
+    .viewer-shell__control-rail > * {
+        flex: 0 0 auto;
+    }
+
+    .viewer-rail-section {
+        gap: 0.34rem;
+        padding-top: 0.38rem;
+    }
+
+    .viewer-rail-section--thumbnails {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        gap: 0.34rem;
+        overflow: visible;
+    }
+
+    .viewer-rail-shortcuts {
+        display: none;
     }
 
     .viewer-shell__side-panel {

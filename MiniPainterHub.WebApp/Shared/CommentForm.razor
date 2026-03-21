@@ -38,7 +38,7 @@
                     data-testid="comment-attach-mark"
                     disabled="@(_isSubmitting || ViewerPlacementActive)"
                     @onclick="RequestAttachMarkAsync">
-                @(ViewerPlacementActive ? "Tap image to place mark" : DraftMark is null ? "Attach point" : "Reposition point")
+                @(ViewerPlacementActive ? "Place mark" : DraftMark is null ? (IsViewerCompact ? "Attach mark" : "Attach point") : (IsViewerCompact ? "Move mark" : "Reposition point"))
             </button>
 
             @if (DraftMark is not null)
@@ -63,7 +63,7 @@
                 class="btn @(IsViewerCompact ? "btn-primary btn-sm" : "btn-primary")"
                 data-testid="comment-submit"
                 disabled="@_isSubmitting">
-            @(_isSubmitting ? "Posting..." : "Post Comment")
+            @(_isSubmitting ? "Posting..." : IsViewerCompact ? "Post" : "Post Comment")
         </button>
     </div>
 </EditForm>
