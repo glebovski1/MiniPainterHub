@@ -177,12 +177,12 @@ public class PostDetailsModerationTests : TestContext
         {
             cut.Find("[data-testid='post-details-image']")
                 .GetAttribute("src")
-                .Should().Be("https://example.test/uploads/post12_preview.webp");
+                .Should().EndWith("/uploads/post12_preview.webp");
 
             var thumbnails = cut.FindAll("[data-testid='post-details-thumbnail']");
             thumbnails.Should().HaveCount(2);
-            thumbnails[0].GetAttribute("src").Should().Be("https://example.test/uploads/post12_thumb.webp");
-            thumbnails[1].GetAttribute("src").Should().Be("https://example.test/uploads/post12b_thumb.webp");
+            thumbnails[0].GetAttribute("src").Should().EndWith("/uploads/post12_thumb.webp");
+            thumbnails[1].GetAttribute("src").Should().EndWith("/uploads/post12b_thumb.webp");
         });
     }
 

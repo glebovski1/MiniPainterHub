@@ -209,7 +209,7 @@
 
     private int selectedIndex = 0;
 
-    private IReadOnlyList<PostImageDto> PostImages => post?.Images ?? Array.Empty<PostImageDto>();
+    private IReadOnlyList<PostImageDto> PostImages => post?.Images ?? new List<PostImageDto>();
 
     private bool HasImages => PostImages.Count > 0;
 
