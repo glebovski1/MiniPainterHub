@@ -20,7 +20,8 @@ Choose one mode per task:
 ## 2) Per-Mode Validation
 
 Quick Patch:
-- Run targeted check for impacted project at minimum.
+- Run `dotnet build MiniPainterHub.sln`.
+- Run at least one relevant automated test command for the impacted area.
 
 Standard:
 - `dotnet build MiniPainterHub.sln`
@@ -98,6 +99,6 @@ For UI tasks also report:
 
 When implementing a multi-phase feature or fix:
 - Complete one phase at a time.
-- Run at least one relevant automated test command after each phase before moving on.
+- After each code-change phase, run `dotnet build MiniPainterHub.sln` and at least one relevant automated test command before moving on.
 - Prefer narrow test slices first, then broad suite/build gates at the end.
 - If a phase fails validation, fix it before starting the next phase.

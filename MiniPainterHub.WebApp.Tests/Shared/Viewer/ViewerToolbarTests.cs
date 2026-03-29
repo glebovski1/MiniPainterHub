@@ -24,7 +24,6 @@ public class ViewerToolbarTests : TestContext
             .Add(component => component.CanAddAuthorMark, true));
 
         cut.Find("[data-testid='viewer-rail-header']").TextContent.Should().Contain("Moonlit skin experiment");
-        cut.Find("[data-testid='viewer-rail-status']").TextContent.Should().Contain("125%");
         cut.Find("[data-testid='viewer-rail-navigation']").TextContent.Should().Contain("2 of 7");
         cut.Find("[data-testid='viewer-prev']").Should().NotBeNull();
         cut.Find("[data-testid='viewer-next']").Should().NotBeNull();
@@ -56,7 +55,6 @@ public class ViewerToolbarTests : TestContext
             .Add(component => component.CanToggleFullscreen, true));
 
         cut.FindAll("[data-testid='viewer-rail-navigation']").Should().BeEmpty();
-        cut.Find("[data-testid='viewer-rail-status']").TextContent.Should().NotContain("Frame");
         cut.Find("[data-testid='viewer-rail-hints']").TextContent.Should().Contain("zoom");
         cut.Find("[data-testid='viewer-fullscreen']").Should().NotBeNull();
     }

@@ -42,7 +42,7 @@ For any non-trivial task, execute this sequence:
 1. Discover: read only files inside the current scope needed to understand impacted flow.
 2. Plan: identify minimal safe change set.
 3. Implement: keep edits focused and consistent with existing patterns.
-4. Verify: run required checks from Section 7.
+4. Verify: run required checks from Section 7. For any non-doc code change, the minimum local gate is `dotnet build MiniPainterHub.sln` plus at least one affected automated test command before closing the task.
 5. Deliver: summarize what changed, why, and what was validated.
 
 ### UI Change Overlay
@@ -99,6 +99,10 @@ Never:
 ## 7) Verification Matrix
 
 Use the strongest applicable check set:
+
+Minimum local gate for any non-doc code change:
+- `dotnet build MiniPainterHub.sln`
+- Run at least one affected automated test command for the changed area before handoff. If multiple areas changed, run each affected suite from the matrix below.
 
 Codex Cloud preflight (when `dotnet` is missing):
 - `bash tools/cloud/bootstrap-dotnet-and-test.sh`

@@ -95,7 +95,7 @@ public class RichImageViewerTests : TestContext
     }
 
     [Fact]
-    public void SingleFrameRailOmitsFilmstripAndBrowseGroupButShowsHints()
+    public void SingleFrameRailKeepsPreviewRailOmitsBrowseGroupAndShowsHints()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         this.AddAuthorMarkStub();
@@ -106,8 +106,9 @@ public class RichImageViewerTests : TestContext
             .Add(component => component.ActiveImageId, 101)
             .Add(component => component.SidePanelContent, (RenderFragment)(_ => { })));
 
-        cut.FindAll("[data-testid='viewer-thumbnail-rail']").Should().BeEmpty();
+        cut.Find("[data-testid='viewer-thumbnail-rail']").TextContent.Should().Contain("Preview");
         cut.FindAll("[data-testid='viewer-rail-navigation']").Should().BeEmpty();
+        cut.FindAll("[data-testid='viewer-shortcuts']").Should().BeEmpty();
         cut.Find("[data-testid='viewer-rail-hints']").TextContent.Should().Contain("zoom");
         cut.Find("[data-testid='viewer-rail-hints']").TextContent.Should().Contain("close");
     }

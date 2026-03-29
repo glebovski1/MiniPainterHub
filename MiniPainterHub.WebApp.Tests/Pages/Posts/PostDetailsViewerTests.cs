@@ -55,7 +55,7 @@ public class PostDetailsViewerTests : TestContext
             cut.Find("[data-testid='viewer-stage-image']");
             cut.Find("[data-testid='viewer-side-tab-info']").ClassList.Should().Contain("is-active");
             cut.Find("[data-testid='viewer-panel-info']").TextContent.Should().Contain("About this piece");
-            cut.FindAll("[data-testid='viewer-panel-comments']").Should().BeEmpty();
+            cut.Find("[data-testid='viewer-panel-comments']").HasAttribute("hidden").Should().BeTrue();
         });
     }
 
@@ -77,8 +77,8 @@ public class PostDetailsViewerTests : TestContext
         cut.WaitForAssertion(() =>
         {
             cut.Find("[data-testid='viewer-side-tab-comments']").ClassList.Should().Contain("is-active");
-            cut.Find("[data-testid='viewer-panel-comments']");
-            cut.Find("[data-testid='viewer-comments-scroll']");
+            cut.Find("[data-testid='viewer-panel-comments']").HasAttribute("hidden").Should().BeFalse();
+            cut.Find("[data-testid='viewer-comments-scroll']").Should().NotBeNull();
         });
 
         cut.Find("[data-testid='viewer-side-tab-info']").Click();
@@ -86,8 +86,8 @@ public class PostDetailsViewerTests : TestContext
         cut.WaitForAssertion(() =>
         {
             cut.Find("[data-testid='viewer-side-tab-info']").ClassList.Should().Contain("is-active");
-            cut.Find("[data-testid='viewer-mark-summary']");
-            cut.FindAll("[data-testid='viewer-comments-scroll']").Should().BeEmpty();
+            cut.Find("[data-testid='viewer-panel-info']").TextContent.Should().Contain("About this piece");
+            cut.Find("[data-testid='viewer-panel-comments']").HasAttribute("hidden").Should().BeTrue();
         });
     }
 
@@ -106,7 +106,8 @@ public class PostDetailsViewerTests : TestContext
 
             childTestIds.Should().Equal("viewer-comments-scroll", "viewer-composer-sticky");
             cut.Find("[data-testid='viewer-comment-composer']").Should().NotBeNull();
-            cut.Find("[data-testid='viewer-composer-sticky']").TextContent.Should().Contain("Post Comment");
+            cut.Find("[data-testid='viewer-composer-sticky']").TextContent.Should().Contain("Attach mark");
+            cut.Find("[data-testid='viewer-comment-composer']").TextContent.Should().Contain("Post");
         });
     }
 

@@ -23,13 +23,17 @@ Thanks for contributing. This guide keeps changes consistent and reviewable.
 1. Resolve the minimal relevant file scope first. For non-trivial work, use `AGENTS.md` and `.agents/skills/context-scope-guard`.
 2. Make the smallest coherent change set.
 3. Add/update tests when behavior changes.
-4. Run required validation.
+4. Run required validation. For any non-doc code change, the minimum local gate is `dotnet build MiniPainterHub.sln` plus at least one affected automated test command before handoff.
 5. Update docs if guidance changed.
 
 ## 4) Validation Expectations
 
 Codex Cloud preflight (only when `dotnet` is unavailable):
 - `bash tools/cloud/bootstrap-dotnet-and-test.sh`
+
+Minimum local gate for any non-doc code change:
+- `dotnet build MiniPainterHub.sln`
+- Run at least one affected automated test command for the changed area before handoff. If multiple areas changed, run each affected suite below.
 
 Backend-impacting changes:
 - `dotnet build MiniPainterHub.sln`
