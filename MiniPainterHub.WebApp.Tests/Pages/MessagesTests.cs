@@ -73,6 +73,38 @@ public class MessagesTests : TestContext
     }
 
     [Fact]
+    public void RealtimeStartupFailure_DoesNotBlockConversationList()
+    {
+        this.SetAuthenticatedUser("viewer-user", "viewer");
+        this.AddConversationStub(new StubConversationService
+        {
+            EnsureRealtimeHandler = () => throw new System.InvalidOperationException("hub unavailable"),
+            GetConversationsHandler = _ => Task.FromResult<IReadOnlyList<ConversationSummaryDto>>(new[]
+            {
+                new ConversationSummaryDto
+                {
+                    Id = 5,
+                    OtherUser = new UserListItemDto
+                    {
+                        UserId = "other-user",
+                        UserName = "other",
+                        DisplayName = "Other Painter"
+                    },
+                    LatestMessagePreview = "Earlier message"
+                }
+            })
+        });
+
+        var cut = RenderComponent<Messages>();
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Markup.Should().Contain("Other Painter");
+            cut.Markup.Should().NotContain("Couldn't load conversations");
+        });
+    }
+
+    [Fact]
     public void OpeningConversation_JoinsThreadAndMarksItRead()
     {
         this.SetAuthenticatedUser("viewer-user", "viewer");
@@ -114,6 +146,56 @@ public class MessagesTests : TestContext
             joinedConversationIds.Should().Contain(5);
             markedReadConversationIds.Should().Contain(5);
             cut.Markup.Should().Contain("Other Painter");
+        });
+    }
+
+    [Fact]
+    public void RealtimeJoinFailure_DoesNotBlockThreadMessages()
+    {
+        this.SetAuthenticatedUser("viewer-user", "viewer");
+        this.AddConversationStub(new StubConversationService
+        {
+            GetConversationsHandler = _ => Task.FromResult<IReadOnlyList<ConversationSummaryDto>>(new[]
+            {
+                new ConversationSummaryDto
+                {
+                    Id = 5,
+                    OtherUser = new UserListItemDto
+                    {
+                        UserId = "other-user",
+                        UserName = "other",
+                        DisplayName = "Other Painter"
+                    }
+                }
+            }),
+            JoinConversationHandler = _ => throw new System.InvalidOperationException("hub join failed"),
+            GetMessagesHandler = (_, _, _) => Task.FromResult(new PagedResult<DirectMessageDto>
+            {
+                Items = new[]
+                {
+                    new DirectMessageDto
+                    {
+                        Id = 1,
+                        ConversationId = 5,
+                        SenderUserId = "other-user",
+                        SenderDisplayName = "Other Painter",
+                        Body = "Existing message",
+                        SentUtc = System.DateTime.UtcNow.AddMinutes(-2),
+                        IsMine = false
+                    }
+                },
+                PageNumber = 1,
+                PageSize = 50,
+                TotalCount = 1
+            })
+        });
+
+        var cut = RenderComponent<Messages>(parameters => parameters.Add(p => p.ConversationId, 5));
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Markup.Should().Contain("Existing message");
+            cut.Markup.Should().NotContain("Couldn't load this thread");
         });
     }
 

@@ -1,6 +1,6 @@
 # MiniPainterHub
 
-MiniPainterHub is a full-stack social platform for miniature painters. It combines image-first post publishing, social discovery, direct messaging, and admin moderation tooling in one .NET 8 application.
+MiniPainterHub is a full-stack social platform for miniature painters. It combines image-first post publishing, a richer post viewing experience, social discovery, direct messaging, and admin moderation tooling in one .NET 8 application.
 
 This repository is portfolio-oriented as much as it is product-oriented: it shows end-to-end feature work across API design, Blazor UI, authentication, real-time messaging, media handling, moderation workflows, and automated quality gates.
 
@@ -8,14 +8,16 @@ Screenshots in this README were captured with Playwright-MCP against a determini
 
 ## What It Demonstrates
 
-- Image-backed post publishing with technique tags, comments, and likes
+- Image-backed post publishing with technique tags, comments, likes, and richer post detail flows
 - JWT authentication with ASP.NET Core Identity
 - Public profiles, following graph, connections, and following feed
 - Cross-entity search for posts, users, and tags
 - Direct messaging with SignalR-backed conversation flows
-- Reporting, moderation, audit logging, and user suspension tools
+- Reporting, inline moderation, audit logging, and user suspension tools
+- Rich image viewing with anchored comment-mark context
 - Deterministic development seeding for realistic demo data
 - A test pyramid that spans unit, component, integration, and browser smoke coverage
+- A browser-reviewed UI refresh across feed, discovery, messaging, and admin surfaces
 
 ## Screenshot Tour
 
@@ -31,9 +33,9 @@ Posts can be authored with long-form content, uploaded images, and comma-separat
 
 ![Post composer](docs/screenshots/portfolio/02-create-post.png)
 
-### 3. Post details and engagement
+### 3. Post details and rich viewing
 
-Each post has a detail view with media, tags, comments, likes, and reporting actions.
+Each post has a detail flow with media, tags, comments, likes, reporting actions, and the foundation for a richer image-viewing experience.
 
 ![Post details](docs/screenshots/portfolio/03-post-details.png)
 
@@ -63,6 +65,7 @@ Admins can review incoming reports, filter moderation work, and resolve issues f
 - Create posts with one or more images
 - Add reusable technique tags for discovery and filtering
 - Comment on posts and like or unlike them
+- Browse posts through an image-first detail experience with stronger visual emphasis on artwork
 - Browse public profiles with follower and following counts
 - Follow painters and browse a following-only feed
 - Manage your own profile, display name, bio, and avatar
@@ -74,6 +77,7 @@ Admins can review incoming reports, filter moderation work, and resolve issues f
 - Report posts, comments, and user profiles
 - Review reports from a moderation queue
 - Hide and restore posts and comments without hard deletion
+- Use inline moderation actions and visibility-aware review flows in the UI
 - Suspend and unsuspend users
 - Inspect an audit log of moderation actions
 - Support maintenance-mode bypass flows for controlled access scenarios
@@ -87,6 +91,7 @@ Admins can review incoming reports, filter moderation work, and resolve issues f
 - SignalR for direct-message updates
 - Local image storage in development and Azure Blob storage in non-development environments
 - Development seed commands for realistic users, posts, profiles, follows, comments, avatars, and direct messages
+- Browser-reviewed UI changes backed by Playwright smoke coverage
 
 ## Architecture
 
@@ -112,7 +117,8 @@ For the full technical breakdown, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.m
 
 The repository now has automated coverage from basic unit tests through browser automation:
 
-- 324 automated tests across server and WebApp test projects
+- 333 .NET tests across server and WebApp test projects
+- 14 Playwright smoke scenarios covering end-to-end user and admin flows
 - Unit and service-level tests for business logic and HTTP client wrappers
 - bUnit coverage for Blazor pages and shared UI behavior
 - Playwright smoke coverage for login, posting, search, profile flows, moderation, and reports

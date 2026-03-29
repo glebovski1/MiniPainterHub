@@ -27,6 +27,8 @@ using System.Net;
 using System.Security.Cryptography;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -54,8 +56,10 @@ public class Program
         // ------------------------------------------------------------------
         // 1️⃣  Services
         // ------------------------------------------------------------------
-        var defaultConnection = hostedStartupConfiguration?.DefaultConnectionString
+        var configuredConnection = hostedStartupConfiguration?.DefaultConnectionString
             ?? builder.Configuration.GetConnectionString("DefaultConnection");
+        var connectionResolution = ResolveDevelopmentConnectionString(builder.Environment, builder.Configuration, configuredConnection);
+        var defaultConnection = connectionResolution.ConnectionString;
         var useInMemoryDatabase =
             builder.Environment.IsDevelopment()
             && OperatingSystem.IsLinux()
@@ -224,6 +228,11 @@ public class Program
         builder.Services.AddAuthorization();
 
         var app = builder.Build();
+
+        if (connectionResolution.ResolutionMessage is not null)
+        {
+            app.Logger.LogWarning("{Message}", connectionResolution.ResolutionMessage);
+        }
 
         if (developmentCommand is not null)
         {
@@ -404,6 +413,206 @@ public class Program
     private static bool ShouldRecreateOnSchemaConflict(IConfiguration configuration) =>
         configuration.GetValue<bool?>("Database:RecreateOnSchemaConflict") ?? true;
 
+    private static ConnectionResolution ResolveDevelopmentConnectionString(
+        IHostEnvironment environment,
+        IConfiguration configuration,
+        string? configuredConnection)
+    {
+        if (!environment.IsDevelopment()
+            || !OperatingSystem.IsWindows()
+            || string.IsNullOrWhiteSpace(configuredConnection)
+            || !IsLocalDbConnection(configuredConnection))
+        {
+            return new ConnectionResolution(configuredConnection, null);
+        }
+
+        if (CanOpenSqlConnection(BuildProbeConnectionString(configuredConnection)))
+        {
+            return new ConnectionResolution(configuredConnection, null);
+        }
+
+        if (TryStartLocalDbInstance(configuredConnection, out var localDbStartMessage)
+            && CanOpenSqlConnection(BuildProbeConnectionString(configuredConnection)))
+        {
+            return new ConnectionResolution(
+                configuredConnection,
+                localDbStartMessage);
+        }
+
+        if (AllowSqlExpressFallbackInDevelopment(configuration))
+        {
+            var sqlExpressConnection = TryCreateSqlExpressFallbackConnectionString(configuredConnection);
+            if (sqlExpressConnection is not null && CanOpenSqlConnection(BuildProbeConnectionString(sqlExpressConnection)))
+            {
+                return new ConnectionResolution(
+                    sqlExpressConnection,
+                    "Configured LocalDB instance was unavailable. Falling back to .\\SQLEXPRESS for Development.");
+            }
+        }
+
+        return new ConnectionResolution(
+            configuredConnection,
+            "Configured LocalDB instance was unavailable. Development will keep using LocalDB so your existing MiniPainterHub data stays on the expected database.");
+    }
+
+    private static bool AllowSqlExpressFallbackInDevelopment(IConfiguration configuration) =>
+        configuration.GetValue<bool>("Database:AllowSqlExpressFallbackInDevelopment");
+
+    private static bool IsLocalDbConnection(string connectionString)
+    {
+        try
+        {
+            var builder = new SqlConnectionStringBuilder(connectionString);
+            return builder.DataSource.Contains("(localdb)", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static string BuildProbeConnectionString(string connectionString)
+    {
+        var builder = new SqlConnectionStringBuilder(connectionString)
+        {
+            InitialCatalog = "master",
+            ConnectTimeout = 3,
+            Pooling = false
+        };
+
+        builder.AttachDBFilename = string.Empty;
+
+        return builder.ConnectionString;
+    }
+
+    private static bool TryStartLocalDbInstance(string connectionString, out string message)
+    {
+        message = string.Empty;
+
+        var instanceName = TryGetLocalDbInstanceName(connectionString);
+        if (string.IsNullOrWhiteSpace(instanceName))
+        {
+            return false;
+        }
+
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "sqllocaldb",
+                Arguments = $"start {instanceName}",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = Process.Start(startInfo);
+            if (process is null)
+            {
+                return false;
+            }
+
+            process.WaitForExit(5000);
+            if (!process.HasExited)
+            {
+                try
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+                catch (InvalidOperationException)
+                {
+                }
+
+                message = $"Timed out while starting LocalDB instance '{instanceName}'.";
+                return false;
+            }
+
+            var output = process.StandardOutput.ReadToEnd().Trim();
+            var error = process.StandardError.ReadToEnd().Trim();
+            if (process.ExitCode != 0)
+            {
+                message = string.IsNullOrWhiteSpace(error)
+                    ? $"Failed to start LocalDB instance '{instanceName}'."
+                    : $"Failed to start LocalDB instance '{instanceName}': {error}";
+                return false;
+            }
+
+            message = string.IsNullOrWhiteSpace(output)
+                ? $"Started LocalDB instance '{instanceName}' for Development."
+                : $"Started LocalDB instance '{instanceName}' for Development: {output}";
+            return true;
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
+        {
+            message = $"Failed to launch sqllocaldb for '{instanceName}': {ex.Message}";
+            return false;
+        }
+    }
+
+    private static string? TryGetLocalDbInstanceName(string connectionString)
+    {
+        try
+        {
+            var builder = new SqlConnectionStringBuilder(connectionString);
+            var dataSource = builder.DataSource;
+            if (!dataSource.StartsWith("(localdb)\\", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return dataSource[(dataSource.IndexOf('\\') + 1)..];
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    private static string? TryCreateSqlExpressFallbackConnectionString(string connectionString)
+    {
+        try
+        {
+            var builder = new SqlConnectionStringBuilder(connectionString)
+            {
+                DataSource = @".\SQLEXPRESS",
+                ConnectTimeout = 3,
+                TrustServerCertificate = true
+            };
+
+            if (string.IsNullOrWhiteSpace(builder.InitialCatalog))
+            {
+                builder.InitialCatalog = "MiniPainterHub";
+            }
+
+            builder.AttachDBFilename = string.Empty;
+
+            return builder.ConnectionString;
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    private static bool CanOpenSqlConnection(string connectionString)
+    {
+        try
+        {
+            using var connection = new SqlConnection(connectionString);
+            connection.Open();
+            return true;
+        }
+        catch (SqlException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
     private static void LogDatabaseTarget(AppDbContext db, ILogger logger)
     {
         var providerName = db.Database.ProviderName ?? "unknown";
@@ -558,4 +767,6 @@ public class Program
     }
 
     private sealed record DevelopmentCommand(DevelopmentCommandKind Kind, string AvatarsDirectory, string? PostImagesDirectory);
+
+    private sealed record ConnectionResolution(string? ConnectionString, string? ResolutionMessage);
 }

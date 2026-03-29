@@ -224,7 +224,7 @@
         Conversations.MessageReceived += HandleMessageReceived;
         Conversations.ConversationRead += HandleConversationRead;
 
-        await Conversations.EnsureRealtimeAsync();
+        await EnsureRealtimeBestEffortAsync();
         await ReloadConversationsAsync();
     }
 
@@ -264,14 +264,7 @@
         {
             if (_joinedConversationId.HasValue)
             {
-                try
-                {
-                    await Conversations.LeaveConversationAsync(_joinedConversationId.Value);
-                }
-                catch
-                {
-                    // Best effort on view exit.
-                }
+                await LeaveConversationBestEffortAsync(_joinedConversationId.Value);
 
                 _joinedConversationId = null;
             }
@@ -285,11 +278,11 @@
         {
             if (_joinedConversationId.HasValue && _joinedConversationId.Value != ConversationId.Value)
             {
-                await Conversations.LeaveConversationAsync(_joinedConversationId.Value);
+                await LeaveConversationBestEffortAsync(_joinedConversationId.Value);
             }
 
             _joinedConversationId = ConversationId.Value;
-            await Conversations.JoinConversationAsync(ConversationId.Value);
+            await JoinConversationBestEffortAsync(ConversationId.Value);
 
             var page = await Conversations.GetMessagesAsync(ConversationId.Value);
             _messages.Clear();
@@ -394,6 +387,42 @@
     private void HandleConversationRead(ConversationReadDto payload)
     {
         _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task EnsureRealtimeBestEffortAsync()
+    {
+        try
+        {
+            await Conversations.EnsureRealtimeAsync();
+        }
+        catch
+        {
+            // Realtime should enhance the page, not block inbox or thread loading.
+        }
+    }
+
+    private async Task JoinConversationBestEffortAsync(int conversationId)
+    {
+        try
+        {
+            await Conversations.JoinConversationAsync(conversationId);
+        }
+        catch
+        {
+            // Thread loading should still work even if the realtime channel is unavailable.
+        }
+    }
+
+    private async Task LeaveConversationBestEffortAsync(int conversationId)
+    {
+        try
+        {
+            await Conversations.LeaveConversationAsync(conversationId);
+        }
+        catch
+        {
+            // Best effort during navigation and dispose cleanup.
+        }
     }
 
     public void Dispose()
