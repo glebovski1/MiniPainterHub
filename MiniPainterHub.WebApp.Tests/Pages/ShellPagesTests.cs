@@ -22,10 +22,10 @@ public class ShellPagesTests : TestContext
         var cut = RenderComponent<About>();
 
         cut.Markup.Should().Contain("MiniPainterHub");
-        cut.Markup.Should().Contain("Roadmap highlights");
-        cut.Markup.Should().Contain("Profiles, follows, and messaging (Live)");
+        cut.Markup.Should().Contain("Portfolio Update");
+        cut.Markup.Should().Contain("Recent screens and workflows");
         cut.FindAll("a").Select(link => link.GetAttribute("href")).Should().Contain("/posts/all");
-        cut.FindAll("a").Select(link => link.GetAttribute("href")).Should().Contain("/profile");
+        cut.FindAll("a").Select(link => link.GetAttribute("href")).Should().Contain("/posts/new");
     }
 
     [Fact]

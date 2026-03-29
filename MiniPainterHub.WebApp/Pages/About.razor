@@ -1,209 +1,206 @@
-﻿@page "/about"
+@page "/about"
 @using System.Reflection
 
-<div class="container py-4 py-lg-5">
-
-    <!-- HERO -->
-    <section class="text-center mb-5">
-        <span class="badge bg-primary-subtle text-primary border border-primary mb-2">About</span>
-        <h1 class="display-5 fw-semibold">MiniPainterHub</h1>
-        <p class="lead text-secondary mx-auto" style="max-width: 720px;">
-            A community for miniature‑painting enthusiasts to share finished models, discover new techniques,
-            and connect with other hobbyists.
-        </p>
-        <div class="d-flex gap-2 justify-content-center">
-            <a class="btn btn-primary" href="/posts/all">Explore Posts</a>
-            <a class="btn btn-outline-secondary" href="/profile">Your Profile</a>
-        </div>
-    </section>
-
-    <!-- PROJECT STORY -->
-    <section class="row align-items-center g-4 mb-5">
-        <div class="col-md-6">
-            <div class="ratio ratio-16x9 rounded-3 bg-body-secondary d-flex align-items-center justify-content-center">
-                <div class="text-center p-4">
-                    <i class="bi bi-brush fs-1 d-block mb-2"></i>
-                    <div class="fw-semibold">Share. Learn. Improve.</div>
-                    <small class="text-secondary">Technique tags • Comments • Likes • Profiles</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <h2 class="h3 fw-semibold">Why this exists</h2>
-            <p class="text-secondary">
-                Miniature painting is both art and practice. MiniPainterHub helps hobbyists showcase work,
-                learn from others, and keep track of their progress—without friction.
+<div class="about-page container py-4 py-lg-5">
+    <section class="about-hero mb-5">
+        <div class="about-hero__content">
+            <span class="about-eyebrow">Portfolio Update</span>
+            <h1 class="about-title">MiniPainterHub</h1>
+            <p class="about-subtitle">
+                A miniature-painting community app that now pairs social discovery with a richer post viewer,
+                stronger moderation flows, and a cleaner responsive interface across feed, search, messaging,
+                and admin tools.
             </p>
-            <ul class="list-unstyled mb-0">
-                <li class="d-flex align-items-start mb-2">
-                    <i class="bi bi-chat-dots me-2 mt-1"></i>
-                    <span><strong>Constructive feedback</strong> via comments & likes.</span>
-                </li>
-                <li class="d-flex align-items-start mb-2">
-                    <i class="bi bi-tags me-2 mt-1"></i>
-                    <span><strong>Technique tags</strong> to organize and discover styles.</span>
-                </li>
-                <li class="d-flex align-items-start">
-                    <i class="bi bi-person-circle me-2 mt-1"></i>
-                    <span><strong>Creator profiles</strong> with bios and avatars.</span>
-                </li>
+            <div class="about-actions">
+                <a class="btn btn-primary btn-lg" href="/posts/all">Explore the live feed</a>
+                <a class="btn btn-outline-secondary btn-lg" href="/posts/new">Create a post</a>
+            </div>
+            <div class="about-chip-row" aria-label="Recent capabilities">
+                <span class="about-chip">Rich image viewer</span>
+                <span class="about-chip">Anchored comment marks</span>
+                <span class="about-chip">Moderation and reports</span>
+                <span class="about-chip">Responsive UI refresh</span>
+            </div>
+        </div>
+
+        <aside class="about-hero__panel" aria-label="Current project snapshot">
+            <div class="about-panel-kicker">What changed recently</div>
+            <ul class="about-panel-list">
+                <li>Immersive post viewer with image-first browsing and comment context.</li>
+                <li>Inline hide and restore actions for posts and comments in admin flows.</li>
+                <li>Following feed, search discovery, messaging, and profile polish working together.</li>
+                <li>Browser-reviewed UI work backed by smoke tests and solution-wide test coverage.</li>
             </ul>
+            <div class="about-version">Build: @GetVersionString()</div>
+        </aside>
+    </section>
+
+    <section class="mb-5" aria-labelledby="recent-highlights-title">
+        <div class="about-section-heading">
+            <span class="about-section-label">Recent Functionality</span>
+            <h2 id="recent-highlights-title" class="about-section-title">What the portfolio now needs to show</h2>
+            <p class="about-section-copy">
+                The app has moved well beyond a basic posting flow. The current release emphasizes deeper viewing,
+                stronger moderation, better discovery, and a more deliberate UI shell.
+            </p>
+        </div>
+
+        <div class="about-highlight-grid">
+            @foreach (var highlight in RecentHighlights)
+            {
+                <article class="about-highlight-card">
+                    <div class="about-highlight-card__icon">
+                        <i class="@($"bi {highlight.Icon}")" aria-hidden="true"></i>
+                    </div>
+                    <div>
+                        <h3>@highlight.Title</h3>
+                        <p>@highlight.Description</p>
+                    </div>
+                </article>
+            }
         </div>
     </section>
 
-    <!-- FEATURES -->
-    <section class="mb-5">
-        <h2 class="h4 fw-semibold mb-3">What you can do</h2>
-        <div class="row g-3 g-md-4">
-            <div class="col-md-6 col-lg-3">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body">
-                        <i class="bi bi-images fs-4 mb-2 d-inline-block"></i>
-                        <h3 class="h6">Post Works</h3>
-                        <p class="text-secondary small mb-0">Upload finished models with captions and tags.</p>
+    <section class="mb-5" aria-labelledby="portfolio-tour-title">
+        <div class="about-section-heading">
+            <span class="about-section-label">UI Tour</span>
+            <h2 id="portfolio-tour-title" class="about-section-title">Recent screens and workflows</h2>
+            <p class="about-section-copy">
+                These views cover the app’s core product loop: browse, post, inspect, discover, message, and moderate.
+            </p>
+        </div>
+
+        <div class="about-shot-grid">
+            @foreach (var shot in PortfolioShots)
+            {
+                <article class="about-shot-card">
+                    <img class="about-shot-card__image" src="@shot.ImagePath" alt="@shot.Alt" />
+                    <div class="about-shot-card__body">
+                        <div class="about-shot-card__eyebrow">@shot.Eyebrow</div>
+                        <h3>@shot.Title</h3>
+                        <p>@shot.Caption</p>
                     </div>
-                </div>
-            </div>
-            <div class="col-md-6 col-lg-3">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body">
-                        <i class="bi bi-heart fs-4 mb-2 d-inline-block"></i>
-                        <h3 class="h6">Like & Discuss</h3>
-                        <p class="text-secondary small mb-0">React instantly and start helpful conversations.</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6 col-lg-3">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body">
-                        <i class="bi bi-tags fs-4 mb-2 d-inline-block"></i>
-                        <h3 class="h6">Technique Tags</h3>
-                        <p class="text-secondary small mb-0">Find glazing, NMM, OSL, weathering, and more.</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6 col-lg-3">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body">
-                        <i class="bi bi-shield-check fs-4 mb-2 d-inline-block"></i>
-                        <h3 class="h6">Account & Profiles</h3>
-                        <p class="text-secondary small mb-0">Customize your display name, bio, and avatar.</p>
-                    </div>
-                </div>
-            </div>
+                </article>
+            }
         </div>
     </section>
 
-    <!-- TECH STACK -->
-    <section class="mb-5">
-        <h2 class="h4 fw-semibold mb-3">Tech stack</h2>
-        <div class="d-flex flex-wrap gap-2">
-            <span class="badge text-bg-dark">.NET 8</span>
-            <span class="badge text-bg-primary">Blazor WebAssembly</span>
-            <span class="badge text-bg-secondary">ASP.NET Core Web API</span>
-            <span class="badge text-bg-info">Entity Framework Core</span>
-            <span class="badge text-bg-warning">Azure (App Service / Blob)</span>
-            <span class="badge text-bg-success">JWT Auth</span>
-            <span class="badge text-bg-light border">Bootstrap</span>
-        </div>
+    <section class="about-details mb-5" aria-labelledby="delivery-title">
+        <article class="about-detail-card">
+            <span class="about-section-label">Product Direction</span>
+            <h2 id="delivery-title" class="about-section-title">Functionality that now defines the project</h2>
+            <ul class="about-detail-list">
+                <li>Tagged posts, following feed, and global search make discovery feel intentional rather than purely chronological.</li>
+                <li>Profiles, follows, and direct messaging give the community layer real continuity beyond comments and likes.</li>
+                <li>Reports, moderation actions, and audit views make the admin surface part of the portfolio, not an afterthought.</li>
+                <li>The post details experience now supports richer image presentation and more contextual conversation flows.</li>
+            </ul>
+        </article>
+
+        <article class="about-detail-card">
+            <span class="about-section-label">Implementation Notes</span>
+            <h2 class="about-section-title">Delivery stack and quality gates</h2>
+            <div class="about-stack">
+                <span class="badge text-bg-dark">.NET 8</span>
+                <span class="badge text-bg-primary">Blazor WebAssembly</span>
+                <span class="badge text-bg-secondary">ASP.NET Core API</span>
+                <span class="badge text-bg-info">Entity Framework Core</span>
+                <span class="badge text-bg-success">JWT Auth</span>
+                <span class="badge text-bg-warning">Playwright Smoke</span>
+                <span class="badge text-bg-light border">bUnit + xUnit</span>
+            </div>
+            <p class="about-detail-copy">
+                Recent UI work has been reviewed through browser-based smoke coverage and targeted page updates instead of one-off styling tweaks.
+                That lets the portfolio present both functionality and delivery discipline.
+            </p>
+        </article>
     </section>
 
-    <!-- ROADMAP / TIMELINE -->
-    <section class="mb-5">
-        <h2 class="h4 fw-semibold mb-3">Roadmap highlights</h2>
-        <ul class="list-group list-group-flush">
-            <li class="list-group-item d-flex align-items-start">
-                <i class="bi bi-check2-circle text-success me-2 mt-1"></i>
-                <div>
-                    <div class="fw-semibold">Profiles, follows, and messaging (Live)</div>
-                    <small class="text-secondary">Public profiles, connections, following feed, and direct messages are available today.</small>
-                </div>
-            </li>
-            <li class="list-group-item d-flex align-items-start">
-                <i class="bi bi-check2-circle text-success me-2 mt-1"></i>
-                <div>
-                    <div class="fw-semibold">Search, tags, and discovery (Live)</div>
-                    <small class="text-secondary">Posts now support technique tags and global search across posts, users, and tags.</small>
-                </div>
-            </li>
-            <li class="list-group-item d-flex align-items-start">
-                <i class="bi bi-check2-circle text-success me-2 mt-1"></i>
-                <div>
-                    <div class="fw-semibold">Moderation, reporting, and maintenance mode (Live)</div>
-                    <small class="text-secondary">Admins and moderators can triage reports, audit actions, and run full-site maintenance windows.</small>
-                </div>
-            </li>
-        </ul>
-    </section>
-
-    <!-- TEAM -->
-    <section class="mb-5">
-        <h2 class="h4 fw-semibold mb-3">Who’s behind it</h2>
-        <div class="row g-3">
-            <div class="col-sm-6 col-md-4 col-lg-3">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body d-flex align-items-center">
-                        <i class="bi bi-person-circle fs-1 me-3"></i>
-                        <div>
-                            <div class="fw-semibold">Gleb (Hlib) Usov</div>
-                            <small class="text-secondary d-block">C# / .NET</small>
-                            <small class="text-secondary">Builder & maintainer</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- Add more contributors as needed -->
-        </div>
-    </section>
-
-    <!-- FAQ (Accordion) -->
-    <section class="mb-5" aria-label="Frequently asked questions">
-        <h2 class="h4 fw-semibold mb-3">FAQ</h2>
-        <div class="accordion" id="aboutFaq">
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="q1">
-                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#a1" aria-expanded="true" aria-controls="a1">
-                        Is MiniPainterHub free to use?
-                    </button>
-                </h2>
-                <div id="a1" class="accordion-collapse collapse show" data-bs-parent="#aboutFaq" aria-labelledby="q1">
-                    <div class="accordion-body">
-                        Yes. The MVP focuses on a simple, enjoyable community experience.
-                    </div>
-                </div>
-            </div>
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="q2">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#a2" aria-expanded="false" aria-controls="a2">
-                        What’s coming next?
-                    </button>
-                </h2>
-                <div id="a2" class="accordion-collapse collapse" data-bs-parent="#aboutFaq" aria-labelledby="q2">
-                    <div class="accordion-body">
-                        Near-term work is focused on ranking improvements, richer tag discovery, and deeper moderation tooling on top of the live feature set.
-                    </div>
-                </div>
+    <section class="about-cta text-center" aria-labelledby="about-cta-title">
+        <div class="about-cta__panel">
+            <span class="about-section-label">Next Click</span>
+            <h2 id="about-cta-title" class="about-section-title">See the current experience in motion</h2>
+            <p class="about-section-copy mb-0">
+                Browse the feed, open a post, create one of your own, or inspect the admin workflows to see how the recent UI refresh supports the newer features.
+            </p>
+            <div class="about-actions justify-content-center mt-4">
+                <a class="btn btn-primary btn-lg" href="/posts/all">Open portfolio flows</a>
+                <a class="btn btn-outline-secondary btn-lg" href="/search">Try discovery</a>
             </div>
         </div>
-    </section>
-
-    <!-- CONTACT / CTA -->
-    <section class="text-center">
-        <div class="p-4 p-md-5 rounded-3 border bg-body-tertiary">
-            <h2 class="h4 fw-semibold mb-2">Have feedback or ideas?</h2>
-            <p class="text-secondary mb-3">We’d love to hear what would make MiniPainterHub more useful for you.</p>
-            <div class="d-flex gap-2 justify-content-center">
-                <a class="btn btn-primary" href="/posts/all">Start sharing</a>
-                <a class="btn btn-outline-secondary" href="/profile">Update your profile</a>
-            </div>
-        </div>
-        <small class="text-secondary d-block mt-3">
-            App version: @GetVersionString()
-        </small>
     </section>
 </div>
 
 @code {
+    private static readonly PortfolioHighlight[] RecentHighlights =
+    {
+        new(
+            "Rich Post Viewing",
+            "Post details now support a fuller image-viewing experience with stronger visual hierarchy for artwork inspection and discussion.",
+            "bi-image-alt"),
+        new(
+            "Comment Marks and Context",
+            "Recent work introduced anchored marks and thread-first comment context so feedback can map back to a specific part of an image.",
+            "bi-chat-square-quote"),
+        new(
+            "Admin Moderation Flows",
+            "Reports, hide and restore actions, and audit visibility give moderators practical tools instead of background-only data.",
+            "bi-shield-check"),
+        new(
+            "Discovery and Social Depth",
+            "Following feed, global search, direct messaging, and richer profiles now connect creation and community into a coherent loop.",
+            "bi-compass"),
+    };
+
+    private static readonly PortfolioShot[] PortfolioShots =
+    {
+        new(
+            "Home Feed",
+            "The feed highlights posts as the primary entry point into the product and showcases the refreshed card-based browsing experience.",
+            "/images/portfolio/01-home-feed.png",
+            "Feed view showing recent miniature painting posts.",
+            "Browse"),
+        new(
+            "Create Post",
+            "Multi-image posting, captions, and tags keep the publishing flow focused on hobby progress and technique sharing.",
+            "/images/portfolio/02-create-post.png",
+            "Create-post screen with image upload and form controls.",
+            "Create"),
+        new(
+            "Post Details",
+            "The project’s core view combines artwork presentation, comments, likes, and moderation-aware detail flows in one place.",
+            "/images/portfolio/03-post-details.png",
+            "Post details screen with artwork, metadata, and comments.",
+            "Inspect"),
+        new(
+            "Search and Discovery",
+            "Cross-entity search ties posts, tags, and users together so discovery feels like a real feature area rather than a filter add-on.",
+            "/images/portfolio/04-search-discovery.png",
+            "Search screen showing results for posts and discovery flows.",
+            "Discover"),
+        new(
+            "Messaging",
+            "Direct messages and connection flows extend the app beyond public posting into ongoing community interaction.",
+            "/images/portfolio/05-messages.png",
+            "Messaging view showing a conversation list and active thread.",
+            "Connect"),
+        new(
+            "Reports and Admin",
+            "The admin surface now exposes actionable moderation workflows that are strong enough to include in the portfolio itself.",
+            "/images/portfolio/06-admin-reports.png",
+            "Admin reports screen with moderation queue information.",
+            "Moderate"),
+    };
+
     private static string GetVersionString()
         => Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0";
+
+    private sealed record PortfolioHighlight(string Title, string Description, string Icon);
+
+    private sealed record PortfolioShot(
+        string Title,
+        string Caption,
+        string ImagePath,
+        string Alt,
+        string Eyebrow);
 }
