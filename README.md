@@ -4,7 +4,7 @@ MiniPainterHub is a full-stack social platform for miniature painters. It combin
 
 This repository is portfolio-oriented as much as it is product-oriented: it shows end-to-end feature work across API design, Blazor UI, authentication, real-time messaging, media handling, moderation workflows, and automated quality gates.
 
-Screenshots in this README were captured with Playwright-MCP against a deterministic seeded development dataset.
+Screenshots in this README were captured with Playwright-MCP against a deterministic seeded development dataset and refreshed to match the current UI.
 
 ## What It Demonstrates
 
@@ -21,41 +21,49 @@ Screenshots in this README were captured with Playwright-MCP against a determini
 
 ## Screenshot Tour
 
+The tour below uses the deterministic seeded portfolio dataset and reflects the current shell, painter workflow, rich viewer, and moderation surfaces.
+
 ### 1. Latest feed
 
-The home feed surfaces image-first post cards, technique tags, author metadata, and quick engagement counts.
+The home feed now uses the current atelier shell, a left studio hub, and image-first post cards with quick access to tags, comments, and likes.
 
 ![Latest feed](docs/screenshots/portfolio/01-home-feed.png)
 
 ### 2. Post composer
 
-Posts can be authored with long-form content, uploaded images, and comma-separated technique tags.
+Posts are authored from a two-column composer with content inputs on the left and a live readability preview on the right.
 
 ![Post composer](docs/screenshots/portfolio/02-create-post.png)
 
-### 3. Post details and rich viewing
+### 3. Post details
 
-Each post has a detail flow with media, tags, comments, likes, reporting actions, and the foundation for a richer image-viewing experience.
+The post details page combines the gallery preview, tag metadata, viewer state, and inline conversation in one route before you step into the overlay.
 
 ![Post details](docs/screenshots/portfolio/03-post-details.png)
 
-### 4. Discovery search
+### 4. Rich viewer
 
-Search supports posts, users, and tags, making it easy to move from a technique to the painters using it.
+The rich viewer adds a dedicated stage, zoom controls, fullscreen support, preview rail, and a side panel for post metadata and comment-mark context.
 
-![Search results](docs/screenshots/portfolio/04-search-discovery.png)
+![Rich viewer](docs/screenshots/portfolio/04-rich-viewer.png)
 
-### 5. Direct messages
+### 5. Discovery search
 
-Seeded conversations and SignalR-backed messaging give the platform a real social layer beyond comments.
+Search pivots across posts, users, and tags inside the same visual shell, with clearer grouping and result summaries for a technique query.
 
-![Direct messages](docs/screenshots/portfolio/05-messages.png)
+![Search results](docs/screenshots/portfolio/05-search-discovery.png)
 
-### 6. Admin reports queue
+### 6. Direct messages
 
-Admins can review incoming reports, filter moderation work, and resolve issues from a dedicated queue.
+The messaging surface pairs the inbox with a larger reading pane and an explicit empty state that guides painters into profile-based conversations.
 
-![Reports queue](docs/screenshots/portfolio/06-admin-reports.png)
+![Direct messages](docs/screenshots/portfolio/06-messages.png)
+
+### 7. Moderation reports queue
+
+Admins can review the reports queue from the same shell, filter by status/target/reason, and work from a cleaner moderation-focused empty or populated state.
+
+![Reports queue](docs/screenshots/portfolio/07-admin-reports.png)
 
 ## Feature Overview
 
