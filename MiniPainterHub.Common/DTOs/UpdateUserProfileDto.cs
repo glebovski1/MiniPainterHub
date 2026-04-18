@@ -6,11 +6,11 @@ namespace MiniPainterHub.Common.DTOs
     {
         [Required]
         [StringLength(100)]
-        public string DisplayName { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
 
         [Required]
         [StringLength(500)]
-        public string Bio { get; set; }
+        public string Bio { get; set; } = string.Empty;
 
     }
 }

@@ -7,7 +7,7 @@ namespace MiniPainterHub.Common.DTOs
     public class PagedResult<T>
     {
         [Required]
-        public IEnumerable<T> Items { get; set; }  // the items on this page
+        public IEnumerable<T> Items { get; set; } = Array.Empty<T>();  // the items on this page
 
         [Required]
         public int TotalCount { get; set; }  // total items across all pages

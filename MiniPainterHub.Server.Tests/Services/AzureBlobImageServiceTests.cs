@@ -24,7 +24,7 @@ public class AzureBlobImageServiceTests
     [Fact]
     public void Ctor_WhenContainerIsNull_ThrowsArgumentNullException()
     {
-        var act = () => new AzureBlobImageService((BlobContainerClient)null!,  Microsoft.Extensions.Options.Options.Create(new ImagesOptions()));
+        var act = () => new AzureBlobImageService((BlobContainerClient)null!, Microsoft.Extensions.Options.Options.Create(new ImagesOptions()));
 
         act.Should().Throw<ArgumentNullException>()
             .WithParameterName("container");

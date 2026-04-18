@@ -45,6 +45,8 @@ namespace MiniPainterHub.Server.Data
             var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var imageService = scope.ServiceProvider.GetRequiredService<IImageService>();
+            var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+            var seedCredentials = SeedCredentials.FromConfiguration(configuration);
 
             const string adminRole = "Admin";
             const string userRole = "User";
@@ -58,14 +60,14 @@ namespace MiniPainterHub.Server.Data
                 userManager,
                 userName: "admin",
                 email: "admin@local",
-                password: "P@ssw0rd!",
+                password: seedCredentials.AdminPassword,
                 requiredRoles: new[] { adminRole, userRole });
 
             await EnsureUserAsync(
                 userManager,
                 userName: "user",
                 email: "user@local",
-                password: "User123!",
+                password: seedCredentials.UserPassword,
                 requiredRoles: new[] { userRole });
 
             await EnsurePostsAsync(db, userManager, imageService);
@@ -468,6 +470,27 @@ namespace MiniPainterHub.Server.Data
             image.SaveAsPng(stream);
             stream.Position = 0;
             return stream;
+        }
+
+        private sealed record SeedCredentials(string AdminPassword, string UserPassword)
+        {
+            public static SeedCredentials FromConfiguration(IConfiguration configuration)
+            {
+                return new SeedCredentials(
+                    GetRequired(configuration, "DevelopmentSeedCredentials:AdminPassword"),
+                    GetRequired(configuration, "DevelopmentSeedCredentials:UserPassword"));
+            }
+
+            private static string GetRequired(IConfiguration configuration, string key)
+            {
+                var value = configuration[key];
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    throw new InvalidOperationException($"Missing required development seed credential '{key}'.");
+                }
+
+                return value;
+            }
         }
 
         private sealed record SeedPostDefinition(

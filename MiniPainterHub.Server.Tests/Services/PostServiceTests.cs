@@ -110,13 +110,13 @@ public class PostServiceTests
             Images = dto.Images!.Take(6).Select(i => new { i.ImageUrl, i.ThumbnailUrl }).ToList()
         }, options => options.ExcludingMissingMembers());
         result.Images.Should().HaveCount(6);
-        result.ImageUrl.Should().Be(dto.Images.First().ImageUrl);
+        result.ImageUrl.Should().Be(dto.Images!.First().ImageUrl);
 
         var storedPost = await context.Posts.Include(p => p.Images).SingleAsync();
         storedPost.CreatedById.Should().Be(user.Id);
         storedPost.Images.Should().HaveCount(6);
         storedPost.Images.Select(i => i.ImageUrl)
-            .Should().BeEquivalentTo(dto.Images.Take(6).Select(i => i.ImageUrl));
+            .Should().BeEquivalentTo(dto.Images!.Take(6).Select(i => i.ImageUrl));
     }
 
     [Fact]
@@ -275,7 +275,7 @@ public class PostServiceTests
 
     private sealed class StubImageProcessor : IImageProcessor
     {
-        public Task<ImageVariants> ProcessAsync(Stream stream, string contentType, CancellationToken ct)
+        public Task<ImageVariants> ProcessAsync(Stream stream, string? contentType, CancellationToken ct)
         {
             var variant = new ImageVariant(new byte[] { 1 }, "image/jpeg", "jpg", 1, 1);
             return Task.FromResult(new ImageVariants(variant, variant, variant));

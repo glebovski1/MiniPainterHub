@@ -57,9 +57,8 @@ public class ConversationsControllerMalformedDataTests
         var response = await client.GetAsync("/api/conversations");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var summaries = await response.Content.ReadFromJsonAsync<ConversationSummaryDto[]>();
-        summaries.Should().NotBeNull();
-        summaries!.Should().HaveCount(1);
+        var summaries = await response.Content.ReadFromJsonAsync<ConversationSummaryDto[]>() ?? Array.Empty<ConversationSummaryDto>();
+        summaries.Should().HaveCount(1);
         summaries.Single().OtherUser.UserId.Should().Be("user-2");
     }
 }

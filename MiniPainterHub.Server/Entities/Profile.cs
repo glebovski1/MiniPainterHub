@@ -8,11 +8,11 @@ namespace MiniPainterHub.Server.Entities
     {
         [Key]
         [ForeignKey(nameof(User))]
-        public string UserId { get; set; }      // PK, also FK to ApplicationUser
+        public string UserId { get; set; } = string.Empty;      // PK, also FK to ApplicationUser
         public string? DisplayName { get; set; }
         public string? AvatarUrl { get; set; }
         public string? Bio { get; set; }
         // Navigation:
-        public ApplicationUser User { get; set; }
+        public ApplicationUser User { get; set; } = null!;
     }
 }

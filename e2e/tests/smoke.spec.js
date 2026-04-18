@@ -1,9 +1,19 @@
 const { test, expect } = require("@playwright/test");
+const fs = require("fs");
 const path = require("path");
 const { createRichViewerPost, getPathSegment, openViewerFromDetails } = require("./helpers/viewer-scenario");
 
 test.describe.configure({ mode: "serial" });
 const RESET_TOKEN = process.env.E2E_RESET_TOKEN || "local-e2e-reset-token";
+const developmentConfig = JSON.parse(
+  fs.readFileSync(
+    path.resolve(__dirname, "../../MiniPainterHub.Server/appsettings.Development.json"),
+    "utf8",
+  ),
+);
+const seedCredentials = developmentConfig.DevelopmentSeedCredentials || {};
+const USER_PASSWORD = requireSeedCredential("UserPassword", process.env.E2E_USER_PASSWORD || seedCredentials.UserPassword);
+const ADMIN_PASSWORD = requireSeedCredential("AdminPassword", process.env.E2E_ADMIN_PASSWORD || seedCredentials.AdminPassword);
 const SAMPLE_IMAGE_PATH = path.resolve(
   __dirname,
   "../../MiniPainterHub.Server/wwwroot/uploads/images/9_minis1.jpg",
@@ -16,6 +26,14 @@ const VIEWER_RATIO_EXPECTATIONS = [
   { key: "wide169", ratio: 16 / 9 },
   { key: "panorama219", ratio: 21 / 9 },
 ];
+
+function requireSeedCredential(name, value) {
+  if (!value) {
+    throw new Error(`Missing e2e seed credential: ${name}`);
+  }
+
+  return value;
+}
 
 function expectWithinTolerance(actual, expected, tolerance = 4) {
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(tolerance);
@@ -73,7 +91,7 @@ async function clearAuth(page) {
 async function loginAsSeedUser(page) {
   await page.goto("/login");
   await page.getByTestId("login-username").fill("user");
-  await page.getByTestId("login-password").fill("User123!");
+  await page.getByTestId("login-password").fill(USER_PASSWORD);
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("nav-logout")).toBeVisible();
 }
@@ -81,7 +99,7 @@ async function loginAsSeedUser(page) {
 async function loginAsAdmin(page) {
   await page.goto("/login");
   await page.getByTestId("login-username").fill("admin");
-  await page.getByTestId("login-password").fill("P@ssw0rd!");
+  await page.getByTestId("login-password").fill(ADMIN_PASSWORD);
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("nav-logout")).toBeVisible();
 }
@@ -669,7 +687,7 @@ test("post details prompt sign-in for comments when session is cleared", async (
 });
 
 test("messages thread loads and sending works", async ({ page, request }) => {
-  const adminToken = await loginViaApi(request, "admin", "P@ssw0rd!");
+  const adminToken = await loginViaApi(request, "admin", ADMIN_PASSWORD);
   const adminProfile = await ensureProfileForToken(request, adminToken, {
     displayName: "Admin Painter",
     bio: "Seeded for smoke coverage.",

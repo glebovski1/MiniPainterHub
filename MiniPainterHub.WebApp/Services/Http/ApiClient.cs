@@ -51,12 +51,12 @@ public sealed class ApiClient
         }
     }
 
-    public async Task<ApiResult<T?>> SendForResultAsync<T>(HttpRequestMessage request, ApiRequestOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task<ApiResult<T>> SendForResultAsync<T>(HttpRequestMessage request, ApiRequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         var response = await SendCoreAsync(request, options, cancellationToken);
         if (response is null)
         {
-            return new ApiResult<T?>(false, null, default);
+            return new ApiResult<T>(false, null, default);
         }
 
         using (response)
@@ -66,21 +66,21 @@ public sealed class ApiClient
             {
                 if (status == HttpStatusCode.NoContent || response.Content is null)
                 {
-                    return new ApiResult<T?>(true, status, default);
+                    return new ApiResult<T>(true, status, default);
                 }
 
                 var body = await response.Content.ReadAsStringAsync(cancellationToken);
                 if (string.IsNullOrWhiteSpace(body))
                 {
-                    return new ApiResult<T?>(true, status, default);
+                    return new ApiResult<T>(true, status, default);
                 }
 
                 var value = JsonSerializer.Deserialize<T>(body, SerializerOptions);
-                return new ApiResult<T?>(true, status, value);
+                return new ApiResult<T>(true, status, value);
             }
 
             await HandleErrorAsync(response, options, cancellationToken);
-            return new ApiResult<T?>(false, status, default);
+            return new ApiResult<T>(false, status, default);
         }
     }
 
@@ -119,7 +119,7 @@ public sealed class ApiClient
             {
                 problem = JsonSerializer.Deserialize<ProblemDetailsPayload>(body, SerializerOptions);
             }
-            catch
+            catch (JsonException)
             {
                 // ignored
             }
@@ -191,7 +191,7 @@ public sealed class ApiClient
                     return ConvertToDictionary(rootErrors);
                 }
             }
-            catch
+            catch (JsonException)
             {
                 // ignored
             }

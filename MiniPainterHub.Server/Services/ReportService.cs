@@ -184,60 +184,60 @@ namespace MiniPainterHub.Server.Services
             switch (targetType)
             {
                 case ReportTargetTypes.Post:
-                {
-                    if (!int.TryParse(targetId, out var postId))
                     {
-                        throw new NotFoundException("Post not found.");
-                    }
+                        if (!int.TryParse(targetId, out var postId))
+                        {
+                            throw new NotFoundException("Post not found.");
+                        }
 
-                    var post = await _appDbContext.Posts.AsNoTracking().FirstOrDefaultAsync(p => p.Id == postId);
-                    if (post is null)
-                    {
-                        throw new NotFoundException("Post not found.");
-                    }
+                        var post = await _appDbContext.Posts.AsNoTracking().FirstOrDefaultAsync(p => p.Id == postId);
+                        if (post is null)
+                        {
+                            throw new NotFoundException("Post not found.");
+                        }
 
-                    if (string.Equals(post.CreatedById, reporterUserId, StringComparison.Ordinal))
-                    {
-                        throw new ForbiddenException("You cannot report your own post.");
-                    }
+                        if (string.Equals(post.CreatedById, reporterUserId, StringComparison.Ordinal))
+                        {
+                            throw new ForbiddenException("You cannot report your own post.");
+                        }
 
-                    break;
-                }
+                        break;
+                    }
                 case ReportTargetTypes.Comment:
-                {
-                    if (!int.TryParse(targetId, out var commentId))
                     {
-                        throw new NotFoundException("Comment not found.");
-                    }
+                        if (!int.TryParse(targetId, out var commentId))
+                        {
+                            throw new NotFoundException("Comment not found.");
+                        }
 
-                    var comment = await _appDbContext.Comments.AsNoTracking().FirstOrDefaultAsync(c => c.Id == commentId);
-                    if (comment is null)
-                    {
-                        throw new NotFoundException("Comment not found.");
-                    }
+                        var comment = await _appDbContext.Comments.AsNoTracking().FirstOrDefaultAsync(c => c.Id == commentId);
+                        if (comment is null)
+                        {
+                            throw new NotFoundException("Comment not found.");
+                        }
 
-                    if (string.Equals(comment.AuthorId, reporterUserId, StringComparison.Ordinal))
-                    {
-                        throw new ForbiddenException("You cannot report your own comment.");
-                    }
+                        if (string.Equals(comment.AuthorId, reporterUserId, StringComparison.Ordinal))
+                        {
+                            throw new ForbiddenException("You cannot report your own comment.");
+                        }
 
-                    break;
-                }
+                        break;
+                    }
                 case ReportTargetTypes.User:
-                {
-                    var user = await _appDbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == targetId);
-                    if (user is null)
                     {
-                        throw new NotFoundException("User not found.");
-                    }
+                        var user = await _appDbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == targetId);
+                        if (user is null)
+                        {
+                            throw new NotFoundException("User not found.");
+                        }
 
-                    if (string.Equals(targetId, reporterUserId, StringComparison.Ordinal))
-                    {
-                        throw new ForbiddenException("You cannot report your own profile.");
-                    }
+                        if (string.Equals(targetId, reporterUserId, StringComparison.Ordinal))
+                        {
+                            throw new ForbiddenException("You cannot report your own profile.");
+                        }
 
-                    break;
-                }
+                        break;
+                    }
                 default:
                     throw new DomainValidationException("Unsupported report target.", new Dictionary<string, string[]>
                     {

@@ -3,17 +3,32 @@
 _Date:_ 2026-02-19  
 _Scope:_ `MiniPainterHub.Server`, `MiniPainterHub.WebApp`, `MiniPainterHub.Common`, repo docs/config
 
+## Current Status Update
+
+_Updated:_ 2026-04-18
+
+This audit remains useful as historical context, but several findings have since moved from open gaps to hardened baseline:
+
+- Current local baseline is 398 .NET tests and 19 Playwright smoke scenarios.
+- The solution build has been cleaned to 0 warnings.
+- Base configuration no longer carries JWT signing material; development-only JWT and seeded account credentials live in `appsettings.Development.json`, while non-development startup validation still requires external secret configuration.
+- `appsettings.Production.json` is strict JSON and intentionally omits secrets.
+- CI now includes build/test/browser smoke coverage, format verification, JSON config validation, NuGet vulnerability gating, npm audit, and warnings-as-errors.
+- Package versions are centrally managed with .NET 8 patch-line alignment.
+
+Remaining follow-up themes are token storage posture, deeper production secret-store/rotation process, runtime observability, and any future move from environment/app-service secrets to a managed secret store.
+
 ## Executive Summary
 
 MiniPainterHub has a solid baseline architecture (service layer usage, DTO separation, global exception handling, and meaningful unit-test coverage around core services), but there are several high-impact improvements needed in **security hygiene**, **operational hardening**, and **quality gates**.
 
-Top priorities:
+Current top priorities:
 
-1. **Remove secrets/default credentials from tracked config and seed paths.**
-2. **Fix configuration reliability issues (invalid production JSON, duplicated startup branch).**
-3. **Address compile-time warning debt (currently 36 warnings in Release build).**
-4. **Add CI quality gates (build/test/format/security scans).**
-5. **Tighten authentication token handling and client-side resilience.**
+1. **Maintain zero-warning and no-vulnerability quality gates.**
+2. **Keep production secrets external and document rotation/secret-store ownership.**
+3. **Tighten authentication token handling and client-side resilience.**
+4. **Add structured runtime observability for auth, startup, and image/media operations.**
+5. **Keep CI and README status aligned with the current test/browser coverage.**
 
 ---
 

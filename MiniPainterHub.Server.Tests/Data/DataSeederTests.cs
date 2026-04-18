@@ -150,9 +150,12 @@ public class DataSeederTests
         using (var scope = factory.Services.CreateScope())
         {
             var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+            var adminPassword = configuration["DevelopmentSeedCredentials:AdminPassword"];
             var admin = await users.FindByNameAsync("admin");
             admin.Should().NotBeNull();
-            (await users.CheckPasswordAsync(admin!, "P@ssw0rd!")).Should().BeTrue();
+            adminPassword.Should().NotBeNullOrWhiteSpace();
+            (await users.CheckPasswordAsync(admin!, adminPassword!)).Should().BeTrue();
             (await users.IsInRoleAsync(admin!, "Admin")).Should().BeTrue();
             (await users.IsInRoleAsync(admin!, "User")).Should().BeTrue();
         }

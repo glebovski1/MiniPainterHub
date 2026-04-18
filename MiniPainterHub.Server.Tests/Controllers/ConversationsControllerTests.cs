@@ -70,9 +70,8 @@ public class ConversationsControllerTests
 
         sendResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var summaries = await recipientClient.GetFromJsonAsync<ConversationSummaryDto[]>("/api/conversations");
-        summaries.Should().NotBeNull();
-        summaries!.Single().UnreadCount.Should().Be(1);
+        var summaries = await recipientClient.GetFromJsonAsync<ConversationSummaryDto[]>("/api/conversations") ?? Array.Empty<ConversationSummaryDto>();
+        summaries.Single().UnreadCount.Should().Be(1);
         summaries.Single().LatestMessagePreview.Should().Be("Hello there");
     }
 
@@ -172,16 +171,15 @@ public class ConversationsControllerTests
         var response = await client.GetAsync("/api/conversations");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var summaries = await response.Content.ReadFromJsonAsync<ConversationSummaryDto[]>();
-        summaries.Should().NotBeNull();
-        summaries!.Select(summary => summary.Id).Should().Equal(1, 2);
+        var summaries = await response.Content.ReadFromJsonAsync<ConversationSummaryDto[]>() ?? Array.Empty<ConversationSummaryDto>();
+        summaries.Select(summary => summary.Id).Should().Equal(1, 2);
 
-        summaries[0].OtherUser.DisplayName.Should().Be("Other One");
+        summaries[0].OtherUser!.DisplayName.Should().Be("Other One");
         summaries[0].LatestMessagePreview.Should().Be(new string('x', 117) + "...");
         summaries[0].LatestMessageSenderUserId.Should().Be("other-1");
         summaries[0].UnreadCount.Should().Be(1);
 
-        summaries[1].OtherUser.DisplayName.Should().Be("Other Two");
+        summaries[1].OtherUser!.DisplayName.Should().Be("Other Two");
         summaries[1].LatestMessagePreview.Should().Be("Mine earlier");
         summaries[1].LatestMessageSenderUserId.Should().Be("viewer");
         summaries[1].UnreadCount.Should().Be(0);

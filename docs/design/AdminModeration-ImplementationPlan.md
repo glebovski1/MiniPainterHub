@@ -1,5 +1,7 @@
 # Admin Moderation — Implementation Plan
 
+> Historical status, 2026-04-18: this plan is superseded by the current implementation. The repository now contains moderation/report controllers and services, shared moderation/report DTOs, admin pages for reports, audit, moderation, and user suspensions, plus Playwright smoke coverage for user reports and admin hide/restore/resolve flows. Keep this document as design history rather than an active implementation plan.
+
 ## Scope of this document
 This is a **planning-only** document based on static inspection of the current repository. It defines a minimal MVP path that fits existing architecture and conventions in `MiniPainterHub`.
 

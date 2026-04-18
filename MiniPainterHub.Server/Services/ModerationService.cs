@@ -178,7 +178,7 @@ namespace MiniPainterHub.Server.Services
                     MetadataJson = x.MetadataJson
                 }).ToListAsync();
 
-            return new PagedResult<ModerationAuditDto>{ Items=items, TotalCount=total, PageNumber=query.Page, PageSize=query.PageSize };
+            return new PagedResult<ModerationAuditDto> { Items = items, TotalCount = total, PageNumber = query.Page, PageSize = query.PageSize };
         }
 
         public async Task<IReadOnlyList<ModerationUserLookupDto>> SearchUsersAsync(string? query, int limit)

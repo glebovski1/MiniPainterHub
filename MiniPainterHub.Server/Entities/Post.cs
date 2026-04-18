@@ -9,7 +9,7 @@ namespace MiniPainterHub.Server.Entities
         public int Id { get; set; }
         public string Title { get; set; } = default!;
         public string Content { get; set; } = default!;
-        public string CreatedById { get; set; }    // FK to ApplicationUser
+        public string CreatedById { get; set; } = string.Empty;    // FK to ApplicationUser
         public DateTime CreatedUtc { get; set; }
         public DateTime UpdatedUtc { get; set; }
         public bool IsDeleted { get; set; }
@@ -18,7 +18,7 @@ namespace MiniPainterHub.Server.Entities
         public string? ModerationReason { get; set; }
         public DateTime? SoftDeletedUtc { get; set; }
         // Navigation:
-        public ApplicationUser CreatedBy { get; set; }
+        public ApplicationUser CreatedBy { get; set; } = null!;
         public ApplicationUser? ModeratedByUser { get; set; }
 
         public List<PostImage> Images { get; set; } = new();

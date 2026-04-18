@@ -705,49 +705,49 @@ public class Program
         switch (command.Kind)
         {
             case DevelopmentCommandKind.SeedContent:
-            {
-                var result = await seeder.ResetAndSeedAsync(command.AvatarsDirectory, command.PostImagesDirectory);
-
-                logger.LogInformation(
-                    "Development seed complete. Users: {Users}, posts: {Posts}, comments: {Comments}, avatars: {Avatars}, post images: {PostImages}.",
-                    result.UsersCreated,
-                    result.PostsCreated,
-                    result.CommentsCreated,
-                    result.AvatarsImported,
-                    result.PostImagesImported);
-
-                foreach (var credential in result.Credentials)
                 {
-                    logger.LogInformation(
-                        "Seeded user {UserName} ({Email}) roles [{Roles}] password {Password}",
-                        credential.UserName,
-                        credential.Email,
-                        string.Join(", ", credential.Roles),
-                        credential.Password);
-                }
+                    var result = await seeder.ResetAndSeedAsync(command.AvatarsDirectory, command.PostImagesDirectory);
 
-                break;
-            }
+                    logger.LogInformation(
+                        "Development seed complete. Users: {Users}, posts: {Posts}, comments: {Comments}, avatars: {Avatars}, post images: {PostImages}.",
+                        result.UsersCreated,
+                        result.PostsCreated,
+                        result.CommentsCreated,
+                        result.AvatarsImported,
+                        result.PostImagesImported);
+
+                    foreach (var credential in result.Credentials)
+                    {
+                        logger.LogInformation(
+                            "Seeded user {UserName} ({Email}) roles [{Roles}] password {Password}",
+                            credential.UserName,
+                            credential.Email,
+                            string.Join(", ", credential.Roles),
+                            credential.Password);
+                    }
+
+                    break;
+                }
             case DevelopmentCommandKind.GenerateAvatarsOnly:
-            {
-                var result = await seeder.GenerateAvatarsOnlyAsync(command.AvatarsDirectory);
-
-                logger.LogInformation(
-                    "Development avatar generation complete. Avatars: {Avatars}, existing users updated: {UsersUpdated}.",
-                    result.AvatarsImported,
-                    result.ExistingUsersUpdated);
-
-                foreach (var avatar in result.Avatars)
                 {
-                    logger.LogInformation(
-                        "Prepared avatar for {UserName} from {SourceFile} at {AvatarUrl}",
-                        avatar.UserName,
-                        avatar.SourceFileName,
-                        avatar.AvatarUrl);
-                }
+                    var result = await seeder.GenerateAvatarsOnlyAsync(command.AvatarsDirectory);
 
-                break;
-            }
+                    logger.LogInformation(
+                        "Development avatar generation complete. Avatars: {Avatars}, existing users updated: {UsersUpdated}.",
+                        result.AvatarsImported,
+                        result.ExistingUsersUpdated);
+
+                    foreach (var avatar in result.Avatars)
+                    {
+                        logger.LogInformation(
+                            "Prepared avatar for {UserName} from {SourceFile} at {AvatarUrl}",
+                            avatar.UserName,
+                            avatar.SourceFileName,
+                            avatar.AvatarUrl);
+                    }
+
+                    break;
+                }
             default:
                 throw new InvalidOperationException($"Unsupported development command '{command.Kind}'.");
         }

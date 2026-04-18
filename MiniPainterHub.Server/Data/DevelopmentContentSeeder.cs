@@ -27,7 +27,6 @@ public sealed class DevelopmentContentSeeder
         new(
             "admin",
             "admin@local",
-            "P@ssw0rd!",
             "Elena Hart",
             new[] { "Admin", "User" },
             "Display painter and studio founder documenting grimdark armies and bright skirmish bands.",
@@ -38,7 +37,6 @@ public sealed class DevelopmentContentSeeder
         new(
             "user",
             "user@local",
-            "User123!",
             "Marcus Vale",
             new[] { "User" },
             "Weekend hobbyist painting historical infantry, terrain scatter, and anything with a weathered coat.",
@@ -49,7 +47,6 @@ public sealed class DevelopmentContentSeeder
         new(
             "studiomod",
             "studiomod@local",
-            "StudioMod123!",
             "Priya Nair",
             new[] { "Moderator", "User" },
             "Community moderator focused on clean tutorials, readable color recipes, and approachable feedback.",
@@ -60,7 +57,6 @@ public sealed class DevelopmentContentSeeder
         new(
             "inkandiron",
             "inkandiron@example.test",
-            "Palette123!",
             "Jonah Mercer",
             new[] { "User" },
             "Paints battered sci-fi crews with lots of oil streaking, sponge chipping, and fluorescent lenses.",
@@ -71,7 +67,6 @@ public sealed class DevelopmentContentSeeder
         new(
             "velvetwash",
             "velvetwash@example.test",
-            "Palette123!",
             "Sofia Klein",
             new[] { "User" },
             "Loves rich velvets, jewel tones, and display-scale fantasy heroes with dramatic capes.",
@@ -82,7 +77,6 @@ public sealed class DevelopmentContentSeeder
         new(
             "brasslantern",
             "brasslantern@example.test",
-            "Palette123!",
             "Theo Barrett",
             new[] { "User" },
             "Terrain builder mixing scratch-built ruins, resin debris, and muddy pigments for campaign boards.",
@@ -93,7 +87,6 @@ public sealed class DevelopmentContentSeeder
         new(
             "ashenreed",
             "ashenreed@example.test",
-            "Palette123!",
             "Nadia Brooks",
             new[] { "User" },
             "Focuses on desaturated fantasy palettes, muted leathers, and soft atmospheric photography.",
@@ -104,7 +97,6 @@ public sealed class DevelopmentContentSeeder
         new(
             "cinderfox",
             "cinderfox@example.test",
-            "Palette123!",
             "Avery Lin",
             new[] { "User" },
             "Paints fast-moving skirmish warbands with bold spot colors and readable tabletop contrast.",
@@ -115,7 +107,6 @@ public sealed class DevelopmentContentSeeder
         new(
             "oakpigment",
             "oakpigment@example.test",
-            "Palette123!",
             "Graham Holt",
             new[] { "User" },
             "Historical painter obsessed with worn canvas, dusty boots, and believable campaign grime.",
@@ -126,7 +117,6 @@ public sealed class DevelopmentContentSeeder
         new(
             "lumenforge",
             "lumenforge@example.test",
-            "Palette123!",
             "Mira Sol",
             new[] { "User" },
             "Builds luminous magical effects, moonlit skin tones, and glowing runes for fantasy showcase pieces.",
@@ -261,6 +251,7 @@ public sealed class DevelopmentContentSeeder
         await EnsureRolesAsync();
 
         var now = DateTime.UtcNow;
+        var credentials = DevelopmentSeedCredentials.FromConfiguration(_configuration);
         var avatars = await ImportAvatarsAsync(avatarFiles, ct);
         var usersByUserName = new Dictionary<string, ApplicationUser>(StringComparer.OrdinalIgnoreCase);
 
@@ -280,7 +271,7 @@ public sealed class DevelopmentContentSeeder
                 DateJoined = joinedUtc
             };
 
-            var createResult = await _userManager.CreateAsync(user, seedUser.Password);
+            var createResult = await _userManager.CreateAsync(user, credentials.GetPassword(seedUser.UserName));
             if (!createResult.Succeeded)
             {
                 throw new InvalidOperationException(
@@ -347,7 +338,7 @@ public sealed class DevelopmentContentSeeder
             commentsCreated.Count,
             avatars.Count,
             postImagesImported,
-            SeedUsers.Select(u => new SeededUserCredential(u.UserName, u.Password, u.Email, u.Roles)).ToList());
+            SeedUsers.Select(u => new SeededUserCredential(u.UserName, credentials.GetPassword(u.UserName), u.Email, u.Roles)).ToList());
     }
 
     public async Task<DevelopmentAvatarGenerationResult> GenerateAvatarsOnlyAsync(string avatarsDirectory, CancellationToken ct = default)
@@ -891,10 +882,44 @@ public sealed record SeededAvatarAsset(
     string SourceFileName,
     string AvatarUrl);
 
+internal sealed record DevelopmentSeedCredentials(
+    string AdminPassword,
+    string UserPassword,
+    string ModeratorPassword,
+    string PortfolioUserPassword)
+{
+    public static DevelopmentSeedCredentials FromConfiguration(IConfiguration configuration)
+    {
+        return new DevelopmentSeedCredentials(
+            GetRequired(configuration, "DevelopmentSeedCredentials:AdminPassword"),
+            GetRequired(configuration, "DevelopmentSeedCredentials:UserPassword"),
+            GetRequired(configuration, "DevelopmentSeedCredentials:ModeratorPassword"),
+            GetRequired(configuration, "DevelopmentSeedCredentials:PortfolioUserPassword"));
+    }
+
+    public string GetPassword(string userName) => userName switch
+    {
+        "admin" => AdminPassword,
+        "user" => UserPassword,
+        "studiomod" => ModeratorPassword,
+        _ => PortfolioUserPassword
+    };
+
+    private static string GetRequired(IConfiguration configuration, string key)
+    {
+        var value = configuration[key];
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new InvalidOperationException($"Missing required development seed credential '{key}'.");
+        }
+
+        return value;
+    }
+}
+
 internal sealed record DevelopmentSeedUser(
     string UserName,
     string Email,
-    string Password,
     string DisplayName,
     IReadOnlyList<string> Roles,
     string Bio,

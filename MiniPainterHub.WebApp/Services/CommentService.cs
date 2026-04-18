@@ -36,10 +36,10 @@ namespace MiniPainterHub.WebApp.Services
 
             var result = await _api.SendForResultAsync<CommentDto>(request);
 
-            return result with
-            {
-                Value = result.Success ? result.Value : default
-            };
+            return new ApiResult<CommentDto?>(
+                result.Success,
+                result.StatusCode,
+                result.Success ? result.Value : default);
         }
     }
 }

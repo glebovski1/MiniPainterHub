@@ -125,8 +125,8 @@ For the full technical breakdown, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.m
 
 The repository now has automated coverage from basic unit tests through browser automation:
 
-- 333 .NET tests across server and WebApp test projects
-- 14 Playwright smoke scenarios covering end-to-end user and admin flows
+- 398 .NET tests across server and WebApp test projects
+- 19 Playwright smoke scenarios covering end-to-end user and admin flows
 - Unit and service-level tests for business logic and HTTP client wrappers
 - bUnit coverage for Blazor pages and shared UI behavior
 - Playwright smoke coverage for login, posting, search, profile flows, moderation, and reports
@@ -163,6 +163,8 @@ Useful seeded accounts:
 - `admin` / `P@ssw0rd!`
 - `user` / `User123!`
 - `studiomod` / `StudioMod123!`
+
+These deterministic credentials are development-only values from `appsettings.Development.json`. Non-development environments must provide JWT, database, image storage, and optional seed-admin secrets through external configuration.
 
 ## Test Commands
 
