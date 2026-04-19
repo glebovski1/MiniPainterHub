@@ -40,6 +40,7 @@ description: "Use when implementing or reviewing .NET tests with xUnit, fixture 
 - Prefer `MiniPainterHub.Server.Tests` for backend tests.
 - Reuse existing patterns in `Infrastructure/AppDbContextFactory.cs` and `Infrastructure/TestData.cs` when appropriate.
 - For host-level tests, follow the approach from `Controllers/PostsUploadTests.cs`.
+- Put durable test strategy updates in `ObsidianVault/20 Engineering/TESTING_GAP_ANALYSIS.md` or `ObsidianVault/30 Process/WORKFLOW_PLAYBOOK.md`.
 
 ## References
 - `references/xunit-fixture-strategy.md`

@@ -15,5 +15,6 @@ description: "Starter template skill for this repository; copy and customize bef
 
 ## Notes
 - Keep this file lean.
-- Move detailed docs to `references/`.
+- Move skill-specific details to `references/`.
+- Move durable project guidance to the matching vault note under `ObsidianVault/` and link it from `ObsidianVault/00 Start Here/Project Index.md` when it should be discoverable.
 - Put deterministic helpers in `scripts/`.

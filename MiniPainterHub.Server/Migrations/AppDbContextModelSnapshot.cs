@@ -17,7 +17,7 @@ namespace MiniPainterHub.Server.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.15")
+                .HasAnnotation("ProductVersion", "8.0.26")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -582,6 +582,10 @@ namespace MiniPainterHub.Server.Migrations
                     b.Property<int?>("Height")
                         .HasColumnType("int");
 
+                    b.Property<string>("ImageStorageKey")
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
+
                     b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -591,6 +595,13 @@ namespace MiniPainterHub.Server.Migrations
 
                     b.Property<string>("PreviewUrl")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("StoredImageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ThumbnailStorageKey")
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
 
                     b.Property<string>("ThumbnailUrl")
                         .HasColumnType("nvarchar(max)");

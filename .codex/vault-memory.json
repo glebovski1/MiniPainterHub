@@ -1,0 +1,24 @@
+{
+  "vaultRoot": "ObsidianVault",
+  "archiveDir": "_archive",
+  "logsDir": "_logs",
+  "indexes": [
+    "00 Start Here/Project Index.md",
+    "00 Start Here/Agent Navigation.md",
+    "00 Start Here/Knowledge Map.md",
+    "00 Start Here/Vault Specification.md",
+    "20 Engineering/README.md",
+    "30 Process/README.md",
+    "30 Process/Decisions/README.md",
+    "40 Design/README.md",
+    "50 Visual Assets/README.md"
+  ],
+  "preferredNoteStyle": "obsidian-wikilinks",
+  "deleteMode": "archive-first",
+  "maxInitialNotesToRead": 7,
+  "reflection": {
+    "enabled": true,
+    "useSubagentWhenAvailable": true,
+    "logDir": "_logs/reflections"
+  }
+}

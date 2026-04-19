@@ -1,14 +1,18 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Data;
+using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services;
 using MiniPainterHub.Server.Services.Interfaces;
@@ -150,6 +154,132 @@ public class PostServiceTests
     }
 
     [Fact]
+    public async Task DeleteAsync_WhenPostHasImageStorageMetadata_DeletesStoredArtifacts()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        var post = TestData.CreatePost(1, user.Id);
+        var storedImageId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        post.Images.Add(new PostImage
+        {
+            Id = 101,
+            PostId = post.Id,
+            ImageUrl = "https://test.local/processed/max.jpg",
+            StoredImageId = storedImageId
+        });
+        post.Images.Add(new PostImage
+        {
+            Id = 102,
+            PostId = post.Id,
+            ImageUrl = "https://test.local/uploads/image.jpg",
+            ThumbnailUrl = "https://test.local/uploads/thumb.jpg",
+            ImageStorageKey = "1_0_image.jpg",
+            ThumbnailStorageKey = "1_0_thumb.jpg"
+        });
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.SaveChangesAsync();
+        var imageService = new StubImageService();
+        var imageStore = new StubImageStore();
+        var service = CreateService(context, imageService, imageStore);
+
+        var result = await service.DeleteAsync(post.Id, user.Id);
+
+        result.Should().BeTrue();
+        imageService.DeletedFileNames.Should().BeEquivalentTo(new[] { "1_0_image.jpg", "1_0_thumb.jpg" });
+        imageStore.DeletedImages.Should().ContainSingle().Which.Should().Be((CreateStoragePostId(post.Id), storedImageId));
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenImageCleanupFails_StillSoftDeletesPost()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        var post = TestData.CreatePost(1, user.Id);
+        post.Images.Add(new PostImage
+        {
+            Id = 101,
+            PostId = post.Id,
+            ImageUrl = "https://test.local/processed/max.jpg",
+            StoredImageId = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            ImageStorageKey = "1_0_image.jpg"
+        });
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.SaveChangesAsync();
+        var imageService = new StubImageService(throwOnDelete: true);
+        var imageStore = new StubImageStore(throwOnDelete: true);
+        var service = CreateService(context, imageService, imageStore);
+
+        var result = await service.DeleteAsync(post.Id, user.Id);
+
+        result.Should().BeTrue();
+        var storedPost = await context.Posts.SingleAsync();
+        storedPost.IsDeleted.Should().BeTrue();
+        imageService.DeletedFileNames.Should().ContainSingle().Which.Should().Be("1_0_image.jpg");
+        imageStore.DeletedImages.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task CreateWithImagesAsync_WhenPipelineEnabled_PersistsStoredImageId()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        await context.Users.AddAsync(user);
+        await context.SaveChangesAsync();
+        var imageStore = new StubImageStore();
+        var service = CreateService(context, imageStore: imageStore);
+        var dto = new CreateImagePostDto
+        {
+            Title = "Pipeline post",
+            Content = "Post content",
+            Images = new List<IFormFile>
+            {
+                CreateFormFile(new byte[] { 1, 2, 3 }, "photo.jpg", "image/jpeg")
+            }
+        };
+
+        await service.CreateWithImagesAsync(user.Id, dto, CancellationToken.None);
+
+        imageStore.SavedImages.Should().ContainSingle();
+        var savedImage = imageStore.SavedImages.Single();
+        var storedImage = await context.PostImages.SingleAsync();
+        storedImage.StoredImageId.Should().Be(savedImage.ImageId);
+        storedImage.ImageStorageKey.Should().BeNull();
+        storedImage.ThumbnailStorageKey.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CreateWithImagesAsync_WhenPipelineDisabled_PersistsLegacyStorageKeys()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        await context.Users.AddAsync(user);
+        await context.SaveChangesAsync();
+        var service = CreateService(context, imageOptions: new ImagesOptions { Enabled = false });
+        var dto = new CreateImagePostDto
+        {
+            Title = "Legacy post",
+            Content = "Post content",
+            Images = new List<IFormFile>
+            {
+                CreateFormFile(new byte[] { 1, 2, 3 }, "photo.jpg", "image/jpeg")
+            },
+            Thumbnails = new List<IFormFile>
+            {
+                CreateFormFile(new byte[] { 4, 5, 6 }, "thumb.jpg", "image/jpeg")
+            }
+        };
+
+        var result = await service.CreateWithImagesAsync(user.Id, dto, CancellationToken.None);
+
+        var storedImage = await context.PostImages.SingleAsync();
+        storedImage.StoredImageId.Should().BeNull();
+        storedImage.ImageStorageKey.Should().Be($"{result.Id}_0_photo.jpg");
+        storedImage.ThumbnailStorageKey.Should().Be($"{result.Id}_0_thumb_thumb.jpg");
+    }
+
+    [Fact]
     public async Task AddImagesAsync_WhenPostHasMaxImages_DoesNotExceedLimit()
     {
         await using var context = AppDbContextFactory.Create();
@@ -253,20 +383,42 @@ public class PostServiceTests
         result.Items.Single().IsDeleted.Should().BeTrue();
     }
 
-    private static PostService CreateService(AppDbContext context)
+    private static PostService CreateService(
+        AppDbContext context,
+        StubImageService? imageService = null,
+        StubImageStore? imageStore = null,
+        ImagesOptions? imageOptions = null)
     {
         return new PostService(
             context,
-            new StubImageService(),
+            imageService ?? new StubImageService(),
             new StubImageProcessor(),
-            new StubImageStore(),
-            Microsoft.Extensions.Options.Options.Create(new ImagesOptions()),
+            imageStore ?? new StubImageStore(),
+            Microsoft.Extensions.Options.Options.Create(imageOptions ?? new ImagesOptions()),
             NullLogger<PostService>.Instance);
     }
 
     private sealed class StubImageService : IImageService
     {
-        public Task DeleteAsync(string fileName) => Task.CompletedTask;
+        private readonly bool _throwOnDelete;
+
+        public StubImageService(bool throwOnDelete = false)
+        {
+            _throwOnDelete = throwOnDelete;
+        }
+
+        public List<string> DeletedFileNames { get; } = new();
+
+        public Task DeleteAsync(string fileName)
+        {
+            DeletedFileNames.Add(fileName);
+            if (_throwOnDelete)
+            {
+                throw new InvalidOperationException("Delete failed.");
+            }
+
+            return Task.CompletedTask;
+        }
 
         public Task<Stream> DownloadAsync(string fileName) => Task.FromResult<Stream>(Stream.Null);
 
@@ -284,8 +436,20 @@ public class PostServiceTests
 
     private sealed class StubImageStore : IImageStore
     {
+        private readonly bool _throwOnDelete;
+
+        public StubImageStore(bool throwOnDelete = false)
+        {
+            _throwOnDelete = throwOnDelete;
+        }
+
+        public List<(Guid PostId, Guid ImageId)> DeletedImages { get; } = new();
+
+        public List<(Guid PostId, Guid ImageId)> SavedImages { get; } = new();
+
         public Task<ImageStoreResult> SaveAsync(Guid postId, Guid imageId, ImageVariants variants, CancellationToken ct)
         {
+            SavedImages.Add((postId, imageId));
             var baseUrl = $"https://test.local/{postId:D}/";
             return Task.FromResult(new ImageStoreResult(
                 baseUrl + $"{imageId:D}_max.jpg",
@@ -293,7 +457,29 @@ public class PostServiceTests
                 baseUrl + $"{imageId:D}_thumb.jpg"));
         }
 
-        public Task DeleteAsync(Guid postId, Guid imageId, CancellationToken ct) => Task.CompletedTask;
+        public Task DeleteAsync(Guid postId, Guid imageId, CancellationToken ct)
+        {
+            DeletedImages.Add((postId, imageId));
+            if (_throwOnDelete)
+            {
+                throw new InvalidOperationException("Delete failed.");
+            }
+
+            return Task.CompletedTask;
+        }
+    }
+
+    private static Guid CreateStoragePostId(int postId) =>
+        new(postId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+    private static IFormFile CreateFormFile(byte[] bytes, string fileName, string contentType)
+    {
+        var stream = new MemoryStream(bytes);
+        return new FormFile(stream, 0, bytes.Length, "images", fileName)
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = contentType
+        };
     }
 
 }

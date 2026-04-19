@@ -134,6 +134,7 @@ namespace MiniPainterHub.Server.Services
         public async Task<bool> DeleteAsync(int postId, string userId)
         {
             var post = await _appDbContext.Posts
+                .Include(p => p.Images)
                 .FirstOrDefaultAsync(p => p.Id == postId && p.CreatedById == userId && !p.IsDeleted);
 
             if (post == null)
@@ -141,10 +142,19 @@ namespace MiniPainterHub.Server.Services
                 throw new NotFoundException("Post not found.");
             }
 
+            var cleanupTargets = post.Images
+                .Select(image => new PostImageCleanupTarget(
+                    image.StoredImageId,
+                    image.ImageStorageKey,
+                    image.ThumbnailStorageKey))
+                .ToList();
+
             post.IsDeleted = true;
             post.SoftDeletedUtc = DateTime.UtcNow;
             post.UpdatedUtc = DateTime.UtcNow;
             await _appDbContext.SaveChangesAsync();
+
+            await CleanupDeletedPostImagesAsync(post.Id, cleanupTargets);
             return true;
         }
 
@@ -255,11 +265,11 @@ namespace MiniPainterHub.Server.Services
                     await ProcessWithLegacyAsync(created.Id, dto.Images, dto.Thumbnails, processedImages, ct);
                 }
 
-                created.Images = await AddImagesAsync(
+                created.Images = await AddProcessedImagesAsync(
                     created.Id,
                     processedImages
                         .Where(result => result.Image is not null)
-                        .Select(result => result.Image!));
+                        .Select(result => result));
                 created.ImageUrl = created.Images.OrderBy(i => i.Id).Select(i => i.ImageUrl).FirstOrDefault();
 
                 return created;
@@ -273,23 +283,47 @@ namespace MiniPainterHub.Server.Services
 
         public async Task<List<PostImageDto>> AddImagesAsync(int postId, IEnumerable<PostImageDto> images)
         {
+            var pendingImages = (images ?? Enumerable.Empty<PostImageDto>())
+                .Select(image => new PendingPostImage(image, null, null, null));
+
+            return await AddImagesAsync(postId, pendingImages);
+        }
+
+        private async Task<List<PostImageDto>> AddProcessedImagesAsync(int postId, IEnumerable<ProcessedImageResult> images)
+        {
+            var pendingImages = images
+                .Where(result => result.Image is not null)
+                .Select(result => new PendingPostImage(
+                    result.Image!,
+                    result.StoredImageId,
+                    result.ImageStorageKey,
+                    result.ThumbnailStorageKey));
+
+            return await AddImagesAsync(postId, pendingImages);
+        }
+
+        private async Task<List<PostImageDto>> AddImagesAsync(int postId, IEnumerable<PendingPostImage> images)
+        {
             var post = await _appDbContext.Posts
                 .Include(p => p.Images)
                 .FirstOrDefaultAsync(p => p.Id == postId && !p.IsDeleted)
                 ?? throw new NotFoundException("Post not found.");
 
-            var incoming = images ?? Enumerable.Empty<PostImageDto>();
+            var incoming = images ?? Enumerable.Empty<PendingPostImage>();
             var remainingSlots = Math.Max(0, MaxImagesPerPost - post.Images.Count);
             var toAdd = incoming
                 .Take(remainingSlots)
-                .Select(img => new PostImage
+                .Select(pending => new PostImage
                 {
                     PostId = postId,
-                    ImageUrl = img.ImageUrl,
-                    PreviewUrl = string.IsNullOrWhiteSpace(img.PreviewUrl) ? img.ImageUrl : img.PreviewUrl,
-                    ThumbnailUrl = img.ThumbnailUrl,
-                    Width = img.Width,
-                    Height = img.Height
+                    ImageUrl = pending.Image.ImageUrl,
+                    PreviewUrl = string.IsNullOrWhiteSpace(pending.Image.PreviewUrl) ? pending.Image.ImageUrl : pending.Image.PreviewUrl,
+                    ThumbnailUrl = pending.Image.ThumbnailUrl,
+                    Width = pending.Image.Width,
+                    Height = pending.Image.Height,
+                    StoredImageId = pending.StoredImageId,
+                    ImageStorageKey = pending.ImageStorageKey,
+                    ThumbnailStorageKey = pending.ThumbnailStorageKey
                 })
                 .ToList();
 
@@ -602,10 +636,11 @@ namespace MiniPainterHub.Server.Services
                     uploadedFiles.Add(fileName);
 
                     string? thumbUrl = null;
+                    string? thumbFileName = null;
                     if (thumbnails != null && i < thumbnails.Count && thumbnails[i] is { Length: > 0 } thumb)
                     {
                         await using var thumbStream = thumb.OpenReadStream();
-                        var thumbFileName = $"{postId}_{i}_thumb_{thumb.FileName}";
+                        thumbFileName = $"{postId}_{i}_thumb_{thumb.FileName}";
                         thumbUrl = await _imageService.UploadAsync(thumbStream, thumbFileName);
                         uploadedFiles.Add(thumbFileName);
                     }
@@ -618,11 +653,13 @@ namespace MiniPainterHub.Server.Services
                             ThumbnailUrl = thumbUrl
                         },
                         null,
+                        fileName,
+                        thumbFileName,
                         uploadedFiles));
                 }
                 catch
                 {
-                    results.Add(new ProcessedImageResult(null, null, uploadedFiles));
+                    results.Add(new ProcessedImageResult(null, null, null, null, uploadedFiles));
                     throw;
                 }
             }
@@ -657,12 +694,53 @@ namespace MiniPainterHub.Server.Services
                             Height = variants.Max.Height
                         },
                         imageId,
+                        null,
+                        null,
                         Array.Empty<string>()));
                 }
                 catch
                 {
-                    results.Add(new ProcessedImageResult(null, imageId, Array.Empty<string>()));
+                    results.Add(new ProcessedImageResult(null, imageId, null, null, Array.Empty<string>()));
                     throw;
+                }
+            }
+        }
+
+        private async Task CleanupDeletedPostImagesAsync(int postId, IReadOnlyList<PostImageCleanupTarget> images)
+        {
+            if (images.Count == 0)
+            {
+                return;
+            }
+
+            var storagePostId = ConvertToStorageGuid(postId);
+
+            foreach (var image in images)
+            {
+                foreach (var key in image.LegacyStorageKeys)
+                {
+                    try
+                    {
+                        await _imageService.DeleteAsync(key);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to delete uploaded image artifact {FileName} for deleted post {PostId}", key, postId);
+                    }
+                }
+
+                if (!image.StoredImageId.HasValue)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    await _imageStore.DeleteAsync(storagePostId, image.StoredImageId.Value, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to delete stored image variants for deleted post {PostId} image {ImageId}", postId, image.StoredImageId.Value);
                 }
             }
         }
@@ -824,6 +902,40 @@ namespace MiniPainterHub.Server.Services
 
         private sealed record PostSummaryPageItem(int Id, int CommentCount, int LikeCount);
 
-        private sealed record ProcessedImageResult(PostImageDto? Image, Guid? StoredImageId, IReadOnlyList<string> UploadedFileNames);
+        private sealed record PendingPostImage(
+            PostImageDto Image,
+            Guid? StoredImageId,
+            string? ImageStorageKey,
+            string? ThumbnailStorageKey);
+
+        private sealed record ProcessedImageResult(
+            PostImageDto? Image,
+            Guid? StoredImageId,
+            string? ImageStorageKey,
+            string? ThumbnailStorageKey,
+            IReadOnlyList<string> UploadedFileNames);
+
+        private sealed record PostImageCleanupTarget(
+            Guid? StoredImageId,
+            string? ImageStorageKey,
+            string? ThumbnailStorageKey)
+        {
+            public IEnumerable<string> LegacyStorageKeys
+            {
+                get
+                {
+                    if (!string.IsNullOrWhiteSpace(ImageStorageKey))
+                    {
+                        yield return ImageStorageKey;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(ThumbnailStorageKey)
+                        && !string.Equals(ImageStorageKey, ThumbnailStorageKey, StringComparison.Ordinal))
+                    {
+                        yield return ThumbnailStorageKey;
+                    }
+                }
+            }
+        }
     }
 }

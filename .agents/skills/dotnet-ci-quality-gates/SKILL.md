@@ -29,6 +29,7 @@ description: "Use when creating or hardening GitHub Actions quality gates for .N
 - Build with `dotnet build MiniPainterHub.sln`.
 - Run backend tests with `dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj`.
 - Optionally run UI snapshot tooling when WebApp visual behavior is changed.
+- Put durable CI gate policy changes in `ObsidianVault/30 Process/CONTRIBUTING.md` and `ObsidianVault/30 Process/WORKFLOW_PLAYBOOK.md`.
 
 ## References
 - `references/github-actions-template.md`

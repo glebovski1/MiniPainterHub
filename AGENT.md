@@ -1,152 +1,67 @@
 ## Agent Workflow Contract
 
-This file defines the default operating workflow for AI/code agents in this repository.
+This root file stays in place because local agents and tools expect it here. Durable project guidance lives in the Obsidian vault.
 
-## 1) Objective
+## Read Order
 
-Deliver correct, reviewable changes with minimal risk.
-Extended execution examples: `docs/ai/WORKFLOW_PLAYBOOK.md`.
+1. `AGENTS.md` for repo-wide context minimization rules.
+2. This file for the root workflow contract.
+3. [Agent navigation](<ObsidianVault/00 Start Here/Agent Navigation.md>) to choose the smallest matching vault source.
+4. [Vault specification](<ObsidianVault/00 Start Here/Vault Specification.md>) when changing documentation structure.
+5. [Architecture](<ObsidianVault/20 Engineering/ARCHITECTURE.md>)
+6. [Code style](<ObsidianVault/20 Engineering/CODE_STYLE.md>)
+7. [Best practices](<ObsidianVault/30 Process/BEST_PRACTICES.md>)
+8. [Anti-patterns](<ObsidianVault/30 Process/ANTI_PATTERNS.md>)
+9. [Contributing](<ObsidianVault/30 Process/CONTRIBUTING.md>)
+10. [Workflow playbook](<ObsidianVault/30 Process/WORKFLOW_PLAYBOOK.md>) when a task needs more detail.
 
-## 2) Instruction Priority
+If docs conflict with running code, trust the code and update the affected vault note in the same change.
 
-When guidance conflicts, follow this order:
-- User request in the current task
-- `AGENTS.md`
-- `AGENT.md`
-- `docs/ARCHITECTURE.md`
-- `docs/CODE_STYLE.md`
-- `docs/BEST_PRACTICES.md`
-- `docs/ANTI_PATTERNS.md`
-- `docs/CONTRIBUTING.md`
-- Existing code patterns
+## Default Workflow
 
-If docs conflict with code behavior, trust running code and update docs in the same change.
+For non-trivial work:
 
-## 3) Scope and Routing
+1. Scope with `AGENTS.md` and `.agents/skills/context-scope-guard`.
+2. Use [Agent navigation](<ObsidianVault/00 Start Here/Agent Navigation.md>) when durable project knowledge is needed.
+3. Read only files inside the current scope.
+4. Make the smallest coherent change.
+5. Verify with the strongest relevant command set.
+6. Summarize changed files, validation, and follow-ups.
 
-Treat this as a single product with these projects:
-- `MiniPainterHub.Server`: API and host
-- `MiniPainterHub.WebApp`: Blazor WebAssembly client
-- `MiniPainterHub.Common`: shared DTO/contracts
-- `MiniPainterHub.Server.Tests`: tests
+For UI work, also follow [UI quality playbook](<ObsidianVault/30 Process/UI_QUALITY_PLAYBOOK.md>) and `.codex/skills/ui-iteration-guard/SKILL.md` for complex UI changes.
 
-Architecture baseline:
-- Controllers are transport layer only.
-- Business logic lives in `MiniPainterHub.Server/Services`.
-- Persistence is `AppDbContext` in `MiniPainterHub.Server/Data/AppDbContext.cs`.
+## Core Architecture Rules
 
-## 4) Default Execution Workflow
+- Controllers are transport/orchestration only.
+- Business logic belongs in `MiniPainterHub.Server/Services`.
+- Persistence flows through `MiniPainterHub.Server/Data/AppDbContext.cs`.
+- Shared API contracts belong in `MiniPainterHub.Common` unless there is a strong reason otherwise.
+- Preserve middleware order in `MiniPainterHub.Server/Program.cs`: `UseAuthentication()` before `UseAuthorization()`.
 
-For any non-trivial task, execute this sequence:
-0. Scope: use `AGENTS.md` and `.agents/skills/context-scope-guard` to identify the minimal allowed file set before broad discovery.
-1. Discover: read only files inside the current scope needed to understand impacted flow.
-2. Plan: identify minimal safe change set.
-3. Implement: keep edits focused and consistent with existing patterns.
-4. Verify: run required checks from Section 7. For any non-doc code change, the minimum local gate is `dotnet build MiniPainterHub.sln` plus at least one affected automated test command before closing the task.
-5. Deliver: summarize what changed, why, and what was validated.
-
-### UI Change Overlay
-
-Treat a task as a `UI Change` when it edits any of the following:
-- Razor pages or shared UI components in `MiniPainterHub.WebApp`
-- CSS, design tokens, layout, spacing, navigation, or responsive behavior
-- Shared UI primitives, shell, empty/loading/error states, or auth/panel presentation
-
-For any `UI Change`, also follow `docs/ai/UI_QUALITY_PLAYBOOK.md`.
-For complex UI/UX implementation, redesigns, layout refactors, responsive fixes, modal/viewer/panel/sidebar work, or visual bug fixing, also use `.codex/skills/ui-iteration-guard/SKILL.md`.
-Do not implement large UI changes in one pass. Plan the screen first, build in layers, visually validate each layer, and return to the last stable layer before continuing if a major regression appears.
-Playwright is the authoritative UI verification tool in this repository. Optional browser-use scripts are diagnostics only and do not replace the Playwright review workflow.
-For UI work, do not stop at defect reporting. If the Playwright review shows obvious in-scope defects, fix them and rerun the review loop until the reviewed scope is clean or a real blocker is documented.
-
-## 5) Flex Modes
-
-Pick the lightest mode that safely completes the task:
-
-`Quick Patch`:
-- Small isolated fix.
-- No architectural changes.
-- Run targeted checks.
-
-`Standard Change`:
-- Multi-file feature/bug fix.
-- Includes code + tests/docs when needed.
-- Run project-level checks.
-
-`High-Risk Change`:
-- Auth, DB schema, cross-cutting contracts, upload/image pipeline, or security-sensitive paths.
-- Add/adjust tests and run broader validation.
-- Document assumptions and residual risk.
-
-## 6) Guardrails
-
-Always:
-- Use async/await end to end; no `.Result` or `.Wait()`.
-- Keep controller actions thin and delegate rules to services.
-- Validate request shape at boundary and business rules in services.
-- Preserve middleware order in `MiniPainterHub.Server/Program.cs`:
-  - `UseAuthentication()` before `UseAuthorization()`.
-- Keep API contracts in `MiniPainterHub.Common` unless there is a strong reason not to.
-
-Never:
-- Broad-scan the repo before resolving a minimal file scope.
-- Move logic into UI/controller layer to bypass service rules.
-- Add raw SQL unless explicitly required.
-- Skip verification for risky changes.
-- Treat UI work as complete because it compiles or renders once.
-- Claim UI success without reviewed Playwright screenshots for the required routes, states, and viewports.
-- Stop after listing UI defects that are within the current task scope to fix.
-
-## 7) Verification Matrix
-
-Use the strongest applicable check set:
-
-Minimum local gate for any non-doc code change:
-- `dotnet build MiniPainterHub.sln`
-- Run at least one affected automated test command for the changed area before handoff. If multiple areas changed, run each affected suite from the matrix below.
-
-Codex Cloud preflight (when `dotnet` is missing):
-- `bash tools/cloud/bootstrap-dotnet-and-test.sh`
+## Verification
 
 Docs-only changes:
-- Optional build.
-- Ensure docs point to existing files/types.
+- Ensure links point to existing files.
 
-Server code changes:
+Non-doc code changes:
 - `dotnet build MiniPainterHub.sln`
+- At least one affected automated test command.
+
+Server changes:
 - `dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj`
 
-WebApp UI changes:
-- `dotnet build MiniPainterHub.sln`
-- `npm --prefix e2e ci`
-- Resolve scope with `npm --prefix e2e run ui-review:scope`
-- Run `npm --prefix e2e run test:ui-review` for localized review or `npm --prefix e2e run test:ui-review:full` for full sweeps
-- Review screenshots and manifest in `output/playwright/ui-review/`
-- Fix the reviewed defects and rerun the Playwright review until no obvious problems remain in the reviewed scope
-- Behavioral smoke suite:
-  - `npm --prefix e2e run test:smoke`
-- Optional diagnostics:
-  - `./.venv/Scripts/python tools/ui_snapshot_panel.py`
-  - `python tools/ui_audit_browser_use.py`
+Web/UI changes:
+- Build the solution.
+- Run the relevant Playwright smoke or UI review commands from the vault playbooks.
+- Review screenshots before claiming UI completion.
 
-Contract/auth/data-flow changes:
-- Full solution build
-- Server tests
-- Extra targeted manual checks for impacted endpoints
+## Documentation Maintenance
 
-## 8) Documentation Maintenance Rule
+When behavior changes, update the matching vault note:
 
-When behavior changes, update docs in the same task:
-- Architecture/layering changes -> `docs/ARCHITECTURE.md`
-- Style/convention changes -> `docs/CODE_STYLE.md`
-- New recommended workflow/pattern -> `docs/BEST_PRACTICES.md`
-- New pitfall discovered -> `docs/ANTI_PATTERNS.md`
-- Process change for contributors -> `docs/CONTRIBUTING.md`
-
-## 9) Definition of Done
-
-A task is complete only when:
-- Requested behavior is implemented.
-- Verification for the selected mode is done.
-- Relevant docs are updated if guidance changed.
-- For `UI Change` tasks: the Playwright review manifest exists, screenshots were explicitly reviewed, and the fix-and-rerun loop was completed until no obvious defects remained in the reviewed scope or a real blocker was documented.
-- Summary includes: files changed, validation run, and known follow-ups.
+- Architecture or layering: [ARCHITECTURE.md](<ObsidianVault/20 Engineering/ARCHITECTURE.md>)
+- Style or conventions: [CODE_STYLE.md](<ObsidianVault/20 Engineering/CODE_STYLE.md>)
+- Recommended workflow or pattern: [BEST_PRACTICES.md](<ObsidianVault/30 Process/BEST_PRACTICES.md>)
+- Pitfall discovered: [ANTI_PATTERNS.md](<ObsidianVault/30 Process/ANTI_PATTERNS.md>)
+- Contributor process: [CONTRIBUTING.md](<ObsidianVault/30 Process/CONTRIBUTING.md>)
+- Vault structure or routing: [Vault Specification.md](<ObsidianVault/00 Start Here/Vault Specification.md>) and [Project Index.md](<ObsidianVault/00 Start Here/Project Index.md>)

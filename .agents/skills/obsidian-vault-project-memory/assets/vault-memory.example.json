@@ -1,0 +1,19 @@
+{
+  "vaultRoot": "knowledge",
+  "archiveDir": "_archive",
+  "logsDir": "_logs",
+  "indexes": [
+    "00-index.md",
+    "README.md",
+    "map-of-content.md",
+    "architecture-map.md"
+  ],
+  "preferredNoteStyle": "obsidian-wikilinks",
+  "deleteMode": "archive-first",
+  "maxInitialNotesToRead": 7,
+  "reflection": {
+    "enabled": true,
+    "useSubagentWhenAvailable": true,
+    "logDir": "_logs/reflections"
+  }
+}
