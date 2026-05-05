@@ -39,7 +39,7 @@
     }
     else
     {
-        <section class="surface-card">
+        <section class="surface-card search-results-card">
             <SectionHeader Eyebrow="Results"
                            Title="@($"Search results for \"{NormalizedQuery}\"")"
                            Description="Switch between a broad overview and focused result types without leaving the page."
@@ -82,8 +82,8 @@
             }
             else if (CurrentTab == "all")
             {
-                <div class="content-stack" data-testid="search-overview-results">
-                    <section class="surface-card">
+                <div class="search-overview-results" data-testid="search-overview-results">
+                    <section class="search-overview-section search-overview-section--posts">
                         <SectionHeader Eyebrow="Posts"
                                        Title="Posts"
                                        TitleTag="h3"
@@ -112,7 +112,7 @@
                     </section>
 
                     <div class="results-grid">
-                        <section class="surface-card">
+                        <section class="search-overview-section">
                             <SectionHeader Eyebrow="Users"
                                            Title="Users"
                                            TitleTag="h3"
@@ -144,7 +144,7 @@
                             }
                         </section>
 
-                        <section class="surface-card">
+                        <section class="search-overview-section">
                             <SectionHeader Eyebrow="Tags"
                                            Title="Tags"
                                            TitleTag="h3"
