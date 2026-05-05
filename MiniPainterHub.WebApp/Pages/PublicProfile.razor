@@ -19,7 +19,7 @@
             <div class="status-panel__icon"><i class="bi bi-person-circle" aria-hidden="true"></i></div>
             <div>
                 <div class="status-panel__title">Loading profile</div>
-                <p class="status-panel__text mb-0">Preparing this painter’s profile and post history.</p>
+                <p class="status-panel__text mb-0">Preparing this painter's profile and post history.</p>
             </div>
         </div>
     }
@@ -28,7 +28,7 @@
         <div class="status-panel status-panel--error">
             <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
             <div>
-                <div class="status-panel__title">Couldn’t load profile</div>
+                <div class="status-panel__title">Couldn't load profile</div>
                 <p class="status-panel__text mb-0">@_error</p>
             </div>
         </div>
@@ -43,62 +43,109 @@
     }
     else
     {
-        <section class="page-hero">
-            <div class="d-flex flex-column flex-lg-row gap-4 align-items-lg-center">
-                <UserAvatar ImageUrl="@_profile.AvatarUrl"
-                            Name="@(_profile.DisplayName ?? _profile.UserName)"
-                            Size="112" />
+        <section class="page-hero public-profile-hero">
+            <article class="public-profile-card">
+                <div class="public-profile-card__top">
+                    <div class="public-profile-card__identity">
+                        <div class="public-profile-card__avatar-frame">
+                            <UserAvatar ImageUrl="@_profile.AvatarUrl"
+                                        Name="@GetDisplayName(_profile)"
+                                        Size="120"
+                                        ClassName="public-profile-card__avatar" />
+                        </div>
 
-                <div class="flex-grow-1">
-                    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
-                        <div>
+                        <div class="public-profile-card__heading">
                             <p class="page-hero__eyebrow">Painter profile</p>
-                            <h1 class="page-hero__title mb-0">@(_profile.DisplayName ?? _profile.UserName)</h1>
-                            <p class="page-hero__description mb-0">@("@")@_profile.UserName • Joined @_profile.DateJoined.ToLocalTime().ToString("MMM dd, yyyy")</p>
-                        </div>
-
-                        <div class="page-hero__actions">
-                            @if (_isOwner)
-                            {
-                                <button class="btn btn-outline-primary" @onclick='() => Nav.NavigateTo("/profile")'>Edit profile</button>
-                                <button class="btn btn-outline-secondary" @onclick='() => Nav.NavigateTo("/connections")'>Connections</button>
-                            }
-                            else if (_isAuthenticated)
-                            {
-                                <button class="btn btn-primary" data-testid="profile-follow-toggle" @onclick="ToggleFollowAsync" disabled="@_busy">
-                                    @(_profile.IsFollowing ? "Unfollow" : "Follow")
-                                </button>
-                                <button class="btn btn-outline-secondary" data-testid="profile-message" @onclick="StartConversationAsync" disabled="@_busy">
-                                    Message
-                                </button>
-                            }
+                            <h1 class="page-hero__title mb-0">@GetDisplayName(_profile)</h1>
+                            <p class="public-profile-card__handle mb-0">
+                                @("@")@_profile.UserName
+                                <span class="public-profile-card__separator" aria-hidden="true">&middot;</span>
+                                Joined @_profile.DateJoined.ToLocalTime().ToString("MMM dd, yyyy")
+                            </p>
+                            <p class="public-profile-card__summary mb-0">@BuildProfileSummary(_profile)</p>
                         </div>
                     </div>
 
-                    @if (!string.IsNullOrWhiteSpace(_profile.Bio))
-                    {
-                        <p class="page-hero__description mt-3">@_profile.Bio</p>
-                    }
-
-                    <div class="mini-stat-bar mt-3">
-                        <span class="mini-stat"><strong>@_profile.FollowerCount</strong> followers</span>
-                        <span class="mini-stat"><strong>@_profile.FollowingCount</strong> following</span>
-                        <span class="mini-stat"><strong>@_profile.DateJoined.ToLocalTime().Year</strong> joined</span>
+                    <div class="page-hero__actions public-profile-card__actions">
+                        @if (_isOwner)
+                        {
+                            <button class="btn btn-outline-primary" @onclick='() => Nav.NavigateTo("/profile")'>Edit profile</button>
+                            <button class="btn btn-outline-secondary" @onclick='() => Nav.NavigateTo("/connections")'>Connections</button>
+                        }
+                        else if (_isAuthenticated)
+                        {
+                            <button class="btn btn-primary" data-testid="profile-follow-toggle" @onclick="ToggleFollowAsync" disabled="@_busy">
+                                @(_profile.IsFollowing ? "Unfollow" : "Follow")
+                            </button>
+                            <button class="btn btn-outline-secondary" data-testid="profile-message" @onclick="StartConversationAsync" disabled="@_busy">
+                                Message
+                            </button>
+                        }
                     </div>
+                </div>
 
+                <div class="public-profile-card__content">
+                    <section class="public-profile-card__panel public-profile-card__panel--bio" aria-labelledby="profile-bio-heading">
+                        <div class="public-profile-card__panel-label" id="profile-bio-heading">Bio sketch</div>
+                        @if (!string.IsNullOrWhiteSpace(_profile.Bio))
+                        {
+                            <p class="public-profile-card__bio mb-0">@_profile.Bio</p>
+                        }
+                        else
+                        {
+                            <p class="public-profile-card__bio public-profile-card__bio--empty mb-0">This painter has not added a bio yet, so the card is leaning on community signals for now.</p>
+                        }
+                    </section>
+
+                    <section class="public-profile-card__panel public-profile-card__panel--signals" aria-labelledby="profile-signals-heading">
+                        <div class="public-profile-card__panel-label" id="profile-signals-heading">Profile signals</div>
+                        <div class="public-profile-card__signal-grid">
+                            @foreach (var signal in _profileSignals)
+                            {
+                                <article class="profile-signal profile-signal--@signal.Tone">
+                                    <div class="profile-signal__label">
+                                        <i class="@signal.Icon" aria-hidden="true"></i>
+                                        <span>@signal.Label</span>
+                                    </div>
+                                    <div class="profile-signal__value">@signal.Value</div>
+                                </article>
+                            }
+                        </div>
+                    </section>
+                </div>
+
+                <div class="public-profile-card__stats" aria-label="Profile stats">
+                    <article class="public-profile-stat">
+                        <span class="public-profile-stat__label">Followers</span>
+                        <strong class="public-profile-stat__value">@_profile.FollowerCount</strong>
+                        <span class="public-profile-stat__detail">People keeping up with the work</span>
+                    </article>
+                    <article class="public-profile-stat">
+                        <span class="public-profile-stat__label">Following</span>
+                        <strong class="public-profile-stat__value">@_profile.FollowingCount</strong>
+                        <span class="public-profile-stat__detail">Artists and friends in the orbit</span>
+                    </article>
+                    <article class="public-profile-stat">
+                        <span class="public-profile-stat__label">Member since</span>
+                        <strong class="public-profile-stat__value">@_profile.DateJoined.ToLocalTime().ToString("MMM yyyy")</strong>
+                        <span class="public-profile-stat__detail">Part of the studio wall since day one</span>
+                    </article>
+                </div>
+
+                <div class="public-profile-card__footer">
                     <ReportAction TargetType="@ReportTargetTypes.User"
                                   TargetId="@UserId"
                                   OwnerUserId="@UserId"
                                   TestIdPrefix="profile-report" />
                 </div>
-            </div>
+            </article>
         </section>
 
         <section class="surface-card">
             <div class="section-heading">
                 <div>
                     <p class="section-label">Gallery</p>
-                    <h2 class="section-heading__title">Posts by @(_profile.DisplayName ?? _profile.UserName)</h2>
+                    <h2 class="section-heading__title">Posts by @GetDisplayName(_profile)</h2>
                     <p class="section-heading__subtitle">The same authored-post feed, presented with a stronger profile context.</p>
                 </div>
             </div>
@@ -116,6 +163,7 @@
     private bool _isAuthenticated;
     private bool _isOwner;
     private string? _error;
+    private ProfileSignal[] _profileSignals = Array.Empty<ProfileSignal>();
 
     protected override async Task OnParametersSetAsync()
     {
@@ -130,11 +178,13 @@
         try
         {
             _profile = await Profiles.GetPublicProfileById(UserId);
+            RefreshProfileSignals();
         }
         catch (Exception ex)
         {
             _error = ex.Message;
             _profile = null;
+            _profileSignals = Array.Empty<ProfileSignal>();
         }
         finally
         {
@@ -165,6 +215,7 @@
             }
 
             _profile = await Profiles.GetPublicProfileById(UserId);
+            RefreshProfileSignals();
         }
         finally
         {
@@ -185,4 +236,188 @@
             _busy = false;
         }
     }
+
+    private void RefreshProfileSignals()
+    {
+        _profileSignals = _profile is null
+            ? Array.Empty<ProfileSignal>()
+            : BuildProfileSignals(_profile);
+    }
+
+    private static string GetDisplayName(PublicUserProfileDto profile) =>
+        string.IsNullOrWhiteSpace(profile.DisplayName) ? profile.UserName : profile.DisplayName;
+
+    private static string BuildProfileSummary(PublicUserProfileDto profile)
+    {
+        var painterType = ResolvePainterType(profile, profile.Bio);
+        var studioFuel = ResolveStudioFuel(profile.Bio);
+        var bioVibe = ResolveBioVibe(profile.Bio);
+
+        if (!string.Equals(studioFuel, MissingBioDetail, StringComparison.Ordinal))
+        {
+            return $"{painterType} with {studioFuel.ToLowerInvariant()} on deck and {bioVibe.ToLowerInvariant()} in the bio.";
+        }
+
+        return $"{painterType} with {bioVibe.ToLowerInvariant()} in the bio and the food signal still unwritten.";
+    }
+
+    private static ProfileSignal[] BuildProfileSignals(PublicUserProfileDto profile) =>
+    [
+        new("Painter type", ResolvePainterType(profile, profile.Bio), "bi bi-palette2", "craft"),
+        new("Studio fuel", ResolveStudioFuel(profile.Bio), "bi bi-cup-hot", "fuel"),
+        new("Bio vibe", ResolveBioVibe(profile.Bio), "bi bi-stars", "vibe"),
+        new("Community style", ResolveCommunityStyle(profile), "bi bi-people", "community")
+    ];
+
+    private static string ResolvePainterType(PublicUserProfileDto profile, string? bio)
+    {
+        var painterType = FindKeywordMatch(bio, PainterTypeKeywords);
+        if (!string.IsNullOrWhiteSpace(painterType))
+        {
+            return painterType;
+        }
+
+        if (profile.FollowerCount >= 25)
+        {
+            return "Community favorite";
+        }
+
+        if (profile.DateJoined >= DateTime.UtcNow.AddMonths(-3))
+        {
+            return "Fresh voice";
+        }
+
+        return "Studio regular";
+    }
+
+    private static string ResolveStudioFuel(string? bio) =>
+        FindKeywordMatch(bio, FoodKeywords) ?? MissingBioDetail;
+
+    private static string ResolveBioVibe(string? bio)
+    {
+        var explicitVibe = FindKeywordMatch(bio, VibeKeywords);
+        if (!string.IsNullOrWhiteSpace(explicitVibe))
+        {
+            return explicitVibe;
+        }
+
+        var bioFragment = ExtractBioFragment(bio);
+        return string.IsNullOrWhiteSpace(bioFragment) ? "story in progress" : bioFragment;
+    }
+
+    private static string ResolveCommunityStyle(PublicUserProfileDto profile)
+    {
+        if (profile.FollowerCount >= profile.FollowingCount + 15)
+        {
+            return "Drawing a crowd";
+        }
+
+        if (profile.FollowingCount >= profile.FollowerCount + 15)
+        {
+            return "Community scout";
+        }
+
+        if (profile.FollowerCount > 0 || profile.FollowingCount > 0)
+        {
+            return "Building connections";
+        }
+
+        return profile.DateJoined >= DateTime.UtcNow.AddMonths(-3)
+            ? "Fresh on the wall"
+            : "Quiet studio presence";
+    }
+
+    private static string? FindKeywordMatch(string? bio, (string Keyword, string Label)[] keywords)
+    {
+        if (string.IsNullOrWhiteSpace(bio))
+        {
+            return null;
+        }
+
+        foreach (var (keyword, label) in keywords)
+        {
+            if (bio.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            {
+                return label;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? ExtractBioFragment(string? bio)
+    {
+        if (string.IsNullOrWhiteSpace(bio))
+        {
+            return null;
+        }
+
+        var fragments = bio.Split(new[] { '.', '!', '?', ',', ';', '/' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var fragment in fragments)
+        {
+            if (fragment.Length < 10)
+            {
+                continue;
+            }
+
+            return fragment.Length <= 40
+                ? fragment
+                : $"{fragment[..37].TrimEnd()}...";
+        }
+
+        return null;
+    }
+
+    private const string MissingBioDetail = "Not mentioned yet";
+
+    private static readonly (string Keyword, string Label)[] PainterTypeKeywords =
+    {
+        ("digital", "Digital artist"),
+        ("illustrator", "Illustrator"),
+        ("concept", "Concept artist"),
+        ("watercolor", "Watercolor painter"),
+        ("oil", "Oil painter"),
+        ("acrylic", "Acrylic painter"),
+        ("portrait", "Portrait painter"),
+        ("landscape", "Landscape painter"),
+        ("pixel", "Pixel artist"),
+        ("comic", "Comic artist"),
+        ("sketch", "Sketchbook regular"),
+        ("student", "Art student"),
+        ("teacher", "Art teacher"),
+        ("mentor", "Mentor"),
+        ("hobby", "Hobby painter")
+    };
+
+    private static readonly (string Keyword, string Label)[] FoodKeywords =
+    {
+        ("coffee", "Coffee"),
+        ("tea", "Tea"),
+        ("ramen", "Ramen"),
+        ("pizza", "Pizza"),
+        ("sushi", "Sushi"),
+        ("taco", "Tacos"),
+        ("vegan", "Vegan"),
+        ("vegetarian", "Vegetarian"),
+        ("matcha", "Matcha"),
+        ("boba", "Boba"),
+        ("chocolate", "Chocolate")
+    };
+
+    private static readonly (string Keyword, string Label)[] VibeKeywords =
+    {
+        ("night owl", "night owl"),
+        ("morning", "early starter"),
+        ("cat", "cat person"),
+        ("dog", "dog person"),
+        ("nature", "nature lover"),
+        ("anime", "anime fan"),
+        ("fantasy", "fantasy streak"),
+        ("sci-fi", "sci-fi brain"),
+        ("game", "gamer energy"),
+        ("cozy", "cozy studio"),
+        ("minimal", "minimal streak")
+    };
+
+    private sealed record ProfileSignal(string Label, string Value, string Icon, string Tone);
 }

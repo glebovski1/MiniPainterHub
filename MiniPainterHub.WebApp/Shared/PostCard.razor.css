@@ -1,22 +1,25 @@
 .post-card {
     background: rgba(255, 252, 247, 0.98);
+    min-width: 0;
 }
 
 .post-card__media-link,
 .post-card__placeholder {
     display: block;
-    padding: 0.85rem 0.85rem 0;
+    padding: 0.75rem 0.75rem 0;
 }
 
 .post-card__image {
-    height: 232px;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    height: clamp(12rem, 18vw, 15.5rem);
     object-fit: cover;
-    border-radius: 16px;
+    border-radius: var(--radius-md);
     background: rgba(247, 242, 232, 0.8);
 }
 
 .post-card__placeholder {
-    height: 232px;
+    min-height: 13rem;
     border-radius: 0;
 }
 
@@ -28,36 +31,71 @@
 }
 
 .post-card__placeholder {
-    gap: 0.6rem;
+    gap: 0.55rem;
     color: var(--ink-500);
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
 .post-card__body {
     display: grid;
-    gap: 0.7rem;
+    gap: 0.64rem;
 }
 
 .post-card__title {
     font-family: var(--font-ui);
-    font-size: 1.05rem;
+    font-size: 1rem;
     font-weight: 800;
-    letter-spacing: -0.03em;
-    line-height: 1.28;
+    letter-spacing: 0;
+    line-height: 1.3;
 }
 
 .post-card__snippet {
     color: var(--ink-700);
-    line-height: 1.55;
+    line-height: 1.5;
     margin: 0;
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    min-height: 4.65rem;
+    min-height: 4.5rem;
+    overflow-wrap: anywhere;
+}
+
+.post-card__snippet.text-truncate {
+    white-space: normal !important;
+    text-overflow: clip;
+}
+
+.post-card [data-testid="post-card-tags"] {
+    min-width: 0;
+}
+
+.post-card .tag-badge {
+    flex: 0 0 auto;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.2;
 }
 
 .post-card__footer-meta {
     display: grid;
-    gap: 0.65rem;
+    gap: 0.58rem;
+    min-width: 0;
+}
+
+.post-card__footer-meta small {
+    display: block;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 575.98px) {
+    .post-card__image {
+        height: 10.5rem;
+    }
+
+    .post-card__snippet {
+        min-height: auto;
+    }
 }

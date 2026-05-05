@@ -1,16 +1,16 @@
 .app-header {
-    padding: 0.6rem 0 0;
+    padding: 0.55rem 0 0;
     background: linear-gradient(180deg, rgba(248, 245, 239, 0.95), rgba(248, 245, 239, 0.78));
     backdrop-filter: blur(10px);
     z-index: 100;
 }
 
 .app-main {
-    padding: var(--space-2) 0 var(--space-5);
+    padding: 0.85rem 0 var(--space-5);
 }
 
 .dashboard-main {
-    gap: 1.25rem;
+    gap: 1rem;
     align-items: flex-start;
 }
 
@@ -25,13 +25,13 @@
 .dashboard-content-shell {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: 1rem;
     min-width: 0;
 }
 
 .dashboard-sidebar-column {
-    width: 312px;
-    flex: 0 0 312px;
+    width: 300px;
+    flex: 0 0 300px;
     min-width: 0;
     overflow: hidden;
     transition: width 220ms ease, flex-basis 220ms ease;
@@ -43,7 +43,7 @@
 }
 
 .dashboard-sidebar-shell {
-    width: 312px;
+    width: 300px;
     min-height: calc(100vh - 7.8rem);
     border-radius: var(--radius-xl);
     overflow: hidden;
@@ -59,13 +59,13 @@
 @media (min-width: 992px) {
     .dashboard-sidebar-shell {
         position: sticky;
-        top: 0.95rem;
+        top: 0.8rem;
     }
 }
 
 @media (max-width: 991.98px) {
     .app-main {
-        padding-top: 0.75rem;
+        padding-top: 0.65rem;
     }
 }
 
