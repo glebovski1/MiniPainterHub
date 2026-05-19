@@ -63,7 +63,7 @@ AZURE_CLIENT_ID=<client-id of id-gha-minipainterhub-prod>
 AZURE_TENANT_ID=4b4b6ba8-5186-4d09-b9b2-8c95f729c4b2
 AZURE_SUBSCRIPTION_ID=23df46c9-3639-4a03-bb4b-61234224142b
 AZURE_RESOURCE_GROUP=rg-minipainterhub-prod
-AZURE_LOCATION=eastus
+AZURE_LOCATION=westus
 SQL_ADMIN_LOGIN=mphsqladmin
 ```
 
@@ -133,7 +133,7 @@ az deployment group what-if `
   --resource-group rg-minipainterhub-prod `
   --template-file infra/main.bicep `
   --parameters `
-    location=eastus `
+    location=westus `
     sqlAdministratorLogin=mphsqladmin `
     sqlAdministratorPassword="<sql-admin-password>" `
     jwtKey="<jwt-key>"

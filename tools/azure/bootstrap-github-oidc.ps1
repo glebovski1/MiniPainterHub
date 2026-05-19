@@ -3,7 +3,7 @@ param(
     [string]$SubscriptionId = "23df46c9-3639-4a03-bb4b-61234224142b",
     [string]$TenantId = "4b4b6ba8-5186-4d09-b9b2-8c95f729c4b2",
     [string]$ResourceGroupName = "rg-minipainterhub-prod",
-    [string]$Location = "eastus",
+    [string]$Location = "westus",
     [string]$IdentityName = "id-gha-minipainterhub-prod",
     [string]$GitHubOwner = "glebovski1",
     [string]$GitHubRepo = "MiniPainterHub",
@@ -28,31 +28,49 @@ function Assert-Command {
 function Invoke-External {
     param(
         [string]$Command,
-        [string[]]$Arguments
+        [string[]]$Arguments,
+        [int]$Retries = 3
     )
 
-    & $Command @Arguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "Command failed: $Command $($Arguments -join ' ')"
+    for ($attempt = 1; $attempt -le $Retries; $attempt++) {
+        & $Command @Arguments
+        if ($LASTEXITCODE -eq 0) {
+            return
+        }
+
+        if ($attempt -lt $Retries) {
+            Write-Warning "Command failed on attempt $attempt/$Retries. Retrying in 5 seconds: $Command $($Arguments -join ' ')"
+            Start-Sleep -Seconds 5
+        }
     }
+
+    throw "Command failed after $Retries attempts: $Command $($Arguments -join ' ')"
 }
 
 function Invoke-ExternalJson {
     param(
         [string]$Command,
-        [string[]]$Arguments
+        [string[]]$Arguments,
+        [int]$Retries = 3
     )
 
-    $output = & $Command @Arguments --output json
-    if ($LASTEXITCODE -ne 0) {
-        throw "Command failed: $Command $($Arguments -join ' ')"
+    for ($attempt = 1; $attempt -le $Retries; $attempt++) {
+        $output = & $Command @Arguments --output json
+        if ($LASTEXITCODE -eq 0) {
+            if ([string]::IsNullOrWhiteSpace($output)) {
+                return $null
+            }
+
+            return $output | ConvertFrom-Json
+        }
+
+        if ($attempt -lt $Retries) {
+            Write-Warning "Command failed on attempt $attempt/$Retries. Retrying in 5 seconds: $Command $($Arguments -join ' ')"
+            Start-Sleep -Seconds 5
+        }
     }
 
-    if ([string]::IsNullOrWhiteSpace($output)) {
-        return $null
-    }
-
-    return $output | ConvertFrom-Json
+    throw "Command failed after $Retries attempts: $Command $($Arguments -join ' ')"
 }
 
 function New-SqlPassword {
@@ -72,6 +90,60 @@ function New-JwtKey {
     }
 
     return [Convert]::ToBase64String($bytes)
+}
+
+function Test-ResourceGroupExists {
+    param([string]$Name)
+
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        try {
+            $output = & az group exists --name $Name --output tsv 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                return ($output -eq "true")
+            }
+        }
+        catch {
+            if ($attempt -ge 3) {
+                throw
+            }
+        }
+
+        if ($attempt -lt 3) {
+            Write-Warning "Could not verify resource group existence on attempt $attempt/3. Retrying in 5 seconds."
+            Start-Sleep -Seconds 5
+        }
+    }
+
+    return $false
+}
+
+function Get-RoleAssignmentId {
+    param(
+        [string]$PrincipalId,
+        [string]$Scope,
+        [string]$Role
+    )
+
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        try {
+            $output = & az role assignment list --assignee $PrincipalId --scope $Scope --role $Role --query "[0].id" --output tsv 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                return $output
+            }
+        }
+        catch {
+            if ($attempt -ge 3) {
+                throw
+            }
+        }
+
+        if ($attempt -lt 3) {
+            Write-Warning "Could not inspect role assignments on attempt $attempt/3. Retrying in 5 seconds."
+            Start-Sleep -Seconds 5
+        }
+    }
+
+    throw "Could not inspect role assignments for principal $PrincipalId."
 }
 
 Assert-Command "az"
@@ -101,11 +173,23 @@ if (-not $SkipProviderRegistration) {
 }
 
 Write-Host "Ensuring resource group $ResourceGroupName exists..."
-Invoke-External "az" @("group", "create", "--name", $ResourceGroupName, "--location", $Location, "--output", "none")
+if (Test-ResourceGroupExists -Name $ResourceGroupName) {
+    Write-Host "Resource group $ResourceGroupName already exists."
+}
+else {
+    Invoke-External "az" @("group", "create", "--name", $ResourceGroupName, "--location", $Location, "--output", "none")
+}
 
 Write-Host "Ensuring user-assigned identity $IdentityName exists..."
-$identityOutput = & az identity show --name $IdentityName --resource-group $ResourceGroupName --output json 2>$null
-if ($LASTEXITCODE -eq 0) {
+$identityOutput = $null
+try {
+    $identityOutput = & az identity show --name $IdentityName --resource-group $ResourceGroupName --output json 2>$null
+}
+catch {
+    $identityOutput = $null
+}
+
+if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($identityOutput)) {
     $identity = $identityOutput | ConvertFrom-Json
 }
 else {
@@ -122,10 +206,7 @@ $principalId = $identity.principalId
 $scope = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName"
 
 Write-Host "Ensuring Contributor role assignment on $scope..."
-$roleAssignment = & az role assignment list --assignee $principalId --scope $scope --role Contributor --query "[0].id" --output tsv
-if ($LASTEXITCODE -ne 0) {
-    throw "Could not inspect role assignments for identity $IdentityName."
-}
+$roleAssignment = Get-RoleAssignmentId -PrincipalId $principalId -Scope $scope -Role "Contributor"
 
 if ([string]::IsNullOrWhiteSpace($roleAssignment)) {
     Invoke-External "az" @(
@@ -142,8 +223,15 @@ $credentialName = "github-$GitHubEnvironment"
 $subject = "repo:$GitHubOwner/$GitHubRepo`:environment:$GitHubEnvironment"
 
 Write-Host "Ensuring federated credential $credentialName with subject $subject..."
-$credentialOutput = & az identity federated-credential show --identity-name $IdentityName --resource-group $ResourceGroupName --name $credentialName --output json 2>$null
-if ($LASTEXITCODE -ne 0) {
+$credentialOutput = $null
+try {
+    $credentialOutput = & az identity federated-credential show --identity-name $IdentityName --resource-group $ResourceGroupName --name $credentialName --output json 2>$null
+}
+catch {
+    $credentialOutput = $null
+}
+
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($credentialOutput)) {
     Invoke-External "az" @(
         "identity", "federated-credential", "create",
         "--identity-name", $IdentityName,
@@ -177,17 +265,12 @@ if ($ConfigureGitHub) {
         throw "Could not resolve GitHub reviewer '$GitHubReviewer'."
     }
 
-    $environmentBody = @{
-        wait_timer = 0
-        reviewers = @(
-            @{
-                type = "User"
-                id = [int]$reviewerId
-            }
-        )
-    } | ConvertTo-Json -Depth 5
-
-    $environmentBody | gh api --method PUT "repos/$repo/environments/$GitHubEnvironment" --input -
+    gh api `
+        --method PUT `
+        "repos/$repo/environments/$GitHubEnvironment" `
+        -F wait_timer=0 `
+        -F "reviewers[][type]=User" `
+        -F "reviewers[][id]=$reviewerId" | Out-Null
     if ($LASTEXITCODE -ne 0) {
         throw "Could not create or update GitHub environment '$GitHubEnvironment'."
     }
