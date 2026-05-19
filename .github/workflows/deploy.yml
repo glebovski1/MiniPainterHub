@@ -1,39 +1,170 @@
 name: Deploy
 
 on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - master
   workflow_dispatch:
     inputs:
-      environment:
-        description: 'Target environment'
-        required: true
-        default: production
-        type: choice
-        options:
-          - staging
-          - production
       ref:
         description: 'Git ref to deploy (branch, tag, or SHA)'
         required: true
         default: master
         type: string
 
+permissions:
+  contents: read
+  id-token: write
+
 concurrency:
-  group: deploy-${{ github.event.inputs.environment }}
+  group: deploy-production
   cancel-in-progress: false
 
 jobs:
-  package:
+  deploy-production:
+    name: Deploy production
     runs-on: ubuntu-latest
+    environment: production
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'master'
+      )
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+      SQL_ADMIN_LOGIN: ${{ vars.SQL_ADMIN_LOGIN }}
+      AZURE_SQL_ADMIN_PASSWORD: ${{ secrets.AZURE_SQL_ADMIN_PASSWORD }}
+      JWT_KEY: ${{ secrets.JWT_KEY }}
+      SEED_ADMIN_EMAIL: ${{ secrets.SEED_ADMIN_EMAIL }}
+      SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
     steps:
-      - name: Checkout selected ref
+      - name: Checkout deploy ref
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.workflow_run.head_sha }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          required_names=(
+            AZURE_CLIENT_ID
+            AZURE_TENANT_ID
+            AZURE_SUBSCRIPTION_ID
+            AZURE_RESOURCE_GROUP
+            AZURE_LOCATION
+            SQL_ADMIN_LOGIN
+            AZURE_SQL_ADMIN_PASSWORD
+            JWT_KEY
+          )
+
+          missing=false
+          for name in "${required_names[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error title=Missing deployment configuration::$name is not configured in the production GitHub environment."
+              missing=true
+            fi
+          done
+
+          if [ "$missing" = true ]; then
+            exit 1
+          fi
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify resource group exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          az group show --name "$AZURE_RESOURCE_GROUP" --output none
+
+      - name: Validate Bicep template
+        run: az bicep build --file infra/main.bicep --outfile /tmp/minipainterhub-main.json
+
+      - name: Preview Azure infrastructure changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          seed_admin_enabled=false
+          if [ -n "${SEED_ADMIN_EMAIL:-}" ] && [ -n "${SEED_ADMIN_PASSWORD:-}" ]; then
+            seed_admin_enabled=true
+          fi
+
+          az deployment group what-if \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --template-file infra/main.bicep \
+            --parameters \
+              location="$AZURE_LOCATION" \
+              sqlAdministratorLogin="$SQL_ADMIN_LOGIN" \
+              sqlAdministratorPassword="$AZURE_SQL_ADMIN_PASSWORD" \
+              jwtKey="$JWT_KEY" \
+              seedAdminEnabled="$seed_admin_enabled" \
+              seedAdminEmail="${SEED_ADMIN_EMAIL:-}" \
+              seedAdminPassword="${SEED_ADMIN_PASSWORD:-}"
+
+      - name: Apply Azure infrastructure
+        id: infra
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          seed_admin_enabled=false
+          if [ -n "${SEED_ADMIN_EMAIL:-}" ] && [ -n "${SEED_ADMIN_PASSWORD:-}" ]; then
+            seed_admin_enabled=true
+          fi
+
+          outputs_json="$(az deployment group create \
+            --name "minipainterhub-production-${GITHUB_RUN_ID}" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --template-file infra/main.bicep \
+            --parameters \
+              location="$AZURE_LOCATION" \
+              sqlAdministratorLogin="$SQL_ADMIN_LOGIN" \
+              sqlAdministratorPassword="$AZURE_SQL_ADMIN_PASSWORD" \
+              jwtKey="$JWT_KEY" \
+              seedAdminEnabled="$seed_admin_enabled" \
+              seedAdminEmail="${SEED_ADMIN_EMAIL:-}" \
+              seedAdminPassword="${SEED_ADMIN_PASSWORD:-}" \
+            --query properties.outputs \
+            --output json)"
+
+          web_app_name="$(echo "$outputs_json" | jq -r '.webAppName.value')"
+          web_app_host="$(echo "$outputs_json" | jq -r '.webAppDefaultHostName.value')"
+
+          if [ -z "$web_app_name" ] || [ "$web_app_name" = "null" ]; then
+            echo "::error title=Missing Bicep output::webAppName was not returned by the deployment."
+            exit 1
+          fi
+
+          if [ -z "$web_app_host" ] || [ "$web_app_host" = "null" ]; then
+            echo "::error title=Missing Bicep output::webAppDefaultHostName was not returned by the deployment."
+            exit 1
+          fi
+
+          echo "web_app_name=$web_app_name" >> "$GITHUB_OUTPUT"
+          echo "web_app_host=$web_app_host" >> "$GITHUB_OUTPUT"
 
       - name: Restore
         run: dotnet restore MiniPainterHub.sln
@@ -41,38 +172,28 @@ jobs:
       - name: Publish server artifact
         run: dotnet publish MiniPainterHub.Server/MiniPainterHub.Server.csproj --configuration Release --no-restore --output artifacts/publish/server
 
-      - name: Upload publish artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: server-publish-${{ github.run_id }}
-          path: artifacts/publish/server
-          retention-days: 7
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: package
-    environment: ${{ github.event.inputs.environment }}
-    env:
-      AZURE_WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
-      AZURE_WEBAPP_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-    steps:
-      - name: Download publish artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: server-publish-${{ github.run_id }}
-          path: artifacts/publish/server
-
       - name: Deploy to Azure Web App
-        if: ${{ env.AZURE_WEBAPP_PUBLISH_PROFILE != '' && env.AZURE_WEBAPP_NAME != '' }}
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ env.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          app-name: ${{ steps.infra.outputs.web_app_name }}
           package: artifacts/publish/server
 
-      - name: Deployment configuration missing
-        if: ${{ env.AZURE_WEBAPP_PUBLISH_PROFILE == '' || env.AZURE_WEBAPP_NAME == '' }}
+      - name: Verify health endpoint
+        shell: bash
         run: |
-          echo "Azure deployment secrets are not configured."
-          echo "Please set AZURE_WEBAPP_NAME and AZURE_WEBAPP_PUBLISH_PROFILE in repository or environment secrets."
+          set -euo pipefail
+
+          health_url="https://${{ steps.infra.outputs.web_app_host }}/healthz"
+          for attempt in {1..12}; do
+            status="$(curl --silent --show-error --location --output /dev/null --write-out '%{http_code}' "$health_url" || true)"
+            if [ "$status" = "200" ]; then
+              echo "Health check passed at $health_url"
+              exit 0
+            fi
+
+            echo "Health check attempt $attempt returned HTTP $status; retrying in 10 seconds."
+            sleep 10
+          done
+
+          echo "::error title=Production health check failed::$health_url did not return HTTP 200 after deployment."
           exit 1

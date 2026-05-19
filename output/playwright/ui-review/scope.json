@@ -1,57 +1,33 @@
 {
-  "scope": "targeted",
-  "changedFiles": [
-    "AGENTS.md",
-    "MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor",
-    "MiniPainterHub.WebApp/Shared/CommentForm.razor",
-    "MiniPainterHub.WebApp/Shared/CommentItem.razor",
-    "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor",
-    "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor.css",
-    "MiniPainterHub.WebApp/Shared/Viewer/ThumbnailRail.razor",
-    "MiniPainterHub.WebApp/Shared/Viewer/ThumbnailRail.razor.css",
-    "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor",
-    "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor.css",
-    "e2e/tests/helpers/ui-review.js",
-    "e2e/tests/smoke.spec.js",
-    "output/playwright/ui-review/08-posts-detail-rich-viewer-closed-desktop.png",
-    "output/playwright/ui-review/09-posts-detail-rich-viewer-open-portrait-desktop.png",
-    "output/playwright/ui-review/10-posts-detail-rich-viewer-open-fill-desktop.png",
-    "output/playwright/ui-review/11-posts-detail-rich-viewer-comments-tab-desktop.png",
-    "output/playwright/ui-review/12-posts-detail-rich-viewer-open-square-desktop.png",
-    "output/playwright/ui-review/13-posts-detail-rich-viewer-open-panorama-desktop.png",
-    "output/playwright/ui-review/14-posts-detail-rich-viewer-active-comment-desktop.png",
-    "output/playwright/ui-review/15-posts-detail-rich-viewer-zoomed-pan-desktop.png",
-    "output/playwright/ui-review/16-posts-detail-rich-viewer-author-note-composer-desktop.png",
-    "output/playwright/ui-review/17-posts-detail-rich-viewer-loading-desktop.png",
-    "output/playwright/ui-review/18-posts-detail-rich-viewer-error-desktop.png",
-    "output/playwright/ui-review/19-posts-detail-rich-viewer-closed-mobile-mobile.png",
-    "output/playwright/ui-review/20-posts-detail-rich-viewer-open-mobile-portrait-mobile.png",
-    "output/playwright/ui-review/21-posts-detail-rich-viewer-open-mobile-panorama-mobile.png",
-    "output/playwright/ui-review/manifest.json",
-    "output/playwright/ui-review/report.md",
-    "output/playwright/ui-review/scope.json"
-  ],
-  "uiChangedFiles": [
-    "MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor",
-    "MiniPainterHub.WebApp/Shared/CommentForm.razor",
-    "MiniPainterHub.WebApp/Shared/CommentItem.razor",
-    "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor",
-    "MiniPainterHub.WebApp/Shared/Viewer/RichImageViewer.razor.css",
-    "MiniPainterHub.WebApp/Shared/Viewer/ThumbnailRail.razor",
-    "MiniPainterHub.WebApp/Shared/Viewer/ThumbnailRail.razor.css",
-    "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor",
-    "MiniPainterHub.WebApp/Shared/Viewer/ViewerToolbar.razor.css",
-    "e2e/tests/helpers/ui-review.js"
-  ],
+  "scope": "full",
+  "changedFiles": [],
+  "uiChangedFiles": [],
   "groups": [
     "shell",
-    "posts"
+    "auth",
+    "community",
+    "search",
+    "posts",
+    "following",
+    "profile",
+    "messages",
+    "connections",
+    "admin"
   ],
   "matchedByGroup": {
-    "posts": "MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor"
+    "shell": "forced full review",
+    "auth": "forced full review",
+    "community": "forced full review",
+    "search": "forced full review",
+    "posts": "forced full review",
+    "following": "forced full review",
+    "profile": "forced full review",
+    "messages": "forced full review",
+    "connections": "forced full review",
+    "admin": "forced full review"
   },
   "reasons": [
-    "posts: MiniPainterHub.WebApp/Pages/Posts/PostDetails.razor"
+    "Forced full UI review run."
   ],
-  "reviewCommand": "npm --prefix e2e run test:ui-review"
+  "reviewCommand": "npm --prefix e2e run test:ui-review:full"
 }
