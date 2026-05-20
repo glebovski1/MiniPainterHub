@@ -31,6 +31,7 @@ Skip this skill only for tiny single-file edits where the file path and change s
 2. Inspect only enough repo structure to route the task.
    - Start with the user prompt and any explicitly named files.
    - If no file is named, inspect only the smallest relevant top-level area or run a targeted file search.
+   - For documentation or knowledge-base work, route through `ObsidianVault/00 Start Here/Agent Navigation.md` and `ObsidianVault/00 Start Here/Vault Specification.md` before opening individual vault notes.
    - Do not start with broad docs, whole-project reads, or repo-wide code scanning.
 3. Identify likely entry points.
    - Prefer the nearest route, page, component, controller, service, test, or doc that appears to own the behavior.
@@ -191,12 +192,16 @@ Request: "Update the contributor note for UI review."
 Task type: documentation-only work
 
 Likely entry points:
-- docs/<matching target doc>
-- docs/ai/UI_QUALITY_PLAYBOOK.md
+- ObsidianVault/00 Start Here/Agent Navigation.md
+- ObsidianVault/00 Start Here/Vault Specification.md
+- ObsidianVault/<matching target note>
+- ObsidianVault/30 Process/UI_QUALITY_PLAYBOOK.md
 
 Allowed now:
-- docs/<matching target doc> - file being edited
-- docs/ai/UI_QUALITY_PLAYBOOK.md - nearest referenced source of truth if needed
+- ObsidianVault/00 Start Here/Agent Navigation.md - route the docs task to the correct source of truth
+- ObsidianVault/00 Start Here/Vault Specification.md - verify ownership rules before changing vault structure
+- ObsidianVault/<matching target note> - file being edited
+- ObsidianVault/30 Process/UI_QUALITY_PLAYBOOK.md - nearest referenced source of truth if needed
 
 Conditionally allowed if needed:
 - AGENT.md - only if the doc statement needs a workflow cross-check

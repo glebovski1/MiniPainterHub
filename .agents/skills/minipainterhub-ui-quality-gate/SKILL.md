@@ -10,7 +10,7 @@ description: "Use for any MiniPainterHub UI task involving Razor pages, CSS, lay
 - Any change to layout, spacing, typography, CSS, shell, forms, navigation, cards, states, or responsiveness
 
 ## Workflow
-1. Read `docs/ai/UI_QUALITY_PLAYBOOK.md` for the repo policy.
+1. Read `ObsidianVault/30 Process/UI_QUALITY_PLAYBOOK.md` for the repo policy.
 2. Resolve UI review scope with `npm --prefix e2e run ui-review:scope`.
 3. Run the correct Playwright review command:
    - `npm --prefix e2e run test:ui-review`
@@ -24,3 +24,9 @@ description: "Use for any MiniPainterHub UI task involving Razor pages, CSS, lay
 ## References
 - Visual review checklist: `references/visual-review-checklist.md`
 - Route/state matrix: `references/route-state-matrix.md`
+
+## Vault hooks
+- Durable UI policy belongs in `ObsidianVault/30 Process/UI_QUALITY_PLAYBOOK.md`.
+- Durable design artifacts belong in `ObsidianVault/40 Design/`.
+- Portfolio or review screenshots belong in `ObsidianVault/50 Visual Assets/`.
+- Use `ObsidianVault/00 Start Here/Agent Navigation.md` before widening a UI task into broader documentation work.

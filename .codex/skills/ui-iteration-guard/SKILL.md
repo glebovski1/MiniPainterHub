@@ -7,7 +7,7 @@ description: "Use for complex UI/UX implementation in MiniPainterHub: redesigns,
 
 Use this skill for difficult UI work that should not be implemented in one pass.
 
-In this repo, pair it with `AGENT.md` and `.agents/skills/minipainterhub-ui-quality-gate/SKILL.md`.
+In this repo, pair it with `AGENT.md`, `ObsidianVault/00 Start Here/Agent Navigation.md`, and `.agents/skills/minipainterhub-ui-quality-gate/SKILL.md`.
 
 ## When to use
 
@@ -33,6 +33,7 @@ In this repo, pair it with `AGENT.md` and `.agents/skills/minipainterhub-ui-qual
    - Name the likely files to edit.
    - Break the work into the smallest useful layers.
    - Start with the first layer that creates a stable shell.
+   - Use the vault routing notes only when the UI task needs durable design or process context.
 2. Build in layers.
    - Layer 1: structural shell
    - Layer 2: sizing and constraints
@@ -69,3 +70,4 @@ In this repo, pair it with `AGENT.md` and `.agents/skills/minipainterhub-ui-qual
 - Major layout and responsive issues are resolved.
 - Visual verification happened during intermediate layers and at the end.
 - Any major regression was fixed by returning to the last stable layer before continuing.
+- Durable UI guidance changes were added to the vault source of truth instead of copied into task notes.

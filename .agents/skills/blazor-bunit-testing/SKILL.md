@@ -32,6 +32,7 @@ description: "Use when designing or implementing bUnit tests for Blazor componen
 - Place bUnit tests in a dedicated `MiniPainterHub.WebApp.Tests` project.
 - Mirror production DI registration only as needed for the target component.
 - Mock API-facing services (`IPostService`, `ICommentService`, etc.) at component boundary.
+- Put durable testing policy changes in `ObsidianVault/20 Engineering/TESTING_GAP_ANALYSIS.md` or `ObsidianVault/30 Process/WORKFLOW_PLAYBOOK.md`, not in one-off task notes.
 
 ## References
 - `references/bunit-patterns.md`

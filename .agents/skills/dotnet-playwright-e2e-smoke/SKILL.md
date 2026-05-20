@@ -38,6 +38,7 @@ description: "Use when adding or maintaining Playwright end-to-end smoke tests f
   - comment/like
   - profile update/avatar path
 - Keep UI snapshot checks as separate diagnostics, not replacements for behavior assertions.
+- Keep durable browser-review policy in `ObsidianVault/30 Process/UI_QUALITY_PLAYBOOK.md`.
 
 ## References
 - `references/smoke-workflow.md`

@@ -12,6 +12,14 @@ This file adds repo-wide context minimization rules. Follow `AGENT.md` for the b
 - Give an explicit justification before expanding scope.
 - Treat repeated over-reading as behavior to avoid and correct by shrinking scope.
 
+## Vault Knowledge Base
+
+- Durable project knowledge lives in `ObsidianVault/`.
+- Use `ObsidianVault/00 Start Here/Agent Navigation.md` to route docs and knowledge-base questions.
+- Use `ObsidianVault/00 Start Here/Vault Specification.md` before changing vault structure, adding a top-level category, or refactoring documentation ownership.
+- Do not read the whole vault unless the user explicitly asks for broad documentation review or a specific blocker proves the routing notes are insufficient.
+- When adding durable knowledge, update `ObsidianVault/00 Start Here/Project Index.md` if the note should be discoverable from the vault root.
+
 ## Complex UI Overlay
 
 - After scoping a complex UI/UX task, use `$ui-iteration-guard` at `.codex/skills/ui-iteration-guard`.

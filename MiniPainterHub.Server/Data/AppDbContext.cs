@@ -53,11 +53,16 @@ namespace MiniPainterHub.Server.Data
                 .HasForeignKey(p => p.CreatedById)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.Entity<PostImage>()
-                .HasOne(pi => pi.Post)
-                .WithMany(p => p.Images)
-                .HasForeignKey(pi => pi.PostId)
-                .OnDelete(DeleteBehavior.Cascade);
+            builder.Entity<PostImage>(b =>
+            {
+                b.Property(pi => pi.ImageStorageKey).HasMaxLength(1024);
+                b.Property(pi => pi.ThumbnailStorageKey).HasMaxLength(1024);
+
+                b.HasOne(pi => pi.Post)
+                    .WithMany(p => p.Images)
+                    .HasForeignKey(pi => pi.PostId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
 
             builder.Entity<ImageAuthorMark>(b =>
             {

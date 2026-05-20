@@ -12,6 +12,9 @@ namespace MiniPainterHub.Server.Entities
         public string? ThumbnailUrl { get; set; }
         public int? Width { get; set; }
         public int? Height { get; set; }
+        public Guid? StoredImageId { get; set; }
+        public string? ImageStorageKey { get; set; }
+        public string? ThumbnailStorageKey { get; set; }
         // Navigation:
         public Post Post { get; set; } = default!;
         public List<ImageAuthorMark> AuthorMarks { get; set; } = new();

@@ -1,0 +1,66 @@
+MiniPainterHub Project Structure (updated 2026-04-18)
+
+This map focuses on source and workflow-critical paths. Build output folders (bin/obj) are intentionally omitted.
+
+MiniPainterHub/
+|-- AGENT.md
+|-- AGENTS.md
+|-- README.md
+|-- MiniPainterHub.sln
+|-- ObsidianVault/
+|   |-- 00 Start Here/
+|   |-- 10 Project/
+|   |-- 20 Engineering/
+|   |-- 30 Process/
+|   |-- 40 Design/
+|   |-- 50 Visual Assets/
+|-- .agents/
+|   |-- skills/
+|       |-- context-scope-guard/
+|-- MiniPainterHub.Common/
+|   |-- Auth/
+|   |-- DTOs/
+|-- MiniPainterHub.Server/
+|   |-- Controllers/
+|   |-- Data/
+|   |-- DTOs/
+|   |-- Entities/
+|   |-- ErrorHandling/
+|   |-- Exceptions/
+|   |-- Identity/
+|   |-- Imaging/
+|   |-- Migrations/
+|   |-- OpenAPIOperationFilter/
+|   |-- Options/
+|   |-- Services/
+|       |-- Images/
+|       |-- Interfaces/
+|       |-- Models/
+|   |-- Program.cs
+|-- MiniPainterHub.Server.Tests/
+|   |-- Controllers/
+|   |-- Data/
+|   |-- ErrorHandling/
+|   |-- Infrastructure/
+|   |-- OpenApi/
+|   |-- Services/
+|-- MiniPainterHub.WebApp/
+|   |-- Layout/
+|   |-- Pages/
+|   |-- Services/
+|       |-- Http/
+|       |-- Interfaces/
+|       |-- Notifications/
+|   |-- Shared/
+|   |-- wwwroot/
+|-- MiniPainterHub.WebApp.Tests/
+|   |-- Infrastructure/
+|   |-- Pages/
+|   |-- Services/
+|   |-- Shared/
+|-- e2e/
+|-- tools/
+|   |-- cloud/
+|   |-- coverage/
+|   |-- skills/
+|-- artifacts/
