@@ -1,6 +1,12 @@
 # Deployment
 
-MiniPainterHub deploys as the `MiniPainterHub.Server` ASP.NET Core app. The hosted Blazor WebAssembly client is bundled into the server publish output, so deploy the server project only.
+MiniPainterHub deploys as the existing `MiniPainterHub.Server` ASP.NET Core App Service. The hosted Blazor WebAssembly client is bundled into the server publish output, so deploy the server project only.
+
+Production URL:
+
+```text
+https://minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net
+```
 
 ## Verified local publish
 
@@ -16,108 +22,45 @@ The deploy workflow:
 
 1. Starts after the `CI` workflow succeeds on `master`, or from manual `workflow_dispatch`.
 2. Pauses on the GitHub environment named `production`.
-3. Authenticates to Azure with OIDC through `azure/login@v2`.
-4. Verifies the production resource group exists.
-5. Creates or updates Azure infrastructure inside that resource group from `infra/main.bicep`.
-6. Publishes `MiniPainterHub.Server`.
-7. Deploys the publish folder to Azure App Service with `azure/webapps-deploy@v3`.
-8. Verifies `https://<app-host>/healthz` returns `200 OK`.
+3. Publishes `MiniPainterHub.Server`.
+4. Deploys the publish folder to the existing Azure App Service with `azure/webapps-deploy@v3`.
+5. Verifies `https://minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net/healthz` returns `200 OK`.
 
-The current target is production-only and student-minimal. There is no staging App Service, deployment slot, or publish-profile secret in the primary path.
-
-## One-time Azure and GitHub bootstrap
-
-The local Azure CLI account may show a subscription while still having revoked management tokens. If Azure commands fail with `invalid_grant`, refresh the login first:
-
-```powershell
-az logout
-az login --tenant "4b4b6ba8-5186-4d09-b9b2-8c95f729c4b2" --scope "https://management.core.windows.net//.default"
-az account set --subscription "23df46c9-3639-4a03-bb4b-61234224142b"
-```
-
-Then run the bootstrap script from the repository root:
-
-```powershell
-.\tools\azure\bootstrap-github-oidc.ps1 -ConfigureGitHub
-```
-
-The script creates or verifies:
-
-- Resource group `rg-minipainterhub-prod`
-- User-assigned identity `id-gha-minipainterhub-prod`
-- Contributor role assignment scoped to the production resource group
-- Federated credential for `repo:glebovski1/MiniPainterHub:environment:production`
-- GitHub environment `production` with required reviewer `glebovski1`
-- GitHub environment variables and required secrets
-
-If GitHub CLI is unavailable or you do not want the script to configure GitHub, run it without `-ConfigureGitHub`. It will print the exact `gh variable set` and `gh secret set` commands to run manually.
+This repository does not create the production App Service. The production app already exists in Azure and is deployed through its App Service publish profile.
 
 ## Required GitHub environment configuration
 
-Create or update the GitHub environment named `production`. Add required reviewer `glebovski1` so production deployment requires approval before Azure changes are applied.
+Create or update the GitHub environment named `production`. Add required reviewer `glebovski1` so production deployment requires approval.
 
 Environment variables:
 
 ```text
-AZURE_CLIENT_ID=<client-id of id-gha-minipainterhub-prod>
-AZURE_TENANT_ID=4b4b6ba8-5186-4d09-b9b2-8c95f729c4b2
-AZURE_SUBSCRIPTION_ID=23df46c9-3639-4a03-bb4b-61234224142b
-AZURE_RESOURCE_GROUP=rg-minipainterhub-prod
-AZURE_LOCATION=westus
-SQL_ADMIN_LOGIN=mphsqladmin
+AZURE_WEBAPP_NAME=minipainterhub-dqandpbghpgbfgf3
+AZURE_WEBAPP_HOSTNAME=minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net
 ```
 
 Environment secrets:
 
 ```text
-AZURE_SQL_ADMIN_PASSWORD=<strong Azure SQL admin password>
-JWT_KEY=<long random JWT signing secret>
+AZURE_WEBAPP_PUBLISH_PROFILE=<full App Service publish profile XML>
 ```
 
-Optional environment secrets:
-
-```text
-SEED_ADMIN_EMAIL=<admin-email>
-SEED_ADMIN_PASSWORD=<admin-password>
-```
-
-If both optional seed-admin secrets are present, the deployment sets `SeedAdmin__Enabled=true`; otherwise it sets `SeedAdmin__Enabled=false`.
-
-## Azure resources managed by Bicep
-
-`infra/main.bicep` manages one production stack:
-
-- Linux App Service Plan on Basic `B1`
-- Linux App Service configured for `.NET 8`
-- Azure SQL logical server and Basic database
-- SQL firewall rule allowing Azure services to reach the database
-- Standard LRS storage account and private blob container for uploaded images
-- Required production app settings:
-  - `ASPNETCORE_ENVIRONMENT=Production`
-  - `ConnectionStrings__DefaultConnection`
-  - `Jwt__Key`
-  - `Jwt__Issuer=MiniPainterHubApi`
-  - `Jwt__Audience=MiniPainterHubClient`
-  - `ImageStorage__AzureConnectionString`
-  - `ImageStorage__AzureContainer`
-
-The app runs EF Core migrations automatically during production startup. Missing or misnamed required settings cause startup to fail fast with a configuration error.
+Use a freshly downloaded publish profile from the target App Service when rotating credentials. Do not commit publish profiles or publish settings files.
 
 ## First deployment
 
-1. Confirm the bootstrap completed successfully.
+1. Confirm the GitHub `production` environment has the variables and secret above.
 2. Open GitHub Actions and run `CI` or push through a PR into `master`.
 3. Wait for `CI` to pass.
 4. Open the `Deploy` workflow run.
 5. Approve the `production` environment.
 6. Confirm the deploy job completes and the `/healthz` check passes.
 
-Manual deploy is still available from `Actions` -> `Deploy` -> `Run workflow`. The `ref` input can be `master`, a tag, or a commit SHA.
+Manual deploy is available from `Actions` -> `Deploy` -> `Run workflow`. The `ref` input can be `master`, a tag, or a commit SHA.
 
 ## Local validation before changing the pipeline
 
 ```powershell
-az bicep build --file infra/main.bicep --outfile "$env:TEMP\minipainterhub-main.json"
 dotnet restore MiniPainterHub.sln
 dotnet build MiniPainterHub.sln --configuration Release
 dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release
@@ -126,17 +69,29 @@ npm --prefix e2e ci
 npm --prefix e2e run test:smoke
 ```
 
-After a fresh Azure login, preview production infrastructure changes before applying them:
+## Local emergency publish
+
+If GitHub Actions is unavailable and you have a current App Service publish settings file, publish manually with Zip Deploy:
 
 ```powershell
-az deployment group what-if `
-  --resource-group rg-minipainterhub-prod `
-  --template-file infra/main.bicep `
-  --parameters `
-    location=westus `
-    sqlAdministratorLogin=mphsqladmin `
-    sqlAdministratorPassword="<sql-admin-password>" `
-    jwtKey="<jwt-key>"
+$publishDir = Join-Path $env:TEMP 'mph-existing-publish'
+$zipPath = Join-Path $env:TEMP 'mph-existing-publish.zip'
+Remove-Item -LiteralPath $publishDir,$zipPath -Recurse -Force -ErrorAction SilentlyContinue
+
+dotnet publish MiniPainterHub.Server/MiniPainterHub.Server.csproj --configuration Release --no-restore --output $publishDir
+Compress-Archive -Path (Join-Path $publishDir '*') -DestinationPath $zipPath -Force
+
+[xml]$settings = Get-Content -Raw -LiteralPath '<path-to-publish-settings-file>'
+$profile = @($settings.publishData.publishProfile) | Where-Object { $_.publishMethod -eq 'ZipDeploy' } | Select-Object -First 1
+$pair = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($profile.userName):$($profile.userPWD)"))
+
+Invoke-WebRequest `
+  -Uri 'https://minipainterhub-dqandpbghpgbfgf3.scm.canadacentral-01.azurewebsites.net/api/zipdeploy?isAsync=true' `
+  -Method Post `
+  -Headers @{ Authorization = "Basic $pair" } `
+  -InFile $zipPath `
+  -ContentType 'application/zip' `
+  -UseBasicParsing
 ```
 
 ## Post-deploy checks
@@ -152,25 +107,13 @@ After deployment:
 
 ## Rollback
 
-The fastest rollback is to rerun the `Deploy` workflow manually with a known-good commit SHA or tag. The workflow reapplies the same infrastructure template, republishes the selected server build, and reruns the health check.
+The fastest rollback is to rerun the `Deploy` workflow manually with a known-good commit SHA or tag. The workflow republishes the selected server build and reruns the health check.
 
-If the app fails after a successful upload, treat it as a deployed-app startup problem before changing infrastructure:
+If the app fails after a successful upload, treat it as a deployed-app startup problem:
 
 1. Turn on App Service logs.
 2. Inspect the App Service log stream and deployment logs.
 3. Use Kudu/Advanced Tools to inspect deployed files under `site/wwwroot`.
-4. Run the deployed app directly from Kudu:
+4. Run the deployed app directly from Kudu.
 
-Windows App Service:
-
-```powershell
-dotnet D:\home\site\wwwroot\MiniPainterHub.Server.dll
-```
-
-Linux App Service:
-
-```bash
-dotnet /home/site/wwwroot/MiniPainterHub.Server.dll
-```
-
-The most common runtime failure causes for this repo are missing `Jwt__...` settings, missing `ImageStorage__...` settings, failed SQL connectivity, or production dependencies that are unreachable from the App Service.
+The most common runtime failure causes for this repo are missing `Jwt__...` settings, missing `ImageStorage__...` settings, failed database connectivity, or production dependencies that are unreachable from the App Service.
