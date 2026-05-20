@@ -52,5 +52,17 @@ else if (Images.Count > 1)
     private static string GetThumbnailSource(PostViewerImageDto image) =>
         image.ThumbnailUrl
         ?? image.PreviewUrl
-        ?? image.ImageUrl;
+        ?? ReplaceVariantSuffix(image.ImageUrl, "_thumb.");
+
+    private static string ReplaceVariantSuffix(string? url, string replacement)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return string.Empty;
+        }
+
+        return url.Contains("_max.", StringComparison.OrdinalIgnoreCase)
+            ? url.Replace("_max.", replacement, StringComparison.OrdinalIgnoreCase)
+            : url;
+    }
 }

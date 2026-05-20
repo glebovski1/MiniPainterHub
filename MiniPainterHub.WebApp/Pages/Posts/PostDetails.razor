@@ -801,11 +801,23 @@
     private static string GetThumbnailSource(PostViewerImageDto image) =>
         image.ThumbnailUrl
         ?? image.PreviewUrl
-        ?? image.ImageUrl;
+        ?? ReplaceVariantSuffix(image.ImageUrl, "_thumb.");
 
     private static string GetPreviewSource(PostViewerImageDto image) =>
         image.PreviewUrl
-        ?? image.ImageUrl;
+        ?? ReplaceVariantSuffix(image.ImageUrl, "_preview.");
+
+    private static string ReplaceVariantSuffix(string? url, string replacement)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return string.Empty;
+        }
+
+        return url.Contains("_max.", StringComparison.OrdinalIgnoreCase)
+            ? url.Replace("_max.", replacement, StringComparison.OrdinalIgnoreCase)
+            : url;
+    }
 
     private void SetViewerSideTab(ViewerSideTab tab)
     {

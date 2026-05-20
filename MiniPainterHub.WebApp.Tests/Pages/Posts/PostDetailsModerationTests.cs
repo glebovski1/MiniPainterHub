@@ -181,8 +181,8 @@ public class PostDetailsModerationTests : TestContext
 
             var thumbnails = cut.FindAll("[data-testid='post-details-thumbnail']");
             thumbnails.Should().HaveCount(2);
-            thumbnails[0].GetAttribute("src").Should().EndWith("/uploads/post12_thumb.webp");
-            thumbnails[1].GetAttribute("src").Should().EndWith("/uploads/post12b_thumb.webp");
+            thumbnails[0].QuerySelector("img")!.GetAttribute("src").Should().EndWith("/uploads/post12_thumb.webp");
+            thumbnails[1].QuerySelector("img")!.GetAttribute("src").Should().EndWith("/uploads/post12b_thumb.webp");
         });
     }
 
@@ -234,18 +234,38 @@ public class PostDetailsModerationTests : TestContext
                     AuthorName = "Author",
                     CreatedAt = DateTime.UtcNow,
                     CanAttachCommentMark = true,
-                    Images = new List<PostViewerImageDto>
-                    {
-                        new()
+                    Images = postId == 12
+                        ? new List<PostViewerImageDto>
                         {
-                            Id = 101,
-                            ImageUrl = "/images/test_max.png",
-                            PreviewUrl = "/images/test_preview.png",
-                            ThumbnailUrl = "/images/test_thumb.png",
-                            Width = 1600,
-                            Height = 900
+                            new()
+                            {
+                                Id = 101,
+                                ImageUrl = "/uploads/post12_max.webp",
+                                PreviewUrl = "/uploads/post12_preview.webp",
+                                ThumbnailUrl = "/uploads/post12_thumb.webp",
+                                Width = 1600,
+                                Height = 900
+                            },
+                            new()
+                            {
+                                Id = 102,
+                                ImageUrl = "/uploads/post12b_max.webp",
+                                Width = 1600,
+                                Height = 900
+                            }
                         }
-                    }
+                        : new List<PostViewerImageDto>
+                        {
+                            new()
+                            {
+                                Id = 101,
+                                ImageUrl = "/images/test_max.png",
+                                PreviewUrl = "/images/test_preview.png",
+                                ThumbnailUrl = "/images/test_thumb.png",
+                                Width = 1600,
+                                Height = 900
+                            }
+                        }
                 });
 
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
