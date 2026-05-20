@@ -1,0 +1,131 @@
+- generic [ref=e7]:
+  - banner [ref=e8]:
+    - navigation [ref=e9]:
+      - generic [ref=e10]:
+        - link "MiniPainterHub" [ref=e11] [cursor=pointer]:
+          - /url: /
+        - button "Toggle navigation" [ref=e155] [cursor=pointer]
+  - main [ref=e28]:
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - generic [ref=e34]: Portfolio Update
+          - heading "MiniPainterHub" [level=1] [ref=e35]
+          - paragraph [ref=e36]: A miniature-painting community app that now pairs social discovery with a richer post viewer, stronger moderation flows, and a cleaner responsive interface across feed, search, messaging, and admin tools.
+          - generic [ref=e37]:
+            - link "Explore the live feed" [ref=e38] [cursor=pointer]:
+              - /url: /posts/all
+            - link "Create a post" [ref=e39] [cursor=pointer]:
+              - /url: /posts/new
+          - generic "Recent capabilities" [ref=e40]:
+            - generic [ref=e41]: Rich image viewer
+            - generic [ref=e42]: Anchored comment marks
+            - generic [ref=e43]: Moderation and reports
+            - generic [ref=e44]: Responsive UI refresh
+        - complementary "Current project snapshot" [ref=e45]:
+          - generic [ref=e46]: What changed recently
+          - list [ref=e47]:
+            - listitem [ref=e48]: Immersive post viewer with image-first browsing and comment context.
+            - listitem [ref=e49]: Inline hide and restore actions for posts and comments in admin flows.
+            - listitem [ref=e50]: Following feed, search discovery, messaging, and profile polish working together.
+            - listitem [ref=e51]: Browser-reviewed UI work backed by smoke tests and solution-wide test coverage.
+          - generic [ref=e52]: "Build: 1.0.0.0"
+      - region "What the portfolio now needs to show" [ref=e53]:
+        - generic [ref=e54]:
+          - generic [ref=e55]: Recent Functionality
+          - heading "What the portfolio now needs to show" [level=2] [ref=e56]
+          - paragraph [ref=e57]: The app has moved well beyond a basic posting flow. The current release emphasizes deeper viewing, stronger moderation, better discovery, and a more deliberate UI shell.
+        - generic [ref=e58]:
+          - article [ref=e59]:
+            - generic [ref=e61]: 
+            - generic [ref=e62]:
+              - heading "Rich Post Viewing" [level=3] [ref=e63]
+              - paragraph [ref=e64]: Post details now support a fuller image-viewing experience with stronger visual hierarchy for artwork inspection and discussion.
+          - article [ref=e65]:
+            - generic [ref=e67]: 
+            - generic [ref=e68]:
+              - heading "Comment Marks and Context" [level=3] [ref=e69]
+              - paragraph [ref=e70]: Recent work introduced anchored marks and thread-first comment context so feedback can map back to a specific part of an image.
+          - article [ref=e71]:
+            - generic [ref=e73]: 
+            - generic [ref=e74]:
+              - heading "Admin Moderation Flows" [level=3] [ref=e75]
+              - paragraph [ref=e76]: Reports, hide and restore actions, and audit visibility give moderators practical tools instead of background-only data.
+          - article [ref=e77]:
+            - generic [ref=e79]: 
+            - generic [ref=e80]:
+              - heading "Discovery and Social Depth" [level=3] [ref=e81]
+              - paragraph [ref=e82]: Following feed, global search, direct messaging, and richer profiles now connect creation and community into a coherent loop.
+      - region "Recent screens and workflows" [ref=e83]:
+        - generic [ref=e84]:
+          - generic [ref=e85]: UI Tour
+          - heading "Recent screens and workflows" [level=2] [ref=e86]
+          - paragraph [ref=e87]: "These views cover the app’s core product loop: browse, post, inspect, discover, message, and moderate."
+        - generic [ref=e88]:
+          - article [ref=e89]:
+            - img "Feed view showing recent miniature painting posts." [ref=e90]
+            - generic [ref=e91]:
+              - generic [ref=e92]: Browse
+              - heading "Home Feed" [level=3] [ref=e93]
+              - paragraph [ref=e94]: The feed highlights posts as the primary entry point into the product and showcases the refreshed card-based browsing experience.
+          - article [ref=e95]:
+            - img "Create-post screen with image upload and form controls." [ref=e96]
+            - generic [ref=e97]:
+              - generic [ref=e98]: Create
+              - heading "Create Post" [level=3] [ref=e99]
+              - paragraph [ref=e100]: Multi-image posting, captions, and tags keep the publishing flow focused on hobby progress and technique sharing.
+          - article [ref=e101]:
+            - img "Post details screen with artwork, metadata, and comments." [ref=e102]
+            - generic [ref=e103]:
+              - generic [ref=e104]: Inspect
+              - heading "Post Details" [level=3] [ref=e105]
+              - paragraph [ref=e106]: The project’s core view combines artwork presentation, comments, likes, and moderation-aware detail flows in one place.
+          - article [ref=e107]:
+            - img "Search screen showing results for posts and discovery flows." [ref=e108]
+            - generic [ref=e109]:
+              - generic [ref=e110]: Discover
+              - heading "Search and Discovery" [level=3] [ref=e111]
+              - paragraph [ref=e112]: Cross-entity search ties posts, tags, and users together so discovery feels like a real feature area rather than a filter add-on.
+          - article [ref=e113]:
+            - img "Messaging view showing a conversation list and active thread." [ref=e114]
+            - generic [ref=e115]:
+              - generic [ref=e116]: Connect
+              - heading "Messaging" [level=3] [ref=e117]
+              - paragraph [ref=e118]: Direct messages and connection flows extend the app beyond public posting into ongoing community interaction.
+          - article [ref=e119]:
+            - img "Admin reports screen with moderation queue information." [ref=e120]
+            - generic [ref=e121]:
+              - generic [ref=e122]: Moderate
+              - heading "Reports and Admin" [level=3] [ref=e123]
+              - paragraph [ref=e124]: The admin surface now exposes actionable moderation workflows that are strong enough to include in the portfolio itself.
+      - region "Functionality that now defines the project" [ref=e125]:
+        - article [ref=e126]:
+          - generic [ref=e127]: Product Direction
+          - heading "Functionality that now defines the project" [level=2] [ref=e128]
+          - list [ref=e129]:
+            - listitem [ref=e130]: Tagged posts, following feed, and global search make discovery feel intentional rather than purely chronological.
+            - listitem [ref=e131]: Profiles, follows, and direct messaging give the community layer real continuity beyond comments and likes.
+            - listitem [ref=e132]: Reports, moderation actions, and audit views make the admin surface part of the portfolio, not an afterthought.
+            - listitem [ref=e133]: The post details experience now supports richer image presentation and more contextual conversation flows.
+        - article [ref=e134]:
+          - generic [ref=e135]: Implementation Notes
+          - heading "Delivery stack and quality gates" [level=2] [ref=e136]
+          - generic [ref=e137]:
+            - generic [ref=e138]: .NET 8
+            - generic [ref=e139]: Blazor WebAssembly
+            - generic [ref=e140]: ASP.NET Core API
+            - generic [ref=e141]: Entity Framework Core
+            - generic [ref=e142]: JWT Auth
+            - generic [ref=e143]: Playwright Smoke
+            - generic [ref=e144]: bUnit + xUnit
+          - paragraph [ref=e145]: Recent UI work has been reviewed through browser-based smoke coverage and targeted page updates instead of one-off styling tweaks. That lets the portfolio present both functionality and delivery discipline.
+      - region "See the current experience in motion" [ref=e146]:
+        - generic [ref=e147]:
+          - generic [ref=e148]: Next Click
+          - heading "See the current experience in motion" [level=2] [ref=e149]
+          - paragraph [ref=e150]: Browse the feed, open a post, create one of your own, or inspect the admin workflows to see how the recent UI refresh supports the newer features.
+          - generic [ref=e151]:
+            - link "Open portfolio flows" [ref=e152] [cursor=pointer]:
+              - /url: /posts/all
+            - link "Try discovery" [ref=e153] [cursor=pointer]:
+              - /url: /search
