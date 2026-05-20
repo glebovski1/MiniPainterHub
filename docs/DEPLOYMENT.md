@@ -35,9 +35,11 @@ Create or update the GitHub environment named `production`. Add required reviewe
 Environment variables:
 
 ```text
-AZURE_WEBAPP_NAME=minipainterhub-dqandpbghpgbfgf3
+AZURE_WEBAPP_NAME=MiniPainterHub
 AZURE_WEBAPP_HOSTNAME=minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net
 ```
+
+`AZURE_WEBAPP_NAME` is the Azure App Service resource name, not the hashed default hostname prefix. The current production App Service is named `MiniPainterHub`; Azure serves it at the hostname above.
 
 Environment secrets:
 
