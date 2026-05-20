@@ -748,7 +748,7 @@ const scenarioGroups = {
     });
     await clickReliably(page.getByTestId("viewer-mark-close"));
 
-    const delayedImagePattern = /\/uploads\/images\/.*_max\.(webp|jpg|png)$/;
+    const delayedImagePattern = /\/uploads\/images\/.*_preview\.(webp|jpg|png)$/;
     await page.route(delayedImagePattern, async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 900));
       await route.continue();
@@ -770,9 +770,9 @@ const scenarioGroups = {
     await expect(page.getByTestId("viewer-skeleton")).toHaveCount(0);
     await page.unroute(delayedImagePattern);
 
-    const failingImagePattern = /\/uploads\/images\/.*_max\.(webp|jpg|png)$/;
+    const failingImagePattern = /\/uploads\/images\/.*_preview\.(webp|jpg|png)$/;
     await page.route(failingImagePattern, async (route) => {
-      if (route.request().url().includes(richViewerPost.primaryImage.imageUrl)) {
+      if (route.request().url().includes(richViewerPost.primaryImage.previewUrl)) {
         await route.continue();
         return;
       }

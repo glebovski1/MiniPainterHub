@@ -68,6 +68,41 @@ public class RichImageViewerTests : TestContext
     }
 
     [Fact]
+    public void ViewerStageUsesPreviewImageUntilActualSizeIsRequested()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var cut = RenderViewer();
+
+        cut.Find("[data-testid='viewer-stage-image']")
+            .GetAttribute("src")
+            .Should()
+            .Be("/images/moonlit-skin-1-preview.png");
+
+        cut.Find("[data-testid='viewer-view-actual']").Click();
+
+        cut.Find("[data-testid='viewer-stage-image']")
+            .GetAttribute("src")
+            .Should()
+            .Be("/images/moonlit-skin-1-full.png");
+    }
+
+    [Fact]
+    public void ViewerShellDoesNotBindArtworkAsDynamicBlurredBackdrop()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var cut = RenderViewer();
+
+        cut.Find(".viewer-shell__backdrop")
+            .HasAttribute("style")
+            .Should()
+            .BeFalse();
+    }
+
+    [Fact]
     public void RailDoesNotRenderCollapseToggleAndKeepsTheFilmstripVisible()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;

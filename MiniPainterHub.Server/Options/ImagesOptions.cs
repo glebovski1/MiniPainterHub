@@ -37,7 +37,7 @@ public sealed class ImagesOptions
     /// <summary>
     /// Gets the configuration for the preview variant.
     /// </summary>
-    public ImageSizeOptions Preview { get; set; } = new() { Width = 1280, Height = 1280 };
+    public ImageSizeOptions Preview { get; set; } = new() { Width = 960, Height = 960 };
 
     /// <summary>
     /// Gets the configuration for the thumbnail variant.

@@ -31,7 +31,7 @@ else if (IsOpen)
                  @ref="_rootElement"
                  tabindex="-1"
                  @onkeydown="HandleModalKeyDown">
-            <div class="viewer-shell__backdrop" style="@BackdropStyle"></div>
+            <div class="viewer-shell__backdrop"></div>
             <div class="viewer-shell__wash"></div>
 
             <div class="viewer-shell__content">
@@ -203,6 +203,7 @@ else if (IsOpen)
     private ElementReference _sidePanelElement;
     private ElementReference _transformElement;
     private IJSObjectReference? _module;
+    private Task<IJSObjectReference?>? _moduleImportTask;
     private DotNetObjectReference<RichImageViewer>? _selfReference;
 
     private PointerSnapshot? _pointer;
@@ -213,6 +214,7 @@ else if (IsOpen)
     private bool _isStageObserved;
     private bool _isGestureInteropActive;
     private bool _pendingTransformSync;
+    private bool _moduleWarmupStarted;
     private bool _isFullscreenSupported;
     private bool _isFullscreen;
     private bool _isAuthorPlacementMode;
@@ -332,9 +334,6 @@ else if (IsOpen)
 
     private string StageStyle => "touch-action:none;";
 
-    private string BackdropStyle =>
-        $"background-image:url('{(CurrentImage?.PreviewUrl ?? CurrentImage?.ImageUrl ?? string.Empty)}');";
-
     private string GetFitModeDescription()
     {
         if (CurrentImage is null)
@@ -380,7 +379,12 @@ else if (IsOpen)
     private string CurrentImageSource =>
         CurrentImage is null
             ? string.Empty
-            : AppendRetryToken(CurrentImage.ImageUrl, CurrentImage.Id);
+            : AppendRetryToken(GetInteractiveImageSource(CurrentImage), CurrentImage.Id);
+
+    private string GetInteractiveImageSource(PostViewerImageDto image) =>
+        _transform.ScaleMode == ViewerScaleMode.ActualSize
+            ? image.ImageUrl
+            : image.PreviewUrl ?? image.ImageUrl;
 
     private string ComposerStyle
     {
@@ -482,6 +486,12 @@ else if (IsOpen)
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender && !_moduleWarmupStarted)
+        {
+            _moduleWarmupStarted = true;
+            _ = WarmViewerModuleAsync();
+        }
+
         if (IsOpen)
         {
             if (!_isModalActive || !_isStageObserved || !_isGestureInteropActive)
@@ -709,6 +719,12 @@ else if (IsOpen)
             return null;
         }
 
+        _moduleImportTask ??= ImportViewerModuleAsync();
+        return await _moduleImportTask;
+    }
+
+    private async Task<IJSObjectReference?> ImportViewerModuleAsync()
+    {
         try
         {
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "/JSHelpers/viewerInterop.js");
@@ -718,6 +734,19 @@ else if (IsOpen)
         {
             _moduleLoadFailed = true;
             return null;
+        }
+    }
+
+    private async Task WarmViewerModuleAsync()
+    {
+        try
+        {
+            await Task.Delay(100);
+            await EnsureModuleAsync();
+        }
+        catch
+        {
+            // Module warmup is opportunistic; viewer open still handles fallback.
         }
     }
 
@@ -1416,10 +1445,8 @@ else if (IsOpen)
 
         var urls = new[]
         {
-            Viewer.Images[previousIndex].PreviewUrl,
-            Viewer.Images[previousIndex].ImageUrl,
-            Viewer.Images[nextIndex].PreviewUrl,
-            Viewer.Images[nextIndex].ImageUrl
+            GetPreloadImageSource(Viewer.Images[previousIndex]),
+            GetPreloadImageSource(Viewer.Images[nextIndex])
         }
         .Where(url => !string.IsNullOrWhiteSpace(url))
         .Cast<string>()
@@ -1440,6 +1467,9 @@ else if (IsOpen)
             // Ignore preload failures and preserve the primary viewer interaction.
         }
     }
+
+    private static string GetPreloadImageSource(PostViewerImageDto image) =>
+        image.PreviewUrl ?? image.ImageUrl;
 
     private string AppendRetryToken(string url, int imageId)
     {

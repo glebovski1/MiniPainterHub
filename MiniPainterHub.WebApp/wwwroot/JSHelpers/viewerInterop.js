@@ -77,7 +77,7 @@ function notifyGestureSettled(state) {
         });
 }
 
-function scheduleGestureSettled(state, delay = 140) {
+function scheduleGestureSettled(state, delay = 260) {
     window.clearTimeout(state.settleTimer);
     state.settleTimer = window.setTimeout(() => notifyGestureSettled(state), delay);
 }
@@ -85,6 +85,21 @@ function scheduleGestureSettled(state, delay = 140) {
 function canHandlePan(state) {
     return state.canPan
         && !state.stageElement.classList.contains("is-placement-mode");
+}
+
+function canOwnTouchGesture(state) {
+    return !state.stageElement.classList.contains("is-placement-mode");
+}
+
+function shouldClaimTouchGesture(state) {
+    return state.activePointers.size >= 2
+        || state.pinchStartDistance > 0
+        || canHandlePan(state);
+}
+
+function claimGestureEvent(event) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
 }
 
 function getGesturePoint(event) {
@@ -163,6 +178,11 @@ function getFocusableElements(element) {
             'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
         )
     ).filter(node => !node.hasAttribute("inert") && node.getAttribute("aria-hidden") !== "true");
+}
+
+function addGestureListener(state, eventName, handler, options) {
+    state.stageElement.addEventListener(eventName, handler, options);
+    state.listeners.push([eventName, handler, options]);
 }
 
 export function isFullscreenSupported() {
@@ -322,6 +342,15 @@ export function activateViewerGestures(stageElement, transformElement, dotNetRef
 
     const onPointerDown = event => {
         if (event.pointerType === "touch") {
+            if (!canOwnTouchGesture(state)) {
+                return;
+            }
+
+            const shouldClaim = state.activePointers.size > 0 || canHandlePan(state);
+            if (shouldClaim) {
+                claimGestureEvent(event);
+            }
+
             state.activePointers.set(event.pointerId, getGesturePoint(event));
             state.lastX = event.clientX;
             state.lastY = event.clientY;
@@ -332,7 +361,6 @@ export function activateViewerGestures(stageElement, transformElement, dotNetRef
                 beginPinch(state);
             }
 
-            event.preventDefault();
             return;
         }
 
@@ -340,19 +368,20 @@ export function activateViewerGestures(stageElement, transformElement, dotNetRef
             return;
         }
 
+        claimGestureEvent(event);
         state.activePointerId = event.pointerId;
         state.lastX = event.clientX;
         state.lastY = event.clientY;
         stageElement.classList.add("is-gesturing");
         stageElement.setPointerCapture?.(event.pointerId);
-        event.preventDefault();
     };
 
     const onPointerMove = event => {
         if (event.pointerType === "touch" && state.activePointers.has(event.pointerId)) {
             state.activePointers.set(event.pointerId, getGesturePoint(event));
-            if (applyTouchGesture(state)) {
-                event.preventDefault();
+            if (shouldClaimTouchGesture(state)) {
+                claimGestureEvent(event);
+                applyTouchGesture(state);
             }
 
             return;
@@ -362,6 +391,7 @@ export function activateViewerGestures(stageElement, transformElement, dotNetRef
             return;
         }
 
+        claimGestureEvent(event);
         state.panX += event.clientX - state.lastX;
         state.panY += event.clientY - state.lastY;
         state.lastX = event.clientX;
@@ -369,11 +399,15 @@ export function activateViewerGestures(stageElement, transformElement, dotNetRef
         clampGestureState(state);
         scheduleGestureApply(state);
         scheduleGestureSettled(state);
-        event.preventDefault();
     };
 
     const endPointer = event => {
         if (event.pointerType === "touch" && state.activePointers.has(event.pointerId)) {
+            const shouldClaim = shouldClaimTouchGesture(state);
+            if (shouldClaim) {
+                claimGestureEvent(event);
+            }
+
             state.activePointers.delete(event.pointerId);
             stageElement.releasePointerCapture?.(event.pointerId);
 
@@ -390,10 +424,14 @@ export function activateViewerGestures(stageElement, transformElement, dotNetRef
             else {
                 state.pinchStartDistance = 0;
                 state.pinchLastCenter = null;
-                notifyGestureSettled(state);
+                if (shouldClaim) {
+                    notifyGestureSettled(state);
+                }
+                else {
+                    state.stageElement?.classList.remove("is-gesturing");
+                }
             }
 
-            event.preventDefault();
             return;
         }
 
@@ -401,22 +439,18 @@ export function activateViewerGestures(stageElement, transformElement, dotNetRef
             return;
         }
 
+        claimGestureEvent(event);
         state.activePointerId = null;
         stageElement.releasePointerCapture?.(event.pointerId);
         notifyGestureSettled(state);
     };
 
     stageElement.addEventListener("wheel", onWheel, { passive: false });
-    stageElement.addEventListener("pointerdown", onPointerDown);
-    stageElement.addEventListener("pointermove", onPointerMove);
-    stageElement.addEventListener("pointerup", endPointer);
-    stageElement.addEventListener("pointercancel", endPointer);
-    state.listeners.push(
-        ["wheel", onWheel],
-        ["pointerdown", onPointerDown],
-        ["pointermove", onPointerMove],
-        ["pointerup", endPointer],
-        ["pointercancel", endPointer]);
+    state.listeners.push(["wheel", onWheel, { passive: false }]);
+    addGestureListener(state, "pointerdown", onPointerDown, { capture: true, passive: false });
+    addGestureListener(state, "pointermove", onPointerMove, { capture: true, passive: false });
+    addGestureListener(state, "pointerup", endPointer, { capture: true, passive: false });
+    addGestureListener(state, "pointercancel", endPointer, { capture: true, passive: false });
 
     gestureStates.set(stageElement, state);
 }
@@ -457,8 +491,8 @@ export function deactivateViewerGestures(stageElement) {
         return;
     }
 
-    for (const [eventName, handler] of state.listeners) {
-        stageElement.removeEventListener(eventName, handler);
+    for (const [eventName, handler, options] of state.listeners) {
+        stageElement.removeEventListener(eventName, handler, options);
     }
 
     if (state.rafId) {

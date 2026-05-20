@@ -16,6 +16,8 @@ namespace MiniPainterHub.Server.Controllers;
 public sealed class ImagesController : ControllerBase
 {
     private const string UploadRequestPath = "/uploads/images/";
+    private const string PreviewCachePrefix = "preview-cache-v3";
+    private const string ThumbnailCachePrefix = "thumbnail-cache";
     private readonly IImageService _imageService;
     private readonly IImageProcessor _imageProcessor;
 
@@ -123,7 +125,7 @@ public sealed class ImagesController : ControllerBase
     private static string BuildCacheFileName(string fileName, ImageVariantKind kind)
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(fileName));
-        var prefix = kind == ImageVariantKind.Preview ? "preview-cache" : "thumbnail-cache";
+        var prefix = kind == ImageVariantKind.Preview ? PreviewCachePrefix : ThumbnailCachePrefix;
         return $"{prefix}-{Convert.ToHexString(hash).ToLowerInvariant()}.webp";
     }
 

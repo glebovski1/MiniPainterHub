@@ -47,6 +47,19 @@ public class ImageProcessorTests
     }
 
     [Fact]
+    public async Task ProcessAsync_ConstrainsPreviewToResponsiveViewingSize()
+    {
+        using var stream = await CreateImageAsync(1200, 1800);
+        var processor = CreateProcessor();
+
+        ImageVariants variants = await processor.ProcessAsync(stream, "image/png", CancellationToken.None);
+
+        variants.Preview.Width.Should().BeLessOrEqualTo(960);
+        variants.Preview.Height.Should().BeLessOrEqualTo(960);
+        ((double)variants.Preview.Height / variants.Preview.Width).Should().BeApproximately(1.5d, 0.05d);
+    }
+
+    [Fact]
     public async Task ProcessAsync_FallsBackToJpeg_WhenPreferredPngWithoutTransparency()
     {
         using var stream = await CreateImageAsync(800, 600, image => image.Mutate(ctx => ctx.BackgroundColor(Color.Blue))); // opaque

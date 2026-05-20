@@ -128,7 +128,7 @@ public class PostDetailsViewerTests : TestContext
             cut.Find("[data-testid='viewer-stage-image']")
                 .GetAttribute("src")
                 .Should()
-                .Contain("moonlit-skin-2-full");
+                .Contain("moonlit-skin-2-preview");
         });
     }
 
@@ -171,7 +171,7 @@ public class PostDetailsViewerTests : TestContext
             cut.Find("[data-testid='viewer-stage-image']")
                 .GetAttribute("src")
                 .Should()
-                .Contain("moonlit-skin-2-full");
+                .Contain("moonlit-skin-2-preview");
 
             cut.FindAll(".comment-item--active")
                 .Should()
@@ -204,7 +204,7 @@ public class PostDetailsViewerTests : TestContext
         {
             markRequests.Should().Equal(11);
             cut.Find("[data-testid='viewer-comment-state']").TextContent.Should().Contain("#11");
-            cut.Find("[data-testid='viewer-stage-image']").GetAttribute("src").Should().Contain("moonlit-skin-1-full");
+            cut.Find("[data-testid='viewer-stage-image']").GetAttribute("src").Should().Contain("moonlit-skin-1-preview");
         });
 
         FindPageCommentCard(cut, "Moonlight glow anchor")
@@ -215,7 +215,7 @@ public class PostDetailsViewerTests : TestContext
         {
             markRequests.Should().Equal(11, 12);
             cut.Find("[data-testid='viewer-comment-state']").TextContent.Should().Contain("#12");
-            cut.Find("[data-testid='viewer-stage-image']").GetAttribute("src").Should().Contain("moonlit-skin-2-full");
+            cut.Find("[data-testid='viewer-stage-image']").GetAttribute("src").Should().Contain("moonlit-skin-2-preview");
             cut.FindAll(".comment-item--active")
                 .Should()
                 .OnlyContain(item => item.TextContent.Contains("Moonlight glow anchor", StringComparison.Ordinal));
@@ -225,7 +225,7 @@ public class PostDetailsViewerTests : TestContext
 
         cut.WaitForAssertion(() =>
         {
-            cut.Find("[data-testid='viewer-stage-image']").GetAttribute("src").Should().Contain("moonlit-skin-1-full");
+            cut.Find("[data-testid='viewer-stage-image']").GetAttribute("src").Should().Contain("moonlit-skin-1-preview");
             cut.FindAll("[data-testid='viewer-comment-state']").Should().BeEmpty();
             cut.FindAll(".comment-item--active").Should().BeEmpty();
         });

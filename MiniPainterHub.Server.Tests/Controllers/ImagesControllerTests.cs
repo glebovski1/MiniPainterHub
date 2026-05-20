@@ -76,7 +76,7 @@ public class ImagesControllerTests
         result.Should().BeOfType<FileStreamResult>()
             .Which.ContentType.Should().Be("image/webp");
         imageProcessor.ProcessCount.Should().Be(1);
-        imageService.UploadedFileName.Should().StartWith("preview-cache-");
+        imageService.UploadedFileName.Should().StartWith("preview-cache-v3-");
         imageService.UploadedBytes.Should().Equal(new byte[] { 2 });
     }
 

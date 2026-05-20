@@ -264,9 +264,9 @@ test("comment and like flow works on post details", async ({ page }) => {
 test("rich viewer overlay keeps post details intact and supports refined layout modes", async ({ page, request }) => {
   await loginAsSeedUser(page);
   const viewerPost = await createRichViewerPost(page, request, "desktop-flow", { extraPlainCommentsCount: 16 });
-  const squareImagePath = getPathSegment(new URL(viewerPost.squareImage.imageUrl, page.url()).toString(), "/uploads/images/");
-  const secondaryImagePath = getPathSegment(new URL(viewerPost.secondaryImage.imageUrl, page.url()).toString(), "/uploads/images/");
-  const panoramaImagePath = getPathSegment(new URL(viewerPost.panoramaImage.imageUrl, page.url()).toString(), "/uploads/images/");
+  const squareImagePath = getPathSegment(new URL(viewerPost.squareImage.previewUrl, page.url()).toString(), "/uploads/images/");
+  const secondaryImagePath = getPathSegment(new URL(viewerPost.secondaryImage.previewUrl, page.url()).toString(), "/uploads/images/");
+  const panoramaImagePath = getPathSegment(new URL(viewerPost.panoramaImage.previewUrl, page.url()).toString(), "/uploads/images/");
   const panoramaIndex = viewerPost.viewer.images.findIndex((image) => image.id === viewerPost.panoramaImage.id);
 
   const commentMarkRequests = [];
@@ -545,7 +545,7 @@ test("rich viewer mobile layout plus loading and error states work", async ({ pa
   await loginAsSeedUser(page);
   const viewerPost = await createRichViewerPost(page, request, "mobile-flow");
 
-  const delayedImagePattern = new RegExp(viewerPost.primaryImage.imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const delayedImagePattern = new RegExp(viewerPost.primaryImage.previewUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   await page.route(delayedImagePattern, async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 900));
     await route.continue();
@@ -556,9 +556,9 @@ test("rich viewer mobile layout plus loading and error states work", async ({ pa
   await expect(page.getByTestId("viewer-skeleton")).toHaveCount(0);
   await page.unroute(delayedImagePattern);
 
-  const failingImagePattern = /\/uploads\/images\/.*_max\.(webp|jpg|png)$/;
+  const failingImagePattern = /\/uploads\/images\/.*_preview\.(webp|jpg|png)$/;
   await page.route(failingImagePattern, async (route) => {
-    if (route.request().url().includes(viewerPost.primaryImage.imageUrl)) {
+    if (route.request().url().includes(viewerPost.primaryImage.previewUrl)) {
       await route.continue();
       return;
     }
