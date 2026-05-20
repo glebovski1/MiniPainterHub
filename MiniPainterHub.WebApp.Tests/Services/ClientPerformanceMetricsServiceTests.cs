@@ -41,6 +41,24 @@ public class ClientPerformanceMetricsServiceTests
     }
 
     [Fact]
+    public async Task FlushAsync_WhenPathHasEncodedQueryDelimiter_StripsEncodedQuery()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        handler.Enqueue(new HttpResponseMessage(HttpStatusCode.NoContent));
+        var service = CreateService(handler);
+
+        service.RecordMetric("blazor.route_render.ms", 17.5, "ms", "/home%3Ftab=latest");
+
+        await service.FlushAsync();
+
+        var batch = JsonSerializer.Deserialize<ClientPerformanceBatchDto>(
+            handler.Requests.Single().Body!,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        batch!.Metrics.Single().Path.Should().Be("/home");
+    }
+
+    [Fact]
     public async Task FlushAsync_WhenApiRequestTargetsTelemetryEndpoint_DoesNotPostRecursiveMetric()
     {
         var handler = new RecordingHttpMessageHandler();

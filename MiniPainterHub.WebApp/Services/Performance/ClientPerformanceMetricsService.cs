@@ -151,7 +151,10 @@ public sealed class ClientPerformanceMetricsService : IClientPerformanceMetrics
             return null;
         }
 
-        if (Uri.TryCreate(path, UriKind.Absolute, out var absolute))
+        path = path.Trim();
+        if (Uri.TryCreate(path, UriKind.Absolute, out var absolute)
+            && (string.Equals(absolute.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(absolute.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
         {
             path = absolute.AbsolutePath;
         }
@@ -160,6 +163,16 @@ public sealed class ClientPerformanceMetricsService : IClientPerformanceMetrics
         if (queryIndex >= 0)
         {
             path = path[..queryIndex];
+        }
+
+        var encodedQueryIndex = path.IndexOf("%3F", StringComparison.OrdinalIgnoreCase);
+        var encodedFragmentIndex = path.IndexOf("%23", StringComparison.OrdinalIgnoreCase);
+        var encodedDelimiterIndex = encodedQueryIndex >= 0 && encodedFragmentIndex >= 0
+            ? Math.Min(encodedQueryIndex, encodedFragmentIndex)
+            : Math.Max(encodedQueryIndex, encodedFragmentIndex);
+        if (encodedDelimiterIndex >= 0)
+        {
+            path = path[..encodedDelimiterIndex];
         }
 
         if (!path.StartsWith("/", StringComparison.Ordinal))
