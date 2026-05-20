@@ -263,7 +263,7 @@ test("comment and like flow works on post details", async ({ page }) => {
 
 test("rich viewer overlay keeps post details intact and supports refined layout modes", async ({ page, request }) => {
   await loginAsSeedUser(page);
-  const viewerPost = await createRichViewerPost(page, request, "desktop-flow", { extraPlainCommentsCount: 8 });
+  const viewerPost = await createRichViewerPost(page, request, "desktop-flow", { extraPlainCommentsCount: 16 });
   const squareImagePath = getPathSegment(new URL(viewerPost.squareImage.imageUrl, page.url()).toString(), "/uploads/images/");
   const secondaryImagePath = getPathSegment(new URL(viewerPost.secondaryImage.imageUrl, page.url()).toString(), "/uploads/images/");
   const panoramaImagePath = getPathSegment(new URL(viewerPost.panoramaImage.imageUrl, page.url()).toString(), "/uploads/images/");
@@ -360,6 +360,7 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
   await page.getByTestId("viewer-side-tab-comments").click();
   await expect(page.getByTestId("viewer-side-tab-comments")).toHaveClass(/is-active/);
   await expect(page.getByTestId("viewer-comments-scroll")).toBeVisible();
+  await expect(page.locator("[data-testid='viewer-comments-thread'] [data-testid='comment-item']").first()).toBeVisible();
   const commentsScroll = page.getByTestId("viewer-comments-scroll");
   const composerSticky = page.getByTestId("viewer-composer-sticky");
   const composerBoxBeforeScroll = await composerSticky.boundingBox();

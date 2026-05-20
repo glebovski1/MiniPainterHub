@@ -71,6 +71,14 @@ internal sealed class ViewerTransformState
         ClampPan(image);
     }
 
+    public void SetInteractiveTransform(double zoom, double panX, double panY, PostViewerImageDto? image)
+    {
+        Zoom = Math.Clamp(zoom, MinZoom, MaxZoom);
+        PanX = panX;
+        PanY = panY;
+        ClampPan(image);
+    }
+
     public void CenterOn(decimal normalizedX, decimal normalizedY, bool promoteZoom, PostViewerImageDto? image)
     {
         if (image is null)

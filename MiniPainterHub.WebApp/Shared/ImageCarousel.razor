@@ -36,6 +36,8 @@
                     <a href="@link" target="@(OpenInNewTab ? "_blank" : null)" rel="@(OpenInNewTab ? "noopener" : null)">
                         <img class="d-block w-100 h-100" style="object-fit: cover;"
                              src="@slide.Url"
+                             loading="@(i == 0 ? "eager" : "lazy")"
+                             fetchpriority="@(i == 0 ? "high" : "auto")"
                              alt="@(slide.Caption ?? $"Slide {i + 1}")" />
                     </a>
 
@@ -90,7 +92,7 @@ else
     private IJSObjectReference? _module;
 
     private IReadOnlyDictionary<string, object> CarouselAttributes =>
-        Mode == CarouselMode.Auto
+        Mode == CarouselMode.Auto && (Slides?.Count ?? 0) > 1
             ? new Dictionary<string, object>
             {
                 ["data-bs-ride"] = "carousel",

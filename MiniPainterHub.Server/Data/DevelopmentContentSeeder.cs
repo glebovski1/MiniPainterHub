@@ -20,7 +20,6 @@ namespace MiniPainterHub.Server.Data;
 public sealed class DevelopmentContentSeeder
 {
     private const string SeedAvatarFilePrefix = "seed-avatar-";
-    private const string SeedPostImageFilePrefix = "seed-post-";
 
     private static readonly IReadOnlyList<DevelopmentSeedUser> SeedUsers =
     [
@@ -214,6 +213,8 @@ public sealed class DevelopmentContentSeeder
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly IImageService _imageService;
+    private readonly IImageProcessor _imageProcessor;
+    private readonly IImageStore _imageStore;
     private readonly IWebHostEnvironment _environment;
     private readonly IConfiguration _configuration;
     private readonly ILogger<DevelopmentContentSeeder> _logger;
@@ -223,6 +224,8 @@ public sealed class DevelopmentContentSeeder
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
         IImageService imageService,
+        IImageProcessor imageProcessor,
+        IImageStore imageStore,
         IWebHostEnvironment environment,
         IConfiguration configuration,
         ILogger<DevelopmentContentSeeder> logger)
@@ -231,6 +234,8 @@ public sealed class DevelopmentContentSeeder
         _userManager = userManager;
         _roleManager = roleManager;
         _imageService = imageService;
+        _imageProcessor = imageProcessor;
+        _imageStore = imageStore;
         _environment = environment;
         _configuration = configuration;
         _logger = logger;
@@ -482,22 +487,26 @@ public sealed class DevelopmentContentSeeder
 
             var post = posts[i];
             var postImageFile = postImageFiles[i % postImageFiles.Count];
-            var extension = Path.GetExtension(postImageFile);
-            var uploadFileName = $"{SeedPostImageFilePrefix}{i + 1:00}-{CreateFileSlug(post.Title)}{extension}";
 
             await using var stream = File.OpenRead(postImageFile);
-            var imageUrl = await _imageService.UploadAsync(stream, uploadFileName);
+            var variants = await _imageProcessor.ProcessAsync(stream, contentType: null, ct);
+            var stored = await _imageStore.SaveAsync(ConvertToStorageGuid(post.Id), Guid.NewGuid(), variants, ct);
             post.Images.Add(new PostImage
             {
                 PostId = post.Id,
-                ImageUrl = imageUrl,
-                PreviewUrl = imageUrl,
-                ThumbnailUrl = imageUrl
+                ImageUrl = stored.MaxUrl,
+                PreviewUrl = stored.PreviewUrl,
+                ThumbnailUrl = stored.ThumbUrl,
+                Width = variants.Max.Width,
+                Height = variants.Max.Height
             });
         }
 
         return posts.Count;
     }
+
+    private static Guid ConvertToStorageGuid(int postId) =>
+        new(postId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
     private async Task<int> ApplyAvatarsToExistingSeedUsersAsync(IReadOnlyList<SeededAvatarAsset> avatars, CancellationToken ct)
     {
@@ -593,39 +602,6 @@ public sealed class DevelopmentContentSeeder
         }
 
         return files;
-    }
-
-    private static string CreateFileSlug(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return "untitled";
-        }
-
-        var buffer = new char[value.Length];
-        var length = 0;
-        var pendingDash = false;
-
-        foreach (var character in value)
-        {
-            if (char.IsLetterOrDigit(character))
-            {
-                if (pendingDash && length > 0)
-                {
-                    buffer[length++] = '-';
-                    pendingDash = false;
-                }
-
-                buffer[length++] = char.ToLowerInvariant(character);
-                continue;
-            }
-
-            pendingDash = length > 0;
-        }
-
-        return length == 0
-            ? "untitled"
-            : new string(buffer, 0, length);
     }
 
     private static List<Post> CreatePosts(

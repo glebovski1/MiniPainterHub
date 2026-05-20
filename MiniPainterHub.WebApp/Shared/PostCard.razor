@@ -12,7 +12,8 @@
                  data-testid="post-card-image"
                  alt="Post image"
                  @onerror="HandleImageError"
-                 loading="lazy" />
+                 loading="lazy"
+                 decoding="async" />
         </NavLink>
     }
     else
@@ -109,7 +110,7 @@
     private string? _moderationResult;
 
     private string FullImageUrl => MakeAbsoluteUrl(Post.ImageUrl);
-    private string ThumbImageUrl => MakeAbsoluteUrl(ReplaceVariantSuffix(Post.ImageUrl, "_thumb."));
+    private string ThumbImageUrl => MakeAbsoluteUrl(ResolveThumbnailUrl());
     private string DisplayImageUrl => _useFullImage ? FullImageUrl : ThumbImageUrl;
 
     private string MakeAbsoluteUrl(string? url) =>
@@ -129,6 +130,17 @@
         return url.Contains("_max.", StringComparison.OrdinalIgnoreCase)
             ? url.Replace("_max.", replacement, StringComparison.OrdinalIgnoreCase)
             : url;
+    }
+
+    private string? ResolveThumbnailUrl()
+    {
+        if (!string.IsNullOrWhiteSpace(Post.ThumbnailUrl)
+            && !string.Equals(Post.ThumbnailUrl, Post.ImageUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            return Post.ThumbnailUrl;
+        }
+
+        return ReplaceVariantSuffix(Post.ImageUrl, "_thumb.");
     }
 
     private void HandleImageError()

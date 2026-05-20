@@ -92,14 +92,10 @@ namespace MiniPainterHub.WebApp.Services
 
         public async Task<IEnumerable<PostSummaryDto>> GetTopPosts(int count, TimeSpan timeOffcet)
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/posts?page={1}&pagesize={1000}");
-            var result = await _api.SendAsync<PagedResult<PostSummaryDto>>(request);
-
-            var posts = result?.Items
-                .Where(p => p.CreatedAt >= DateTime.UtcNow.Subtract(timeOffcet))
-                .OrderByDescending(p => p.CreatedAt)
-                .Take(count)
-                .ToList();
+            var safeCount = Math.Clamp(count, 1, 20);
+            var lookbackDays = Math.Clamp((int)Math.Ceiling(timeOffcet.TotalDays), 1, 365);
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/posts/top?count={safeCount}&lookbackDays={lookbackDays}");
+            var posts = await _api.SendAsync<List<PostSummaryDto>>(request);
 
             return posts ?? Enumerable.Empty<PostSummaryDto>();
         }

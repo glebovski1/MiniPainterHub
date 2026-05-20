@@ -14,6 +14,29 @@ namespace MiniPainterHub.WebApp.Tests.Shared;
 public class PostCardTests : TestContext
 {
     [Fact]
+    public void Image_WhenThumbnailUrlIsProvided_UsesThumbnailUrl()
+    {
+        this.AddTestAuthorization();
+        this.AddModerationStub();
+
+        var post = new PostSummaryDto
+        {
+            Id = 41,
+            Title = "Title",
+            Snippet = "Snippet",
+            AuthorName = "author",
+            AuthorId = "author-1",
+            CreatedAt = DateTime.UtcNow,
+            ImageUrl = "/uploads/images/full.png",
+            ThumbnailUrl = "/uploads/images/thumb.webp"
+        };
+
+        var cut = RenderWithAuth(post);
+
+        cut.Find("img").GetAttribute("src").Should().Be("http://localhost/uploads/images/thumb.webp");
+    }
+
+    [Fact]
     public void Image_WhenThumbnailFails_FallsBackToFullImageUrl()
     {
         this.AddTestAuthorization();

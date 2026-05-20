@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Bunit;
 using FluentAssertions;
 using Microsoft.AspNetCore.Components;
@@ -24,7 +25,6 @@ public class RichImageViewerTests : TestContext
 
         var stage = cut.Find("[data-testid='viewer-stage']");
         stage.TriggerEvent("ontouchstart", CreateTouchEventArgs(280d, 180d));
-        stage.TriggerEvent("ontouchmove", CreateTouchEventArgs(180d, 186d));
         stage.TriggerEvent("ontouchend", CreateTouchEventArgs(180d, 186d, useChangedTouches: true));
 
         requestedImageId.Should().Be(102);
@@ -42,7 +42,6 @@ public class RichImageViewerTests : TestContext
 
         var stage = cut.Find("[data-testid='viewer-stage']");
         stage.TriggerEvent("ontouchstart", CreateTouchEventArgs(280d, 180d));
-        stage.TriggerEvent("ontouchmove", CreateTouchEventArgs(238d, 182d));
         stage.TriggerEvent("ontouchend", CreateTouchEventArgs(238d, 182d, useChangedTouches: true));
 
         requestedImageId.Should().Be(0);
@@ -122,7 +121,7 @@ public class RichImageViewerTests : TestContext
         var cut = RenderViewer();
 
         cut.Find("[data-testid='viewer-view-actual']").Click();
-        cut.Find("[data-testid='viewer-stage']").TriggerEvent("onwheel", new WheelEventArgs { DeltaY = -1 });
+        cut.Find("[data-testid='viewer-zoom-in']").Click();
         cut.Find("[data-testid='viewer-control-rail']").TextContent.Should().Contain("125%");
 
         cut.SetParametersAndRender(parameters => ConfigureViewerParameters(parameters, false));
@@ -130,6 +129,24 @@ public class RichImageViewerTests : TestContext
 
         cut.Find("[data-testid='viewer-control-rail']").TextContent.Should().Contain("60%");
         cut.Find("[data-testid='viewer-reset']").ClassList.Should().Contain("is-active");
+    }
+
+    [Fact]
+    public void ViewerInteropInitializationRunsOnlyOnOpenTransition()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var cut = RenderViewer();
+
+        cut.Find("[data-testid='viewer-view-fill']").Click();
+        cut.Find("[data-testid='viewer-view-actual']").Click();
+        cut.Render();
+
+        JSInterop.Invocations
+            .Count(invocation => invocation.Identifier == "isFullscreenSupported")
+            .Should()
+            .Be(1);
     }
 
     private IRenderedComponent<RichImageViewer> RenderViewer(Action<ComponentParameterCollectionBuilder<RichImageViewer>>? configure = null)

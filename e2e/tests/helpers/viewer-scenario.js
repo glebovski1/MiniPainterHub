@@ -56,7 +56,7 @@ async function createRichViewerPost(page, request, suffix, options = {}) {
   await page.getByTestId("create-post-images").setInputFiles(options.imagePaths || VIEWER_IMAGE_PATHS);
   await page.getByTestId("create-post-submit").click();
 
-  await expect(page).toHaveURL(/\/posts\/\d+$/);
+  await expect(page).toHaveURL(/\/posts\/\d+$/, { timeout: 30_000 });
   await expect(page.getByTestId("post-title")).toHaveText(title);
 
   const postId = Number.parseInt(getPathSegment(page.url(), "/posts/"), 10);

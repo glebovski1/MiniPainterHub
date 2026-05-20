@@ -420,6 +420,7 @@
 }
 
 .viewer-panel__comments-scroll {
+    flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
     padding-right: 0.2rem;

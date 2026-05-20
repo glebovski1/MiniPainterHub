@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -9,6 +10,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using MiniPainterHub.WebApp.Services.Notifications;
+using MiniPainterHub.WebApp.Services.Performance;
 
 namespace MiniPainterHub.WebApp.Services.Http;
 
@@ -18,11 +20,13 @@ public sealed class ApiClient
 
     private readonly HttpClient _httpClient;
     private readonly INotificationService _notifications;
+    private readonly IClientPerformanceMetrics? _metrics;
 
-    public ApiClient(HttpClient httpClient, INotificationService notifications)
+    public ApiClient(HttpClient httpClient, INotificationService notifications, IClientPerformanceMetrics? metrics = null)
     {
         _httpClient = httpClient;
         _notifications = notifications;
+        _metrics = metrics;
     }
 
     public async Task<T?> SendAsync<T>(HttpRequestMessage request, ApiRequestOptions? options = null, CancellationToken cancellationToken = default)
@@ -86,12 +90,16 @@ public sealed class ApiClient
 
     private async Task<HttpResponseMessage?> SendCoreAsync(HttpRequestMessage request, ApiRequestOptions? options, CancellationToken cancellationToken)
     {
+        var startedAt = Stopwatch.GetTimestamp();
         try
         {
-            return await _httpClient.SendAsync(request, cancellationToken);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            RecordApiRequest(request, startedAt, (int)response.StatusCode, response.IsSuccessStatusCode);
+            return response;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
+            RecordApiRequest(request, startedAt, statusCode: null, success: false);
             if (options?.SuppressErrorNotifications != true)
             {
                 await _notifications.ShowErrorAsync("The request timed out. Please try again.", "Request timed out");
@@ -100,12 +108,19 @@ public sealed class ApiClient
         }
         catch (HttpRequestException)
         {
+            RecordApiRequest(request, startedAt, statusCode: null, success: false);
             if (options?.SuppressErrorNotifications != true)
             {
                 await _notifications.ShowErrorAsync("Unable to reach the server. Please check your connection and try again.", "Network error");
             }
             return null;
         }
+    }
+
+    private void RecordApiRequest(HttpRequestMessage request, long startedAt, int? statusCode, bool success)
+    {
+        var durationMs = Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
+        _metrics?.RecordApiRequest(request.Method, request.RequestUri, durationMs, statusCode, success);
     }
 
     private async Task HandleErrorAsync(HttpResponseMessage response, ApiRequestOptions? options, CancellationToken cancellationToken)

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -113,6 +114,27 @@ public class ApiClientTests
     }
 
     [Fact]
+    public async Task SendForResultAsync_WhenRequestCompletes_RecordsApiDurationMetric()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        var notifications = new NotificationRecorder();
+        var metrics = new RecordingClientPerformanceMetrics();
+        var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://example.test/")
+        };
+        var client = new ApiClient(httpClient, notifications, metrics);
+        handler.EnqueueJson(HttpStatusCode.OK, """{ "value": "ok" }""");
+
+        await client.SendForResultAsync<object>(new HttpRequestMessage(HttpMethod.Get, "api/posts?page=1"));
+
+        metrics.ApiRequests.Should().ContainSingle();
+        metrics.ApiRequests.Single().RequestUri!.AbsolutePath.Should().Be("/api/posts");
+        metrics.ApiRequests.Single().StatusCode.Should().Be(200);
+        metrics.ApiRequests.Single().Success.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task SendForResultAsync_WhenRequestTimesOut_ShowsTimeoutNotification()
     {
         var notifications = new NotificationRecorder();
@@ -141,4 +163,32 @@ public class ApiClientTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             => throw new OperationCanceledException();
     }
+
+    private sealed class RecordingClientPerformanceMetrics : MiniPainterHub.WebApp.Services.Performance.IClientPerformanceMetrics
+    {
+        public List<ApiRequestMetric> ApiRequests { get; } = new();
+
+        public bool IsEnabled => true;
+
+        public void EnableForSession()
+        {
+        }
+
+        public void RecordMetric(string name, double value, string unit, string? path = null)
+        {
+        }
+
+        public void RecordMetric(MiniPainterHub.Common.DTOs.ClientPerformanceMetricDto metric)
+        {
+        }
+
+        public void RecordApiRequest(HttpMethod method, Uri? requestUri, double durationMs, int? statusCode, bool success)
+        {
+            ApiRequests.Add(new ApiRequestMetric(method, requestUri, durationMs, statusCode, success));
+        }
+
+        public Task FlushAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed record ApiRequestMetric(HttpMethod Method, Uri? RequestUri, double DurationMs, int? StatusCode, bool Success);
 }

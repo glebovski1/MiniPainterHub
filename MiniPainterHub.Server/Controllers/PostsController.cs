@@ -6,6 +6,7 @@ using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -74,6 +75,16 @@ namespace MiniPainterHub.Server.Controllers
             [FromQuery] int pageSize = 10)
         {
             var result = await _postService.GetByAuthorAsync(userId, page, pageSize);
+            return Ok(result);
+        }
+
+        [HttpGet("top")]
+        [AllowAnonymous]
+        public async Task<ActionResult<IReadOnlyList<PostSummaryDto>>> GetTop(
+            [FromQuery] int count = 5,
+            [FromQuery] int lookbackDays = 60)
+        {
+            var result = await _postService.GetTopPostsAsync(count, TimeSpan.FromDays(lookbackDays));
             return Ok(result);
         }
 

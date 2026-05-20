@@ -772,12 +772,18 @@ input[type="file"].form-control::file-selector-button {
 }
 
 .loading-progress-shell {
-    position: relative;
-    width: min(8rem, calc(100vw - 3rem));
-    margin: 20vh auto 0;
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-height: 100vh;
+    margin: 0;
+    pointer-events: none;
 }
 
 .loading-progress {
+    grid-area: 1 / 1;
     display: block;
     width: 8rem;
     height: 8rem;
@@ -799,8 +805,7 @@ input[type="file"].form-control::file-selector-button {
 }
 
 .loading-progress-text {
-    position: absolute;
-    inset: 0;
+    grid-area: 1 / 1;
     display: grid;
     place-items: center;
     font-weight: 800;

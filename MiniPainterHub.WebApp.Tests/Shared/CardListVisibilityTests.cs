@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Threading.Tasks;
 using Bunit;
@@ -91,6 +92,22 @@ public class CardListVisibilityTests : TestContext
         {
             cut.FindAll("[data-testid='post-visibility-select']").Should().BeEmpty();
         });
+    }
+
+    [Fact]
+    public void PostCards_AreKeyedByPostId()
+    {
+        var source = File.ReadAllText(Path.Combine(
+            AppContext.BaseDirectory,
+            "..",
+            "..",
+            "..",
+            "..",
+            "MiniPainterHub.WebApp",
+            "Shared",
+            "CardList.razor"));
+
+        source.Should().Contain("<PostCard @key=\"post.Id\"");
     }
 
     private IRenderedFragment RenderWithAuth()
