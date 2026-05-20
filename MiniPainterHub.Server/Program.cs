@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +39,9 @@ namespace MiniPainterHub;
 
 public class Program
 {
+    internal const int SqlServerMaxRetryCount = 6;
+    internal static readonly TimeSpan SqlServerMaxRetryDelay = TimeSpan.FromSeconds(10);
+
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
@@ -75,8 +79,7 @@ public class Program
 
             options.UseSqlServer(
                 defaultConnection,
-                sqlOpts => sqlOpts.MigrationsAssembly(typeof(AppDbContext).Assembly.GetName().Name)
-                                   .MigrationsHistoryTable("__EFMigrationsHistory", "dbo"));
+                ConfigureSqlServerOptions);
         });
 
         builder.Services.AddDefaultIdentity<ApplicationUser>(o =>
@@ -389,6 +392,16 @@ public class Program
 
 
         app.Run();
+    }
+
+    internal static void ConfigureSqlServerOptions(SqlServerDbContextOptionsBuilder sqlOpts)
+    {
+        sqlOpts.MigrationsAssembly(typeof(AppDbContext).Assembly.GetName().Name)
+            .MigrationsHistoryTable("__EFMigrationsHistory", "dbo")
+            .EnableRetryOnFailure(
+                maxRetryCount: SqlServerMaxRetryCount,
+                maxRetryDelay: SqlServerMaxRetryDelay,
+                errorNumbersToAdd: null);
     }
 
     private static async Task EnsureDevelopmentDatabaseAsync(AppDbContext db, ILogger logger, IConfiguration configuration)
