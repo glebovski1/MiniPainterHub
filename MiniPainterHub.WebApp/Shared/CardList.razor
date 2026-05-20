@@ -70,7 +70,7 @@ else
             @foreach (var post in posts)
             {
                 <div class="col">
-                    <PostCard Post="post" OnModerated="ReloadCurrentPageAsync" />
+                    <PostCard @key="post.Id" Post="post" OnModerated="ReloadCurrentPageAsync" />
                 </div>
             }
         </div>

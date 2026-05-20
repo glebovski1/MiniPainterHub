@@ -11,6 +11,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using Xunit;
 
 namespace MiniPainterHub.Server.Tests.Data;
@@ -156,10 +158,11 @@ public class DevelopmentContentSeederTests
                 .OnlyContain(post => post.Images.Count == 1 && post.PostTags.Count > 0);
             db.PostImages.Should().HaveCount(20);
             db.PostImages.Select(image => image.ImageUrl).Should().OnlyContain(url => !string.IsNullOrWhiteSpace(url));
-            db.PostImages.Select(image => image.ThumbnailUrl).Should().OnlyContain(url => !string.IsNullOrWhiteSpace(url));
-            db.PostImages.Select(image => image.PreviewUrl).Should().OnlyContain(url => !string.IsNullOrWhiteSpace(url));
-            Directory.GetFiles(imageRoot).Should().HaveCount(30);
-            Directory.GetFiles(imageRoot, "seed-post-*").Should().HaveCount(20);
+            db.PostImages.Select(image => image.ThumbnailUrl).Should().OnlyContain(url => !string.IsNullOrWhiteSpace(url) && url!.Contains("_thumb."));
+            db.PostImages.Select(image => image.PreviewUrl).Should().OnlyContain(url => !string.IsNullOrWhiteSpace(url) && url!.Contains("_preview."));
+            Directory.GetFiles(imageRoot).Should().HaveCount(10);
+            Directory.GetFiles(imageRoot, "*", SearchOption.AllDirectories).Should().HaveCount(70);
+            Directory.GetFiles(imageRoot, "*_thumb.*", SearchOption.AllDirectories).Should().HaveCount(20);
         }
         finally
         {
@@ -430,9 +433,7 @@ public class DevelopmentContentSeederTests
 
         for (var i = 1; i <= fileCount; i++)
         {
-            await File.WriteAllBytesAsync(
-                Path.Combine(postImageSource, $"post-image-{i:00}{extension}"),
-                CreateAvatarBytes(extension, i + 32));
+            await WriteValidImageAsync(Path.Combine(postImageSource, $"post-image-{i:00}{extension}"));
         }
     }
 
@@ -442,4 +443,10 @@ public class DevelopmentContentSeederTests
         ".webp" => new byte[] { 82, 73, 70, 70, (byte)index },
         _ => new byte[] { 137, 80, 78, 71, (byte)index }
     };
+
+    private static async Task WriteValidImageAsync(string path)
+    {
+        using var image = new Image<Rgba32>(4, 4, new Rgba32(128, 64, 32, 255));
+        await image.SaveAsPngAsync(path);
+    }
 }

@@ -174,6 +174,38 @@ namespace MiniPainterHub.Server.Services
                 page,
                 pageSize);
 
+        public async Task<IReadOnlyList<PostSummaryDto>> GetTopPostsAsync(int count, TimeSpan lookback)
+        {
+            ValidateTopPostsQuery(count, lookback);
+
+            var cutoff = DateTime.UtcNow.Subtract(lookback);
+            var topItems = await ActivePosts()
+                .Where(p => p.CreatedUtc >= cutoff)
+                .OrderByDescending(p => p.Likes.Count)
+                .ThenByDescending(p => p.CreatedUtc)
+                .Take(count)
+                .Select(p => new PostSummaryPageItem(
+                    p.Id,
+                    p.Comments.Count,
+                    p.Likes.Count))
+                .ToListAsync();
+
+            if (topItems.Count == 0)
+            {
+                return Array.Empty<PostSummaryDto>();
+            }
+
+            var topIds = topItems.Select(item => item.Id).ToList();
+            var posts = await BuildPostGraphQuery()
+                .Where(p => topIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id);
+
+            return topItems
+                .Where(item => posts.ContainsKey(item.Id))
+                .Select(item => MapPostSummaryDto(posts[item.Id], item.CommentCount, item.LikeCount))
+                .ToList();
+        }
+
         public async Task<PostDto> GetByIdAsync(int postId)
         {
             var post = await BuildPostGraphQuery()
@@ -543,6 +575,27 @@ namespace MiniPainterHub.Server.Services
             }
         }
 
+        private static void ValidateTopPostsQuery(int count, TimeSpan lookback)
+        {
+            var errors = new Dictionary<string, string[]>();
+            var lookbackDays = lookback.TotalDays;
+
+            if (count is < 1 or > 20)
+            {
+                errors["count"] = new[] { "Count must be between 1 and 20." };
+            }
+
+            if (lookbackDays < 1 || lookbackDays > 365)
+            {
+                errors["lookbackDays"] = new[] { "Lookback must be between 1 and 365 days." };
+            }
+
+            if (errors.Count > 0)
+            {
+                throw new DomainValidationException("Top posts query parameters are invalid.", errors);
+            }
+        }
+
         private void ValidateIncomingImages(
             IReadOnlyList<IFormFile>? images,
             IReadOnlyList<IFormFile>? thumbnails)
@@ -791,13 +844,17 @@ namespace MiniPainterHub.Server.Services
                 Tags = MapTags(post.PostTags)
             };
 
-        private static PostSummaryDto MapPostSummaryDto(Post post, int commentCount, int likeCount) =>
-            new()
+        private static PostSummaryDto MapPostSummaryDto(Post post, int commentCount, int likeCount)
+        {
+            var primaryImage = post.Images.OrderBy(i => i.Id).FirstOrDefault();
+
+            return new()
             {
                 Id = post.Id,
                 Title = post.Title,
                 Snippet = post.Content.Length > 100 ? post.Content.Substring(0, 100) + "..." : post.Content,
-                ImageUrl = post.Images.OrderBy(i => i.Id).Select(i => i.ImageUrl).FirstOrDefault(),
+                ImageUrl = primaryImage?.ImageUrl,
+                ThumbnailUrl = ResolveSummaryThumbnailUrl(primaryImage),
                 AuthorName = ResolveDisplayName(post.CreatedBy?.UserName, post.CreatedBy?.Profile?.DisplayName),
                 AuthorId = post.CreatedById,
                 CreatedAt = post.CreatedUtc,
@@ -806,6 +863,49 @@ namespace MiniPainterHub.Server.Services
                 IsDeleted = post.IsDeleted,
                 Tags = MapTags(post.PostTags)
             };
+        }
+
+        private static string? ResolveSummaryThumbnailUrl(PostImage? image)
+        {
+            if (image is null)
+            {
+                return null;
+            }
+
+            if (IsUsableVariantUrl(image.ThumbnailUrl, image.ImageUrl))
+            {
+                return image.ThumbnailUrl;
+            }
+
+            if (IsUsableVariantUrl(image.PreviewUrl, image.ImageUrl))
+            {
+                return image.PreviewUrl;
+            }
+
+            return BuildThumbnailEndpointUrl(image.ImageUrl);
+        }
+
+        private static bool IsUsableVariantUrl(string? candidateUrl, string? fullImageUrl) =>
+            !string.IsNullOrWhiteSpace(candidateUrl)
+            && !string.Equals(candidateUrl, fullImageUrl, StringComparison.OrdinalIgnoreCase);
+
+        private static string? BuildThumbnailEndpointUrl(string? imageUrl)
+        {
+            if (string.IsNullOrWhiteSpace(imageUrl))
+            {
+                return null;
+            }
+
+            var path = imageUrl;
+            if (Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri))
+            {
+                path = uri.AbsolutePath;
+            }
+
+            return path.StartsWith("/uploads/images/", StringComparison.OrdinalIgnoreCase)
+                ? "/api/images/thumbnail?url=" + Uri.EscapeDataString(path)
+                : null;
+        }
 
         private static List<TagDto> MapTags(IEnumerable<PostTag> postTags) =>
             postTags

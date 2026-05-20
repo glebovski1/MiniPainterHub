@@ -66,7 +66,8 @@
 }
 
 .viewer-stage-shell.is-pannable ::deep .viewer-stage__transform,
-.viewer-stage-shell.is-placement-mode ::deep .viewer-stage__transform {
+.viewer-stage-shell.is-placement-mode ::deep .viewer-stage__transform,
+.viewer-stage-shell.is-gesturing ::deep .viewer-stage__transform {
     transition: none;
 }
 

@@ -362,54 +362,57 @@
                             </div>
                         }
 
-                        <section class="viewer-panel-section viewer-panel-section--comments">
-                            <div class="viewer-panel__comments-thread" data-testid="viewer-comments-thread">
-                                <div class="viewer-panel__comments-scroll" data-testid="viewer-comments-scroll">
-                                    <div class="viewer-panel__comments-list">
-                                        <CommentList @ref="_viewerCommentList"
-                                                     PostId="@PostId"
-                                                     ActiveCommentId="@_activeCommentId"
-                                                     LoadingViewerMarkCommentId="@_markLoadingCommentId"
-                                                     ViewerMarkErrorCommentId="@_markErrorCommentId"
-                                                     ViewerMarkError="@_markError"
-                                                     OnToggleViewerMark="ToggleCommentMarkAsync"
-                                                     IsViewerPanel="true"
-                                                     ViewerActionLabel="Reveal"
-                                                     ViewerActionActiveLabel="Hide" />
+                        @if (ShouldRenderViewerComments)
+                        {
+                            <section class="viewer-panel-section viewer-panel-section--comments">
+                                <div class="viewer-panel__comments-thread" data-testid="viewer-comments-thread">
+                                    <div class="viewer-panel__comments-scroll" data-testid="viewer-comments-scroll">
+                                        <div class="viewer-panel__comments-list">
+                                            <CommentList @ref="_viewerCommentList"
+                                                         PostId="@PostId"
+                                                         ActiveCommentId="@_activeCommentId"
+                                                         LoadingViewerMarkCommentId="@_markLoadingCommentId"
+                                                         ViewerMarkErrorCommentId="@_markErrorCommentId"
+                                                         ViewerMarkError="@_markError"
+                                                         OnToggleViewerMark="ToggleCommentMarkAsync"
+                                                         IsViewerPanel="true"
+                                                         ViewerActionLabel="Reveal"
+                                                         ViewerActionActiveLabel="Hide" />
+                                        </div>
+                                    </div>
+
+                                    <div class="viewer-panel__composer-sticky" data-testid="viewer-composer-sticky">
+                                        <AuthorizeView>
+                                            <Authorized>
+                                                <div class="viewer-panel__composer" data-testid="viewer-comment-composer">
+                                                    <CommentForm PostId="@PostId"
+                                                                 CanAttachViewerMark="@(viewer.CanAttachCommentMark && viewer.Images.Count > 0)"
+                                                                 ViewerPlacementActive="@_isCommentPlacementMode"
+                                                                 DraftMark="@_draftCommentMark"
+                                                                 AttachedImageNumber="@GetImageNumber(_draftCommentMark?.PostImageId)"
+                                                                 OnRequestAttachMark="BeginCommentPlacementAsync"
+                                                                 OnRemoveAttachedMark="RemoveDraftCommentMarkAsync"
+                                                                 OnCommentAdded="HandleCommentAddedAsync"
+                                                                 IsViewerCompact="true" />
+                                                </div>
+                                            </Authorized>
+                                            <NotAuthorized>
+                                                <div class="status-panel status-panel--info viewer-panel__auth-callout" role="alert">
+                                                    <div class="status-panel__icon"><i class="bi bi-info-circle" aria-hidden="true"></i></div>
+                                                    <div>
+                                                        <div class="status-panel__title">Join the conversation</div>
+                                                        <p class="status-panel__text mb-0">
+                                                            Sign in to add anchored feedback.
+                                                            <button class="btn btn-link p-0 align-baseline" @onclick="GoToLogin">Login</button>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </NotAuthorized>
+                                        </AuthorizeView>
                                     </div>
                                 </div>
-
-                                <div class="viewer-panel__composer-sticky" data-testid="viewer-composer-sticky">
-                                    <AuthorizeView>
-                                        <Authorized>
-                                            <div class="viewer-panel__composer" data-testid="viewer-comment-composer">
-                                                <CommentForm PostId="@PostId"
-                                                             CanAttachViewerMark="@(viewer.CanAttachCommentMark && viewer.Images.Count > 0)"
-                                                             ViewerPlacementActive="@_isCommentPlacementMode"
-                                                             DraftMark="@_draftCommentMark"
-                                                             AttachedImageNumber="@GetImageNumber(_draftCommentMark?.PostImageId)"
-                                                             OnRequestAttachMark="BeginCommentPlacementAsync"
-                                                             OnRemoveAttachedMark="RemoveDraftCommentMarkAsync"
-                                                             OnCommentAdded="HandleCommentAddedAsync"
-                                                             IsViewerCompact="true" />
-                                            </div>
-                                        </Authorized>
-                                        <NotAuthorized>
-                                            <div class="status-panel status-panel--info viewer-panel__auth-callout" role="alert">
-                                                <div class="status-panel__icon"><i class="bi bi-info-circle" aria-hidden="true"></i></div>
-                                                <div>
-                                                    <div class="status-panel__title">Join the conversation</div>
-                                                    <p class="status-panel__text mb-0">
-                                                        Sign in to add anchored feedback.
-                                                        <button class="btn btn-link p-0 align-baseline" @onclick="GoToLogin">Login</button>
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </NotAuthorized>
-                                    </AuthorizeView>
-                                </div>
-                            </div>
-                        </section>
+                            </section>
+                        }
                     </div>
                 </div>
             </SidePanelContent>
@@ -460,6 +463,12 @@
         _isCommentPlacementMode || _draftCommentMark is not null || _activeCommentId.HasValue
             ? ViewerSideTab.Comments
             : ViewerSideTab.Info;
+
+    private bool ShouldRenderViewerComments =>
+        _viewerSideTab == ViewerSideTab.Comments
+        || _isCommentPlacementMode
+        || _draftCommentMark is not null
+        || _activeCommentId.HasValue;
 
     protected override async Task OnParametersSetAsync()
     {

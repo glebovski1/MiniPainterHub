@@ -6,6 +6,7 @@ using MiniPainterHub.WebApp.Services;
 using MiniPainterHub.WebApp.Services.Http;
 using MiniPainterHub.WebApp.Services.Interfaces;
 using MiniPainterHub.WebApp.Services.Notifications;
+using MiniPainterHub.WebApp.Services.Performance;
 using MiniPainterHub.WebApp.Layout;
 
 namespace MiniPainterHub.WebApp;
@@ -47,6 +48,14 @@ public class Program
         builder.Services.AddScoped<INotificationService, BootstrapToastNotificationService>();
         var apiBase = new Uri(builder.HostEnvironment.BaseAddress);
 
+        builder.Services.Configure<ClientPerformanceOptions>(options =>
+        {
+            options.Enabled = builder.HostEnvironment.IsProduction();
+            options.SampleRate = 0.1;
+            options.MaxBatchSize = 50;
+            builder.Configuration.GetSection("ClientPerformance").Bind(options);
+        });
+
         //------------------------------------------------------------
         // 5)  Typed HTTP clients
         //------------------------------------------------------------
@@ -63,6 +72,9 @@ public class Program
         builder.Services.AddScoped<IReportService, ReportService>();
         builder.Services.AddScoped<IFollowService, FollowService>();
         builder.Services.AddScoped<IConversationService, ConversationService>();
+
+        builder.Services
+            .AddHttpClient<IClientPerformanceMetrics, ClientPerformanceMetricsService>(client => client.BaseAddress = apiBase);
 
         builder.Services
             .AddHttpClient<ApiClient>(client => client.BaseAddress = apiBase)

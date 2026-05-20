@@ -49,8 +49,8 @@ namespace MiniPainterHub.Server.Services
                     {
                         Id = i.Id,
                         ImageUrl = i.ImageUrl,
-                        PreviewUrl = i.PreviewUrl,
-                        ThumbnailUrl = i.ThumbnailUrl,
+                        PreviewUrl = ResolveVariantUrl(i.ImageUrl, i.PreviewUrl, "preview"),
+                        ThumbnailUrl = ResolveVariantUrl(i.ImageUrl, i.ThumbnailUrl, "thumbnail"),
                         Width = i.Width,
                         Height = i.Height
                     })
@@ -73,5 +73,37 @@ namespace MiniPainterHub.Server.Services
 
         private static string ResolveDisplayName(string? userName, string? profileDisplayName) =>
             string.IsNullOrWhiteSpace(profileDisplayName) ? (userName ?? string.Empty) : profileDisplayName;
+
+        private static string? ResolveVariantUrl(string imageUrl, string? variantUrl, string variantName)
+        {
+            if (IsUsableVariantUrl(variantUrl, imageUrl))
+            {
+                return variantUrl;
+            }
+
+            return BuildVariantEndpointUrl(imageUrl, variantName);
+        }
+
+        private static bool IsUsableVariantUrl(string? candidateUrl, string fullImageUrl) =>
+            !string.IsNullOrWhiteSpace(candidateUrl)
+            && !string.Equals(candidateUrl, fullImageUrl, StringComparison.OrdinalIgnoreCase);
+
+        private static string? BuildVariantEndpointUrl(string? imageUrl, string variantName)
+        {
+            if (string.IsNullOrWhiteSpace(imageUrl))
+            {
+                return null;
+            }
+
+            var path = imageUrl.Trim();
+            if (Uri.TryCreate(path, UriKind.Absolute, out var uri))
+            {
+                path = uri.AbsolutePath;
+            }
+
+            return path.StartsWith("/uploads/images/", StringComparison.OrdinalIgnoreCase)
+                ? $"/api/images/{variantName}?url={Uri.EscapeDataString(path)}"
+                : null;
+        }
     }
 }

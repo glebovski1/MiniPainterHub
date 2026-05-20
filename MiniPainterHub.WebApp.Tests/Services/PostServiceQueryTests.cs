@@ -34,9 +34,32 @@ public class PostServiceQueryTests
         query.Should().Contain("deletedOnly=True");
     }
 
+    [Fact]
+    public async Task GetTopPosts_UsesDedicatedTopPostsEndpoint()
+    {
+        var handler = new CapturingHttpMessageHandler("""[]""");
+        var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://example.test/") };
+        var apiClient = new ApiClient(httpClient, new NoOpNotificationService());
+        var service = new PostService(apiClient);
+
+        await service.GetTopPosts(5, TimeSpan.FromDays(30));
+
+        handler.LastRequestUri.Should().NotBeNull();
+        handler.LastRequestUri!.AbsolutePath.Should().Be("/api/posts/top");
+        handler.LastRequestUri.Query.Should().Contain("count=5");
+        handler.LastRequestUri.Query.Should().Contain("lookbackDays=30");
+        handler.LastRequestUri.Query.Should().NotContain("pageSize=1000");
+        handler.LastRequestUri.Query.Should().NotContain("pagesize=1000");
+    }
+
     private sealed class CapturingHttpMessageHandler : HttpMessageHandler
     {
-        private static readonly string EmptyPagedResultJson = "{\"items\":[],\"totalCount\":0,\"pageNumber\":1,\"pageSize\":9}";
+        private readonly string _responseJson;
+
+        public CapturingHttpMessageHandler(string responseJson = "{\"items\":[],\"totalCount\":0,\"pageNumber\":1,\"pageSize\":9}")
+        {
+            _responseJson = responseJson;
+        }
 
         public Uri? LastRequestUri { get; private set; }
 
@@ -46,7 +69,7 @@ public class PostServiceQueryTests
 
             var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(EmptyPagedResultJson, Encoding.UTF8, "application/json")
+                Content = new StringContent(_responseJson, Encoding.UTF8, "application/json")
             };
 
             return Task.FromResult(response);

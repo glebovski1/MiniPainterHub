@@ -56,6 +56,8 @@ public class PostDetailsViewerTests : TestContext
             cut.Find("[data-testid='viewer-side-tab-info']").ClassList.Should().Contain("is-active");
             cut.Find("[data-testid='viewer-panel-info']").TextContent.Should().Contain("About this piece");
             cut.Find("[data-testid='viewer-panel-comments']").HasAttribute("hidden").Should().BeTrue();
+            cut.FindAll("[data-testid='viewer-comments-thread']").Should().BeEmpty();
+            cut.FindAll("[data-testid='comment-list-container']").Should().HaveCount(1);
         });
     }
 
@@ -79,6 +81,7 @@ public class PostDetailsViewerTests : TestContext
             cut.Find("[data-testid='viewer-side-tab-comments']").ClassList.Should().Contain("is-active");
             cut.Find("[data-testid='viewer-panel-comments']").HasAttribute("hidden").Should().BeFalse();
             cut.Find("[data-testid='viewer-comments-scroll']").Should().NotBeNull();
+            cut.FindAll("[data-testid='comment-list-container']").Should().HaveCount(2);
         });
 
         cut.Find("[data-testid='viewer-side-tab-info']").Click();

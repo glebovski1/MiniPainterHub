@@ -73,6 +73,50 @@ public class PostsControllerTests
     }
 
     [Fact]
+    public async Task GetTop_WhenAnonymous_ReturnsLimitedRecentPosts()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await SeedUserAsync(factory, "post-user", "post-user");
+        await SeedUserAsync(factory, "liker-1", "liker-1");
+        await SeedUserAsync(factory, "liker-2", "liker-2");
+        await SeedPostAsync(factory, 306, "post-user", "Low", "Low content", createdUtc: DateTime.UtcNow.AddDays(-1));
+        await SeedPostAsync(factory, 307, "post-user", "High", "High content", createdUtc: DateTime.UtcNow.AddDays(-2));
+        await SeedPostAsync(factory, 308, "post-user", "Old", "Old content", createdUtc: DateTime.UtcNow.AddDays(-90));
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            await db.Likes.AddRangeAsync(
+                new Like { PostId = 307, UserId = "liker-1", CreatedAt = DateTime.UtcNow },
+                new Like { PostId = 307, UserId = "liker-2", CreatedAt = DateTime.UtcNow },
+                new Like { PostId = 308, UserId = "liker-1", CreatedAt = DateTime.UtcNow },
+                new Like { PostId = 308, UserId = "liker-2", CreatedAt = DateTime.UtcNow });
+            await db.SaveChangesAsync();
+        });
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/posts/top?count=1&lookbackDays=30");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<IReadOnlyList<PostSummaryDto>>();
+        body.Should().NotBeNull();
+        var post = body!.Should().ContainSingle().Subject;
+        post.Id.Should().Be(307);
+        post.LikeCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetTop_WhenQueryIsInvalid_ReturnsBadRequest()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/posts/top?count=100&lookbackDays=30");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task GetById_WhenAnonymous_ReturnsPostContract()
     {
         using var factory = new IntegrationTestApplicationFactory();
@@ -259,7 +303,8 @@ public class PostsControllerTests
         string title,
         string content,
         bool isDeleted = false,
-        IEnumerable<string>? tags = null)
+        IEnumerable<string>? tags = null,
+        DateTime? createdUtc = null)
     {
         return factory.ExecuteDbContextAsync(async db =>
         {
@@ -269,8 +314,8 @@ public class PostsControllerTests
                 Title = title,
                 Content = content,
                 CreatedById = userId,
-                CreatedUtc = DateTime.UtcNow,
-                UpdatedUtc = DateTime.UtcNow,
+                CreatedUtc = createdUtc ?? DateTime.UtcNow,
+                UpdatedUtc = createdUtc ?? DateTime.UtcNow,
                 IsDeleted = isDeleted
             };
 

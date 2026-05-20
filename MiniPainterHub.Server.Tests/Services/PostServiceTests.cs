@@ -253,6 +253,97 @@ public class PostServiceTests
         result.Items.Single().IsDeleted.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task GetAllAsync_WhenPostHasThumbnail_ReturnsSummaryThumbnailUrl()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        var post = TestData.CreatePost(24, user.Id, imageCount: 1);
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var result = await service.GetAllAsync(1, 10);
+
+        result.Items.Should().ContainSingle();
+        result.Items.Single().ImageUrl.Should().Be("https://img/24/0");
+        result.Items.Single().ThumbnailUrl.Should().Be("https://thumb/24/0");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_WhenLegacyLocalImageHasNoThumbnail_ReturnsThumbnailEndpoint()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        var post = TestData.CreatePost(25, user.Id);
+        post.Images.Add(new MiniPainterHub.Server.Entities.PostImage
+        {
+            PostId = post.Id,
+            ImageUrl = "/uploads/images/seed-post-01.png",
+            PreviewUrl = "/uploads/images/seed-post-01.png",
+            ThumbnailUrl = "/uploads/images/seed-post-01.png"
+        });
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var result = await service.GetAllAsync(1, 10);
+
+        result.Items.Should().ContainSingle();
+        result.Items.Single().ThumbnailUrl.Should().Be("/api/images/thumbnail?url=%2Fuploads%2Fimages%2Fseed-post-01.png");
+    }
+
+    [Fact]
+    public async Task GetTopPostsAsync_ReturnsMostLikedRecentPostsWithinLimit()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var author = TestData.CreateUser("author-1");
+        var liker1 = TestData.CreateUser("liker-1");
+        var liker2 = TestData.CreateUser("liker-2");
+        var recentLow = TestData.CreatePost(30, author.Id);
+        recentLow.CreatedUtc = DateTime.UtcNow.AddDays(-1);
+        var recentHigh = TestData.CreatePost(31, author.Id);
+        recentHigh.CreatedUtc = DateTime.UtcNow.AddDays(-2);
+        var oldHigh = TestData.CreatePost(32, author.Id);
+        oldHigh.CreatedUtc = DateTime.UtcNow.AddDays(-90);
+        await context.Users.AddRangeAsync(author, liker1, liker2);
+        await context.Posts.AddRangeAsync(recentLow, recentHigh, oldHigh);
+        await context.Likes.AddRangeAsync(
+            new MiniPainterHub.Server.Entities.Like { PostId = recentHigh.Id, UserId = liker1.Id },
+            new MiniPainterHub.Server.Entities.Like { PostId = recentHigh.Id, UserId = liker2.Id },
+            new MiniPainterHub.Server.Entities.Like { PostId = oldHigh.Id, UserId = liker1.Id },
+            new MiniPainterHub.Server.Entities.Like { PostId = oldHigh.Id, UserId = liker2.Id });
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var result = await service.GetTopPostsAsync(count: 1, TimeSpan.FromDays(30));
+
+        result.Should().ContainSingle();
+        result.Single().Id.Should().Be(recentHigh.Id);
+        result.Single().LikeCount.Should().Be(2);
+    }
+
+    [Theory]
+    [InlineData(0, 30, "count")]
+    [InlineData(21, 30, "count")]
+    [InlineData(5, 0, "lookbackDays")]
+    [InlineData(5, 366, "lookbackDays")]
+    public async Task GetTopPostsAsync_WhenArgumentsAreInvalid_ThrowsDomainValidationException(
+        int count,
+        int lookbackDays,
+        string expectedKey)
+    {
+        await using var context = AppDbContextFactory.Create();
+        var service = CreateService(context);
+
+        var act = async () => await service.GetTopPostsAsync(count, TimeSpan.FromDays(lookbackDays));
+
+        var exception = await act.Should().ThrowAsync<DomainValidationException>();
+        exception.Which.Errors.Should().ContainKey(expectedKey);
+    }
+
     private static PostService CreateService(AppDbContext context)
     {
         return new PostService(

@@ -99,12 +99,9 @@ else if (IsOpen)
                                          StageClass="@StageClass"
                                          Style="@StageStyle"
                                          OnPointerDown="HandlePointerDown"
-                                         OnPointerMove="HandlePointerMove"
                                          OnPointerUp="HandlePointerUpAsync"
                                          OnPointerLeave="HandlePointerLeave"
-                                         OnWheel="HandleWheelAsync"
                                          OnTouchStart="HandleTouchStart"
-                                         OnTouchMove="HandleTouchMove"
                                          OnTouchEnd="HandleTouchEndAsync"
                                          OnClick="HandleStageClickAsync"
                                          OnKeyDown="HandleKeyDown">
@@ -117,6 +114,7 @@ else if (IsOpen)
                                                 <div class="viewer-stage__fitbox" data-testid="viewer-stage-fitbox" style="@FitBoxStyle">
                                                     <div class="viewer-stage__transform @(CurrentImageReady ? "is-ready" : null)"
                                                          data-testid="viewer-stage-transform"
+                                                         @ref="_transformElement"
                                                          style="@TransformStyle">
                                                         <img class="viewer-stage__image"
                                                              src="@CurrentImageSource"
@@ -203,6 +201,7 @@ else if (IsOpen)
     private ElementReference _rootElement;
     private ElementReference _imageElement;
     private ElementReference _sidePanelElement;
+    private ElementReference _transformElement;
     private IJSObjectReference? _module;
     private DotNetObjectReference<RichImageViewer>? _selfReference;
 
@@ -212,6 +211,8 @@ else if (IsOpen)
     private bool _moduleLoadFailed;
     private bool _isModalActive;
     private bool _isStageObserved;
+    private bool _isGestureInteropActive;
+    private bool _pendingTransformSync;
     private bool _isFullscreenSupported;
     private bool _isFullscreen;
     private bool _isAuthorPlacementMode;
@@ -329,7 +330,7 @@ else if (IsOpen)
     private string StageClass =>
         $"viewer-stage-shell {(_transform.CanPan ? "is-pannable" : "is-slide-mode")} {(IsPlacementMode ? "is-placement-mode" : null)}";
 
-    private string StageStyle => $"touch-action:{(_transform.CanPan || IsPlacementMode ? "none" : "pan-y")};";
+    private string StageStyle => "touch-action:none;";
 
     private string BackdropStyle =>
         $"background-image:url('{(CurrentImage?.PreviewUrl ?? CurrentImage?.ImageUrl ?? string.Empty)}');";
@@ -483,7 +484,10 @@ else if (IsOpen)
     {
         if (IsOpen)
         {
-            await EnsureViewerInteropAsync();
+            if (!_isModalActive || !_isStageObserved || !_isGestureInteropActive)
+            {
+                await EnsureViewerInteropAsync();
+            }
 
             if (!_wasOpenLastRender)
             {
@@ -500,6 +504,7 @@ else if (IsOpen)
         if (_pendingFocusCommentMark && ActiveCommentMark is not null && CurrentImage is not null && ActiveCommentMark.PostImageId == CurrentImage.Id)
         {
             _transform.CenterOn(ActiveCommentMark.NormalizedX, ActiveCommentMark.NormalizedY, promoteZoom: true, CurrentImage);
+            _pendingTransformSync = true;
             _pendingFocusCommentMark = false;
             await InvokeAsync(StateHasChanged);
         }
@@ -516,6 +521,12 @@ else if (IsOpen)
             await PreloadAdjacentImagesAsync();
         }
 
+        if (IsOpen && _pendingTransformSync)
+        {
+            _pendingTransformSync = false;
+            await SyncTransformInteropAsync();
+        }
+
         _wasOpenLastRender = IsOpen;
     }
 
@@ -529,6 +540,7 @@ else if (IsOpen)
         }
 
         _transform.SetStage(width, height, CurrentImage);
+        _pendingTransformSync = true;
         return InvokeAsync(StateHasChanged);
     }
 
@@ -541,6 +553,29 @@ else if (IsOpen)
         }
 
         _isFullscreen = isFullscreen;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public Task OnViewerTransformSettled(double zoom, double panX, double panY)
+    {
+        if (CurrentImage is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var previousZoom = _transform.Zoom;
+        var previousPanX = _transform.PanX;
+        var previousPanY = _transform.PanY;
+        _transform.SetInteractiveTransform(zoom, panX, panY, CurrentImage);
+
+        if (Math.Abs(previousZoom - _transform.Zoom) < 0.001d
+            && Math.Abs(previousPanX - _transform.PanX) < 0.5d
+            && Math.Abs(previousPanY - _transform.PanY) < 0.5d)
+        {
+            return Task.CompletedTask;
+        }
+
         return InvokeAsync(StateHasChanged);
     }
 
@@ -560,20 +595,52 @@ else if (IsOpen)
             {
                 await module.InvokeVoidAsync("activateModal", _rootElement);
                 await module.InvokeVoidAsync("registerFullscreenChange", _rootElement, _selfReference);
+                _isFullscreenSupported = await module.InvokeAsync<bool>("isFullscreenSupported");
                 _isModalActive = true;
             }
-
-            _isFullscreenSupported = await module.InvokeAsync<bool>("isFullscreenSupported");
 
             if (!_isStageObserved)
             {
                 await module.InvokeVoidAsync("observeStageSize", _viewerStage.StageElement, _selfReference);
                 _isStageObserved = true;
             }
+
+            if (!_isGestureInteropActive)
+            {
+                await module.InvokeVoidAsync(
+                    "activateViewerGestures",
+                    _viewerStage.StageElement,
+                    _transformElement,
+                    _selfReference,
+                    CreateTransformSnapshot());
+                _isGestureInteropActive = true;
+            }
         }
         catch
         {
             _isFullscreenSupported = false;
+        }
+    }
+
+    private async Task SyncTransformInteropAsync()
+    {
+        var module = await EnsureModuleAsync();
+        if (module is null || _viewerStage is null || !_isGestureInteropActive)
+        {
+            return;
+        }
+
+        try
+        {
+            await module.InvokeVoidAsync(
+                "syncViewerTransform",
+                _viewerStage.StageElement,
+                _transformElement,
+                CreateTransformSnapshot());
+        }
+        catch
+        {
+            // Gesture interop is an enhancement. Blazor-rendered controls remain usable.
         }
     }
 
@@ -583,6 +650,7 @@ else if (IsOpen)
         {
             _isStageObserved = false;
             _isModalActive = false;
+            _isGestureInteropActive = false;
             _isFullscreen = false;
             _pointer = null;
             _suppressNextPlacementClick = false;
@@ -602,6 +670,11 @@ else if (IsOpen)
                 await _module.InvokeVoidAsync("unobserveStageSize", _viewerStage.StageElement);
             }
 
+            if (_isGestureInteropActive && _viewerStage is not null)
+            {
+                await _module.InvokeVoidAsync("deactivateViewerGestures", _viewerStage.StageElement);
+            }
+
             if (_isModalActive)
             {
                 await _module.InvokeVoidAsync("unregisterFullscreenChange", _rootElement);
@@ -616,6 +689,7 @@ else if (IsOpen)
         {
             _isStageObserved = false;
             _isModalActive = false;
+            _isGestureInteropActive = false;
             _isFullscreen = false;
             _pointer = null;
             _suppressNextPlacementClick = false;
@@ -763,12 +837,14 @@ else if (IsOpen)
     private Task ZoomInAsync()
     {
         _transform.SetZoom(_transform.Zoom + ViewerTransformState.ZoomStep, CurrentImage);
+        _pendingTransformSync = true;
         return Task.CompletedTask;
     }
 
     private Task ZoomOutAsync()
     {
         _transform.SetZoom(_transform.Zoom - ViewerTransformState.ZoomStep, CurrentImage);
+        _pendingTransformSync = true;
         return Task.CompletedTask;
     }
 
@@ -781,12 +857,14 @@ else if (IsOpen)
     private Task SetFillModeAsync()
     {
         _transform.SetScaleMode(ViewerScaleMode.Fill, CurrentImage);
+        _pendingTransformSync = true;
         return Task.CompletedTask;
     }
 
     private Task SetActualSizeModeAsync()
     {
         _transform.SetScaleMode(ViewerScaleMode.ActualSize, CurrentImage);
+        _pendingTransformSync = true;
         return Task.CompletedTask;
     }
 
@@ -839,34 +917,6 @@ else if (IsOpen)
         return Task.CompletedTask;
     }
 
-    private Task HandlePointerMove(PointerEventArgs args)
-    {
-        if (_pointer is null)
-        {
-            return Task.CompletedTask;
-        }
-
-        var deltaX = args.ClientX - _pointer.LastX;
-        var deltaY = args.ClientY - _pointer.LastY;
-        var totalX = args.ClientX - _pointer.StartX;
-        var totalY = args.ClientY - _pointer.StartY;
-        var moved = _pointer.Moved || Math.Abs(totalX) >= DragThreshold || Math.Abs(totalY) >= DragThreshold;
-
-        if (_transform.CanPan)
-        {
-            _transform.PanBy(deltaX, deltaY, CurrentImage);
-        }
-
-        _pointer = _pointer with
-        {
-            LastX = args.ClientX,
-            LastY = args.ClientY,
-            Moved = moved
-        };
-
-        return Task.CompletedTask;
-    }
-
     private async Task HandlePointerUpAsync(PointerEventArgs args)
     {
         if (_pointer is null)
@@ -906,12 +956,6 @@ else if (IsOpen)
         return Task.CompletedTask;
     }
 
-    private Task HandleWheelAsync(WheelEventArgs args)
-    {
-        _transform.SetZoom(args.DeltaY < 0 ? _transform.Zoom + ViewerTransformState.ZoomStep : _transform.Zoom - ViewerTransformState.ZoomStep, CurrentImage);
-        return Task.CompletedTask;
-    }
-
     private Task HandleTouchStart(TouchEventArgs args)
     {
         var touch = GetTouchPoint(args);
@@ -927,35 +971,6 @@ else if (IsOpen)
             touch.ClientY,
             PointerType: "touch",
             Moved: false);
-
-        return Task.CompletedTask;
-    }
-
-    private Task HandleTouchMove(TouchEventArgs args)
-    {
-        var touch = GetTouchPoint(args);
-        if (_pointer is null || touch is null)
-        {
-            return Task.CompletedTask;
-        }
-
-        var deltaX = touch.ClientX - _pointer.LastX;
-        var deltaY = touch.ClientY - _pointer.LastY;
-        var totalX = touch.ClientX - _pointer.StartX;
-        var totalY = touch.ClientY - _pointer.StartY;
-        var moved = _pointer.Moved || Math.Abs(totalX) >= DragThreshold || Math.Abs(totalY) >= DragThreshold;
-
-        if (_transform.CanPan)
-        {
-            _transform.PanBy(deltaX, deltaY, CurrentImage);
-        }
-
-        _pointer = _pointer with
-        {
-            LastX = touch.ClientX,
-            LastY = touch.ClientY,
-            Moved = moved
-        };
 
         return Task.CompletedTask;
     }
@@ -1034,6 +1049,7 @@ else if (IsOpen)
                 if (_transform.CanPan)
                 {
                     _transform.PanBy(36d, 0d, CurrentImage);
+                    _pendingTransformSync = true;
                 }
                 else
                 {
@@ -1045,6 +1061,7 @@ else if (IsOpen)
                 if (_transform.CanPan)
                 {
                     _transform.PanBy(-36d, 0d, CurrentImage);
+                    _pendingTransformSync = true;
                 }
                 else
                 {
@@ -1056,6 +1073,7 @@ else if (IsOpen)
                 if (_transform.CanPan)
                 {
                     _transform.PanBy(0d, 36d, CurrentImage);
+                    _pendingTransformSync = true;
                 }
 
                 break;
@@ -1063,16 +1081,19 @@ else if (IsOpen)
                 if (_transform.CanPan)
                 {
                     _transform.PanBy(0d, -36d, CurrentImage);
+                    _pendingTransformSync = true;
                 }
 
                 break;
             case "+":
             case "=":
                 _transform.SetZoom(_transform.Zoom + ViewerTransformState.ZoomStep, CurrentImage);
+                _pendingTransformSync = true;
                 break;
             case "-":
             case "_":
                 _transform.SetZoom(_transform.Zoom - ViewerTransformState.ZoomStep, CurrentImage);
+                _pendingTransformSync = true;
                 break;
             case "0":
                 ResetViewState();
@@ -1242,6 +1263,7 @@ else if (IsOpen)
         if (CurrentImage is not null && mark.PostImageId == CurrentImage.Id)
         {
             _transform.CenterOn(mark.NormalizedX, mark.NormalizedY, promoteZoom: false, CurrentImage);
+            _pendingTransformSync = true;
         }
 
         await FocusStageAsync();
@@ -1372,6 +1394,7 @@ else if (IsOpen)
     private void ResetViewState()
     {
         _transform.Reset(CurrentImage);
+        _pendingTransformSync = true;
     }
 
     private async Task PreloadAdjacentImagesAsync()
@@ -1444,6 +1467,18 @@ else if (IsOpen)
             Height = imageRect.Height
         };
 
+    private ViewerTransformSnapshot CreateTransformSnapshot() =>
+        new()
+        {
+            Zoom = _transform.Zoom,
+            PanX = _transform.PanX,
+            PanY = _transform.PanY,
+            MinZoom = ViewerTransformState.MinZoom,
+            MaxZoom = ViewerTransformState.MaxZoom,
+            ZoomStep = ViewerTransformState.ZoomStep,
+            CanPan = _transform.CanPan
+        };
+
     private static TouchPoint? GetTouchPoint(TouchEventArgs args, bool useChangedTouches = false)
     {
         var source = useChangedTouches && args.ChangedTouches.Any()
@@ -1471,6 +1506,11 @@ else if (IsOpen)
                     await _module.InvokeVoidAsync("unobserveStageSize", _viewerStage.StageElement);
                 }
 
+                if (_isGestureInteropActive && _viewerStage is not null)
+                {
+                    await _module.InvokeVoidAsync("deactivateViewerGestures", _viewerStage.StageElement);
+                }
+
                 if (_isModalActive)
                 {
                     await _module.InvokeVoidAsync("unregisterFullscreenChange", _rootElement);
@@ -1487,6 +1527,7 @@ else if (IsOpen)
 
         _isStageObserved = false;
         _isModalActive = false;
+        _isGestureInteropActive = false;
         _selfReference?.Dispose();
     }
 
@@ -1510,5 +1551,16 @@ else if (IsOpen)
         public double Top { get; set; }
         public double Width { get; set; }
         public double Height { get; set; }
+    }
+
+    private sealed class ViewerTransformSnapshot
+    {
+        public double Zoom { get; set; }
+        public double PanX { get; set; }
+        public double PanY { get; set; }
+        public double MinZoom { get; set; }
+        public double MaxZoom { get; set; }
+        public double ZoomStep { get; set; }
+        public bool CanPan { get; set; }
     }
 }

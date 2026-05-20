@@ -72,6 +72,26 @@ public class ProgramStartupTests
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
+    [Fact]
+    public void ConfigureSqlServerOptions_EnablesTransientRetries()
+    {
+        var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
+
+        optionsBuilder.UseSqlServer(
+            "Server=(localdb)\\mssqllocaldb;Database=MiniPainterHubRetryProbe;Trusted_Connection=True;",
+            Program.ConfigureSqlServerOptions);
+
+        var sqlServerOptions = optionsBuilder.Options.Extensions
+            .Single(extension => extension.GetType().Name == "SqlServerOptionsExtension");
+        sqlServerOptions.Should().NotBeNull();
+
+        using var db = new AppDbContext(optionsBuilder.Options);
+        var executionStrategy = db.Database.CreateExecutionStrategy();
+
+        executionStrategy.Should().BeOfType<SqlServerRetryingExecutionStrategy>();
+        executionStrategy.RetriesOnFailure.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData(false, true)]
     [InlineData(true, false)]

@@ -82,6 +82,10 @@ namespace MiniPainterHub.Server.Services
                     Title = p.Title,
                     Snippet = p.Content.Length > 100 ? p.Content.Substring(0, 100) + "..." : p.Content,
                     ImageUrl = p.Images.OrderBy(i => i.Id).Select(i => i.ImageUrl).FirstOrDefault(),
+                    ThumbnailUrl = p.Images
+                        .OrderBy(i => i.Id)
+                        .Select(i => i.ThumbnailUrl != null && i.ThumbnailUrl != string.Empty ? i.ThumbnailUrl : i.PreviewUrl ?? i.ImageUrl)
+                        .FirstOrDefault(),
                     AuthorName = p.CreatedBy.Profile != null && !string.IsNullOrWhiteSpace(p.CreatedBy.Profile.DisplayName)
                         ? p.CreatedBy.Profile.DisplayName
                         : (p.CreatedBy.UserName ?? string.Empty),
@@ -113,6 +117,11 @@ namespace MiniPainterHub.Server.Services
                 .Take(pageSize)
                 .Select(p => p.Summary)
                 .ToListAsync();
+
+            foreach (var item in items)
+            {
+                item.ThumbnailUrl = ResolveSummaryThumbnailUrl(item.ImageUrl, item.ThumbnailUrl);
+            }
 
             return CreatePage(items, totalCount, page, pageSize);
         }
@@ -230,6 +239,30 @@ namespace MiniPainterHub.Server.Services
                 PageNumber = page,
                 PageSize = pageSize
             };
+
+        private static string? ResolveSummaryThumbnailUrl(string? imageUrl, string? thumbnailUrl)
+        {
+            if (!string.IsNullOrWhiteSpace(thumbnailUrl)
+                && !string.Equals(thumbnailUrl, imageUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                return thumbnailUrl;
+            }
+
+            if (string.IsNullOrWhiteSpace(imageUrl))
+            {
+                return thumbnailUrl;
+            }
+
+            var path = imageUrl;
+            if (Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri))
+            {
+                path = uri.AbsolutePath;
+            }
+
+            return path.StartsWith("/uploads/images/", StringComparison.OrdinalIgnoreCase)
+                ? "/api/images/thumbnail?url=" + Uri.EscapeDataString(path)
+                : thumbnailUrl;
+        }
 
         private static void ValidatePaging(int page, int pageSize)
         {

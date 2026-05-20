@@ -1,0 +1,161 @@
+@implements IDisposable
+@using System.Diagnostics
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject MiniPainterHub.WebApp.Services.Performance.IClientPerformanceMetrics Metrics
+
+<span hidden aria-hidden="true" data-testid="client-performance-reporter"></span>
+
+@code {
+    private const string ModulePath = "/JSHelpers/performanceMetrics.js";
+    private IJSObjectReference? _module;
+    private readonly long _componentStartedAt = Stopwatch.GetTimestamp();
+    private long _navigationStartedAt;
+    private string? _pendingNavigationPath;
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitializeAsync();
+            return;
+        }
+
+        if (_pendingNavigationPath is not null)
+        {
+            var path = _pendingNavigationPath;
+            _pendingNavigationPath = null;
+            var elapsedMs = Stopwatch.GetElapsedTime(_navigationStartedAt).TotalMilliseconds;
+            Metrics.RecordMetric("blazor.route_render.ms", elapsedMs, "ms", path);
+            await DrainBrowserMetricsAsync(path);
+            await Metrics.FlushAsync();
+            ScheduleResourceMetricsDrain(path);
+        }
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+
+    private async Task InitializeAsync()
+    {
+        var path = CurrentPath();
+        var firstRenderMs = Stopwatch.GetElapsedTime(_componentStartedAt).TotalMilliseconds;
+
+        await EnableLocalSessionOverrideAsync();
+        if (!Metrics.IsEnabled)
+        {
+            return;
+        }
+
+        try
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            await _module.InvokeVoidAsync("startObservers");
+            firstRenderMs = await _module.InvokeAsync<double>("getBootToFirstRenderMs");
+        }
+        catch
+        {
+            // Metrics must never affect rendering.
+        }
+
+        Metrics.RecordMetric("blazor.first_render.ms", firstRenderMs, "ms", path);
+        await DrainBrowserMetricsAsync(path);
+        await Metrics.FlushAsync();
+        ScheduleResourceMetricsDrain(path);
+    }
+
+    private async Task EnableLocalSessionOverrideAsync()
+    {
+        try
+        {
+            var value = await JS.InvokeAsync<string?>("localStorage.getItem", "clientPerformanceMetricsEnabled");
+            if (string.Equals(value, "1", StringComparison.Ordinal))
+            {
+                Metrics.EnableForSession();
+            }
+        }
+        catch
+        {
+            // Ignore browsers or test hosts without localStorage.
+        }
+    }
+
+    private async Task DrainBrowserMetricsAsync(string path)
+    {
+        if (_module is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var browserMetrics = await _module.InvokeAsync<ClientPerformanceMetricDto[]>("drainMetrics", path);
+            foreach (var metric in browserMetrics ?? Array.Empty<ClientPerformanceMetricDto>())
+            {
+                if (string.IsNullOrWhiteSpace(metric.Path))
+                {
+                    metric.Path = path;
+                }
+
+                Metrics.RecordMetric(metric);
+            }
+        }
+        catch
+        {
+            // Ignore unsupported browser Performance APIs.
+        }
+    }
+
+    private void ScheduleResourceMetricsDrain(string path)
+    {
+        if (_module is null || !Metrics.IsEnabled)
+        {
+            return;
+        }
+
+        _ = DrainResourceMetricsAsync(path);
+    }
+
+    private async Task DrainResourceMetricsAsync(string path)
+    {
+        try
+        {
+            var browserMetrics = await _module!.InvokeAsync<ClientPerformanceMetricDto[]>("drainResourceMetrics", path, 2500);
+            foreach (var metric in browserMetrics ?? Array.Empty<ClientPerformanceMetricDto>())
+            {
+                if (string.IsNullOrWhiteSpace(metric.Path))
+                {
+                    metric.Path = path;
+                }
+
+                Metrics.RecordMetric(metric);
+            }
+
+            await Metrics.FlushAsync();
+        }
+        catch
+        {
+            // Resource timing is best-effort and must not affect navigation.
+        }
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        _navigationStartedAt = Stopwatch.GetTimestamp();
+        _pendingNavigationPath = CurrentPath();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private string CurrentPath()
+    {
+        var path = new Uri(Navigation.Uri).AbsolutePath;
+        return string.IsNullOrWhiteSpace(path) ? "/" : path;
+    }
+}
