@@ -135,6 +135,29 @@ public class ApiClientTests
     }
 
     [Fact]
+    public async Task SendAsync_WhenAuthTokenExists_AddsBearerTokenWithoutHttpClientFactory()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        var notifications = new NotificationRecorder();
+        var jsRuntime = new RecordingJsRuntime();
+        jsRuntime.LocalStorage["authToken"] = "stored-token";
+        var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://example.test/")
+        };
+        var client = new ApiClient(httpClient, notifications, jsRuntime: jsRuntime);
+        handler.EnqueueJson(HttpStatusCode.OK, """{ "ok": true }""");
+
+        var success = await client.SendAsync(new HttpRequestMessage(HttpMethod.Post, "api/posts"));
+
+        success.Should().BeTrue();
+        handler.Requests.Should().ContainSingle();
+        handler.Requests[0].Authorization.Should().NotBeNull();
+        handler.Requests[0].Authorization!.Scheme.Should().Be("Bearer");
+        handler.Requests[0].Authorization!.Parameter.Should().Be("stored-token");
+    }
+
+    [Fact]
     public async Task SendForResultAsync_WhenRequestTimesOut_ShowsTimeoutNotification()
     {
         var notifications = new NotificationRecorder();

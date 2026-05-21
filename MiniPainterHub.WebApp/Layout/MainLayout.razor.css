@@ -1,7 +1,6 @@
 .app-header {
     padding: 0.55rem 0 0;
-    background: linear-gradient(180deg, rgba(248, 245, 239, 0.95), rgba(248, 245, 239, 0.78));
-    backdrop-filter: blur(10px);
+    background: linear-gradient(180deg, rgba(248, 245, 239, 0.98), rgba(248, 245, 239, 0.94));
     z-index: 100;
 }
 

@@ -4,15 +4,37 @@
 		<TargetFramework>net8.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
+		<InvariantGlobalization Condition="'$(Configuration)' == 'Release'">true</InvariantGlobalization>
+		<BlazorWebAssemblyPreserveCollationData Condition="'$(Configuration)' == 'Release'">false</BlazorWebAssemblyPreserveCollationData>
+		<ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
+		<DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+		<DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
 
 	</PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Components.Authorization" />
 		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
-		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" />
 		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
 		<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
-		<PackageReference Include="Microsoft.Extensions.Http" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<BlazorWebAssemblyLazyLoad Include="Microsoft.AspNetCore.Connections.Abstractions.wasm" />
+		<BlazorWebAssemblyLazyLoad Include="Microsoft.AspNetCore.Http.Connections.Client.wasm" />
+		<BlazorWebAssemblyLazyLoad Include="Microsoft.AspNetCore.Http.Connections.Common.wasm" />
+		<BlazorWebAssemblyLazyLoad Include="Microsoft.AspNetCore.Components.Forms.wasm" />
+		<BlazorWebAssemblyLazyLoad Include="Microsoft.AspNetCore.SignalR.Client.wasm" />
+		<BlazorWebAssemblyLazyLoad Include="Microsoft.AspNetCore.SignalR.Client.Core.wasm" />
+		<BlazorWebAssemblyLazyLoad Include="Microsoft.AspNetCore.SignalR.Common.wasm" />
+		<BlazorWebAssemblyLazyLoad Include="Microsoft.AspNetCore.SignalR.Protocols.Json.wasm" />
+		<BlazorWebAssemblyLazyLoad Include="System.Linq.Expressions.wasm" />
+		<BlazorWebAssemblyLazyLoad Include="System.ComponentModel.Primitives.wasm" />
+		<BlazorWebAssemblyLazyLoad Include="System.ComponentModel.TypeConverter.wasm" />
+		<BlazorWebAssemblyLazyLoad Include="System.IO.Pipelines.wasm" />
+		<BlazorWebAssemblyLazyLoad Include="System.Net.WebSockets.wasm" />
+		<BlazorWebAssemblyLazyLoad Include="System.Net.WebSockets.Client.wasm" />
+		<BlazorWebAssemblyLazyLoad Include="System.Threading.Channels.wasm" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -35,6 +57,10 @@
                 <Content Update="wwwroot\JSHelpers\carouselInterop.js">
                         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
                 </Content>
+	</ItemGroup>
+
+	<ItemGroup>
+		<ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js" />
 	</ItemGroup>
 
 </Project>

@@ -4,11 +4,12 @@ using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.JSInterop;
 using MiniPainterHub.WebApp.Services.Notifications;
 using MiniPainterHub.WebApp.Services.Performance;
 
@@ -21,18 +22,30 @@ public sealed class ApiClient
     private readonly HttpClient _httpClient;
     private readonly INotificationService _notifications;
     private readonly IClientPerformanceMetrics? _metrics;
+    private readonly IJSRuntime? _jsRuntime;
 
-    public ApiClient(HttpClient httpClient, INotificationService notifications, IClientPerformanceMetrics? metrics = null)
+    public ApiClient(
+        HttpClient httpClient,
+        INotificationService notifications,
+        IClientPerformanceMetrics? metrics = null,
+        IJSRuntime? jsRuntime = null)
     {
         _httpClient = httpClient;
         _notifications = notifications;
         _metrics = metrics;
+        _jsRuntime = jsRuntime;
     }
 
     public async Task<T?> SendAsync<T>(HttpRequestMessage request, ApiRequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         var result = await SendForResultAsync<T>(request, options, cancellationToken);
         return result.Success ? result.Value : default;
+    }
+
+    public static StringContent CreateJsonContent<T>(T value)
+    {
+        var json = JsonSerializer.Serialize(value, SerializerOptions);
+        return new StringContent(json, Encoding.UTF8, "application/json");
     }
 
     public async Task<bool> SendAsync(HttpRequestMessage request, ApiRequestOptions? options = null, CancellationToken cancellationToken = default)
@@ -93,6 +106,7 @@ public sealed class ApiClient
         var startedAt = Stopwatch.GetTimestamp();
         try
         {
+            await AttachAuthorizationHeaderAsync(request, cancellationToken);
             var response = await _httpClient.SendAsync(request, cancellationToken);
             RecordApiRequest(request, startedAt, (int)response.StatusCode, response.IsSuccessStatusCode);
             return response;
@@ -114,6 +128,20 @@ public sealed class ApiClient
                 await _notifications.ShowErrorAsync("Unable to reach the server. Please check your connection and try again.", "Network error");
             }
             return null;
+        }
+    }
+
+    private async ValueTask AttachAuthorizationHeaderAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        if (_jsRuntime is null || request.Headers.Authorization is not null)
+        {
+            return;
+        }
+
+        var token = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", cancellationToken, "authToken");
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         }
     }
 

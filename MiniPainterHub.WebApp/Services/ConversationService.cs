@@ -84,7 +84,7 @@ namespace MiniPainterHub.WebApp.Services
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, $"api/conversations/{conversationId}/messages")
             {
-                Content = System.Net.Http.Json.JsonContent.Create(dto)
+                Content = ApiClient.CreateJsonContent(dto)
             };
 
             var message = await _api.SendAsync<DirectMessageDto>(request)

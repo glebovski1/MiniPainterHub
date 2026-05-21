@@ -1,0 +1,89 @@
+@font-face {
+    font-family: "bootstrap-icons";
+    src: url("../fonts/bootstrap-icons-subset.woff") format("woff");
+    font-display: block;
+}
+
+.bi::before,
+[class^="bi-"]::before,
+[class*=" bi-"]::before {
+    display: inline-block;
+    font-family: "bootstrap-icons" !important;
+    font-style: normal;
+    font-weight: normal !important;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1;
+    vertical-align: -0.125em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.bi-arrow-left::before { content: "\f12f"; }
+.bi-arrow-right::before { content: "\f138"; }
+.bi-arrows-angle-expand::before { content: "\f14a"; }
+.bi-arrows-fullscreen::before { content: "\f14d"; }
+.bi-binoculars::before { content: "\f18f"; }
+.bi-box-arrow-in-right::before { content: "\f1be"; }
+.bi-box-arrow-right::before { content: "\f1c3"; }
+.bi-brush::before { content: "\f1d8"; }
+.bi-chat::before { content: "\f268"; }
+.bi-chat-dots::before { content: "\f24a"; }
+.bi-chat-left-dots::before { content: "\f24d"; }
+.bi-chat-left-text::before { content: "\f252"; }
+.bi-chat-right-text::before { content: "\f25c"; }
+.bi-chat-square::before { content: "\f265"; }
+.bi-chat-square-quote::before { content: "\f262"; }
+.bi-chat-square-text::before { content: "\f264"; }
+.bi-check-circle::before { content: "\f26b"; }
+.bi-check2-circle::before { content: "\f270"; }
+.bi-circle::before { content: "\f28a"; }
+.bi-clock-history::before { content: "\f292"; }
+.bi-compass::before { content: "\f2d1"; }
+.bi-crosshair2::before { content: "\f794"; }
+.bi-cup-hot::before { content: "\f7eb"; }
+.bi-dash-lg::before { content: "\f63b"; }
+.bi-diagram-3::before { content: "\f2ee"; }
+.bi-exclamation-circle::before { content: "\f333"; }
+.bi-exclamation-octagon::before { content: "\f337"; }
+.bi-exclamation-triangle::before { content: "\f33b"; }
+.bi-exclamation-triangle-fill::before { content: "\f33a"; }
+.bi-eye-slash::before { content: "\f340"; }
+.bi-flag::before { content: "\f3cc"; }
+.bi-fullscreen-exit::before { content: "\f3de"; }
+.bi-geo-alt-fill::before { content: "\f3e7"; }
+.bi-grid::before { content: "\f3fc"; }
+.bi-grid-1x2::before { content: "\f3f4"; }
+.bi-heart::before { content: "\f417"; }
+.bi-heart-fill::before { content: "\f415"; }
+.bi-hourglass-split::before { content: "\f41f"; }
+.bi-house-door::before { content: "\f423"; }
+.bi-image::before { content: "\f42a"; }
+.bi-image-alt::before { content: "\f428"; }
+.bi-images::before { content: "\f42b"; }
+.bi-inbox::before { content: "\f42d"; }
+.bi-info-circle::before { content: "\f431"; }
+.bi-journal-text::before { content: "\f444"; }
+.bi-journal-x::before { content: "\f445"; }
+.bi-layout-sidebar-inset::before { content: "\f45d"; }
+.bi-layout-sidebar-inset-reverse::before { content: "\f45c"; }
+.bi-palette2::before { content: "\f4b2"; }
+.bi-pencil::before { content: "\f4cb"; }
+.bi-people::before { content: "\f4d0"; }
+.bi-person::before { content: "\f4e1"; }
+.bi-person-badge::before { content: "\f4d3"; }
+.bi-person-circle::before { content: "\f4d7"; }
+.bi-person-exclamation::before { content: "\f89c"; }
+.bi-person-plus::before { content: "\f4dd"; }
+.bi-person-x::before { content: "\f4e0"; }
+.bi-pin-angle::before { content: "\f4eb"; }
+.bi-plus-circle::before { content: "\f4fa"; }
+.bi-plus-lg::before { content: "\f64d"; }
+.bi-search::before { content: "\f52a"; }
+.bi-shield-check::before { content: "\f52f"; }
+.bi-shield-exclamation::before { content: "\f530"; }
+.bi-shield-lock::before { content: "\f538"; }
+.bi-stars::before { content: "\f589"; }
+.bi-trophy::before { content: "\f5e7"; }
+.bi-wifi-off::before { content: "\f61b"; }
+.bi-x-lg::before { content: "\f659"; }

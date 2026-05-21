@@ -7,9 +7,16 @@
     "test:smoke": "playwright test tests/smoke.spec.js",
     "ui-review:scope": "node ./scripts/resolve-ui-review-scope.js",
     "test:ui-review": "node ./scripts/run-ui-review.js",
-    "test:ui-review:full": "node ./scripts/run-ui-review.js --full"
+    "test:ui-review:full": "node ./scripts/run-ui-review.js --full",
+    "audit:lighthouse": "node ./scripts/lighthouse-audit.js",
+    "perf:viewer": "node ./scripts/viewer-performance-check.js",
+    "perf:scroll": "node ./scripts/scroll-performance-check.js",
+    "perf:runtime": "node ./scripts/runtime-ux-check.js",
+    "perf:cached": "node ./scripts/runtime-ux-check.js --cached-only",
+    "perf:all": "npm run perf:viewer && npm run perf:scroll && npm run perf:runtime && npm run perf:cached && npm run audit:lighthouse"
   },
   "devDependencies": {
-    "@playwright/test": "1.59.1"
+    "@playwright/test": "1.59.1",
+    "lighthouse": "^13.3.0"
   }
 }

@@ -175,9 +175,13 @@ public class PostDetailsModerationTests : TestContext
 
         cut.WaitForAssertion(() =>
         {
-            cut.Find("[data-testid='post-details-image']")
-                .GetAttribute("src")
-                .Should().EndWith("/uploads/post12_preview.webp");
+            var heroImage = cut.Find("[data-testid='post-details-image']");
+            heroImage.GetAttribute("src").Should().EndWith("/uploads/post12_preview.webp");
+            heroImage.GetAttribute("loading").Should().Be("eager");
+            heroImage.GetAttribute("fetchpriority").Should().Be("high");
+            heroImage.GetAttribute("decoding").Should().Be("async");
+            heroImage.GetAttribute("width").Should().Be("1600");
+            heroImage.GetAttribute("height").Should().Be("900");
 
             var thumbnails = cut.FindAll("[data-testid='post-details-thumbnail']");
             thumbnails.Should().HaveCount(2);

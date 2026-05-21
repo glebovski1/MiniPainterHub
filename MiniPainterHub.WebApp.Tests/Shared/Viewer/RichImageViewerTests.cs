@@ -1,5 +1,7 @@
 using System;
 using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
 using Bunit;
 using FluentAssertions;
 using Microsoft.AspNetCore.Components;
@@ -86,6 +88,49 @@ public class RichImageViewerTests : TestContext
             .GetAttribute("src")
             .Should()
             .Be("/images/moonlit-skin-1-full.png");
+    }
+
+    [Fact]
+    public void ViewerPreloadSourceUsesPreviewImageOnly()
+    {
+        var source = InvokePreloadImageSource(new PostViewerImageDto
+        {
+            ImageUrl = "/images/moonlit-skin-1-full.png",
+            PreviewUrl = "/images/moonlit-skin-1-preview.png"
+        });
+
+        source.Should().Be("/images/moonlit-skin-1-preview.png");
+    }
+
+    [Fact]
+    public async Task StageResizeRecomputesFitBoxForTheLatestViewport()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var cut = RenderViewer();
+
+        await cut.Instance.OnStageResized(369d, 231d);
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='viewer-stage-fitbox']")
+                .GetAttribute("style")
+                .Should()
+                .Contain("width:369.00px")
+                .And.Contain("height:207.56px");
+        });
+
+        await cut.Instance.OnStageResized(1600d, 1152d);
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='viewer-stage-fitbox']")
+                .GetAttribute("style")
+                .Should()
+                .Contain("width:1600.00px")
+                .And.Contain("height:900.00px");
+        });
     }
 
     [Fact]
@@ -237,6 +282,16 @@ public class RichImageViewerTests : TestContext
         }
 
         return viewer;
+    }
+
+    private static string InvokePreloadImageSource(PostViewerImageDto image)
+    {
+        var method = typeof(RichImageViewer).GetMethod(
+            "GetPreloadImageSource",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        method.Should().NotBeNull();
+        return (string)method!.Invoke(null, new object[] { image })!;
     }
 
     private static TouchEventArgs CreateTouchEventArgs(double clientX, double clientY, bool useChangedTouches = false)

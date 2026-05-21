@@ -1,6 +1,3 @@
-@using System.ComponentModel.DataAnnotations
-@using Microsoft.AspNetCore.Components.Forms
-
 <section class="viewer-composer @(IsReadOnly ? "is-readonly" : null)"
          style="@Style"
          data-testid="viewer-mark-composer">
@@ -31,26 +28,26 @@
     }
     else
     {
-        <EditForm Model="_model" OnValidSubmit="HandleValidSubmit">
-            <DataAnnotationsValidator />
-
+        <form @onsubmit="HandleValidSubmit" @onsubmit:preventDefault="true">
             <div class="mb-2">
                 <label class="form-label" for="@_tagId">Tag</label>
-                <InputText id="@_tagId"
-                           @bind-Value="_model.Tag"
-                           class="form-control form-control-sm"
-                           maxlength="64"
-                           data-testid="viewer-mark-tag" />
+                <input id="@_tagId"
+                       value="@_model.Tag"
+                       @onchange="HandleTagChanged"
+                       class="form-control form-control-sm"
+                       maxlength="@MarkComposerValue.MaxTagLength"
+                       data-testid="viewer-mark-tag" />
             </div>
 
             <div class="mb-2">
                 <label class="form-label" for="@_messageId">Message</label>
-                <InputTextArea id="@_messageId"
-                               @bind-Value="_model.Message"
-                               class="form-control form-control-sm"
-                               maxlength="1000"
-                               rows="4"
-                               data-testid="viewer-mark-message" />
+                <textarea id="@_messageId"
+                          value="@_model.Message"
+                          @onchange="HandleMessageChanged"
+                          class="form-control form-control-sm"
+                          maxlength="@MarkComposerValue.MaxMessageLength"
+                          rows="4"
+                          data-testid="viewer-mark-message"></textarea>
             </div>
 
             @if (!string.IsNullOrWhiteSpace(_validationError))
@@ -81,7 +78,7 @@
                     </button>
                 }
             </div>
-        </EditForm>
+        </form>
     }
 </section>
 
@@ -117,9 +114,23 @@
         }
     }
 
+    private void HandleTagChanged(ChangeEventArgs args)
+    {
+        _model.Tag = TrimToLength(args.Value?.ToString(), MarkComposerValue.MaxTagLength);
+        _validationError = null;
+    }
+
+    private void HandleMessageChanged(ChangeEventArgs args)
+    {
+        _model.Message = TrimToLength(args.Value?.ToString(), MarkComposerValue.MaxMessageLength);
+        _validationError = null;
+    }
+
     private async Task HandleValidSubmit()
     {
         _validationError = null;
+        _model.Tag = TrimToLength(_model.Tag, MarkComposerValue.MaxTagLength);
+        _model.Message = TrimToLength(_model.Message, MarkComposerValue.MaxMessageLength);
 
         if (string.IsNullOrWhiteSpace(_model.Tag) && string.IsNullOrWhiteSpace(_model.Message))
         {
@@ -128,5 +139,15 @@
         }
 
         await OnSave.InvokeAsync(_model.Clone());
+    }
+
+    private static string? TrimToLength(string? value, int maxLength)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return value;
+        }
+
+        return value.Length <= maxLength ? value : value[..maxLength];
     }
 }

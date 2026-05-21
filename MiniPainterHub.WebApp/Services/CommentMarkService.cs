@@ -1,6 +1,5 @@
 using System;
 using System.Net.Http;
-using System.Net.Http.Json;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.WebApp.Services.Http;
 using MiniPainterHub.WebApp.Services.Interfaces;
@@ -32,7 +31,7 @@ namespace MiniPainterHub.WebApp.Services
         {
             using var request = new HttpRequestMessage(HttpMethod.Put, $"/api/comments/{commentId}/mark")
             {
-                Content = JsonContent.Create(dto)
+                Content = ApiClient.CreateJsonContent(dto)
             };
 
             var result = await _api.SendAsync<CommentMarkDto>(request);

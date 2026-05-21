@@ -4,9 +4,12 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-	  <BlazorWebAssemblyEnableDebugging>true</BlazorWebAssemblyEnableDebugging>
-	  <DebugType>full</DebugType>
-	  <DebugSymbols>true</DebugSymbols>
+    <BlazorWebAssemblyEnableDebugging Condition="'$(Configuration)' != 'Release'">true</BlazorWebAssemblyEnableDebugging>
+    <BlazorWebAssemblyEnableDebugging Condition="'$(Configuration)' == 'Release'">false</BlazorWebAssemblyEnableDebugging>
+    <DebugType Condition="'$(Configuration)' != 'Release'">full</DebugType>
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+    <DebugSymbols Condition="'$(Configuration)' != 'Release'">true</DebugSymbols>
+    <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>

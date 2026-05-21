@@ -110,6 +110,75 @@ public class CardListVisibilityTests : TestContext
         source.Should().Contain("<PostCard @key=\"post.Id\"");
     }
 
+    [Fact]
+    public void FirstRenderedPostCardRow_GetsImagePriorityOnlyForLcpCandidates()
+    {
+        var auth = this.AddTestAuthorization();
+        auth.SetAuthorized("user");
+        auth.SetRoles("User");
+        this.AddModerationStub();
+
+        this.AddPostStub(new StubPostService
+        {
+            GetAllWithVisibilityHandler = (_, _, _, _) => Task.FromResult(new ApiResult<PagedResult<PostSummaryDto>>(true, HttpStatusCode.OK, new PagedResult<PostSummaryDto>
+            {
+                Items = new[]
+                {
+                    new PostSummaryDto
+                    {
+                        Id = 11,
+                        Title = "First",
+                        Snippet = "First snippet",
+                        AuthorName = "author",
+                        AuthorId = "author-1",
+                        CreatedAt = DateTime.UtcNow,
+                        ImageUrl = "/uploads/images/first_max.webp",
+                        ThumbnailUrl = "/uploads/images/first_thumb.webp"
+                    },
+                    new PostSummaryDto
+                    {
+                        Id = 12,
+                        Title = "Second",
+                        Snippet = "Second snippet",
+                        AuthorName = "author",
+                        AuthorId = "author-1",
+                        CreatedAt = DateTime.UtcNow,
+                        ImageUrl = "/uploads/images/second_max.webp",
+                        ThumbnailUrl = "/uploads/images/second_thumb.webp"
+                    },
+                    new PostSummaryDto
+                    {
+                        Id = 13,
+                        Title = "Third",
+                        Snippet = "Third snippet",
+                        AuthorName = "author",
+                        AuthorId = "author-1",
+                        CreatedAt = DateTime.UtcNow,
+                        ImageUrl = "/uploads/images/third_max.webp",
+                        ThumbnailUrl = "/uploads/images/third_thumb.webp"
+                    }
+                },
+                PageNumber = 1,
+                PageSize = 9,
+                TotalCount = 3
+            }))
+        });
+
+        var cut = RenderWithAuth();
+
+        cut.WaitForAssertion(() =>
+        {
+            var images = cut.FindAll("[data-testid='post-card-image']");
+            images.Should().HaveCount(3);
+            images[0].GetAttribute("loading").Should().Be("eager");
+            images[0].GetAttribute("fetchpriority").Should().Be("high");
+            images[1].GetAttribute("loading").Should().Be("eager");
+            images[1].GetAttribute("fetchpriority").Should().Be("high");
+            images[2].GetAttribute("loading").Should().Be("lazy");
+            images[2].GetAttribute("fetchpriority").Should().Be("auto");
+        });
+    }
+
     private IRenderedFragment RenderWithAuth()
     {
         return Render(builder =>

@@ -1442,11 +1442,13 @@ else if (IsOpen)
         var currentIndex = Math.Max(CurrentImageNumber - 1, 0);
         var previousIndex = currentIndex == 0 ? Viewer.Images.Count - 1 : currentIndex - 1;
         var nextIndex = currentIndex >= Viewer.Images.Count - 1 ? 0 : currentIndex + 1;
+        var nextNextIndex = nextIndex >= Viewer.Images.Count - 1 ? 0 : nextIndex + 1;
 
         var urls = new[]
         {
             GetPreloadImageSource(Viewer.Images[previousIndex]),
-            GetPreloadImageSource(Viewer.Images[nextIndex])
+            GetPreloadImageSource(Viewer.Images[nextIndex]),
+            GetPreloadImageSource(Viewer.Images[nextNextIndex])
         }
         .Where(url => !string.IsNullOrWhiteSpace(url))
         .Cast<string>()

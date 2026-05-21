@@ -78,6 +78,7 @@ internal static class BunitTestContextExtensions
     {
         stub ??= new StubConversationService();
         context.Services.AddSingleton<IConversationService>(stub);
+        context.Services.AddSingleton<IConversationSummaryService>(stub);
         return stub;
     }
 

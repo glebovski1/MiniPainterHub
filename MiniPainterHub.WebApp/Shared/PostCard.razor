@@ -12,7 +12,8 @@
                  data-testid="post-card-image"
                  alt="Post image"
                  @onerror="HandleImageError"
-                 loading="lazy"
+                 loading="@ImageLoading"
+                 fetchpriority="@ImageFetchPriority"
                  decoding="async" />
         </NavLink>
     }
@@ -103,6 +104,7 @@
 @code {
     [Parameter] public PostSummaryDto Post { get; set; } = default!;
     [Parameter] public EventCallback OnModerated { get; set; }
+    [Parameter] public bool IsPriorityImage { get; set; }
 
     private bool _useFullImage;
     private bool _moderationBusy;
@@ -112,6 +114,8 @@
     private string FullImageUrl => MakeAbsoluteUrl(Post.ImageUrl);
     private string ThumbImageUrl => MakeAbsoluteUrl(ResolveThumbnailUrl());
     private string DisplayImageUrl => _useFullImage ? FullImageUrl : ThumbImageUrl;
+    private string ImageLoading => IsPriorityImage ? "eager" : "lazy";
+    private string ImageFetchPriority => IsPriorityImage ? "high" : "auto";
 
     private string MakeAbsoluteUrl(string? url) =>
         string.IsNullOrEmpty(url)

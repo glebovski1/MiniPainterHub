@@ -79,7 +79,7 @@ internal sealed class StubFollowService : IFollowService
     public Task<IReadOnlyList<UserListItemDto>> GetFollowingAsync() => GetFollowingHandler();
 }
 
-internal sealed class StubConversationService : IConversationService
+internal sealed class StubConversationService : IConversationService, IConversationSummaryService
 {
     private IReadOnlyList<ConversationSummaryDto> _conversations = Array.Empty<ConversationSummaryDto>();
 

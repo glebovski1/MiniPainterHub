@@ -1,5 +1,4 @@
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Net;
 using Microsoft.JSInterop;
 using MiniPainterHub.Common.Auth;
@@ -25,7 +24,7 @@ namespace MiniPainterHub.WebApp.Services
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/login")
             {
-                Content = JsonContent.Create(dto)
+                Content = ApiClient.CreateJsonContent(dto)
             };
 
             var response = await _api.SendAsync<AuthResponseDto>(request);
@@ -43,7 +42,7 @@ namespace MiniPainterHub.WebApp.Services
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/register")
             {
-                Content = JsonContent.Create(dto)
+                Content = ApiClient.CreateJsonContent(dto)
             };
 
             return await _api.SendAsync(request);

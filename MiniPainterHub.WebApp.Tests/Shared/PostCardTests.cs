@@ -37,6 +37,56 @@ public class PostCardTests : TestContext
     }
 
     [Fact]
+    public void Image_WhenPriorityImage_UsesEagerHighPriorityLoading()
+    {
+        this.AddTestAuthorization();
+        this.AddModerationStub();
+
+        var post = new PostSummaryDto
+        {
+            Id = 43,
+            Title = "Priority title",
+            Snippet = "Priority snippet",
+            AuthorName = "author",
+            AuthorId = "author-1",
+            CreatedAt = DateTime.UtcNow,
+            ImageUrl = "/uploads/images/full.png",
+            ThumbnailUrl = "/uploads/images/thumb.webp"
+        };
+
+        var cut = RenderWithAuth(post, isPriorityImage: true);
+
+        var image = cut.Find("img");
+        image.GetAttribute("loading").Should().Be("eager");
+        image.GetAttribute("fetchpriority").Should().Be("high");
+    }
+
+    [Fact]
+    public void Image_WhenNotPriorityImage_UsesLazyAutoPriorityLoading()
+    {
+        this.AddTestAuthorization();
+        this.AddModerationStub();
+
+        var post = new PostSummaryDto
+        {
+            Id = 44,
+            Title = "Lazy title",
+            Snippet = "Lazy snippet",
+            AuthorName = "author",
+            AuthorId = "author-1",
+            CreatedAt = DateTime.UtcNow,
+            ImageUrl = "/uploads/images/full.png",
+            ThumbnailUrl = "/uploads/images/thumb.webp"
+        };
+
+        var cut = RenderWithAuth(post);
+
+        var image = cut.Find("img");
+        image.GetAttribute("loading").Should().Be("lazy");
+        image.GetAttribute("fetchpriority").Should().Be("auto");
+    }
+
+    [Fact]
     public void Image_WhenThumbnailFails_FallsBackToFullImageUrl()
     {
         this.AddTestAuthorization();
@@ -140,7 +190,7 @@ public class PostCardTests : TestContext
         cut.FindAll("[data-testid='post-card-restore']").Should().HaveCount(1);
     }
 
-    private IRenderedFragment RenderWithAuth(PostSummaryDto post)
+    private IRenderedFragment RenderWithAuth(PostSummaryDto post, bool isPriorityImage = false)
     {
         return Render(builder =>
         {
@@ -149,6 +199,7 @@ public class PostCardTests : TestContext
             {
                 childBuilder.OpenComponent<PostCard>(0);
                 childBuilder.AddAttribute(1, nameof(PostCard.Post), post);
+                childBuilder.AddAttribute(2, nameof(PostCard.IsPriorityImage), isPriorityImage);
                 childBuilder.CloseComponent();
             }));
             builder.CloseComponent();

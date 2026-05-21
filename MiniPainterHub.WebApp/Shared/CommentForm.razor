@@ -20,15 +20,20 @@
     </div>
 }
 
-<EditForm Model="_model" OnValidSubmit="HandleSubmit" class="@FormClass">
-    <DataAnnotationsValidator />
-    <ValidationSummary class="text-danger small mb-0" />
+<form class="@FormClass" @onsubmit="HandleSubmit" @onsubmit:preventDefault="true">
+    @if (!string.IsNullOrWhiteSpace(_validationError))
+    {
+        <div class="text-danger small mb-0" role="alert" data-testid="comment-validation">
+            @_validationError
+        </div>
+    }
 
-    <InputTextArea @bind-Value="_model.Text"
-                   class="form-control"
-                   placeholder="Write your comment..."
-                   data-testid="comment-input"
-                   rows="@(IsViewerCompact ? 2 : 3)" />
+    <textarea value="@_model.Text"
+              @onchange="HandleTextChanged"
+              class="form-control"
+              placeholder="Write your comment..."
+              data-testid="comment-input"
+              rows="@(IsViewerCompact ? 2 : 3)"></textarea>
 
     @if (CanAttachViewerMark)
     {
@@ -66,7 +71,7 @@
             @(_isSubmitting ? "Posting..." : IsViewerCompact ? "Post" : "Post Comment")
         </button>
     </div>
-</EditForm>
+</form>
 
 @code {
     [Parameter]
@@ -101,12 +106,27 @@
     private CreateCommentDto _model = new();
     private bool _isSubmitting;
     private string? _submitError;
+    private string? _validationError;
     private HttpStatusCode? _submitStatus;
+
+    private void HandleTextChanged(ChangeEventArgs args)
+    {
+        _model.Text = args.Value?.ToString() ?? string.Empty;
+        _validationError = null;
+    }
 
     private async Task HandleSubmit()
     {
         _submitError = null;
         _submitStatus = null;
+        _validationError = null;
+
+        if (string.IsNullOrWhiteSpace(_model.Text))
+        {
+            _validationError = "Add a comment before posting.";
+            return;
+        }
+
         _isSubmitting = true;
         _model.PostId = PostId;
         _model.Mark = DraftMark;

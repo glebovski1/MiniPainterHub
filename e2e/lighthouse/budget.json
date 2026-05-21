@@ -1,0 +1,48 @@
+{
+  "lighthouse": {
+    "categories": {
+      "performance": 0.9,
+      "accessibility": 0.9,
+      "best-practices": 0.9,
+      "seo": 0.9
+    },
+    "advisoryCategories": [
+      "performance"
+    ],
+    "routes": [
+      "/",
+      "$createdPost"
+    ]
+  },
+  "viewer": {
+    "openMs": 1500,
+    "cachedSwitchMs": 500,
+    "screenshotMs": 10000,
+    "thumbnailMaxAspectSkew": 1.45,
+    "fitTolerancePx": 4
+  },
+  "scroll": {
+    "p95FrameMs": 20,
+    "frameCadenceToleranceMs": 4,
+    "maxFrameMs": 50,
+    "maxDroppedFrames": 2,
+    "maxLongTasks": 0,
+    "minScrollDelta": 320
+  },
+  "repeatLoad": {
+    "cachedRouteRenderMs": 3500,
+    "cachedFrameworkTransferBytes": 150000,
+    "postStartupMaxLongTasks": 1
+  },
+  "runtime": {
+    "cachedRouteRenderMs": 1500,
+    "cachedFrameworkTransferBytes": 0,
+    "routeTransitionMs": 1000,
+    "postStartupMaxLongTasksOver100Ms": 0,
+    "cumulativeLayoutShift": 0.02,
+    "apiP95Ms": 1000,
+    "imageDecodeMs": 1000,
+    "viewerOpenMs": 1500,
+    "viewerCachedSwitchMs": 500
+  }
+}

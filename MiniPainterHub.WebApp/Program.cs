@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
-using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MiniPainterHub.WebApp.Services;
 using MiniPainterHub.WebApp.Services.Http;
@@ -8,6 +7,7 @@ using MiniPainterHub.WebApp.Services.Interfaces;
 using MiniPainterHub.WebApp.Services.Notifications;
 using MiniPainterHub.WebApp.Services.Performance;
 using MiniPainterHub.WebApp.Layout;
+using System.Globalization;
 
 namespace MiniPainterHub.WebApp;
 
@@ -38,27 +38,19 @@ public class Program
                 sp.GetRequiredService<JwtAuthenticationStateProvider>());
 
         //------------------------------------------------------------
-        // 3)  Message handler that adds  Authorization: Bearer <token>
-        //------------------------------------------------------------
-        builder.Services.AddTransient<JwtAuthorizationMessageHandler>();
-
-        //------------------------------------------------------------
-        // 4)  Notifications and base API address
+        // 3)  Notifications and base API address
         //------------------------------------------------------------
         builder.Services.AddScoped<INotificationService, BootstrapToastNotificationService>();
         var apiBase = new Uri(builder.HostEnvironment.BaseAddress);
 
-        builder.Services.Configure<ClientPerformanceOptions>(options =>
-        {
-            options.Enabled = builder.HostEnvironment.IsProduction();
-            options.SampleRate = 0.1;
-            options.MaxBatchSize = 50;
-            builder.Configuration.GetSection("ClientPerformance").Bind(options);
-        });
+        builder.Services.AddSingleton(CreateClientPerformanceOptions(builder));
+
+        builder.Services.AddScoped(_ => new HttpClient { BaseAddress = apiBase });
 
         //------------------------------------------------------------
-        // 5)  Typed HTTP clients
+        // 4)  API services
         //------------------------------------------------------------
+        builder.Services.AddScoped<ApiClient>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IPostService, PostService>();
         builder.Services.AddScoped<IPostViewerService, PostViewerService>();
@@ -71,18 +63,41 @@ public class Program
         builder.Services.AddScoped<ISearchService, SearchService>();
         builder.Services.AddScoped<IReportService, ReportService>();
         builder.Services.AddScoped<IFollowService, FollowService>();
+        builder.Services.AddScoped<IConversationSummaryService, ConversationSummaryService>();
         builder.Services.AddScoped<IConversationService, ConversationService>();
-
-        builder.Services
-            .AddHttpClient<IClientPerformanceMetrics, ClientPerformanceMetricsService>(client => client.BaseAddress = apiBase);
-
-        builder.Services
-            .AddHttpClient<ApiClient>(client => client.BaseAddress = apiBase)
-            .AddHttpMessageHandler<JwtAuthorizationMessageHandler>();
+        builder.Services.AddScoped<IClientPerformanceMetrics, ClientPerformanceMetricsService>();
 
         //------------------------------------------------------------
-        // 6)  Run!
+        // 5)  Run!
         //------------------------------------------------------------
         await builder.Build().RunAsync();
+    }
+
+    private static ClientPerformanceOptions CreateClientPerformanceOptions(WebAssemblyHostBuilder builder)
+    {
+        var options = new ClientPerformanceOptions
+        {
+            Enabled = builder.HostEnvironment.IsProduction(),
+            SampleRate = 0.1,
+            MaxBatchSize = 50
+        };
+
+        var section = builder.Configuration.GetSection("ClientPerformance");
+        if (bool.TryParse(section["Enabled"], out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (double.TryParse(section["SampleRate"], NumberStyles.Float, CultureInfo.InvariantCulture, out var sampleRate))
+        {
+            options.SampleRate = sampleRate;
+        }
+
+        if (int.TryParse(section["MaxBatchSize"], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxBatchSize))
+        {
+            options.MaxBatchSize = maxBatchSize;
+        }
+
+        return options;
     }
 }

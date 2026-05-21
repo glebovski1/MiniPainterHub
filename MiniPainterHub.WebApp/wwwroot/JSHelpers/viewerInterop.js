@@ -2,6 +2,8 @@ const stageObservers = new WeakMap();
 const fullscreenListeners = new WeakMap();
 const modalStates = new WeakMap();
 const gestureStates = new WeakMap();
+const preloadQueue = new Set();
+let preloadIdleHandle = 0;
 
 function readTransformValue(snapshot, camelName, pascalName, fallback) {
     const value = snapshot?.[camelName] ?? snapshot?.[pascalName];
@@ -194,6 +196,36 @@ export function observeStageSize(element, dotNetRef) {
         return;
     }
 
+    const state = {
+        observer: null,
+        rafId: 0,
+        settleTimer: 0,
+        width: element.clientWidth ?? 0,
+        height: element.clientHeight ?? 0
+    };
+
+    const notify = (width, height) => {
+        state.width = width;
+        state.height = height;
+
+        if (state.rafId) {
+            return;
+        }
+
+        state.rafId = requestAnimationFrame(() => {
+            state.rafId = 0;
+            dotNetRef.invokeMethodAsync("OnStageResized", state.width, state.height);
+
+            window.clearTimeout(state.settleTimer);
+            state.settleTimer = window.setTimeout(() => {
+                dotNetRef.invokeMethodAsync(
+                    "OnStageResized",
+                    element.clientWidth ?? state.width,
+                    element.clientHeight ?? state.height);
+            }, 90);
+        });
+    };
+
     const observer = new ResizeObserver(entries => {
         const entry = entries[0];
         if (!entry) {
@@ -202,22 +234,25 @@ export function observeStageSize(element, dotNetRef) {
 
         const width = entry.contentRect?.width ?? element.clientWidth ?? 0;
         const height = entry.contentRect?.height ?? element.clientHeight ?? 0;
-        dotNetRef.invokeMethodAsync("OnStageResized", width, height);
+        notify(width, height);
     });
 
+    state.observer = observer;
     observer.observe(element);
-    stageObservers.set(element, observer);
+    stageObservers.set(element, state);
 
-    dotNetRef.invokeMethodAsync("OnStageResized", element.clientWidth ?? 0, element.clientHeight ?? 0);
+    notify(element.clientWidth ?? 0, element.clientHeight ?? 0);
 }
 
 export function unobserveStageSize(element) {
-    const observer = stageObservers.get(element);
-    if (!observer) {
+    const state = stageObservers.get(element);
+    if (!state) {
         return;
     }
 
-    observer.disconnect();
+    state.observer?.disconnect();
+    window.cancelAnimationFrame(state.rafId);
+    window.clearTimeout(state.settleTimer);
     stageObservers.delete(element);
 }
 
@@ -276,12 +311,43 @@ export function preloadImages(urls) {
 
     urls
         .filter(url => typeof url === "string" && url.length > 0)
-        .forEach(url => {
+        .forEach(url => preloadQueue.add(url));
+
+    schedulePreloadFlush();
+}
+
+function schedulePreloadFlush() {
+    if (preloadIdleHandle || preloadQueue.size === 0) {
+        return;
+    }
+
+    const flush = () => {
+        preloadIdleHandle = 0;
+        const nextUrls = Array.from(preloadQueue).slice(0, 3);
+
+        nextUrls.forEach(url => {
+            preloadQueue.delete(url);
             const image = new Image();
             image.decoding = "async";
-            image.loading = "eager";
+            image.loading = "lazy";
+            if ("fetchPriority" in image) {
+                image.fetchPriority = "low";
+            }
+
             image.src = url;
         });
+
+        if (preloadQueue.size > 0) {
+            schedulePreloadFlush();
+        }
+    };
+
+    if ("requestIdleCallback" in window) {
+        preloadIdleHandle = window.requestIdleCallback(flush, { timeout: 420 });
+        return;
+    }
+
+    preloadIdleHandle = window.setTimeout(flush, 160);
 }
 
 export function activateViewerGestures(stageElement, transformElement, dotNetRef, snapshot) {

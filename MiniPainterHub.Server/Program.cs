@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -34,13 +35,18 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO.Compression;
 
 namespace MiniPainterHub;
 
 public class Program
 {
+    internal const string LighthouseEnvironmentName = "Lighthouse";
     internal const int SqlServerMaxRetryCount = 6;
     internal static readonly TimeSpan SqlServerMaxRetryDelay = TimeSpan.FromSeconds(10);
+    private const int StaticAssetOneYearSeconds = 31_536_000;
+    private const int StaticAssetOneWeekSeconds = 604_800;
+    private const int StaticAssetOneDaySeconds = 86_400;
 
     public static async Task Main(string[] args)
     {
@@ -53,7 +59,8 @@ public class Program
                 optional: true,
                 reloadOnChange: true);
 
-        var hostedStartupConfiguration = builder.Environment.IsDevelopment()
+        var isLocalToolingEnvironment = IsLocalToolingEnvironment(builder.Environment);
+        var hostedStartupConfiguration = isLocalToolingEnvironment
             ? null
             : HostedStartupConfigurationValidator.Validate(builder.Configuration, builder.Environment.EnvironmentName);
 
@@ -65,7 +72,7 @@ public class Program
         var connectionResolution = ResolveDevelopmentConnectionString(builder.Environment, builder.Configuration, configuredConnection);
         var defaultConnection = connectionResolution.ConnectionString;
         var useInMemoryDatabase =
-            builder.Environment.IsDevelopment()
+            isLocalToolingEnvironment
             && OperatingSystem.IsLinux()
             && defaultConnection?.Contains("(localdb)", StringComparison.OrdinalIgnoreCase) == true;
 
@@ -130,6 +137,19 @@ public class Program
         builder.Services.AddDataProtection();
         builder.Services.AddControllers();
         builder.Services.AddSignalR();
+        builder.Services.AddResponseCompression(options =>
+        {
+            options.EnableForHttps = true;
+            options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[]
+            {
+                "application/javascript",
+                "application/octet-stream",
+                "application/wasm",
+                "image/svg+xml"
+            });
+        });
+        builder.Services.Configure<BrotliCompressionProviderOptions>(options => options.Level = CompressionLevel.Fastest);
+        builder.Services.Configure<GzipCompressionProviderOptions>(options => options.Level = CompressionLevel.Fastest);
 
         builder.Services.AddProblemDetails(o =>
         {
@@ -188,7 +208,7 @@ public class Program
 
         builder.Services.AddScoped<IImageProcessor, ImageProcessor>();
 
-        if (builder.Environment.IsDevelopment())
+        if (isLocalToolingEnvironment)
         {
             builder.Services.AddSingleton<LocalImageService>();
             builder.Services.AddSingleton<IImageService>(sp => sp.GetRequiredService<LocalImageService>());
@@ -246,7 +266,7 @@ public class Program
         // ------------------------------------------------------------------
         // 2️⃣  Seed test data
         // ------------------------------------------------------------------
-        if (app.Environment.IsDevelopment())
+        if (IsLocalToolingEnvironment(app.Environment))
         {
             await using var scope = app.Services.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -314,22 +334,23 @@ public class Program
         app.UseExceptionHandler();
 
         app.UseHttpsRedirection();
+        app.UseResponseCompression();
+        UseStaticAssetHeaderPolicy(app);
         app.UseAuthentication();
         app.UseMiddleware<MaintenanceModeMiddleware>();
+        UsePublishedBootManifestStaticFile(app);
         app.UseBlazorFrameworkFiles();  // 🟡 Serve WASM framework files
 
-        if (app.Environment.IsDevelopment())
+        if (IsLocalToolingEnvironment(app.Environment))
         {
             var localImageStorage = LocalImageStoragePaths.Resolve(app.Environment, app.Configuration);
             Directory.CreateDirectory(localImageStorage.PhysicalPath);
-            app.UseStaticFiles(new StaticFileOptions
-            {
-                FileProvider = new PhysicalFileProvider(localImageStorage.PhysicalPath),
-                RequestPath = localImageStorage.RequestPath
-            });
+            app.UseStaticFiles(CreateStaticFileOptions(
+                new PhysicalFileProvider(localImageStorage.PhysicalPath),
+                localImageStorage.RequestPath));
         }
 
-        app.UseStaticFiles();
+        app.UseStaticFiles(CreateStaticFileOptions());
         app.UseAuthorization();
 
         app.MapControllers();
@@ -341,7 +362,7 @@ public class Program
 
         var resetToken = app.Configuration["TestSupport:ResetToken"];
         var resetEnabled = app.Configuration.GetValue<bool>("TestSupport:ResetEnabled");
-        if (app.Environment.IsDevelopment() && resetEnabled && !string.IsNullOrWhiteSpace(resetToken))
+        if (IsLocalToolingEnvironment(app.Environment) && resetEnabled && !string.IsNullOrWhiteSpace(resetToken))
         {
             app.MapPost("/api/test-support/reset", async (HttpContext context, AppDbContext db) =>
             {
@@ -394,6 +415,225 @@ public class Program
         app.Run();
     }
 
+    private static void UsePublishedBootManifestStaticFile(WebApplication app)
+    {
+        if (string.IsNullOrWhiteSpace(app.Environment.WebRootPath))
+        {
+            return;
+        }
+
+        var bootManifestPath = Path.Combine(app.Environment.WebRootPath, "_framework", "blazor.boot.json");
+        if (!File.Exists(bootManifestPath))
+        {
+            return;
+        }
+
+        app.Use(async (context, next) =>
+        {
+            if (!string.Equals(
+                    context.Request.Path.Value,
+                    "/_framework/blazor.boot.json",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                await next();
+                return;
+            }
+
+            context.Response.ContentType = "application/json";
+            ApplyStaticAssetHeaders(context);
+            await context.Response.SendFileAsync(bootManifestPath);
+        });
+    }
+
+    private static StaticFileOptions CreateStaticFileOptions() =>
+        new()
+        {
+            OnPrepareResponse = context => ApplyStaticAssetHeaders(context.Context)
+        };
+
+    private static StaticFileOptions CreateStaticFileOptions(IFileProvider fileProvider, PathString requestPath) =>
+        new()
+        {
+            FileProvider = fileProvider,
+            RequestPath = requestPath,
+            OnPrepareResponse = context => ApplyStaticAssetHeaders(context.Context)
+        };
+
+    private static void UseStaticAssetHeaderPolicy(WebApplication app)
+    {
+        app.Use(async (context, next) =>
+        {
+            if (app.Environment.IsProduction() && IsPortableDebugSymbol(context.Request.Path))
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+
+            context.Response.OnStarting(() =>
+            {
+                ApplySecurityHeaders(context);
+                ApplyApiResponseHeaders(context);
+                ApplyStaticAssetHeaders(context);
+                return Task.CompletedTask;
+            });
+
+            await next();
+        });
+    }
+
+    private static void ApplyStaticAssetHeaders(HttpContext context)
+    {
+        var path = context.Request.Path.Value ?? string.Empty;
+        if (!IsManagedStaticAssetPath(path))
+        {
+            return;
+        }
+
+        var cacheControl = ResolveStaticAssetCacheControl(path);
+        if (!string.IsNullOrWhiteSpace(cacheControl))
+        {
+            context.Response.Headers["Cache-Control"] = cacheControl;
+        }
+
+        ApplySecurityHeaders(context);
+    }
+
+    private static void ApplySecurityHeaders(HttpContext context)
+    {
+        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    }
+
+    private static void ApplyApiResponseHeaders(HttpContext context)
+    {
+        var path = context.Request.Path.Value ?? string.Empty;
+        if (!path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        context.Response.Headers["Cache-Control"] = "no-store";
+        context.Response.Headers["Pragma"] = "no-cache";
+    }
+
+    private static string ResolveStaticAssetCacheControl(string path)
+    {
+        var fileName = GetRequestFileName(path);
+        if (IsAlwaysRevalidatedAsset(path, fileName))
+        {
+            return "no-cache";
+        }
+
+        if (HasFingerprintInFileName(fileName))
+        {
+            return $"public, max-age={StaticAssetOneYearSeconds}, immutable";
+        }
+
+        if (path.StartsWith("/_framework/", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"public, max-age={StaticAssetOneWeekSeconds}";
+        }
+
+        if (IsImageAsset(path))
+        {
+            return $"public, max-age={StaticAssetOneWeekSeconds}";
+        }
+
+        if (IsFontAsset(path) || IsCssOrScriptAsset(path))
+        {
+            return $"public, max-age={StaticAssetOneDaySeconds}";
+        }
+
+        return $"public, max-age={StaticAssetOneDaySeconds}";
+    }
+
+    private static bool IsManagedStaticAssetPath(string path) =>
+        path.StartsWith("/_framework/", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/css/", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/JSHelpers/", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/fonts/", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/_content/", StringComparison.OrdinalIgnoreCase)
+        || IsKnownRootStaticAsset(path);
+
+    private static bool IsKnownRootStaticAsset(string path)
+    {
+        var fileName = GetRequestFileName(path);
+        return string.Equals(path, "/", StringComparison.Ordinal)
+            || string.Equals(path, "/index.html", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, "favicon.png", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, "manifest.webmanifest", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, "service-worker.js", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, "service-worker-assets.js", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, "MiniPainterHub.WebApp.styles.css", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, "appsettings.client.json", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsAlwaysRevalidatedAsset(string path, string fileName) =>
+        string.Equals(path, "/", StringComparison.Ordinal)
+        || string.Equals(path, "/index.html", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(fileName, "blazor.boot.json", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(fileName, "service-worker.js", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(fileName, "service-worker-assets.js", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(fileName, "appsettings.client.json", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(fileName, "manifest.webmanifest", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsPortableDebugSymbol(PathString path) =>
+        path.Value?.EndsWith(".pdb", StringComparison.OrdinalIgnoreCase) == true;
+
+    private static string GetRequestFileName(string path)
+    {
+        var queryStart = path.IndexOf('?', StringComparison.Ordinal);
+        var pathOnly = queryStart >= 0 ? path[..queryStart] : path;
+        var lastSlash = pathOnly.LastIndexOf('/');
+        return lastSlash >= 0 ? pathOnly[(lastSlash + 1)..] : pathOnly;
+    }
+
+    private static bool IsCssOrScriptAsset(string path) =>
+        path.EndsWith(".css", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".js", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsFontAsset(string path) =>
+        path.EndsWith(".woff", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".woff2", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsImageAsset(string path) =>
+        path.EndsWith(".avif", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".ico", StringComparison.OrdinalIgnoreCase);
+
+    private static bool HasFingerprintInFileName(string fileName)
+    {
+        var tokenLength = 0;
+        for (var index = 0; index <= fileName.Length; index++)
+        {
+            var current = index < fileName.Length ? fileName[index] : '.';
+            if (IsHexDigit(current))
+            {
+                tokenLength++;
+                continue;
+            }
+
+            if (tokenLength >= 8)
+            {
+                return true;
+            }
+
+            tokenLength = 0;
+        }
+
+        return false;
+    }
+
+    private static bool IsHexDigit(char value) =>
+        value is >= '0' and <= '9'
+        || value is >= 'a' and <= 'f'
+        || value is >= 'A' and <= 'F';
+
     internal static void ConfigureSqlServerOptions(SqlServerDbContextOptionsBuilder sqlOpts)
     {
         sqlOpts.MigrationsAssembly(typeof(AppDbContext).Assembly.GetName().Name)
@@ -403,6 +643,10 @@ public class Program
                 maxRetryDelay: SqlServerMaxRetryDelay,
                 errorNumbersToAdd: null);
     }
+
+    internal static bool IsLocalToolingEnvironment(IHostEnvironment environment) =>
+        environment.IsDevelopment()
+        || environment.IsEnvironment(LighthouseEnvironmentName);
 
     private static async Task EnsureDevelopmentDatabaseAsync(AppDbContext db, ILogger logger, IConfiguration configuration)
     {
@@ -431,7 +675,7 @@ public class Program
         IConfiguration configuration,
         string? configuredConnection)
     {
-        if (!environment.IsDevelopment()
+        if (!IsLocalToolingEnvironment(environment)
             || !OperatingSystem.IsWindows()
             || string.IsNullOrWhiteSpace(configuredConnection)
             || !IsLocalDbConnection(configuredConnection))

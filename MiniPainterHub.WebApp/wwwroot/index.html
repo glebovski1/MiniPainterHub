@@ -6,25 +6,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MiniPainterHub</title>
     <base href="/" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link rel="preload"
+          href="css/fonts.css"
+          as="style"
+          onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript>
+        <link href="css/fonts.css" rel="stylesheet" />
+    </noscript>
+    <link rel="stylesheet" href="css/bootstrap-icons-subset.css" />
     <link rel="stylesheet" href="css/app.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <link href="MiniPainterHub.WebApp.styles.css" rel="stylesheet" />
-    <link rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" />
 </head>
 
 <body>
     <div id="app">
-        <div class="loading-progress-shell">
-            <svg class="loading-progress">
-                <circle r="40%" cx="50%" cy="50%" />
-                <circle r="40%" cx="50%" cy="50%" />
-            </svg>
-            <div class="loading-progress-text"></div>
+        <div class="loading-progress-shell boot-shell" aria-busy="true" aria-label="Loading MiniPainterHub">
+            <div class="boot-shell__page">
+                <header class="boot-shell__hero">
+                    <div class="boot-shell__eyebrow"></div>
+                    <div class="boot-shell__title"></div>
+                    <div class="boot-shell__copy"></div>
+                    <div class="boot-shell__actions">
+                        <span></span>
+                        <span></span>
+                    </div>
+                </header>
+                <section class="boot-shell__surface" aria-hidden="true">
+                    <div class="boot-shell__section-kicker"></div>
+                    <div class="boot-shell__section-title"></div>
+                    <div class="boot-shell__section-copy"></div>
+                    <div class="boot-shell__grid">
+                        <article class="boot-shell__card">
+                            <div class="boot-shell__media"></div>
+                            <div class="boot-shell__line boot-shell__line--strong"></div>
+                            <div class="boot-shell__line"></div>
+                            <div class="boot-shell__line boot-shell__line--short"></div>
+                        </article>
+                        <article class="boot-shell__card">
+                            <div class="boot-shell__media"></div>
+                            <div class="boot-shell__line boot-shell__line--strong"></div>
+                            <div class="boot-shell__line"></div>
+                            <div class="boot-shell__line boot-shell__line--short"></div>
+                        </article>
+                    </div>
+                </section>
+            </div>
         </div>
     </div>
 
@@ -39,14 +67,12 @@
         window.miniPainterHubPerf = window.miniPainterHubPerf || { bootStart: performance.now() };
     </script>
     <script src="_framework/blazor.webassembly.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
-    <script src="JSHelpers/domHelpers.js"></script>
+    <script src="JSHelpers/domHelpers.js" defer></script>
     <script>
         window.bootstrapToaster = {
             show(message, header, type) {
                 const container = document.getElementById('toast-container');
-                const bs = window.bootstrap;
-                if (!container || !bs) {
+                if (!container) {
                     return;
                 }
 
@@ -59,19 +85,56 @@
 
                 toastElement.innerHTML = `
                     <div class="toast-header bg-transparent border-0">
-                        <strong class="me-auto">${header || 'Notice'}</strong>
-                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                        <strong class="me-auto"></strong>
+                        <button type="button" class="btn-close" aria-label="Close"></button>
                     </div>
                     <div class="toast-body"></div>`;
 
+                toastElement.querySelector('.me-auto').textContent = header || 'Notice';
                 toastElement.querySelector('.toast-body').innerHTML = message || '';
                 container.appendChild(toastElement);
 
-                const toast = bs.Toast.getOrCreateInstance(toastElement, { delay: 4000 });
-                toast.show();
-                toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove());
+                const removeToast = () => {
+                    toastElement.classList.remove('show');
+                    window.setTimeout(() => toastElement.remove(), 180);
+                };
+
+                toastElement.querySelector('.btn-close')?.addEventListener('click', removeToast, { once: true });
+                window.requestAnimationFrame(() => toastElement.classList.add('show'));
+                window.setTimeout(removeToast, 4000);
             }
         };
+    </script>
+    <script>
+        window.addEventListener('load', () => {
+            const warmupScript = document.createElement('script');
+            warmupScript.src = 'JSHelpers/runtimeWarmup.js';
+            warmupScript.async = true;
+            document.head.appendChild(warmupScript);
+        }, { once: true });
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                let serviceWorkerRegistrationStarted = false;
+                const registerServiceWorker = () => {
+                    if (serviceWorkerRegistrationStarted) {
+                        return;
+                    }
+
+                    serviceWorkerRegistrationStarted = true;
+                    navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' })
+                        .catch(() => { });
+                };
+                const registerWhenHidden = () => {
+                    if (document.visibilityState === 'hidden') {
+                        document.removeEventListener('visibilitychange', registerWhenHidden);
+                        registerServiceWorker();
+                    }
+                };
+
+                document.addEventListener('visibilitychange', registerWhenHidden);
+            });
+        }
     </script>
 </body>
 

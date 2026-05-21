@@ -115,6 +115,57 @@ public class PostDetailsViewerTests : TestContext
     }
 
     [Fact]
+    public void ViewerCommentSubmitReloadsOnlyTheVisibleViewerThread()
+    {
+        var scenario = CreateScenario();
+        var commentLoadCount = 0;
+        var commentStub = new StubCommentService
+        {
+            GetByPostWithVisibilityHandler = (_, page, pageSize, _, _) =>
+            {
+                commentLoadCount++;
+                return Task.FromResult(
+                    new ApiResult<PagedResult<CommentDto>>(
+                        true,
+                        HttpStatusCode.OK,
+                        new PagedResult<CommentDto>
+                        {
+                            Items = scenario.Comments.ToList(),
+                            PageNumber = page,
+                            PageSize = pageSize,
+                            TotalCount = scenario.Comments.Count
+                        }));
+            },
+            CreateHandler = (postId, dto) => Task.FromResult(
+                new ApiResult<CommentDto?>(
+                    true,
+                    HttpStatusCode.Created,
+                    new CommentDto
+                    {
+                        Id = 21,
+                        PostId = postId,
+                        AuthorId = "viewer-user",
+                        AuthorName = "viewer",
+                        Content = dto.Text,
+                        CreatedAt = scenario.Post.CreatedAt.AddHours(1)
+                    }))
+        };
+
+        var cut = RenderWithAuth(scenario, commentStub: commentStub);
+
+        cut.Find("[data-testid='post-details-open-viewer-hero']").Click();
+        cut.Find("[data-testid='viewer-side-tab-comments']").Click();
+
+        cut.WaitForAssertion(() => commentLoadCount.Should().Be(2));
+
+        var viewerComposer = cut.Find("[data-testid='viewer-comment-composer']");
+        viewerComposer.QuerySelector("[data-testid='comment-input']")!.Change("Viewer-only reload check");
+        viewerComposer.QuerySelector("[data-testid='comment-submit']")!.Click();
+
+        cut.WaitForAssertion(() => commentLoadCount.Should().Be(3));
+    }
+
+    [Fact]
     public void ClickingPageThumbnailOpensViewerAtThatImage()
     {
         var scenario = CreateScenario();
@@ -231,7 +282,10 @@ public class PostDetailsViewerTests : TestContext
         });
     }
 
-    private IRenderedFragment RenderWithAuth(ViewerScenario scenario, StubCommentMarkService? commentMarkStub = null)
+    private IRenderedFragment RenderWithAuth(
+        ViewerScenario scenario,
+        StubCommentMarkService? commentMarkStub = null,
+        StubCommentService? commentStub = null)
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
 
@@ -241,7 +295,7 @@ public class PostDetailsViewerTests : TestContext
             new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "viewer-user"),
             new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "viewer"));
 
-        this.AddCommentStub(new StubCommentService
+        commentStub ??= new StubCommentService
         {
             GetByPostWithVisibilityHandler = (_, page, pageSize, _, _) => Task.FromResult(
                 new ApiResult<PagedResult<CommentDto>>(
@@ -254,7 +308,9 @@ public class PostDetailsViewerTests : TestContext
                         PageSize = pageSize,
                         TotalCount = scenario.Comments.Count
                     }))
-        });
+        };
+
+        this.AddCommentStub(commentStub);
         this.AddCommentMarkStub(commentMarkStub ?? new StubCommentMarkService
         {
             GetByCommentIdHandler = (commentId, _) => Task.FromResult(scenario.CommentMarks[commentId])

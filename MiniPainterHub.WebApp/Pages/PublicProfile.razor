@@ -5,7 +5,7 @@
 @using MiniPainterHub.WebApp.Services.Http
 @inject IProfileService Profiles
 @inject IFollowService Follows
-@inject IConversationService Conversations
+@inject IConversationSummaryService ConversationSummaries
 @inject IPostService Posts
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Nav
@@ -228,7 +228,7 @@
         _busy = true;
         try
         {
-            var conversation = await Conversations.OpenDirectConversationAsync(UserId);
+            var conversation = await ConversationSummaries.OpenDirectConversationAsync(UserId);
             Nav.NavigateTo($"/messages/{conversation.Id}");
         }
         finally

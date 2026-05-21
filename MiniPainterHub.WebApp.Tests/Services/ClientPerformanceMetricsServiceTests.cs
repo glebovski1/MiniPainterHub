@@ -5,7 +5,6 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
-using Microsoft.Extensions.Options;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.WebApp.Services.Performance;
 using MiniPainterHub.WebApp.Tests.Infrastructure;
@@ -85,11 +84,11 @@ public class ClientPerformanceMetricsServiceTests
 
         return new ClientPerformanceMetricsService(
             httpClient,
-            Options.Create(new ClientPerformanceOptions
+            new ClientPerformanceOptions
             {
                 Enabled = true,
                 SampleRate = 1.0,
                 MaxBatchSize = 50
-            }));
+            });
     }
 }

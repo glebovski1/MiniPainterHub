@@ -4,7 +4,6 @@ using MiniPainterHub.WebApp.Services.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Threading.Tasks;
 
 namespace MiniPainterHub.WebApp.Services
@@ -19,22 +18,22 @@ namespace MiniPainterHub.WebApp.Services
         }
 
         public Task<bool> HidePostAsync(int postId, ModerationActionRequestDto request) =>
-            _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/moderation/posts/{postId}/hide") { Content = JsonContent.Create(request) });
+            _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/moderation/posts/{postId}/hide") { Content = ApiClient.CreateJsonContent(request) });
 
         public Task<bool> RestorePostAsync(int postId, ModerationActionRequestDto request) =>
-            _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/moderation/posts/{postId}/restore") { Content = JsonContent.Create(request) });
+            _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/moderation/posts/{postId}/restore") { Content = ApiClient.CreateJsonContent(request) });
 
         public Task<bool> HideCommentAsync(int commentId, ModerationActionRequestDto request) =>
-            _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/moderation/comments/{commentId}/hide") { Content = JsonContent.Create(request) });
+            _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/moderation/comments/{commentId}/hide") { Content = ApiClient.CreateJsonContent(request) });
 
         public Task<bool> RestoreCommentAsync(int commentId, ModerationActionRequestDto request) =>
-            _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/moderation/comments/{commentId}/restore") { Content = JsonContent.Create(request) });
+            _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/moderation/comments/{commentId}/restore") { Content = ApiClient.CreateJsonContent(request) });
 
         public Task<bool> SuspendUserAsync(string userId, SuspendUserRequestDto request) =>
-            _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/moderation/users/{Uri.EscapeDataString(userId)}/suspend") { Content = JsonContent.Create(request) });
+            _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/moderation/users/{Uri.EscapeDataString(userId)}/suspend") { Content = ApiClient.CreateJsonContent(request) });
 
         public Task<bool> UnsuspendUserAsync(string userId, ModerationActionRequestDto request) =>
-            _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/moderation/users/{Uri.EscapeDataString(userId)}/unsuspend") { Content = JsonContent.Create(request) });
+            _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/moderation/users/{Uri.EscapeDataString(userId)}/unsuspend") { Content = ApiClient.CreateJsonContent(request) });
 
         public Task<ApiResult<PagedResult<ModerationAuditDto>?>> GetAuditAsync(ModerationAuditQueryDto query)
         {

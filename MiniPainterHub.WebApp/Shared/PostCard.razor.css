@@ -1,6 +1,8 @@
 .post-card {
     background: rgba(255, 252, 247, 0.98);
     min-width: 0;
+    contain: layout paint style;
+    box-shadow: none !important;
 }
 
 .post-card__media-link,
@@ -9,7 +11,12 @@
     padding: 0.75rem 0.75rem 0;
 }
 
+.post-card__media-link {
+    min-height: calc(clamp(12rem, 18vw, 15.5rem) + 0.75rem);
+}
+
 .post-card__image {
+    display: block;
     width: 100%;
     aspect-ratio: 16 / 10;
     height: clamp(12rem, 18vw, 15.5rem);
@@ -91,6 +98,10 @@
 }
 
 @media (max-width: 575.98px) {
+    .post-card__media-link {
+        min-height: calc(10.5rem + 0.75rem);
+    }
+
     .post-card__image {
         height: 10.5rem;
     }

@@ -100,7 +100,12 @@
                             <img src="@GetPreviewSource(CurrentPreviewImage)"
                                  class="post-details-gallery__image"
                                  data-testid="post-details-image"
-                                 alt="@post.Title" />
+                                 alt="@post.Title"
+                                 loading="eager"
+                                 fetchpriority="high"
+                                 decoding="async"
+                                 width="@(CurrentPreviewImage.Width ?? 1200)"
+                                 height="@(CurrentPreviewImage.Height ?? 900)" />
                             <span class="post-details-gallery__hint">
                                 <span class="post-details-gallery__hint-title">Open the premium viewer</span>
                                 <span class="post-details-gallery__hint-copy">Zoom, pan, fullscreen, marks, and discussion anchors live in the overlay.</span>
@@ -444,6 +449,7 @@
     private int? _markErrorCommentId;
     private string? _markError;
     private int _commentMarkRequestVersion;
+    private bool _pageCommentsRefreshPending;
     private readonly Dictionary<int, CommentMarkDto> _commentMarkCache = new();
 
     private string ViewerInfoTabId => $"viewer-side-tab-info-{PostId}";
@@ -469,6 +475,11 @@
         || _isCommentPlacementMode
         || _draftCommentMark is not null
         || _activeCommentId.HasValue;
+
+    private bool IsViewerCommentsSurfaceActive =>
+        _isViewerOpen
+        && _viewerSideTab == ViewerSideTab.Comments
+        && ShouldRenderViewerComments;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -527,14 +538,17 @@
 
     private async Task ReloadCommentsAsync()
     {
+        if (IsViewerCommentsSurfaceActive && _viewerCommentList is not null)
+        {
+            await _viewerCommentList.ReloadAsync();
+            _pageCommentsRefreshPending = _commentList is not null;
+            return;
+        }
+
         if (_commentList is not null)
         {
             await _commentList.ReloadAsync();
-        }
-
-        if (_viewerCommentList is not null)
-        {
-            await _viewerCommentList.ReloadAsync();
+            _pageCommentsRefreshPending = false;
         }
     }
 
@@ -623,6 +637,12 @@
         if (_isCommentPlacementMode)
         {
             _isCommentPlacementMode = false;
+        }
+
+        if (_pageCommentsRefreshPending && _commentList is not null)
+        {
+            _pageCommentsRefreshPending = false;
+            await _commentList.ReloadAsync();
         }
     }
 
@@ -796,6 +816,7 @@
         _markErrorCommentId = null;
         _markError = null;
         _commentMarkRequestVersion = 0;
+        _pageCommentsRefreshPending = false;
     }
 
     private static string GetThumbnailSource(PostViewerImageDto image) =>

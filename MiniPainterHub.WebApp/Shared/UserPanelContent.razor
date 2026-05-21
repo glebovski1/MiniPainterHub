@@ -3,7 +3,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Routing
 @using Microsoft.Extensions.DependencyInjection
-@inject IConversationService Conversations
+@inject IConversationSummaryService ConversationSummaries
 @inject IServiceProvider Services
 
 <div class="dashboard-sidebar-content">
@@ -48,7 +48,7 @@
                     </div>
                     <div class="dashboard-hub-stat">
                         <span class="dashboard-hub-stat__label">Unread</span>
-                        <strong class="dashboard-hub-stat__value">@Conversations.UnreadConversationCount</strong>
+                        <strong class="dashboard-hub-stat__value">@ConversationSummaries.UnreadConversationCount</strong>
                     </div>
                 </div>
 
@@ -84,7 +84,7 @@
                             IconClass="bi bi-chat-dots"
                             Title="Messages"
                             Description=""
-                            BadgeText="@(Conversations.UnreadConversationCount > 0 ? Conversations.UnreadConversationCount.ToString() : null)"
+                            BadgeText="@(ConversationSummaries.UnreadConversationCount > 0 ? ConversationSummaries.UnreadConversationCount.ToString() : null)"
                             Split="true"
                             Match="NavLinkMatch.Prefix" />
 
@@ -152,9 +152,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Conversations.OnChange += HandleConversationChange;
-        await Conversations.EnsureRealtimeAsync();
-        await Conversations.GetConversationsAsync(forceRefresh: true);
+        ConversationSummaries.OnChange += HandleConversationChange;
+        await ConversationSummaries.GetConversationsAsync(forceRefresh: true);
 
         var profiles = Services.GetService<IProfileService>();
         if (profiles is null)
@@ -179,7 +178,7 @@
 
     public void Dispose()
     {
-        Conversations.OnChange -= HandleConversationChange;
+        ConversationSummaries.OnChange -= HandleConversationChange;
     }
 
     private string GetDisplayName(AuthenticationState auth)

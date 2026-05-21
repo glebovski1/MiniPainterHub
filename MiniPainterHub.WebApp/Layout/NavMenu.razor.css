@@ -4,9 +4,8 @@
     padding: 0.72rem 0.9rem;
     border: 1px solid var(--border-soft);
     border-radius: var(--radius-lg);
-    background: rgba(255, 252, 247, 0.92);
+    background: rgba(255, 252, 247, 0.98);
     box-shadow: var(--shadow-soft);
-    backdrop-filter: blur(12px);
 }
 
 .atelier-nav__bar {

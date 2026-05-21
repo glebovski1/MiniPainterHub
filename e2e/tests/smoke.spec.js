@@ -546,13 +546,25 @@ test("rich viewer mobile layout plus loading and error states work", async ({ pa
   const viewerPost = await createRichViewerPost(page, request, "mobile-flow");
 
   const delayedImagePattern = new RegExp(viewerPost.primaryImage.previewUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  let releaseDelayedImage;
+  const delayedImageRelease = new Promise((resolve) => {
+    releaseDelayedImage = resolve;
+  });
+  let markDelayedImageRequested;
+  const delayedImageRequested = new Promise((resolve) => {
+    markDelayedImageRequested = resolve;
+  });
+
   await page.route(delayedImagePattern, async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 900));
+    markDelayedImageRequested();
+    await delayedImageRelease;
     await route.continue();
   });
 
   await openViewerFromDetails(page, { waitForImage: false });
+  await delayedImageRequested;
   await expect(page.getByTestId("viewer-skeleton")).toHaveCount(1);
+  releaseDelayedImage();
   await expect(page.getByTestId("viewer-skeleton")).toHaveCount(0);
   await page.unroute(delayedImagePattern);
 

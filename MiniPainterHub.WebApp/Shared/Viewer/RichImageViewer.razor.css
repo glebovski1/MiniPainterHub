@@ -51,11 +51,15 @@
     pointer-events: none;
 }
 
-.viewer-shell__backdrop {
+.viewer-shell__backdrop,
+.viewer-shell__backdrop[style] {
     background:
         linear-gradient(135deg, rgba(130, 208, 203, 0.08), transparent 42%),
-        linear-gradient(315deg, rgba(241, 186, 78, 0.08), transparent 46%);
-    opacity: 0.34;
+        linear-gradient(315deg, rgba(241, 186, 78, 0.08), transparent 46%) !important;
+    opacity: 0.28;
+    filter: none !important;
+    transform: none !important;
+    will-change: auto;
 }
 
 .viewer-shell__wash {
@@ -116,7 +120,7 @@
 }
 
 .viewer-shell__control-rail.has-thumbnails {
-    grid-template-rows: auto minmax(14rem, 1fr);
+    grid-template-rows: auto minmax(0, auto);
     gap: 0.28rem;
     align-content: start;
 }
@@ -206,10 +210,11 @@
 
 .viewer-rail-section--thumbnails {
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, auto) auto;
     gap: 0.18rem;
-    align-self: stretch;
-    height: 100%;
+    align-self: start;
+    height: auto;
+    max-height: 100%;
     overflow: hidden;
 }
 

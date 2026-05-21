@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using Microsoft.AspNetCore.Components.Forms;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.WebApp.Services.Http;
@@ -58,7 +57,7 @@ namespace MiniPainterHub.WebApp.Services
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "api/profiles/me")
             {
-                Content = JsonContent.Create(dto)
+                Content = ApiClient.CreateJsonContent(dto)
             };
 
             var result = await _api.SendAsync<UserProfileDto>(request);
@@ -74,7 +73,7 @@ namespace MiniPainterHub.WebApp.Services
         {
             using var request = new HttpRequestMessage(HttpMethod.Put, "api/profiles/me")
             {
-                Content = JsonContent.Create(dto)
+                Content = ApiClient.CreateJsonContent(dto)
             };
 
             var result = await _api.SendAsync<UserProfileDto>(request);

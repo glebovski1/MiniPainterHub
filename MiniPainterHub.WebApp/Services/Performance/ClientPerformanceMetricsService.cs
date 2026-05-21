@@ -2,16 +2,18 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Options;
 using MiniPainterHub.Common.DTOs;
 
 namespace MiniPainterHub.WebApp.Services.Performance;
 
 public sealed class ClientPerformanceMetricsService : IClientPerformanceMetrics
 {
+    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+
     private static readonly HashSet<string> AllowedUnits = new(StringComparer.Ordinal)
     {
         "ms",
@@ -28,10 +30,10 @@ public sealed class ClientPerformanceMetricsService : IClientPerformanceMetrics
     private bool _sessionEnabled;
     private int _flushScheduled;
 
-    public ClientPerformanceMetricsService(HttpClient httpClient, IOptions<ClientPerformanceOptions> options)
+    public ClientPerformanceMetricsService(HttpClient httpClient, ClientPerformanceOptions options)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+        _options = options ?? throw new ArgumentNullException(nameof(options));
         _sampledIn = _options.SampleRate >= 1 || (_options.SampleRate > 0 && Random.Shared.NextDouble() <= _options.SampleRate);
     }
 
@@ -107,10 +109,10 @@ public sealed class ClientPerformanceMetricsService : IClientPerformanceMetrics
 
         try
         {
-            using var response = await _httpClient.PostAsJsonAsync(
-                "/api/client-performance",
-                new ClientPerformanceBatchDto { Metrics = batch },
-                cancellationToken);
+            var payload = JsonSerializer.Serialize(new ClientPerformanceBatchDto { Metrics = batch }, SerializerOptions);
+            using var content = new StringContent(payload, Encoding.UTF8);
+            content.Headers.ContentType = new("application/json");
+            using var response = await _httpClient.PostAsync("/api/client-performance", content, cancellationToken);
         }
         catch
         {

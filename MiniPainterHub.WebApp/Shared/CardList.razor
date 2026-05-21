@@ -67,10 +67,14 @@ else
     else
     {
         <div class="row row-cols-1 row-cols-md-2 g-4">
-            @foreach (var post in posts)
+            @for (var index = 0; index < posts.Count; index++)
             {
+                var post = posts[index];
                 <div class="col">
-                    <PostCard @key="post.Id" Post="post" OnModerated="ReloadCurrentPageAsync" />
+                    <PostCard @key="post.Id"
+                              Post="post"
+                              IsPriorityImage="@(index < PriorityImageCount)"
+                              OnModerated="ReloadCurrentPageAsync" />
                 </div>
             }
         </div>
@@ -120,6 +124,7 @@ else
     private List<PostSummaryDto> posts = new();
     private bool isLoading = true;
     private const int PageSize = 9;
+    private const int PriorityImageCount = 2;
     private string? loadError;
     private HttpStatusCode? errorStatus;
     private int currentPage = 1;
