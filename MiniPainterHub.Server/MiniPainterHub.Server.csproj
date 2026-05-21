@@ -6,10 +6,8 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <BlazorWebAssemblyEnableDebugging Condition="'$(Configuration)' != 'Release'">true</BlazorWebAssemblyEnableDebugging>
     <BlazorWebAssemblyEnableDebugging Condition="'$(Configuration)' == 'Release'">false</BlazorWebAssemblyEnableDebugging>
-    <DebugType Condition="'$(Configuration)' != 'Release'">full</DebugType>
-    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
-    <DebugSymbols Condition="'$(Configuration)' != 'Release'">true</DebugSymbols>
-    <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>
@@ -51,5 +49,12 @@
   <ItemGroup>
     <Folder Include="wwwroot\" />
   </ItemGroup>
+
+  <Target Name="RemoveSymbolFilesFromPublishOutput" AfterTargets="Publish">
+    <ItemGroup>
+      <PublishedSymbolFiles Include="$(PublishDir)**\*.pdb" />
+    </ItemGroup>
+    <Delete Files="@(PublishedSymbolFiles)" />
+  </Target>
 
 </Project>
