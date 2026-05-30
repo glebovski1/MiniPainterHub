@@ -23,12 +23,12 @@ namespace MiniPainterHub.Server.Services
         private readonly IAccountRestrictionService? _accountRestrictionService;
         public CommentService(
             AppDbContext appDbContext,
-            IAccountRestrictionService? accountRestrictionService = null,
-            CommentMarkService? commentMarkService = null)
+            CommentMarkService commentMarkService,
+            IAccountRestrictionService? accountRestrictionService = null)
         {
-            _appDbContext = appDbContext;
+            _appDbContext = appDbContext ?? throw new ArgumentNullException(nameof(appDbContext));
+            _commentMarkService = commentMarkService ?? throw new ArgumentNullException(nameof(commentMarkService));
             _accountRestrictionService = accountRestrictionService;
-            _commentMarkService = commentMarkService ?? new CommentMarkService(appDbContext);
         }
         public async Task<CommentDto> CreateAsync(string userId, int postId, CreateCommentDto dto)
         {

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MiniPainterHub.Server.Entities;
+using MiniPainterHub.Server.Features.Tags;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services;
 using MiniPainterHub.Server.Services.Interfaces;
@@ -655,7 +656,7 @@ public sealed class DevelopmentContentSeeder
             if (!tagsByNormalizedName.TryGetValue(normalizedName, out var tag))
             {
                 var baseSlug = TagTextUtilities.CreateSlug(displayName);
-                var slug = ResolveUniqueSlug(baseSlug, usedSlugs);
+                var slug = TagTextUtilities.ResolveUniqueSlug(baseSlug, usedSlugs);
                 tag = new Tag
                 {
                     DisplayName = displayName,
@@ -674,19 +675,6 @@ public sealed class DevelopmentContentSeeder
                 Tag = tag
             });
         }
-    }
-
-    private static string ResolveUniqueSlug(string baseSlug, ISet<string> usedSlugs)
-    {
-        var candidate = baseSlug;
-        var suffix = 2;
-        while (usedSlugs.Contains(candidate))
-        {
-            candidate = $"{baseSlug}-{suffix}";
-            suffix++;
-        }
-
-        return candidate;
     }
 
     private static List<Comment> CreateComments(

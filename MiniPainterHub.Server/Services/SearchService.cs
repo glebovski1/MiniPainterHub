@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Features.Tags;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;

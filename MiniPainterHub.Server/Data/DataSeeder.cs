@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MiniPainterHub.Server.Entities;
+using MiniPainterHub.Server.Features.Tags;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services;
 using MiniPainterHub.Server.Services.Interfaces;
@@ -317,7 +318,7 @@ namespace MiniPainterHub.Server.Data
                         continue;
                     }
 
-                    var slug = ResolveUniqueSlug(baseSlug, usedSlugs);
+                    var slug = TagTextUtilities.ResolveUniqueSlug(baseSlug, usedSlugs);
                     tag = new Tag
                     {
                         DisplayName = displayName,
@@ -352,19 +353,6 @@ namespace MiniPainterHub.Server.Data
                 post.PostTags.Remove(postTag);
                 db.PostTags.Remove(postTag);
             }
-        }
-
-        private static string ResolveUniqueSlug(string baseSlug, ISet<string> usedSlugs)
-        {
-            var candidate = baseSlug;
-            var suffix = 2;
-            while (usedSlugs.Contains(candidate))
-            {
-                candidate = $"{baseSlug}-{suffix}";
-                suffix++;
-            }
-
-            return candidate;
         }
 
         private static void ValidateSeedPosts()

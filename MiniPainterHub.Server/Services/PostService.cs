@@ -7,6 +7,9 @@ using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Features.Media;
+using MiniPainterHub.Server.Features.Posts;
+using MiniPainterHub.Server.Features.Tags;
 using MiniPainterHub.Server.Imaging;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services.Interfaces;
@@ -20,8 +23,6 @@ namespace MiniPainterHub.Server.Services
 {
     public class PostService : IPostService
     {
-        private const int MaxImagesPerPost = 8;
-        private const long MaxUploadBytes = 20L * 1024 * 1024;
         private readonly AppDbContext _appDbContext;
         private readonly IImageService _imageService;
         private readonly IImageProcessor _imageProcessor;
@@ -85,7 +86,7 @@ namespace MiniPainterHub.Server.Services
 
             if (dto.Images != null)
             {
-                foreach (var img in dto.Images.Take(MaxImagesPerPost))
+                foreach (var img in dto.Images.Take(PostImageUploadValidator.MaxImagesPerPost))
                 {
                     newPost.Images.Add(new PostImage
                     {
@@ -109,7 +110,7 @@ namespace MiniPainterHub.Server.Services
                 Title = newPost.Title,
                 Content = newPost.Content,
                 CreatedAt = newPost.CreatedUtc,
-                AuthorName = ResolveDisplayName(user.UserName, user.Profile?.DisplayName),
+                AuthorName = PostDtoMapper.ResolveDisplayName(user.UserName, user.Profile?.DisplayName),
                 ImageUrl = newPost.Images.OrderBy(i => i.Id).Select(i => i.ImageUrl).FirstOrDefault(),
                 Images = newPost.Images.Select(i => new PostImageDto
                 {
@@ -212,7 +213,7 @@ namespace MiniPainterHub.Server.Services
 
             return topItems
                 .Where(item => posts.ContainsKey(item.Id))
-                .Select(item => MapPostSummaryDto(posts[item.Id], item.CommentCount, item.LikeCount))
+                .Select(item => PostDtoMapper.ToPostSummaryDto(posts[item.Id], item.CommentCount, item.LikeCount))
                 .ToList();
         }
 
@@ -226,7 +227,7 @@ namespace MiniPainterHub.Server.Services
                 throw new NotFoundException("Post not found.");
             }
 
-            return MapPostDto(post);
+            return PostDtoMapper.ToPostDto(post);
         }
 
         public async Task<bool> UpdateAsync(int postId, string userId, UpdatePostDto dto)
@@ -257,15 +258,15 @@ namespace MiniPainterHub.Server.Services
             ArgumentNullException.ThrowIfNull(dto);
             ct.ThrowIfCancellationRequested();
 
-            if (dto.Images != null && dto.Images.Count > MaxImagesPerPost)
+            if (dto.Images != null && dto.Images.Count > PostImageUploadValidator.MaxImagesPerPost)
             {
                 throw new DomainValidationException("Invalid post images.", new Dictionary<string, string[]>
                 {
-                    ["Images"] = new[] { $"A maximum of {MaxImagesPerPost} images is allowed." }
+                    ["Images"] = new[] { $"A maximum of {PostImageUploadValidator.MaxImagesPerPost} images is allowed." }
                 });
             }
 
-            ValidateIncomingImages(dto.Images, dto.Thumbnails);
+            PostImageUploadValidator.Validate(dto.Images, dto.Thumbnails, _imageOptions);
 
             var created = await CreateAsync(userId, new CreatePostDto
             {
@@ -281,7 +282,7 @@ namespace MiniPainterHub.Server.Services
 
             _logger.LogInformation(
                 "Processing {Count} uploaded images for post {PostId} (pipeline enabled: {Enabled})",
-                Math.Min(dto.Images.Count, MaxImagesPerPost),
+                Math.Min(dto.Images.Count, PostImageUploadValidator.MaxImagesPerPost),
                 created.Id,
                 _imageOptions.Enabled);
 
@@ -342,7 +343,7 @@ namespace MiniPainterHub.Server.Services
                 ?? throw new NotFoundException("Post not found.");
 
             var incoming = images ?? Enumerable.Empty<PendingPostImage>();
-            var remainingSlots = Math.Max(0, MaxImagesPerPost - post.Images.Count);
+            var remainingSlots = Math.Max(0, PostImageUploadValidator.MaxImagesPerPost - post.Images.Count);
             var toAdd = incoming
                 .Take(remainingSlots)
                 .Select(pending => new PostImage
@@ -422,7 +423,7 @@ namespace MiniPainterHub.Server.Services
                 .ToDictionaryAsync(p => p.Id);
             var items = pageItems
                 .Where(item => posts.ContainsKey(item.Id))
-                .Select(item => MapPostSummaryDto(posts[item.Id], item.CommentCount, item.LikeCount))
+                .Select(item => PostDtoMapper.ToPostSummaryDto(posts[item.Id], item.CommentCount, item.LikeCount))
                 .ToList();
 
             return new PagedResult<PostSummaryDto>
@@ -505,7 +506,7 @@ namespace MiniPainterHub.Server.Services
                     continue;
                 }
 
-                var slug = ResolveUniqueSlug(normalizedTag.Slug, usedSlugs);
+                var slug = TagTextUtilities.ResolveUniqueSlug(normalizedTag.Slug, usedSlugs);
                 var tag = new Tag
                 {
                     DisplayName = normalizedTag.DisplayName,
@@ -576,19 +577,6 @@ namespace MiniPainterHub.Server.Services
             return normalized;
         }
 
-        private static string ResolveUniqueSlug(string baseSlug, ISet<string> usedSlugs)
-        {
-            var candidate = baseSlug;
-            var suffix = 2;
-            while (usedSlugs.Contains(candidate))
-            {
-                candidate = $"{baseSlug}-{suffix}";
-                suffix++;
-            }
-
-            return candidate;
-        }
-
         private static void ValidatePaging(int page, int pageSize)
         {
             var errors = new Dictionary<string, string[]>();
@@ -630,44 +618,6 @@ namespace MiniPainterHub.Server.Services
             }
         }
 
-        private void ValidateIncomingImages(
-            IReadOnlyList<IFormFile>? images,
-            IReadOnlyList<IFormFile>? thumbnails)
-        {
-            if (images is null)
-            {
-                return;
-            }
-
-            for (var i = 0; i < images.Count && i < MaxImagesPerPost; i++)
-            {
-                var image = images[i];
-                if (image.Length > MaxUploadBytes)
-                {
-                    throw new ImageTooLargeException(image.FileName, image.Length, MaxUploadBytes);
-                }
-
-                if (_imageOptions.Enabled)
-                {
-                    var contentType = ResolveContentType(image);
-                    if (!ImageContentTypes.IsAllowed(contentType))
-                    {
-                        throw new UnsupportedImageContentTypeException(image.FileName, contentType);
-                    }
-                }
-
-                if (_imageOptions.Enabled || thumbnails is null || i >= thumbnails.Count || thumbnails[i] is not { Length: > 0 } thumb)
-                {
-                    continue;
-                }
-
-                if (thumb.Length > MaxUploadBytes)
-                {
-                    throw new ImageTooLargeException(thumb.FileName, thumb.Length, MaxUploadBytes);
-                }
-            }
-        }
-
         private async Task ProcessWithLegacyAsync(
             int postId,
             IReadOnlyList<IFormFile> images,
@@ -675,7 +625,7 @@ namespace MiniPainterHub.Server.Services
             List<ProcessedImageResult> results,
             CancellationToken ct)
         {
-            for (var i = 0; i < images.Count && i < MaxImagesPerPost; i++)
+            for (var i = 0; i < images.Count && i < PostImageUploadValidator.MaxImagesPerPost; i++)
             {
                 ct.ThrowIfCancellationRequested();
 
@@ -724,7 +674,7 @@ namespace MiniPainterHub.Server.Services
             List<ProcessedImageResult> results,
             CancellationToken ct)
         {
-            for (var i = 0; i < images.Count && i < MaxImagesPerPost; i++)
+            for (var i = 0; i < images.Count && i < PostImageUploadValidator.MaxImagesPerPost; i++)
             {
                 ct.ThrowIfCancellationRequested();
 
@@ -892,113 +842,6 @@ namespace MiniPainterHub.Server.Services
                 .Include(p => p.Images)
                 .Include(p => p.PostTags)
                 .ThenInclude(pt => pt.Tag);
-
-        private static PostDto MapPostDto(Post post) =>
-            new()
-            {
-                Id = post.Id,
-                CreatedById = post.CreatedById,
-                Title = post.Title,
-                Content = post.Content,
-                CreatedAt = post.CreatedUtc,
-                AuthorName = ResolveDisplayName(post.CreatedBy?.UserName, post.CreatedBy?.Profile?.DisplayName),
-                ImageUrl = post.Images
-                    .OrderBy(i => i.Id)
-                    .Where(i => !string.IsNullOrEmpty(i.ImageUrl))
-                    .Select(i => i.ImageUrl)
-                    .FirstOrDefault(),
-                Images = post.Images
-                    .OrderBy(i => i.Id)
-                    .Select(i => new PostImageDto
-                    {
-                        Id = i.Id,
-                        ImageUrl = i.ImageUrl,
-                        PreviewUrl = i.PreviewUrl,
-                        ThumbnailUrl = i.ThumbnailUrl,
-                        Width = i.Width,
-                        Height = i.Height
-                    })
-                    .ToList(),
-                Tags = MapTags(post.PostTags)
-            };
-
-        private static PostSummaryDto MapPostSummaryDto(Post post, int commentCount, int likeCount)
-        {
-            var primaryImage = post.Images.OrderBy(i => i.Id).FirstOrDefault();
-
-            return new()
-            {
-                Id = post.Id,
-                Title = post.Title,
-                Snippet = post.Content.Length > 100 ? post.Content.Substring(0, 100) + "..." : post.Content,
-                ImageUrl = primaryImage?.ImageUrl,
-                ThumbnailUrl = ResolveSummaryThumbnailUrl(primaryImage),
-                AuthorName = ResolveDisplayName(post.CreatedBy?.UserName, post.CreatedBy?.Profile?.DisplayName),
-                AuthorId = post.CreatedById,
-                CreatedAt = post.CreatedUtc,
-                CommentCount = commentCount,
-                LikeCount = likeCount,
-                IsDeleted = post.IsDeleted,
-                Tags = MapTags(post.PostTags)
-            };
-        }
-
-        private static string? ResolveSummaryThumbnailUrl(PostImage? image)
-        {
-            if (image is null)
-            {
-                return null;
-            }
-
-            if (IsUsableVariantUrl(image.ThumbnailUrl, image.ImageUrl))
-            {
-                return image.ThumbnailUrl;
-            }
-
-            if (IsUsableVariantUrl(image.PreviewUrl, image.ImageUrl))
-            {
-                return image.PreviewUrl;
-            }
-
-            return BuildThumbnailEndpointUrl(image.ImageUrl);
-        }
-
-        private static bool IsUsableVariantUrl(string? candidateUrl, string? fullImageUrl) =>
-            !string.IsNullOrWhiteSpace(candidateUrl)
-            && !string.Equals(candidateUrl, fullImageUrl, StringComparison.OrdinalIgnoreCase);
-
-        private static string? BuildThumbnailEndpointUrl(string? imageUrl)
-        {
-            if (string.IsNullOrWhiteSpace(imageUrl))
-            {
-                return null;
-            }
-
-            var path = imageUrl;
-            if (Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri))
-            {
-                path = uri.AbsolutePath;
-            }
-
-            return path.StartsWith("/uploads/images/", StringComparison.OrdinalIgnoreCase)
-                ? "/api/images/thumbnail?url=" + Uri.EscapeDataString(path)
-                : null;
-        }
-
-        private static List<TagDto> MapTags(IEnumerable<PostTag> postTags) =>
-            postTags
-                .OrderBy(pt => pt.Tag.DisplayName)
-                .Select(pt => new TagDto
-                {
-                    Name = pt.Tag.DisplayName,
-                    Slug = pt.Tag.Slug
-                })
-                .ToList();
-
-        private static string ResolveDisplayName(string? userName, string? profileDisplayName) =>
-            string.IsNullOrWhiteSpace(profileDisplayName) ? (userName ?? string.Empty) : profileDisplayName;
-
-        private sealed record NormalizedTagRequest(string DisplayName, string NormalizedName, string Slug);
 
         private sealed record PostSummaryPageItem(int Id, int CommentCount, int LikeCount);
 

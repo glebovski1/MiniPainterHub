@@ -14,6 +14,9 @@ namespace MiniPainterHub.Server.Tests.Services;
 
 public class CommentServiceTests
 {
+    private static CommentService CreateService(MiniPainterHub.Server.Data.AppDbContext context) =>
+        new(context, new CommentMarkService(context));
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -26,7 +29,7 @@ public class CommentServiceTests
         await context.Users.AddAsync(user);
         await context.Posts.AddAsync(post);
         await context.SaveChangesAsync();
-        var service = new CommentService(context);
+        var service = CreateService(context);
 
         var act = async () => await service.CreateAsync(userId!, post.Id, new MiniPainterHub.Common.DTOs.CreateCommentDto
         {
@@ -48,7 +51,7 @@ public class CommentServiceTests
         await context.Users.AddAsync(user);
         await context.Posts.AddAsync(post);
         await context.SaveChangesAsync();
-        var service = new CommentService(context);
+        var service = CreateService(context);
 
         var act = async () => await service.CreateAsync(user.Id, post.Id, new MiniPainterHub.Common.DTOs.CreateCommentDto
         {
@@ -67,7 +70,7 @@ public class CommentServiceTests
     public async Task CreateAsync_WhenPostIsMissing_ThrowsNotFoundException()
     {
         await using var context = AppDbContextFactory.Create();
-        var service = new CommentService(context);
+        var service = CreateService(context);
 
         var act = async () => await service.CreateAsync("user-1", 99, new MiniPainterHub.Common.DTOs.CreateCommentDto { Text = "Test" });
 
@@ -87,7 +90,7 @@ public class CommentServiceTests
         string expectedMessage)
     {
         await using var context = AppDbContextFactory.Create();
-        var service = new CommentService(context);
+        var service = CreateService(context);
 
         var act = async () => await service.GetByPostIdAsync(1, page, pageSize);
 
@@ -102,7 +105,7 @@ public class CommentServiceTests
     public async Task GetByPostIdAsync_WhenPageAndPageSizeInvalid_ThrowsDomainValidationExceptionWithAllErrors()
     {
         await using var context = AppDbContextFactory.Create();
-        var service = new CommentService(context);
+        var service = CreateService(context);
 
         var act = async () => await service.GetByPostIdAsync(1, 0, 0);
 
@@ -127,7 +130,7 @@ public class CommentServiceTests
         await context.Posts.AddAsync(post);
         await context.Comments.AddAsync(comment);
         await context.SaveChangesAsync();
-        var service = new CommentService(context);
+        var service = CreateService(context);
 
         var act = async () => await service.DeleteAsync(comment.Id, user.Id, isAdmin: false);
 
@@ -149,7 +152,7 @@ public class CommentServiceTests
         await context.Posts.AddAsync(post);
         await context.Comments.AddAsync(comment);
         await context.SaveChangesAsync();
-        var service = new CommentService(context);
+        var service = CreateService(context);
 
         var act = async () => await service.DeleteAsync(comment.Id, userId!, isAdmin: false);
 
@@ -168,7 +171,7 @@ public class CommentServiceTests
         await context.Posts.AddAsync(post);
         await context.Comments.AddAsync(comment);
         await context.SaveChangesAsync();
-        var service = new CommentService(context);
+        var service = CreateService(context);
         var dto = new MiniPainterHub.Common.DTOs.UpdateCommentDto { Content = "Updated" };
 
         var result = await service.UpdateAsync(comment.Id, user.Id, dto);
@@ -191,7 +194,7 @@ public class CommentServiceTests
         await context.Posts.AddAsync(post);
         await context.Comments.AddAsync(comment);
         await context.SaveChangesAsync();
-        var service = new CommentService(context);
+        var service = CreateService(context);
 
         var act = async () => await service.UpdateAsync(comment.Id, userId!, new MiniPainterHub.Common.DTOs.UpdateCommentDto
         {
@@ -215,7 +218,7 @@ public class CommentServiceTests
         await context.Posts.AddAsync(post);
         await context.Comments.AddAsync(comment);
         await context.SaveChangesAsync();
-        var service = new CommentService(context);
+        var service = CreateService(context);
 
         var act = async () => await service.UpdateAsync(comment.Id, user.Id, new MiniPainterHub.Common.DTOs.UpdateCommentDto
         {
@@ -241,7 +244,7 @@ public class CommentServiceTests
         await context.Posts.AddAsync(post);
         await context.Comments.AddAsync(comment);
         await context.SaveChangesAsync();
-        var service = new CommentService(context);
+        var service = CreateService(context);
 
         var result = await service.GetByIdAsync(comment.Id);
 
@@ -257,7 +260,7 @@ public class CommentServiceTests
     public async Task GetByIdAsync_WhenCommentMissing_ThrowsNotFoundException()
     {
         await using var context = AppDbContextFactory.Create();
-        var service = new CommentService(context);
+        var service = CreateService(context);
 
         var act = async () => await service.GetByIdAsync(777);
 
@@ -277,7 +280,7 @@ public class CommentServiceTests
         await context.Posts.AddAsync(post);
         await context.Comments.AddRangeAsync(visibleComment, hiddenComment);
         await context.SaveChangesAsync();
-        var service = new CommentService(context);
+        var service = CreateService(context);
 
         var result = await service.GetByPostIdAsync(post.Id, 1, 20, includeDeleted: true, deletedOnly: false);
 
@@ -298,7 +301,7 @@ public class CommentServiceTests
         await context.Posts.AddAsync(post);
         await context.Comments.AddRangeAsync(visibleComment, hiddenComment);
         await context.SaveChangesAsync();
-        var service = new CommentService(context);
+        var service = CreateService(context);
 
         var result = await service.GetByPostIdAsync(post.Id, 1, 20, includeDeleted: true, deletedOnly: true);
 
@@ -318,7 +321,7 @@ public class CommentServiceTests
         await context.Posts.AddAsync(post);
         await context.PostImages.AddAsync(image);
         await context.SaveChangesAsync();
-        var service = new CommentService(context);
+        var service = CreateService(context);
 
         var result = await service.CreateAsync(user.Id, post.Id, new CreateCommentDto
         {
@@ -353,7 +356,7 @@ public class CommentServiceTests
         await context.Posts.AddRangeAsync(post, otherPost);
         await context.PostImages.AddAsync(otherImage);
         await context.SaveChangesAsync();
-        var service = new CommentService(context);
+        var service = CreateService(context);
 
         var act = async () => await service.CreateAsync(user.Id, post.Id, new CreateCommentDto
         {

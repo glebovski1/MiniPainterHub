@@ -29,6 +29,12 @@ High-level runtime flow:
 
 Primary entry point: `MiniPainterHub.Server/Program.cs`.
 
+`Program.cs` is the composition orchestrator only. Startup implementation is split under
+`MiniPainterHub.Server/Infrastructure/Startup`:
+- `ServiceRegistration.cs` owns framework, auth, image infrastructure, and domain service registration.
+- `ApplicationStartup.cs` owns local/production database startup and seeding.
+- `HttpPipeline.cs` owns middleware ordering, static files, endpoint mapping, and test-support reset routing.
+
 Configured middleware (in order):
 
 1. Exception handling (`UseExceptionHandler`)
@@ -60,7 +66,14 @@ Production-only:
 
 ### 2.2 Dependency Injection and Service Layer
 
-Business logic lives in `MiniPainterHub.Server/Services` behind interfaces in `Services/Interfaces`.
+Business logic is being modularized as a monolith. Legacy service entry points remain in
+`MiniPainterHub.Server/Services` behind interfaces in `Services/Interfaces`, while extracted
+feature-owned helpers live under `MiniPainterHub.Server/Features`.
+
+Current extracted backend feature modules:
+- `Features/Tags`: shared tag text normalization, slug creation, and unique slug resolution for posts, search, and seeders.
+- `Features/Media`: post image upload limits and validation.
+- `Features/Posts`: post DTO/projection mapping.
 
 Registered scoped domain services:
 - `IProfileService -> ProfileService`
@@ -194,13 +207,16 @@ Main controllers under `MiniPainterHub.Server/Controllers`:
 Post image uploads:
 - Entry: `PostsController.CreateWithImage([FromForm] CreateImagePostDto dto)`
 - Service: `PostService.CreateWithImagesAsync(...)`
-- Limits include max images per post and max upload size.
+- Limits include max images per post and max upload size, centralized in `Features/Media/PostImageUploadValidator`.
 
 Two storage paths:
 - Legacy direct upload path through `IImageService.UploadAsync(...)`.
 - Processing pipeline path through:
   - `IImageProcessor.ProcessAsync(...)` (variant generation)
   - `IImageStore.SaveAsync(...)` (persist variants)
+
+Post projection mapping is centralized in `Features/Posts/PostDtoMapper` so query and detail
+responses share thumbnail fallback and tag ordering behavior.
 
 Profile avatar uploads:
 - Entry: `ProfilesController.UploadAvatar`
