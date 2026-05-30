@@ -17,6 +17,7 @@ Start here for durable MiniPainterHub project knowledge.
 
 - [Engineering index](<../20 Engineering/README.md>)
 - [Architecture](<../20 Engineering/ARCHITECTURE.md>)
+- [Blazor WASM performance log](<../20 Engineering/Blazor WASM Performance Log.md>)
 - [Code style](<../20 Engineering/CODE_STYLE.md>)
 - [Deployment](<../20 Engineering/DEPLOYMENT.md>)
 
