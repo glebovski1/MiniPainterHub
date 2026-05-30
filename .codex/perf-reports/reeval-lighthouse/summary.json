@@ -1,0 +1,138 @@
+[
+  {
+    "route": "/",
+    "url": "http://127.0.0.1:5176/",
+    "mode": "mobile-default",
+    "render": {
+      "title": "Latest posts",
+      "bodySnippet": "MP\nMiniPainterHub\nA warm atelier for miniature painters\nSearch posts, users, tags\nSearch\nLatest\nExplore\nTop posts\nHighlights\nAbout\nLogin\nRegister\n\nCOMMUNITY FEE",
+      "rendered": true,
+      "errors": []
+    },
+    "lighthouseExit": 1,
+    "parsed": {
+      "categories": {
+        "performance": 39,
+        "accessibility": 98,
+        "best-practices": 100,
+        "seo": 91
+      },
+      "metrics": {
+        "fcp": "2.7 s",
+        "lcp": "15.9 s",
+        "tbt": "3,030 ms",
+        "si": "4.5 s",
+        "cls": "0"
+      },
+      "opportunities": [
+        {
+          "id": "unused-javascript",
+          "title": "Reduce unused JavaScript",
+          "savingsMs": 150,
+          "displayValue": "Est savings of 23 KiB"
+        }
+      ]
+    },
+    "stderrTail": "Error: EPERM, Permission denied: \\\\?\\C:\\Users\\uslep\\AppData\\Local\\Temp\\lighthouse.95037961 '\\\\?\\C:\\Users\\uslep\\AppData\\Local\\Temp\\lighthouse.95037961'\n    at rmSync (node:fs:1236:18)\n    at Launcher.destroyTmp (file:///C:/Users/uslep/source/repos/MiniPainterHub/e2e/node_modules/chrome-launcher/dist/chrome-launcher.js:367:9)\n    at Launcher.kill (file:///C:/Users/uslep/source/repos/MiniPainterHub/e2e/node_modules/chrome-launcher/dist/chrome-launcher.js:349:14)\n    at Object.kill (file:///C:/Users/uslep/source/repos/MiniPainterHub/e2e/node_modules/chrome-launcher/dist/chrome-launcher.js:39:18)\n    at runLighthouse (file:///C:/Users/uslep/source/repos/MiniPainterHub/e2e/node_modules/lighthouse/cli/run.js:217:21)\n    at async file:///C:/Users/uslep/source/repos/MiniPainterHub/e2e/node_modules/lighthouse/cli/index.js:10:1\n"
+  },
+  {
+    "route": "/",
+    "url": "http://127.0.0.1:5176/",
+    "mode": "desktop",
+    "render": {
+      "title": "Latest posts",
+      "bodySnippet": "MP\nMiniPainterHub\nA warm atelier for miniature painters\nSearch posts, users, tags\nSearch\nLatest\nExplore\nTop posts\nHighlights\nAbout\nLogin\nRegister\n\nCOMMUNITY FEE",
+      "rendered": true,
+      "errors": []
+    },
+    "lighthouseExit": 1,
+    "parsed": {
+      "categories": {
+        "performance": 61,
+        "accessibility": 99,
+        "best-practices": 100,
+        "seo": 91
+      },
+      "metrics": {
+        "fcp": "0.6 s",
+        "lcp": "2.9 s",
+        "tbt": "530 ms",
+        "si": "0.8 s",
+        "cls": "0"
+      },
+      "opportunities": []
+    },
+    "stderrTail": "Error: EPERM, Permission denied: \\\\?\\C:\\Users\\uslep\\AppData\\Local\\Temp\\lighthouse.36775045 '\\\\?\\C:\\Users\\uslep\\AppData\\Local\\Temp\\lighthouse.36775045'\n    at rmSync (node:fs:1236:18)\n    at Launcher.destroyTmp (file:///C:/Users/uslep/source/repos/MiniPainterHub/e2e/node_modules/chrome-launcher/dist/chrome-launcher.js:367:9)\n    at Launcher.kill (file:///C:/Users/uslep/source/repos/MiniPainterHub/e2e/node_modules/chrome-launcher/dist/chrome-launcher.js:349:14)\n    at Object.kill (file:///C:/Users/uslep/source/repos/MiniPainterHub/e2e/node_modules/chrome-launcher/dist/chrome-launcher.js:39:18)\n    at runLighthouse (file:///C:/Users/uslep/source/repos/MiniPainterHub/e2e/node_modules/lighthouse/cli/run.js:217:21)\n    at async file:///C:/Users/uslep/source/repos/MiniPainterHub/e2e/node_modules/lighthouse/cli/index.js:10:1\n"
+  },
+  {
+    "route": "/posts/30",
+    "url": "http://127.0.0.1:5176/posts/30",
+    "mode": "mobile-default",
+    "render": {
+      "title": "MiniPainterHub",
+      "bodySnippet": "MP\nMiniPainterHub\nA warm atelier for miniature painters\nSearch posts, users, tags\nSearch\nLatest\nExplore\nTop posts\nHighlights\nAbout\nLogin\nRegister\n\nPOST DETAILS\n",
+      "rendered": true,
+      "errors": []
+    },
+    "lighthouseExit": 0,
+    "parsed": {
+      "categories": {
+        "performance": 44,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 91
+      },
+      "metrics": {
+        "fcp": "2.1 s",
+        "lcp": "15.8 s",
+        "tbt": "2,310 ms",
+        "si": "2.2 s",
+        "cls": "0.044"
+      },
+      "opportunities": [
+        {
+          "id": "unused-css-rules",
+          "title": "Reduce unused CSS",
+          "savingsMs": 300,
+          "displayValue": "Est savings of 56 KiB"
+        },
+        {
+          "id": "unused-javascript",
+          "title": "Reduce unused JavaScript",
+          "savingsMs": 150,
+          "displayValue": "Est savings of 23 KiB"
+        }
+      ]
+    },
+    "stderrTail": ""
+  },
+  {
+    "route": "/posts/30",
+    "url": "http://127.0.0.1:5176/posts/30",
+    "mode": "desktop",
+    "render": {
+      "title": "MiniPainterHub",
+      "bodySnippet": "MP\nMiniPainterHub\nA warm atelier for miniature painters\nSearch posts, users, tags\nSearch\nLatest\nExplore\nTop posts\nHighlights\nAbout\nLogin\nRegister\n\nPOST DETAILS\n",
+      "rendered": true,
+      "errors": []
+    },
+    "lighthouseExit": 1,
+    "parsed": {
+      "categories": {
+        "performance": 62,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 91
+      },
+      "metrics": {
+        "fcp": "0.5 s",
+        "lcp": "3.0 s",
+        "tbt": "510 ms",
+        "si": "0.8 s",
+        "cls": "0"
+      },
+      "opportunities": []
+    },
+    "stderrTail": "Error: EPERM, Permission denied: \\\\?\\C:\\Users\\uslep\\AppData\\Local\\Temp\\lighthouse.60023843 '\\\\?\\C:\\Users\\uslep\\AppData\\Local\\Temp\\lighthouse.60023843'\n    at rmSync (node:fs:1236:18)\n    at Launcher.destroyTmp (file:///C:/Users/uslep/source/repos/MiniPainterHub/e2e/node_modules/chrome-launcher/dist/chrome-launcher.js:367:9)\n    at Launcher.kill (file:///C:/Users/uslep/source/repos/MiniPainterHub/e2e/node_modules/chrome-launcher/dist/chrome-launcher.js:349:14)\n    at Object.kill (file:///C:/Users/uslep/source/repos/MiniPainterHub/e2e/node_modules/chrome-launcher/dist/chrome-launcher.js:39:18)\n    at runLighthouse (file:///C:/Users/uslep/source/repos/MiniPainterHub/e2e/node_modules/lighthouse/cli/run.js:217:21)\n    at async file:///C:/Users/uslep/source/repos/MiniPainterHub/e2e/node_modules/lighthouse/cli/index.js:10:1\n"
+  }
+]

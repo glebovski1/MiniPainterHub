@@ -9,6 +9,7 @@ Update triggers: source-of-truth architecture changes, deployment process change
 ## Current Source Of Truth
 
 - [Architecture](<ARCHITECTURE.md>) - system shape, service boundaries, persistence, API surface, client architecture, and preferred validation commands.
+- [Blazor WASM performance log](<Blazor WASM Performance Log.md>) - durable performance lessons, current metrics, WASM tradeoffs, and next optimization paths.
 - [Code style](<CODE_STYLE.md>) - local C# and repo conventions.
 - [Deployment](<DEPLOYMENT.md>) - Azure/App Service publishing, production settings, and deployment diagnostics.
 - [Best practices](<../30 Process/BEST_PRACTICES.md>) - cross-cutting engineering guidance.
