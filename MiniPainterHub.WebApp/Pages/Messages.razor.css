@@ -1,0 +1,119 @@
+.message-layout {
+    display: grid;
+    gap: 1rem;
+}
+
+.message-thread {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    min-height: 20rem;
+}
+
+.message-bubble {
+    max-width: min(76%, 34rem);
+    padding: 0.85rem 0.95rem;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(217, 208, 194, 0.92);
+    box-shadow: 0 8px 18px rgba(23, 33, 39, 0.045);
+}
+
+.message-bubble--mine {
+    margin-left: auto;
+    color: #fef9f1;
+    background: linear-gradient(135deg, var(--primary-700), var(--primary-500));
+    border-color: transparent;
+}
+
+.message-bubble__meta {
+    font-size: 0.78rem;
+    color: var(--ink-500);
+}
+
+.message-bubble--mine .message-bubble__meta {
+    color: rgba(254, 249, 241, 0.72);
+}
+
+.message-layout--polished {
+    align-items: start;
+}
+
+.message-inbox-panel,
+.message-thread-panel {
+    min-width: 0;
+}
+
+.message-inbox-panel {
+    align-self: start;
+}
+
+.message-conversation-list {
+    display: grid;
+    gap: 0.48rem;
+}
+
+.message-conversation-list.list-group-flush > .list-group-item {
+    border-width: 1px;
+}
+
+.message-thread-panel {
+    display: grid;
+    gap: 0.95rem;
+}
+
+.message-composer {
+    margin-top: 1rem;
+    padding-top: 0.95rem;
+    border-top: 1px solid rgba(217, 208, 194, 0.68);
+}
+
+.message-composer .input-group {
+    align-items: stretch;
+}
+
+.message-composer ::deep .form-control {
+    min-height: 3rem;
+}
+
+.message-empty-steps {
+    display: grid;
+    gap: 0.7rem;
+    width: min(100%, 26rem);
+    margin-top: 0.6rem;
+}
+
+.message-empty-steps__item {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    justify-content: flex-start;
+    padding: 0.7rem 0.85rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(217, 208, 194, 0.92);
+    background: rgba(255, 253, 249, 0.9);
+    color: var(--ink-700);
+}
+
+.message-empty-steps__number {
+    display: inline-flex;
+    width: 1.7rem;
+    height: 1.7rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: rgba(31, 91, 82, 0.1);
+    color: var(--primary-700);
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+@media (min-width: 992px) {
+    .message-layout {
+        grid-template-columns: minmax(18rem, 0.6fr) minmax(0, 1.4fr);
+    }
+
+    .message-layout--polished {
+        grid-template-columns: minmax(17.5rem, 0.56fr) minmax(0, 1.44fr);
+    }
+}

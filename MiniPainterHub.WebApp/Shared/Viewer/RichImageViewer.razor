@@ -49,8 +49,8 @@ else if (IsOpen)
                                        CanGoNext="@(Viewer.Images.Count > 1)"
                                        CanAddAuthorMark="@Viewer.CanManageAuthorMarks"
                                        IsAuthorPlacementMode="@_isAuthorPlacementMode"
-                                       CanToggleFullscreen="@_isFullscreenSupported"
-                                       IsFullscreen="@_isFullscreen"
+                                       CanToggleFullscreen="@ViewerInterop.IsFullscreenSupported"
+                                       IsFullscreen="@ViewerInterop.IsFullscreen"
                                        OnPrevious="PreviousImageAsync"
                                        OnNext="NextImageAsync"
                                        OnZoomIn="ZoomInAsync"
@@ -188,13 +188,9 @@ else if (IsOpen)
 }
 
 @code {
-    private const double SwipeThreshold = 60d;
-    private const double DragThreshold = 6d;
-
-    private readonly Dictionary<int, int> _imageRetryTokens = new();
-    private readonly HashSet<int> _loadedImageIds = new();
-    private readonly HashSet<int> _failedImageIds = new();
     private readonly List<AuthorMarkDto> _authorMarks = new();
+    private readonly ViewerImageLoadState _imageLoadState = new();
+    private readonly ViewerPointerGestureState _pointerGestures = new();
     private readonly ViewerTransformState _transform = new();
 
     private ViewerStage? _viewerStage;
@@ -202,21 +198,13 @@ else if (IsOpen)
     private ElementReference _imageElement;
     private ElementReference _sidePanelElement;
     private ElementReference _transformElement;
-    private IJSObjectReference? _module;
-    private Task<IJSObjectReference?>? _moduleImportTask;
+    private ViewerInteropController? _viewerInterop;
     private DotNetObjectReference<RichImageViewer>? _selfReference;
 
-    private PointerSnapshot? _pointer;
     private MarkComposerValue _composerValue = new();
 
-    private bool _moduleLoadFailed;
-    private bool _isModalActive;
-    private bool _isStageObserved;
-    private bool _isGestureInteropActive;
     private bool _pendingTransformSync;
     private bool _moduleWarmupStarted;
-    private bool _isFullscreenSupported;
-    private bool _isFullscreen;
     private bool _isAuthorPlacementMode;
     private bool _authorMarkBusy;
     private bool _pendingFocusCommentMark;
@@ -248,6 +236,8 @@ else if (IsOpen)
     [Parameter] public EventCallback OnCommentPlacementCancelled { get; set; }
     [Parameter] public EventCallback OnClearActiveCommentMark { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
+
+    private ViewerInteropController ViewerInterop => _viewerInterop ??= new ViewerInteropController(JS);
 
     private PostViewerImageDto? CurrentImage => Viewer.Images.FirstOrDefault(i => i.Id == ResolvedImageId) ?? Viewer.Images.FirstOrDefault();
 
@@ -290,11 +280,11 @@ else if (IsOpen)
 
     private int ZoomPercent => (int)Math.Round(_transform.GetDisplayScale(CurrentImage) * 100d, MidpointRounding.AwayFromZero);
 
-    private bool CurrentImageLoading => CurrentImage is not null && !_loadedImageIds.Contains(CurrentImage.Id) && !_failedImageIds.Contains(CurrentImage.Id);
+    private bool CurrentImageLoading => _imageLoadState.IsLoading(CurrentImage);
 
-    private bool CurrentImageReady => CurrentImage is not null && _loadedImageIds.Contains(CurrentImage.Id) && !_failedImageIds.Contains(CurrentImage.Id);
+    private bool CurrentImageReady => _imageLoadState.IsReady(CurrentImage);
 
-    private bool CurrentImageFailed => CurrentImage is not null && _failedImageIds.Contains(CurrentImage.Id);
+    private bool CurrentImageFailed => _imageLoadState.IsFailed(CurrentImage);
 
     private bool CanDeleteSelectedAuthorMark => Viewer.CanManageAuthorMarks && SelectedAuthorMark is not null && _authorDraft is null;
 
@@ -312,7 +302,7 @@ else if (IsOpen)
                 : $"Image {CurrentImageNumber} author mark";
 
     private string ViewerShellClass =>
-        $"viewer-shell {(_isFullscreen ? "is-fullscreen" : null)}";
+        $"viewer-shell {(ViewerInterop.IsFullscreen ? "is-fullscreen" : null)}";
 
     private string? CurrentInteractionHint =>
         IsCommentPlacementMode
@@ -376,15 +366,7 @@ else if (IsOpen)
     private string TransformStyle =>
         FormattableString.Invariant($"transform:translate({_transform.PanX:F2}px,{_transform.PanY:F2}px) scale({_transform.Zoom.ToString("0.###", CultureInfo.InvariantCulture)});");
 
-    private string CurrentImageSource =>
-        CurrentImage is null
-            ? string.Empty
-            : AppendRetryToken(GetInteractiveImageSource(CurrentImage), CurrentImage.Id);
-
-    private string GetInteractiveImageSource(PostViewerImageDto image) =>
-        _transform.ScaleMode == ViewerScaleMode.ActualSize
-            ? image.ImageUrl
-            : image.PreviewUrl ?? image.ImageUrl;
+    private string CurrentImageSource => _imageLoadState.GetCurrentSource(CurrentImage, _transform.ScaleMode);
 
     private string ComposerStyle
     {
@@ -417,7 +399,7 @@ else if (IsOpen)
 
     protected override async Task OnParametersSetAsync()
     {
-        if (!IsOpen && (_isModalActive || _isStageObserved))
+        if (!IsOpen && ViewerInterop.HasActiveLifecycle)
         {
             await DeactivateModalAsync();
         }
@@ -427,9 +409,7 @@ else if (IsOpen)
             _syncedPostId = Viewer.PostId;
             _authorMarks.Clear();
             _authorMarks.AddRange(Viewer.AuthorMarks.OrderBy(mark => mark.Id));
-            _loadedImageIds.Clear();
-            _failedImageIds.Clear();
-            _imageRetryTokens.Clear();
+            _imageLoadState.Clear();
             _selectedAuthorMarkId = null;
             _authorDraft = null;
             _composerValue = new();
@@ -489,12 +469,12 @@ else if (IsOpen)
         if (firstRender && !_moduleWarmupStarted)
         {
             _moduleWarmupStarted = true;
-            _ = WarmViewerModuleAsync();
+            _ = ViewerInterop.WarmModuleAsync();
         }
 
         if (IsOpen)
         {
-            if (!_isModalActive || !_isStageObserved || !_isGestureInteropActive)
+            if (!ViewerInterop.IsModalActive || !ViewerInterop.IsStageObserved || !ViewerInterop.IsGestureInteropActive)
             {
                 await EnsureViewerInteropAsync();
             }
@@ -557,12 +537,12 @@ else if (IsOpen)
     [JSInvokable]
     public Task OnFullscreenChanged(bool isFullscreen)
     {
-        if (_isFullscreen == isFullscreen)
+        if (ViewerInterop.IsFullscreen == isFullscreen)
         {
             return Task.CompletedTask;
         }
 
-        _isFullscreen = isFullscreen;
+        ViewerInterop.SetFullscreen(isFullscreen);
         return InvokeAsync(StateHasChanged);
     }
 
@@ -591,163 +571,43 @@ else if (IsOpen)
 
     private async Task EnsureViewerInteropAsync()
     {
-        var module = await EnsureModuleAsync();
-        if (module is null || _viewerStage is null)
+        if (_viewerStage is null)
         {
             return;
         }
 
         _selfReference ??= DotNetObjectReference.Create(this);
-
-        try
-        {
-            if (!_isModalActive)
-            {
-                await module.InvokeVoidAsync("activateModal", _rootElement);
-                await module.InvokeVoidAsync("registerFullscreenChange", _rootElement, _selfReference);
-                _isFullscreenSupported = await module.InvokeAsync<bool>("isFullscreenSupported");
-                _isModalActive = true;
-            }
-
-            if (!_isStageObserved)
-            {
-                await module.InvokeVoidAsync("observeStageSize", _viewerStage.StageElement, _selfReference);
-                _isStageObserved = true;
-            }
-
-            if (!_isGestureInteropActive)
-            {
-                await module.InvokeVoidAsync(
-                    "activateViewerGestures",
-                    _viewerStage.StageElement,
-                    _transformElement,
-                    _selfReference,
-                    CreateTransformSnapshot());
-                _isGestureInteropActive = true;
-            }
-        }
-        catch
-        {
-            _isFullscreenSupported = false;
-        }
+        await ViewerInterop.EnsureViewerAsync(
+            _rootElement,
+            _viewerStage.StageElement,
+            _transformElement,
+            _selfReference,
+            CreateTransformSnapshot());
     }
 
     private async Task SyncTransformInteropAsync()
     {
-        var module = await EnsureModuleAsync();
-        if (module is null || _viewerStage is null || !_isGestureInteropActive)
+        if (_viewerStage is null)
         {
             return;
         }
 
-        try
-        {
-            await module.InvokeVoidAsync(
-                "syncViewerTransform",
-                _viewerStage.StageElement,
-                _transformElement,
-                CreateTransformSnapshot());
-        }
-        catch
-        {
-            // Gesture interop is an enhancement. Blazor-rendered controls remain usable.
-        }
+        await ViewerInterop.SyncTransformAsync(
+            _viewerStage.StageElement,
+            _transformElement,
+            CreateTransformSnapshot());
     }
 
     private async Task DeactivateModalAsync()
     {
-        if (_module is null)
-        {
-            _isStageObserved = false;
-            _isModalActive = false;
-            _isGestureInteropActive = false;
-            _isFullscreen = false;
-            _pointer = null;
-            _suppressNextPlacementClick = false;
-            ResetViewState();
-            return;
-        }
+        await ViewerInterop.DeactivateAsync(
+            _rootElement,
+            _viewerStage?.StageElement ?? default,
+            _viewerStage is not null);
 
-        try
-        {
-            if (_isFullscreen && _isFullscreenSupported)
-            {
-                await _module.InvokeVoidAsync("exitFullscreenIfOwned", _rootElement);
-            }
-
-            if (_isStageObserved && _viewerStage is not null)
-            {
-                await _module.InvokeVoidAsync("unobserveStageSize", _viewerStage.StageElement);
-            }
-
-            if (_isGestureInteropActive && _viewerStage is not null)
-            {
-                await _module.InvokeVoidAsync("deactivateViewerGestures", _viewerStage.StageElement);
-            }
-
-            if (_isModalActive)
-            {
-                await _module.InvokeVoidAsync("unregisterFullscreenChange", _rootElement);
-                await _module.InvokeVoidAsync("deactivateModal", _rootElement);
-            }
-        }
-        catch
-        {
-            // Ignore teardown failures while the modal is closing.
-        }
-        finally
-        {
-            _isStageObserved = false;
-            _isModalActive = false;
-            _isGestureInteropActive = false;
-            _isFullscreen = false;
-            _pointer = null;
-            _suppressNextPlacementClick = false;
-            ResetViewState();
-        }
-    }
-
-    private async ValueTask<IJSObjectReference?> EnsureModuleAsync()
-    {
-        if (_module is not null)
-        {
-            return _module;
-        }
-
-        if (_moduleLoadFailed)
-        {
-            return null;
-        }
-
-        _moduleImportTask ??= ImportViewerModuleAsync();
-        return await _moduleImportTask;
-    }
-
-    private async Task<IJSObjectReference?> ImportViewerModuleAsync()
-    {
-        try
-        {
-            _module = await JS.InvokeAsync<IJSObjectReference>("import", "/JSHelpers/viewerInterop.js");
-            return _module;
-        }
-        catch
-        {
-            _moduleLoadFailed = true;
-            return null;
-        }
-    }
-
-    private async Task WarmViewerModuleAsync()
-    {
-        try
-        {
-            await Task.Delay(100);
-            await EnsureModuleAsync();
-        }
-        catch
-        {
-            // Module warmup is opportunistic; viewer open still handles fallback.
-        }
+        _pointerGestures.Clear();
+        _suppressNextPlacementClick = false;
+        ResetViewState();
     }
 
     private async Task FocusStageAsync()
@@ -769,38 +629,12 @@ else if (IsOpen)
 
     private async Task ScrollActiveCommentIntoViewAsync()
     {
-        var module = await EnsureModuleAsync();
-        if (module is null)
-        {
-            return;
-        }
-
-        try
-        {
-            await module.InvokeVoidAsync("scrollIntoViewIfNeeded", "[data-testid='viewer-side-panel'] .comment-item--active");
-        }
-        catch
-        {
-            // Ignore scrolling failures while the viewer is updating.
-        }
+        await ViewerInterop.ScrollIntoViewIfNeededAsync("[data-testid='viewer-side-panel'] .comment-item--active");
     }
 
     private async Task ResetSidePanelScrollAsync()
     {
-        var module = await EnsureModuleAsync();
-        if (module is null)
-        {
-            return;
-        }
-
-        try
-        {
-            await module.InvokeVoidAsync("scrollElementToTop", _sidePanelElement);
-        }
-        catch
-        {
-            // Ignore panel scroll reset failures during viewer open.
-        }
+        await ViewerInterop.ScrollElementToTopAsync(_sidePanelElement);
     }
 
     private async Task CloseAsync()
@@ -899,21 +733,13 @@ else if (IsOpen)
 
     private async Task ToggleFullscreenAsync()
     {
-        var module = await EnsureModuleAsync();
-        if (module is null || !_isFullscreenSupported)
+        if (!ViewerInterop.IsFullscreenSupported)
         {
             return;
         }
 
-        try
-        {
-            _isFullscreen = await module.InvokeAsync<bool>("requestFullscreen", _rootElement);
-            await FocusStageAsync();
-        }
-        catch
-        {
-            _isFullscreen = false;
-        }
+        await ViewerInterop.RequestFullscreenAsync(_rootElement);
+        await FocusStageAsync();
     }
 
     private async Task ToggleAuthorPlacementAsync()
@@ -935,53 +761,23 @@ else if (IsOpen)
     private Task HandlePointerDown(PointerEventArgs args)
     {
         _suppressNextPlacementClick = false;
-        _pointer = new PointerSnapshot(
+        _pointerGestures.Start(
             args.ClientX,
             args.ClientY,
-            args.ClientX,
-            args.ClientY,
-            args.PointerType,
-            Moved: false);
+            args.PointerType);
 
         return Task.CompletedTask;
     }
 
     private async Task HandlePointerUpAsync(PointerEventArgs args)
     {
-        if (_pointer is null)
-        {
-            return;
-        }
-
-        var pointer = _pointer;
-        _pointer = null;
-
-        var totalX = args.ClientX - pointer.StartX;
-        var totalY = args.ClientY - pointer.StartY;
-        var moved = pointer.Moved || Math.Abs(totalX) >= DragThreshold || Math.Abs(totalY) >= DragThreshold;
-
-        if (!moved && IsPlacementMode)
-        {
-            _suppressNextPlacementClick = await PlaceMarkAsync(args.ClientX, args.ClientY);
-            return;
-        }
-
-        if (!_transform.CanPan && !IsPlacementMode && Math.Abs(totalX) >= SwipeThreshold && Math.Abs(totalX) > Math.Abs(totalY))
-        {
-            if (totalX > 0)
-            {
-                await PreviousImageAsync();
-            }
-            else
-            {
-                await NextImageAsync();
-            }
-        }
+        var decision = _pointerGestures.Complete(args.ClientX, args.ClientY, _transform.CanPan, IsPlacementMode);
+        await ApplyPointerGestureDecisionAsync(decision);
     }
 
     private Task HandlePointerLeave(PointerEventArgs args)
     {
-        _pointer = null;
+        _pointerGestures.Clear();
         return Task.CompletedTask;
     }
 
@@ -993,50 +789,19 @@ else if (IsOpen)
             return Task.CompletedTask;
         }
 
-        _pointer = new PointerSnapshot(
+        _pointerGestures.Start(
             touch.ClientX,
             touch.ClientY,
-            touch.ClientX,
-            touch.ClientY,
-            PointerType: "touch",
-            Moved: false);
+            pointerType: "touch");
 
         return Task.CompletedTask;
     }
 
     private async Task HandleTouchEndAsync(TouchEventArgs args)
     {
-        if (_pointer is null)
-        {
-            return;
-        }
-
-        var pointer = _pointer;
-        _pointer = null;
         var touch = GetTouchPoint(args, useChangedTouches: true);
-        var endX = touch?.ClientX ?? pointer.LastX;
-        var endY = touch?.ClientY ?? pointer.LastY;
-        var totalX = endX - pointer.StartX;
-        var totalY = endY - pointer.StartY;
-        var moved = pointer.Moved || Math.Abs(totalX) >= DragThreshold || Math.Abs(totalY) >= DragThreshold;
-
-        if (!moved && IsPlacementMode)
-        {
-            _suppressNextPlacementClick = await PlaceMarkAsync(endX, endY);
-            return;
-        }
-
-        if (!_transform.CanPan && !IsPlacementMode && Math.Abs(totalX) >= SwipeThreshold && Math.Abs(totalX) > Math.Abs(totalY))
-        {
-            if (totalX > 0)
-            {
-                await PreviousImageAsync();
-            }
-            else
-            {
-                await NextImageAsync();
-            }
-        }
+        var decision = _pointerGestures.Complete(touch?.ClientX, touch?.ClientY, _transform.CanPan, IsPlacementMode);
+        await ApplyPointerGestureDecisionAsync(decision);
     }
 
     private async Task HandleModalKeyDown(KeyboardEventArgs args)
@@ -1046,7 +811,7 @@ else if (IsOpen)
             return;
         }
 
-        if (_isFullscreen && _isFullscreenSupported)
+        if (ViewerInterop.IsFullscreen && ViewerInterop.IsFullscreenSupported)
         {
             await ToggleFullscreenAsync();
             return;
@@ -1128,7 +893,7 @@ else if (IsOpen)
                 ResetViewState();
                 break;
             case "Escape":
-                if (_isFullscreen && _isFullscreenSupported)
+                if (ViewerInterop.IsFullscreen && ViewerInterop.IsFullscreenSupported)
                 {
                     await ToggleFullscreenAsync();
                     break;
@@ -1228,40 +993,23 @@ else if (IsOpen)
         await PlaceMarkAsync(args.ClientX, args.ClientY);
     }
 
-    private async Task<RelativePoint?> GetRelativePointAsync(double clientX, double clientY)
+    private async Task<ViewerRelativePoint?> GetRelativePointAsync(double clientX, double clientY)
     {
-        var module = await EnsureModuleAsync();
-        if (module is null || _viewerStage is null)
-        {
-            return new RelativePoint { X = clientX, Y = clientY };
-        }
-
-        try
-        {
-            return await module.InvokeAsync<RelativePoint>("getRelativePoint", _viewerStage.StageElement, clientX, clientY);
-        }
-        catch
-        {
-            return null;
-        }
+        return await ViewerInterop.GetRelativePointAsync(
+            _viewerStage?.StageElement ?? default,
+            _viewerStage is not null,
+            clientX,
+            clientY);
     }
 
-    private async Task<RelativeRect?> GetRenderedImageRectAsync()
+    private async Task<ViewerRelativeRect?> GetRenderedImageRectAsync()
     {
-        var module = await EnsureModuleAsync();
-        if (module is null || _viewerStage is null)
-        {
-            return CurrentImage is null ? null : MapImageRect(_transform.GetRenderedRect(CurrentImage));
-        }
-
-        try
-        {
-            return await module.InvokeAsync<RelativeRect>("getRelativeRect", _viewerStage.StageElement, _imageElement);
-        }
-        catch
-        {
-            return CurrentImage is null ? null : MapImageRect(_transform.GetRenderedRect(CurrentImage));
-        }
+        var fallback = CurrentImage is null ? null : MapImageRect(_transform.GetRenderedRect(CurrentImage));
+        return await ViewerInterop.GetRelativeRectAsync(
+            _viewerStage?.StageElement ?? default,
+            _imageElement,
+            _viewerStage is not null,
+            fallback);
     }
 
     private async Task HandleAuthorMarkSelectedAsync(int markId)
@@ -1402,22 +1150,18 @@ else if (IsOpen)
             return Task.CompletedTask;
         }
 
-        _failedImageIds.Remove(CurrentImage.Id);
-        _loadedImageIds.Remove(CurrentImage.Id);
-        _imageRetryTokens[CurrentImage.Id] = _imageRetryTokens.TryGetValue(CurrentImage.Id, out var current) ? current + 1 : 1;
+        _imageLoadState.Retry(CurrentImage.Id);
         return Task.CompletedTask;
     }
 
     private void OnImageLoaded(int imageId)
     {
-        _failedImageIds.Remove(imageId);
-        _loadedImageIds.Add(imageId);
+        _imageLoadState.MarkLoaded(imageId);
     }
 
     private void OnImageFailed(int imageId)
     {
-        _loadedImageIds.Remove(imageId);
-        _failedImageIds.Add(imageId);
+        _imageLoadState.MarkFailed(imageId);
     }
 
     private void ResetViewState()
@@ -1433,55 +1177,9 @@ else if (IsOpen)
             return;
         }
 
-        var module = await EnsureModuleAsync();
-        if (module is null)
-        {
-            return;
-        }
+        var urls = ViewerImageLoadState.GetAdjacentPreloadSources(Viewer.Images, CurrentImage.Id);
 
-        var currentIndex = Math.Max(CurrentImageNumber - 1, 0);
-        var previousIndex = currentIndex == 0 ? Viewer.Images.Count - 1 : currentIndex - 1;
-        var nextIndex = currentIndex >= Viewer.Images.Count - 1 ? 0 : currentIndex + 1;
-        var nextNextIndex = nextIndex >= Viewer.Images.Count - 1 ? 0 : nextIndex + 1;
-
-        var urls = new[]
-        {
-            GetPreloadImageSource(Viewer.Images[previousIndex]),
-            GetPreloadImageSource(Viewer.Images[nextIndex]),
-            GetPreloadImageSource(Viewer.Images[nextNextIndex])
-        }
-        .Where(url => !string.IsNullOrWhiteSpace(url))
-        .Cast<string>()
-        .Distinct(StringComparer.Ordinal)
-        .ToArray();
-
-        if (urls.Length == 0)
-        {
-            return;
-        }
-
-        try
-        {
-            await module.InvokeVoidAsync("preloadImages", urls);
-        }
-        catch
-        {
-            // Ignore preload failures and preserve the primary viewer interaction.
-        }
-    }
-
-    private static string GetPreloadImageSource(PostViewerImageDto image) =>
-        image.PreviewUrl ?? image.ImageUrl;
-
-    private string AppendRetryToken(string url, int imageId)
-    {
-        if (!_imageRetryTokens.TryGetValue(imageId, out var token) || token <= 0)
-        {
-            return url;
-        }
-
-        var separator = url.Contains('?', StringComparison.Ordinal) ? "&" : "?";
-        return $"{url}{separator}retry={token}";
+        await ViewerInterop.PreloadImagesAsync(urls);
     }
 
     private static string? NormalizeText(string? value)
@@ -1490,7 +1188,7 @@ else if (IsOpen)
         return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
     }
 
-    private static RelativeRect MapImageRect(ViewerImageRectSnapshot imageRect) =>
+    private static ViewerRelativeRect MapImageRect(ViewerImageRectSnapshot imageRect) =>
         new()
         {
             Left = imageRect.Left,
@@ -1499,7 +1197,7 @@ else if (IsOpen)
             Height = imageRect.Height
         };
 
-    private ViewerTransformSnapshot CreateTransformSnapshot() =>
+    private ViewerTransformInteropSnapshot CreateTransformSnapshot() =>
         new()
         {
             Zoom = _transform.Zoom,
@@ -1522,77 +1220,32 @@ else if (IsOpen)
         return source.FirstOrDefault();
     }
 
+    private async Task ApplyPointerGestureDecisionAsync(ViewerPointerGestureDecision decision)
+    {
+        switch (decision.Action)
+        {
+            case ViewerPointerGestureAction.PlaceMark:
+                _suppressNextPlacementClick = await PlaceMarkAsync(decision.ClientX, decision.ClientY);
+                break;
+            case ViewerPointerGestureAction.PreviousImage:
+                await PreviousImageAsync();
+                break;
+            case ViewerPointerGestureAction.NextImage:
+                await NextImageAsync();
+                break;
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
-        if (_module is not null)
+        if (_viewerInterop is not null)
         {
-            try
-            {
-                if (_isFullscreen && _isFullscreenSupported)
-                {
-                    await _module.InvokeVoidAsync("exitFullscreenIfOwned", _rootElement);
-                }
-
-                if (_isStageObserved && _viewerStage is not null)
-                {
-                    await _module.InvokeVoidAsync("unobserveStageSize", _viewerStage.StageElement);
-                }
-
-                if (_isGestureInteropActive && _viewerStage is not null)
-                {
-                    await _module.InvokeVoidAsync("deactivateViewerGestures", _viewerStage.StageElement);
-                }
-
-                if (_isModalActive)
-                {
-                    await _module.InvokeVoidAsync("unregisterFullscreenChange", _rootElement);
-                    await _module.InvokeVoidAsync("deactivateModal", _rootElement);
-                }
-
-                await _module.DisposeAsync();
-            }
-            catch
-            {
-                // The app can navigate away while the module is tearing down.
-            }
+            await _viewerInterop.DisposeAsync(
+                _rootElement,
+                _viewerStage?.StageElement ?? default,
+                _viewerStage is not null);
         }
 
-        _isStageObserved = false;
-        _isModalActive = false;
-        _isGestureInteropActive = false;
         _selfReference?.Dispose();
-    }
-
-    private sealed record PointerSnapshot(
-        double StartX,
-        double StartY,
-        double LastX,
-        double LastY,
-        string? PointerType,
-        bool Moved);
-
-    private sealed class RelativePoint
-    {
-        public double X { get; set; }
-        public double Y { get; set; }
-    }
-
-    private sealed class RelativeRect
-    {
-        public double Left { get; set; }
-        public double Top { get; set; }
-        public double Width { get; set; }
-        public double Height { get; set; }
-    }
-
-    private sealed class ViewerTransformSnapshot
-    {
-        public double Zoom { get; set; }
-        public double PanX { get; set; }
-        public double PanY { get; set; }
-        public double MinZoom { get; set; }
-        public double MaxZoom { get; set; }
-        public double ZoomStep { get; set; }
-        public bool CanPan { get; set; }
     }
 }

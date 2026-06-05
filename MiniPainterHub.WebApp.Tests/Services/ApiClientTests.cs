@@ -139,13 +139,12 @@ public class ApiClientTests
     {
         var handler = new RecordingHttpMessageHandler();
         var notifications = new NotificationRecorder();
-        var jsRuntime = new RecordingJsRuntime();
-        jsRuntime.LocalStorage["authToken"] = "stored-token";
+        var tokenStore = new RecordingTokenStore { Token = "stored-token" };
         var httpClient = new HttpClient(handler)
         {
             BaseAddress = new Uri("https://example.test/")
         };
-        var client = new ApiClient(httpClient, notifications, jsRuntime: jsRuntime);
+        var client = new ApiClient(httpClient, notifications, tokenStore: tokenStore);
         handler.EnqueueJson(HttpStatusCode.OK, """{ "ok": true }""");
 
         var success = await client.SendAsync(new HttpRequestMessage(HttpMethod.Post, "api/posts"));
@@ -155,6 +154,32 @@ public class ApiClientTests
         handler.Requests[0].Authorization.Should().NotBeNull();
         handler.Requests[0].Authorization!.Scheme.Should().Be("Bearer");
         handler.Requests[0].Authorization!.Parameter.Should().Be("stored-token");
+        tokenStore.GetCalls.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SendAsync_WhenRequestAlreadyHasAuthorizationHeader_DoesNotReadOrReplaceToken()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        var notifications = new NotificationRecorder();
+        var tokenStore = new RecordingTokenStore { Token = "stored-token" };
+        var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://example.test/")
+        };
+        var client = new ApiClient(httpClient, notifications, tokenStore: tokenStore);
+        handler.EnqueueJson(HttpStatusCode.OK, """{ "ok": true }""");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/posts");
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "explicit-token");
+
+        var success = await client.SendAsync(request);
+
+        success.Should().BeTrue();
+        handler.Requests.Should().ContainSingle();
+        handler.Requests[0].Authorization.Should().NotBeNull();
+        handler.Requests[0].Authorization!.Scheme.Should().Be("Bearer");
+        handler.Requests[0].Authorization!.Parameter.Should().Be("explicit-token");
+        tokenStore.GetCalls.Should().Be(0);
     }
 
     [Fact]

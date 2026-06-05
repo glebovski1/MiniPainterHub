@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
 	<PropertyGroup>
-		<TargetFramework>net8.0</TargetFramework>
+		<TargetFramework>net10.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<InvariantGlobalization Condition="'$(Configuration)' == 'Release'">true</InvariantGlobalization>
@@ -23,15 +23,10 @@
 		<BlazorWebAssemblyLazyLoad Include="Microsoft.AspNetCore.Connections.Abstractions.wasm" />
 		<BlazorWebAssemblyLazyLoad Include="Microsoft.AspNetCore.Http.Connections.Client.wasm" />
 		<BlazorWebAssemblyLazyLoad Include="Microsoft.AspNetCore.Http.Connections.Common.wasm" />
-		<BlazorWebAssemblyLazyLoad Include="Microsoft.AspNetCore.Components.Forms.wasm" />
 		<BlazorWebAssemblyLazyLoad Include="Microsoft.AspNetCore.SignalR.Client.wasm" />
 		<BlazorWebAssemblyLazyLoad Include="Microsoft.AspNetCore.SignalR.Client.Core.wasm" />
 		<BlazorWebAssemblyLazyLoad Include="Microsoft.AspNetCore.SignalR.Common.wasm" />
 		<BlazorWebAssemblyLazyLoad Include="Microsoft.AspNetCore.SignalR.Protocols.Json.wasm" />
-		<BlazorWebAssemblyLazyLoad Include="System.Linq.Expressions.wasm" />
-		<BlazorWebAssemblyLazyLoad Include="System.ComponentModel.Primitives.wasm" />
-		<BlazorWebAssemblyLazyLoad Include="System.ComponentModel.TypeConverter.wasm" />
-		<BlazorWebAssemblyLazyLoad Include="System.IO.Pipelines.wasm" />
 		<BlazorWebAssemblyLazyLoad Include="System.Net.WebSockets.wasm" />
 		<BlazorWebAssemblyLazyLoad Include="System.Net.WebSockets.Client.wasm" />
 		<BlazorWebAssemblyLazyLoad Include="System.Threading.Channels.wasm" />
@@ -48,9 +43,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Content Update="appsettings.client.json">
-			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
-		</Content>
                 <Content Update="wwwroot\JSHelpers\domHelpers.js">
                         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
                 </Content>

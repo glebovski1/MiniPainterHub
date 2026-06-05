@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -66,8 +67,7 @@ public sealed class IntegrationTestApplicationFactory : WebApplicationFactory<Pr
 
         builder.ConfigureTestServices(services =>
         {
-            services.RemoveAll(typeof(DbContextOptions<AppDbContext>));
-            services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(_databaseName));
+            services.ReplaceAppDbContextWithInMemory(_databaseName);
 
             services.AddAuthentication(options =>
             {
@@ -120,6 +120,16 @@ public sealed class IntegrationTestApplicationFactory : WebApplicationFactory<Pr
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await action(db);
+    }
+}
+
+internal static class TestDatabaseServiceCollectionExtensions
+{
+    public static void ReplaceAppDbContextWithInMemory(this IServiceCollection services, string databaseName)
+    {
+        services.RemoveAll(typeof(DbContextOptions<AppDbContext>));
+        services.RemoveAll(typeof(IDbContextOptionsConfiguration<AppDbContext>));
+        services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(databaseName));
     }
 }
 

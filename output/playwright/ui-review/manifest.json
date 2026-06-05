@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-05T00:08:50.644Z",
+  "generatedAt": "2026-05-30T16:53:14.310Z",
   "scope": "full",
   "reviewCommand": "npm --prefix e2e run test:ui-review:full",
   "groups": [
@@ -15,7 +15,7 @@
     "admin"
   ],
   "reasons": [
-    "Forced full UI review run."
+    "Full sweep trigger matched: MiniPainterHub.WebApp/wwwroot/css/app.css"
   ],
   "captures": [
     {
@@ -499,7 +499,7 @@
     {
       "name": "profile-public-desktop",
       "group": "profile",
-      "url": "http://127.0.0.1:5176/users/4687282e-c924-4744-b969-b401601c2a12",
+      "url": "http://127.0.0.1:5176/users/349afa4a-447e-4257-86e9-0b69e609b7a0",
       "viewport": "desktop",
       "authState": "seed-user",
       "stateTags": [
@@ -631,6 +631,6 @@
     }
   ],
   "failures": [],
-  "completedAt": "2026-05-05T00:11:09.759Z",
+  "completedAt": "2026-05-30T16:57:33.666Z",
   "captureCount": 45
 }

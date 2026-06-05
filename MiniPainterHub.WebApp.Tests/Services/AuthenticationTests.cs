@@ -11,6 +11,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Components.Authorization;
 using MiniPainterHub.Common.Auth;
 using MiniPainterHub.WebApp.Services;
+using MiniPainterHub.WebApp.Services.Auth;
 using MiniPainterHub.WebApp.Services.Http;
 using MiniPainterHub.WebApp.Tests.Infrastructure;
 using Xunit;
@@ -32,16 +33,17 @@ public class AuthenticationTests
         var handler = new RecordingHttpMessageHandler();
         var notifications = new NotificationRecorder();
         var apiClient = CreateApiClient(handler, notifications);
-        var js = new RecordingJsRuntime();
-        var provider = new JwtAuthenticationStateProvider(js);
+        var tokenStore = new RecordingTokenStore();
+        var provider = new JwtAuthenticationStateProvider(tokenStore);
         var authStateChanged = CaptureNextAuthState(provider);
         handler.EnqueueJson(HttpStatusCode.OK, $"{{\"isSuccess\":true,\"token\":\"{token}\"}}");
-        var service = new AuthService(apiClient, js, provider);
+        var service = new AuthService(apiClient, tokenStore, provider);
 
         var success = await service.LoginAsync(new LoginDto { UserName = "artist", Password = "User123!" });
 
         success.Should().BeTrue();
-        js.LocalStorage["authToken"].Should().Be(token);
+        tokenStore.Token.Should().Be(token);
+        tokenStore.SetCalls.Should().Be(1);
         handler.Requests.Should().ContainSingle();
         handler.Requests[0].Uri.Should().Be(new Uri("https://example.test/api/auth/login"));
         handler.Requests[0].Body.Should().Contain("\"userName\":\"artist\"");
@@ -55,15 +57,16 @@ public class AuthenticationTests
     {
         var handler = new RecordingHttpMessageHandler();
         var apiClient = CreateApiClient(handler, new NotificationRecorder());
-        var js = new RecordingJsRuntime();
-        var provider = new JwtAuthenticationStateProvider(js);
+        var tokenStore = new RecordingTokenStore();
+        var provider = new JwtAuthenticationStateProvider(tokenStore);
         handler.EnqueueJson(HttpStatusCode.OK, """{"isSuccess":false}""");
-        var service = new AuthService(apiClient, js, provider);
+        var service = new AuthService(apiClient, tokenStore, provider);
 
         var success = await service.LoginAsync(new LoginDto { UserName = "artist", Password = "bad-password" });
 
         success.Should().BeFalse();
-        js.LocalStorage.Should().NotContainKey("authToken");
+        tokenStore.Token.Should().BeNull();
+        tokenStore.SetCalls.Should().Be(0);
     }
 
     [Fact]
@@ -71,7 +74,8 @@ public class AuthenticationTests
     {
         var handler = new RecordingHttpMessageHandler();
         var apiClient = CreateApiClient(handler, new NotificationRecorder());
-        var service = new AuthService(apiClient, new RecordingJsRuntime(), new JwtAuthenticationStateProvider(new RecordingJsRuntime()));
+        var tokenStore = new RecordingTokenStore();
+        var service = new AuthService(apiClient, tokenStore, new JwtAuthenticationStateProvider(tokenStore));
         handler.Enqueue(new HttpResponseMessage(HttpStatusCode.NoContent));
 
         var success = await service.RegisterAsync(new RegisterDto
@@ -99,16 +103,16 @@ public class AuthenticationTests
         var handler = new RecordingHttpMessageHandler();
         var notifications = new NotificationRecorder();
         var apiClient = CreateApiClient(handler, notifications);
-        var js = new RecordingJsRuntime();
-        js.LocalStorage["authToken"] = token;
-        var provider = new JwtAuthenticationStateProvider(js);
+        var tokenStore = new RecordingTokenStore { Token = token };
+        var provider = new JwtAuthenticationStateProvider(tokenStore);
         var authStateChanged = CaptureNextAuthState(provider);
         handler.EnqueueJson(HttpStatusCode.ServiceUnavailable, """{"title":"Maintenance","status":503}""");
-        var service = new AuthService(apiClient, js, provider);
+        var service = new AuthService(apiClient, tokenStore, provider);
 
         await service.LogoutAsync();
 
-        js.LocalStorage.Should().NotContainKey("authToken");
+        tokenStore.Token.Should().BeNull();
+        tokenStore.ClearCalls.Should().Be(1);
         handler.Requests.Should().ContainSingle();
         handler.Requests[0].Method.Should().Be(HttpMethod.Delete);
         handler.Requests[0].Uri.Should().Be(new Uri("https://example.test/api/auth/maintenance-bypass"));
@@ -120,14 +124,16 @@ public class AuthenticationTests
     [Fact]
     public async Task JwtAuthenticationStateProvider_WhenTokenHasRoleArray_AddsRoleClaims()
     {
-        var js = new RecordingJsRuntime();
-        js.LocalStorage["authToken"] = CreateJwtToken(new Dictionary<string, object?>
+        var tokenStore = new RecordingTokenStore
         {
-            ["sub"] = "user-2",
-            ["role"] = new[] { "Admin", "Moderator" },
-            ["exp"] = DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeSeconds()
-        });
-        var provider = new JwtAuthenticationStateProvider(js);
+            Token = CreateJwtToken(new Dictionary<string, object?>
+            {
+                ["sub"] = "user-2",
+                ["role"] = new[] { "Admin", "Moderator" },
+                ["exp"] = DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeSeconds()
+            })
+        };
+        var provider = new JwtAuthenticationStateProvider(tokenStore);
 
         var state = await provider.GetAuthenticationStateAsync();
 
@@ -139,38 +145,34 @@ public class AuthenticationTests
     [Fact]
     public async Task JwtAuthenticationStateProvider_WhenTokenIsExpired_ClearsStorageAndReturnsAnonymous()
     {
-        var js = new RecordingJsRuntime();
-        js.LocalStorage["authToken"] = CreateJwtToken(new Dictionary<string, object?>
+        var tokenStore = new RecordingTokenStore
         {
-            ["sub"] = "user-3",
-            ["exp"] = DateTimeOffset.UtcNow.AddMinutes(-5).ToUnixTimeSeconds()
-        });
-        var provider = new JwtAuthenticationStateProvider(js);
+            Token = CreateJwtToken(new Dictionary<string, object?>
+            {
+                ["sub"] = "user-3",
+                ["exp"] = DateTimeOffset.UtcNow.AddMinutes(-5).ToUnixTimeSeconds()
+            })
+        };
+        var provider = new JwtAuthenticationStateProvider(tokenStore);
 
         var state = await provider.GetAuthenticationStateAsync();
 
         state.User.Identity?.IsAuthenticated.Should().BeFalse();
-        js.LocalStorage.Should().NotContainKey("authToken");
+        tokenStore.Token.Should().BeNull();
+        tokenStore.ClearCalls.Should().Be(1);
     }
 
     [Fact]
-    public async Task JwtAuthorizationMessageHandler_WhenTokenExists_AddsBearerHeader()
+    public async Task JwtAuthenticationStateProvider_WhenTokenIsInvalid_ClearsStoreAndReturnsAnonymous()
     {
-        var js = new RecordingJsRuntime();
-        js.LocalStorage["authToken"] = "header.payload.signature";
-        var terminalHandler = new RecordingHttpMessageHandler();
-        terminalHandler.Enqueue(new HttpResponseMessage(HttpStatusCode.OK));
-        var authHandler = new JwtAuthorizationMessageHandler(js)
-        {
-            InnerHandler = terminalHandler
-        };
-        var invoker = new HttpMessageInvoker(authHandler);
+        var tokenStore = new RecordingTokenStore { Token = "not-a-valid-jwt" };
+        var provider = new JwtAuthenticationStateProvider(tokenStore);
 
-        await invoker.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://example.test/api/posts"), default);
+        var state = await provider.GetAuthenticationStateAsync();
 
-        terminalHandler.Requests.Should().ContainSingle();
-        terminalHandler.Requests[0].Authorization?.Scheme.Should().Be("Bearer");
-        terminalHandler.Requests[0].Authorization?.Parameter.Should().Be("header.payload.signature");
+        state.User.Identity?.IsAuthenticated.Should().BeFalse();
+        tokenStore.Token.Should().BeNull();
+        tokenStore.ClearCalls.Should().Be(1);
     }
 
     private static ApiClient CreateApiClient(HttpMessageHandler handler, NotificationRecorder notifications)

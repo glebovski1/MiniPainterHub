@@ -4,23 +4,23 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.JSInterop;
+using MiniPainterHub.WebApp.Services.Auth;
 
 namespace MiniPainterHub.WebApp.Services
 {
     public class JwtAuthenticationStateProvider : AuthenticationStateProvider
     {
         private static readonly AuthenticationState AnonymousState = new(new ClaimsPrincipal(new ClaimsIdentity()));
-        private readonly IJSRuntime _js;
+        private readonly ITokenStore _tokenStore;
 
-        public JwtAuthenticationStateProvider(IJSRuntime js)
+        public JwtAuthenticationStateProvider(ITokenStore tokenStore)
         {
-            _js = js;
+            _tokenStore = tokenStore;
         }
 
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
-            var token = await _js.InvokeAsync<string>("localStorage.getItem", "authToken");
+            var token = await _tokenStore.GetTokenAsync();
             if (string.IsNullOrWhiteSpace(token))
             {
                 return AnonymousState;
@@ -64,7 +64,7 @@ namespace MiniPainterHub.WebApp.Services
             return expiration <= DateTimeOffset.UtcNow;
         }
 
-        private Task ClearPersistedTokenAsync() => _js.InvokeVoidAsync("localStorage.removeItem", "authToken").AsTask();
+        private Task ClearPersistedTokenAsync() => _tokenStore.ClearTokenAsync().AsTask();
 
         private IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
         {

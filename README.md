@@ -1,6 +1,6 @@
 # MiniPainterHub
 
-MiniPainterHub is a .NET 8 social platform for miniature painters, with a Blazor WebAssembly client, ASP.NET Core API host, image-first posts, direct messaging, discovery, and moderation workflows.
+MiniPainterHub is a .NET 10 social platform for miniature painters, with a Blazor WebAssembly client, ASP.NET Core API host, image-first posts, direct messaging, discovery, and moderation workflows.
 
 Durable project documentation now lives in the local Obsidian vault:
 

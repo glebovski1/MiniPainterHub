@@ -12,6 +12,7 @@ Update triggers: source-of-truth architecture changes, deployment process change
 - [Blazor WASM performance log](<Blazor WASM Performance Log.md>) - durable performance lessons, current metrics, WASM tradeoffs, and next optimization paths.
 - [Code style](<CODE_STYLE.md>) - local C# and repo conventions.
 - [Deployment](<DEPLOYMENT.md>) - Azure/App Service publishing, production settings, and deployment diagnostics.
+- [.NET 10 upgrade](<DOTNET_10_UPGRADE.md>) - target-framework state, package inventory, migration risks, and upgrade validation gates.
 - [Best practices](<../30 Process/BEST_PRACTICES.md>) - cross-cutting engineering guidance.
 - [Anti-patterns](<../30 Process/ANTI_PATTERNS.md>) - known pitfalls to avoid.
 

@@ -54,35 +54,16 @@
         "Microsoft.AspNetCore.SignalR.Client.Core.wasm",
         "Microsoft.AspNetCore.SignalR.Common.wasm",
         "Microsoft.AspNetCore.SignalR.Protocols.Json.wasm",
-        "System.IO.Pipelines.wasm",
         "System.Net.WebSockets.wasm",
         "System.Net.WebSockets.Client.wasm",
         "System.Threading.Channels.wasm"
     ];
 
-    private static readonly string[] FormAssemblyNames =
-    [
-        "Microsoft.AspNetCore.Components.Forms.wasm",
-        "System.ComponentModel.Primitives.wasm",
-        "System.ComponentModel.TypeConverter.wasm",
-        "System.Linq.Expressions.wasm"
-    ];
-
     private readonly List<Assembly> _lazyLoadedAssemblies = new();
     private bool _messagingAssembliesLoaded;
-    private bool _formAssembliesLoaded;
 
     private async Task OnNavigateAsync(NavigationContext args)
     {
-        if (!_formAssembliesLoaded && RequiresFormsAndValidation(args.Path))
-        {
-            var formAssemblies = await AssemblyLoader.LoadAssembliesAsync(FormAssemblyNames);
-            args.CancellationToken.ThrowIfCancellationRequested();
-
-            _lazyLoadedAssemblies.AddRange(formAssemblies);
-            _formAssembliesLoaded = true;
-        }
-
         if (_messagingAssembliesLoaded || !args.Path.StartsWith("messages", StringComparison.OrdinalIgnoreCase))
         {
             return;
@@ -94,11 +75,4 @@
         _lazyLoadedAssemblies.AddRange(assemblies);
         _messagingAssembliesLoaded = true;
     }
-
-    private static bool RequiresFormsAndValidation(string path) =>
-        path.Equals("login", StringComparison.OrdinalIgnoreCase)
-        || path.Equals("register", StringComparison.OrdinalIgnoreCase)
-        || path.Equals("profile", StringComparison.OrdinalIgnoreCase)
-        || path.Equals("posts/new", StringComparison.OrdinalIgnoreCase)
-        || path.StartsWith("messages", StringComparison.OrdinalIgnoreCase);
 }

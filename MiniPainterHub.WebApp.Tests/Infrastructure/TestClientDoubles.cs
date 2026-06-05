@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
+using MiniPainterHub.WebApp.Services.Auth;
 
 namespace MiniPainterHub.WebApp.Tests.Infrastructure;
 
@@ -155,6 +156,34 @@ internal sealed class RecordingJsRuntime : IJSRuntime
 }
 
 internal sealed record JsInvocation(string Identifier, IReadOnlyList<object?> Arguments);
+
+internal sealed class RecordingTokenStore : ITokenStore
+{
+    public string? Token { get; set; }
+    public int GetCalls { get; private set; }
+    public int SetCalls { get; private set; }
+    public int ClearCalls { get; private set; }
+
+    public ValueTask<string?> GetTokenAsync(CancellationToken cancellationToken = default)
+    {
+        GetCalls++;
+        return ValueTask.FromResult(Token);
+    }
+
+    public ValueTask SetTokenAsync(string token)
+    {
+        SetCalls++;
+        Token = token;
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask ClearTokenAsync()
+    {
+        ClearCalls++;
+        Token = null;
+        return ValueTask.CompletedTask;
+    }
+}
 
 internal sealed class FakeBrowserFile : IBrowserFile
 {

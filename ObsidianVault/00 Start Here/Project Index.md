@@ -20,6 +20,7 @@ Start here for durable MiniPainterHub project knowledge.
 - [Blazor WASM performance log](<../20 Engineering/Blazor WASM Performance Log.md>)
 - [Code style](<../20 Engineering/CODE_STYLE.md>)
 - [Deployment](<../20 Engineering/DEPLOYMENT.md>)
+- [.NET 10 upgrade](<../20 Engineering/DOTNET_10_UPGRADE.md>)
 
 ## Process
 

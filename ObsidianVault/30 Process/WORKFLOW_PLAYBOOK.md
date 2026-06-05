@@ -26,6 +26,7 @@ Quick Patch:
 Standard:
 - `dotnet build MiniPainterHub.sln`
 - `dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj` when backend is touched.
+- `python tools/docs/check-doc-references.py --repo .` when docs, vault notes, agent skills, or referenced code paths are touched.
 
 High-Risk:
 - Full build + server tests.
@@ -81,6 +82,7 @@ When answering or implementing:
 - For breaking changes, include migration notes in task summary.
 - Keep test fixtures realistic (valid references and constraints).
 - For auth/data-flow/schema changes, update both code and matching docs ([ARCHITECTURE.md](<../20 Engineering/ARCHITECTURE.md>), and [project_structure.txt](<../10 Project/project_structure.txt>) if structure references changed) in the same change.
+- After moving or deleting docs, skills, or documented code paths, run `python tools/docs/check-doc-references.py --repo .`.
 
 ## 5) Delivery Template
 

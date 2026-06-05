@@ -1,6 +1,6 @@
 # MiniPainterHub
 
-MiniPainterHub is a full-stack social platform for miniature painters. It combines image-first post publishing, a richer post viewing experience, social discovery, direct messaging, and admin moderation tooling in one .NET 8 application.
+MiniPainterHub is a full-stack social platform for miniature painters. It combines image-first post publishing, a richer post viewing experience, social discovery, direct messaging, and admin moderation tooling in one .NET 10 application.
 
 This repository is portfolio-oriented as much as it is product-oriented: it shows end-to-end feature work across API design, Blazor UI, authentication, real-time messaging, media handling, moderation workflows, and automated quality gates.
 
@@ -136,7 +136,7 @@ The repository now has automated coverage from basic unit tests through browser 
 
 ### Prerequisites
 
-- .NET 8 SDK
+- .NET 10 SDK
 - Node.js
 - SQL Server LocalDB or another SQL Server instance
 

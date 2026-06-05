@@ -1,7 +1,7 @@
 # Main Painter Hub — Deep Evaluation Report
 
 ## Executive Summary
-MiniPainterHub is a mature .NET 8 full-stack social/art platform (Blazor WASM + ASP.NET Core API + EF Core + Identity + SignalR) with unusually strong test coverage and CI discipline for a portfolio product. The architecture is mostly coherent and service-oriented, but growth risk is concentrated in `Program.cs` composition complexity, route-first UI organization, and mixed content/design token governance between code and vault docs.
+At the time of this audit, MiniPainterHub was a mature .NET 8 full-stack social/art platform (Blazor WASM + ASP.NET Core API + EF Core + Identity + SignalR) with unusually strong test coverage and CI discipline for a portfolio product. The architecture was mostly coherent and service-oriented, but growth risk was concentrated in `Program.cs` composition complexity, route-first UI organization, and mixed content/design token governance between code and vault docs.
 
 Top priorities: (1) split startup/configuration composition, (2) formalize feature-level UI module boundaries, (3) normalize design tokens/components into explicit primitives, (4) harden documentation source-of-truth around active code behavior, and (5) maintain strong test/CI baseline while adding performance/accessibility budgets.
 
@@ -46,7 +46,7 @@ Current architecture: layered, service-oriented monolith.
 Structure is mostly scalable, but UI is still route/page grouped rather than domain-feature grouped.
 
 ### 1.3 Stack and Dependencies
-- .NET 8, ASP.NET Core, Blazor WASM, EF Core SQL Server, Identity, SignalR, ImageSharp, FluentValidation, Swashbuckle.
+- At audit time: .NET 8, ASP.NET Core, Blazor WASM, EF Core SQL Server, Identity, SignalR, ImageSharp, FluentValidation, Swashbuckle.
 - E2E: Playwright + Lighthouse.
 - Central package mgmt: `Directory.Packages.props`.
 
@@ -224,7 +224,7 @@ Risk: split source-of-truth between root files and vault may confuse new contrib
 
 ### 3.8 Non-Code Refactoring Proposal
 - Consolidate onboarding “single start” doc that links both code and vault sources.
-- Add `docs/architecture-map.md` lightweight map for faster contributor ramp.
+- Keep `ObsidianVault/20 Engineering/ARCHITECTURE.md` current as the lightweight architecture map for faster contributor ramp.
 - Add accessibility/performance governance docs with thresholds and ownership.
 
 ---

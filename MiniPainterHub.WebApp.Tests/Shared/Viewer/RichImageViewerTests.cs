@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using Bunit;
 using FluentAssertions;
@@ -93,7 +92,7 @@ public class RichImageViewerTests : TestContext
     [Fact]
     public void ViewerPreloadSourceUsesPreviewImageOnly()
     {
-        var source = InvokePreloadImageSource(new PostViewerImageDto
+        var source = ViewerImageLoadState.GetPreloadSource(new PostViewerImageDto
         {
             ImageUrl = "/images/moonlit-skin-1-full.png",
             PreviewUrl = "/images/moonlit-skin-1-preview.png"
@@ -282,16 +281,6 @@ public class RichImageViewerTests : TestContext
         }
 
         return viewer;
-    }
-
-    private static string InvokePreloadImageSource(PostViewerImageDto image)
-    {
-        var method = typeof(RichImageViewer).GetMethod(
-            "GetPreloadImageSource",
-            BindingFlags.NonPublic | BindingFlags.Static);
-
-        method.Should().NotBeNull();
-        return (string)method!.Invoke(null, new object[] { image })!;
     }
 
     private static TouchEventArgs CreateTouchEventArgs(double clientX, double clientY, bool useChangedTouches = false)

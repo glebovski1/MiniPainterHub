@@ -1,7 +1,7 @@
 using System.Net.Http;
 using System.Net;
-using Microsoft.JSInterop;
 using MiniPainterHub.Common.Auth;
+using MiniPainterHub.WebApp.Services.Auth;
 using MiniPainterHub.WebApp.Services.Http;
 using MiniPainterHub.WebApp.Services.Interfaces;
 
@@ -10,13 +10,13 @@ namespace MiniPainterHub.WebApp.Services
     public class AuthService : IAuthService
     {
         private readonly ApiClient _api;
-        private readonly IJSRuntime _js;
+        private readonly ITokenStore _tokenStore;
         private readonly JwtAuthenticationStateProvider _authStateProvider;
 
-        public AuthService(ApiClient api, IJSRuntime js, JwtAuthenticationStateProvider authStateProvider)
+        public AuthService(ApiClient api, ITokenStore tokenStore, JwtAuthenticationStateProvider authStateProvider)
         {
             _api = api;
-            _js = js;
+            _tokenStore = tokenStore;
             _authStateProvider = authStateProvider;
         }
 
@@ -33,7 +33,7 @@ namespace MiniPainterHub.WebApp.Services
                 return false;
             }
 
-            await _js.InvokeVoidAsync("localStorage.setItem", "authToken", response.Token);
+            await _tokenStore.SetTokenAsync(response.Token);
             _authStateProvider.NotifyUserAuthentication(response.Token);
             return true;
         }
@@ -58,7 +58,7 @@ namespace MiniPainterHub.WebApp.Services
                     SuppressedStatusCodes = new HashSet<HttpStatusCode> { HttpStatusCode.ServiceUnavailable }
                 });
 
-            await _js.InvokeVoidAsync("localStorage.removeItem", "authToken");
+            await _tokenStore.ClearTokenAsync();
             _authStateProvider.NotifyUserAuthentication(null);
         }
     }

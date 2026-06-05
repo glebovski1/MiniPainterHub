@@ -237,6 +237,7 @@ async function clearClientState(page) {
 }
 
 async function startFreshState(page, request) {
+  await clearClientState(page);
   await resetAppState(request);
   await clearClientState(page);
 }
@@ -265,10 +266,11 @@ async function authenticateViaApi(page, request, userName, password) {
     const navToggle = page.getByRole("button", { name: /toggle navigation/i });
     if (await navToggle.isVisible().catch(() => false)) {
       await navToggle.click();
+      await settle(page, 250);
     }
   }
 
-  await expect(logoutLink).toBeVisible();
+  await expect(logoutLink).toBeAttached();
   await settle(page, 700);
 }
 
@@ -748,9 +750,18 @@ const scenarioGroups = {
     });
     await clickReliably(page.getByTestId("viewer-mark-close"));
 
-    const delayedImagePattern = /\/uploads\/images\/.*_preview\.(webp|jpg|png)$/;
+    const delayedImagePattern = new RegExp(richViewerPost.primaryImage.previewUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    let releaseDelayedImage;
+    const delayedImageRelease = new Promise((resolve) => {
+      releaseDelayedImage = resolve;
+    });
+    let markDelayedImageRequested;
+    const delayedImageRequested = new Promise((resolve) => {
+      markDelayedImageRequested = resolve;
+    });
     await page.route(delayedImagePattern, async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 900));
+      markDelayedImageRequested();
+      await delayedImageRelease;
       await route.continue();
     });
     await clickReliably(page.getByTestId("viewer-close"));
@@ -758,6 +769,7 @@ const scenarioGroups = {
     await page.goto(`/posts/${richViewerPost.postId}`);
     await settle(page, 700);
     await openViewerFromDetails(page, { waitForImage: false });
+    await delayedImageRequested;
     await expect(page.getByTestId("viewer-skeleton")).toHaveCount(1);
     await capture(page, manifest, {
       name: "posts-detail-rich-viewer-loading",
@@ -767,6 +779,7 @@ const scenarioGroups = {
       fullPage: false,
       stateTags: ["posts", "desktop", "viewer-open", "loading"]
     });
+    releaseDelayedImage();
     await expect(page.getByTestId("viewer-skeleton")).toHaveCount(0);
     await page.unroute(delayedImagePattern);
 

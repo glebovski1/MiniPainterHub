@@ -62,6 +62,8 @@ BenchmarkDotNet.Artifacts/
 project.lock.json
 project.fragment.lock.json
 artifacts/
+.codex/published-local/
+.codex/perf-reports/
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt

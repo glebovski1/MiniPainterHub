@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MiniPainterHub.WebApp.Services;
+using MiniPainterHub.WebApp.Services.Auth;
 using MiniPainterHub.WebApp.Services.Http;
 using MiniPainterHub.WebApp.Services.Interfaces;
 using MiniPainterHub.WebApp.Services.Notifications;
@@ -33,6 +34,7 @@ public class Program
         // 2)  JWT-based authentication state provider
         //------------------------------------------------------------
         builder.Services
+            .AddScoped<ITokenStore, LocalStorageTokenStore>()
             .AddScoped<JwtAuthenticationStateProvider>()
             .AddScoped<AuthenticationStateProvider>(sp =>
                 sp.GetRequiredService<JwtAuthenticationStateProvider>());

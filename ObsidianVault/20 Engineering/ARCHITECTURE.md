@@ -11,7 +11,7 @@ Related docs:
 
 ## 1) Solution Overview
 
-`MiniPainterHub` is a .NET 8 solution with:
+`MiniPainterHub` is a .NET 10 solution with:
 
 - `MiniPainterHub.Server`: ASP.NET Core backend API + static host for Blazor WebAssembly.
 - `MiniPainterHub.WebApp`: Blazor WebAssembly client.
@@ -237,8 +237,9 @@ Domain/service exceptions (for example `NotFoundException`, `DomainValidationExc
 The WebApp is a Blazor WebAssembly SPA:
 
 - `Program.cs` registers auth state and typed services.
-- JWT token is stored in browser `localStorage`.
-- `JwtAuthorizationMessageHandler` injects bearer token into outbound API requests.
+- JWT token access is centralized behind `MiniPainterHub.WebApp/Services/Auth/ITokenStore.cs`.
+- `LocalStorageTokenStore` is the browser `localStorage` implementation for the existing `authToken` key.
+- `Services/Http/ApiClient.cs` attaches bearer tokens to outbound API requests when the request does not already provide an `Authorization` header.
 - API calls go through `Services/Http/ApiClient.cs` for:
   - common request logic
   - standardized error parsing

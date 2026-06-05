@@ -9,7 +9,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.JSInterop;
+using System.Net.Http.Headers;
+using MiniPainterHub.WebApp.Services.Auth;
 using MiniPainterHub.WebApp.Services.Notifications;
 using MiniPainterHub.WebApp.Services.Performance;
 
@@ -22,18 +23,18 @@ public sealed class ApiClient
     private readonly HttpClient _httpClient;
     private readonly INotificationService _notifications;
     private readonly IClientPerformanceMetrics? _metrics;
-    private readonly IJSRuntime? _jsRuntime;
+    private readonly ITokenStore? _tokenStore;
 
     public ApiClient(
         HttpClient httpClient,
         INotificationService notifications,
         IClientPerformanceMetrics? metrics = null,
-        IJSRuntime? jsRuntime = null)
+        ITokenStore? tokenStore = null)
     {
         _httpClient = httpClient;
         _notifications = notifications;
         _metrics = metrics;
-        _jsRuntime = jsRuntime;
+        _tokenStore = tokenStore;
     }
 
     public async Task<T?> SendAsync<T>(HttpRequestMessage request, ApiRequestOptions? options = null, CancellationToken cancellationToken = default)
@@ -133,15 +134,15 @@ public sealed class ApiClient
 
     private async ValueTask AttachAuthorizationHeaderAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        if (_jsRuntime is null || request.Headers.Authorization is not null)
+        if (_tokenStore is null || request.Headers.Authorization is not null)
         {
             return;
         }
 
-        var token = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", cancellationToken, "authToken");
+        var token = await _tokenStore.GetTokenAsync(cancellationToken);
         if (!string.IsNullOrWhiteSpace(token))
         {
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         }
     }
 

@@ -14,6 +14,7 @@ using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Options;
+using MiniPainterHub.Server.Features.Posts;
 using MiniPainterHub.Server.Services;
 using MiniPainterHub.Server.Services.Interfaces;
 using MiniPainterHub.Server.Services.Models;
@@ -121,6 +122,63 @@ public class PostServiceTests
         storedPost.Images.Should().HaveCount(6);
         storedPost.Images.Select(i => i.ImageUrl)
             .Should().BeEquivalentTo(dto.Images!.Take(6).Select(i => i.ImageUrl));
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenTagsImagesAndProfileExist_ReturnsSameDtoAsGetById()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1", "artist");
+        user.Profile = TestData.CreateProfile(user.Id, "Display Painter");
+        await context.Users.AddAsync(user);
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+        var dto = TestData.CreatePostDto(imageCount: 2);
+        dto.Tags = new List<string> { "NMM", "Glazing" };
+        dto.Images![0].Width = 1600;
+        dto.Images[0].Height = 900;
+        dto.Images[1].Width = 1200;
+        dto.Images[1].Height = 1200;
+
+        var created = await service.CreateAsync(user.Id, dto);
+        var loaded = await service.GetByIdAsync(created.Id);
+
+        created.Should().BeEquivalentTo(loaded);
+        created.AuthorName.Should().Be("Display Painter");
+        created.Tags.Select(tag => tag.Name).Should().Equal("Glazing", "NMM");
+        created.Images.Select(image => new { image.ImageUrl, image.PreviewUrl, image.ThumbnailUrl, image.Width, image.Height })
+            .Should()
+            .Equal(dto.Images.Select(image => new { image.ImageUrl, image.PreviewUrl, image.ThumbnailUrl, image.Width, image.Height }));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenTagsChange_GetByIdKeepsImageDtoParity()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1", "artist");
+        await context.Users.AddAsync(user);
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+        var dto = TestData.CreatePostDto(imageCount: 1);
+        dto.Tags = new List<string> { "Before" };
+        dto.Images![0].Width = 1024;
+        dto.Images[0].Height = 768;
+        var created = await service.CreateAsync(user.Id, dto);
+
+        var updated = await service.UpdateAsync(created.Id, user.Id, new UpdatePostDto
+        {
+            Title = "Updated title",
+            Content = "Updated content",
+            Tags = new List<string> { "Weathering", "Glazing" }
+        });
+        var loaded = await service.GetByIdAsync(created.Id);
+
+        updated.Should().BeTrue();
+        loaded.Title.Should().Be("Updated title");
+        loaded.Content.Should().Be("Updated content");
+        loaded.Images.Should().BeEquivalentTo(created.Images, options => options.WithStrictOrdering());
+        loaded.ImageUrl.Should().Be(created.ImageUrl);
+        loaded.Tags.Select(tag => tag.Name).Should().Equal("Glazing", "Weathering");
     }
 
     [Fact]
@@ -312,6 +370,29 @@ public class PostServiceTests
     }
 
     [Fact]
+    public async Task PostImageAttachmentService_AddImagesAsync_WhenPostHasCapacity_AddsImagesAndReturnsOrderedDtos()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        var post = TestData.CreatePost(1, user.Id, imageCount: 1);
+        await context.Users.AddAsync(user);
+        await context.Posts.AddAsync(post);
+        await context.SaveChangesAsync();
+        var attachmentService = CreateImageAttachmentService(context);
+        var newImages = TestData.CreateImages(2, "extra").ToList();
+        var existingImageUrls = post.Images.OrderBy(image => image.Id).Select(image => image.ImageUrl).ToList();
+
+        var result = await attachmentService.AddImagesAsync(post.Id, newImages);
+
+        result.Should().HaveCount(3);
+        result.Select(image => image.ImageUrl).Should().Equal(
+            existingImageUrls.Concat(newImages.Select(image => image.ImageUrl)));
+
+        var storedPost = await context.Posts.Include(p => p.Images).SingleAsync();
+        storedPost.Images.Should().HaveCount(3);
+    }
+
+    [Fact]
     public async Task ExistsAsync_WhenActivePostExists_ReturnsTrue()
     {
         await using var context = AppDbContextFactory.Create();
@@ -480,13 +561,25 @@ public class PostServiceTests
         StubImageStore? imageStore = null,
         ImagesOptions? imageOptions = null)
     {
+        var attachmentService = CreateImageAttachmentService(context, imageService, imageStore, imageOptions);
         return new PostService(
+            context,
+            attachmentService);
+    }
+
+    private static PostImageAttachmentService CreateImageAttachmentService(
+        AppDbContext context,
+        StubImageService? imageService = null,
+        StubImageStore? imageStore = null,
+        ImagesOptions? imageOptions = null)
+    {
+        return new PostImageAttachmentService(
             context,
             imageService ?? new StubImageService(),
             new StubImageProcessor(),
             imageStore ?? new StubImageStore(),
             Microsoft.Extensions.Options.Options.Create(imageOptions ?? new ImagesOptions()),
-            NullLogger<PostService>.Instance);
+            NullLogger<PostImageAttachmentService>.Instance);
     }
 
     private sealed class StubImageService : IImageService
