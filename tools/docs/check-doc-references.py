@@ -52,6 +52,11 @@ KNOWN_ROOT_FILES = {
     "README.md",
 }
 
+GENERATED_OUTPUT_PATH_PREFIXES = {
+    "e2e/perf-results",
+    "e2e/test-results",
+}
+
 
 def iter_active_markdown(repo: Path):
     roots = [
@@ -147,6 +152,8 @@ def normalize_repo_candidate(value: str) -> str | None:
     candidate = candidate.split("#", 1)[0].strip("/")
     if not candidate:
         return None
+    if is_generated_output_candidate(candidate):
+        return None
 
     if candidate in KNOWN_ROOT_FILES:
         return candidate
@@ -156,6 +163,13 @@ def normalize_repo_candidate(value: str) -> str | None:
         return None
 
     return candidate
+
+
+def is_generated_output_candidate(candidate: str) -> bool:
+    return any(
+        candidate == prefix or candidate.startswith(f"{prefix}/")
+        for prefix in GENERATED_OUTPUT_PATH_PREFIXES
+    )
 
 
 def repo_path_exists(candidate: str, repo: Path) -> bool:
