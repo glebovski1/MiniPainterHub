@@ -11,8 +11,10 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.WebApp.Services;
+using MiniPainterHub.WebApp.Services.Auth;
 using MiniPainterHub.WebApp.Services.Http;
 using MiniPainterHub.WebApp.Services.Notifications;
+using MiniPainterHub.WebApp.Tests.Infrastructure;
 using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Services;
@@ -32,7 +34,7 @@ public class ConversationServiceTests
         var service = new ConversationService(
             apiClient,
             context.Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>(),
-            context.JSInterop.JSRuntime);
+            new RecordingTokenStore());
 
         var firstTask = service.GetConversationsAsync(forceRefresh: true);
         await handler.RequestStarted.Task;
@@ -61,7 +63,7 @@ public class ConversationServiceTests
         var service = new ConversationService(
             apiClient,
             context.Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>(),
-            context.JSInterop.JSRuntime,
+            new RecordingTokenStore { Token = "stored-token" },
             realtimeFactory);
 
         await service.JoinConversationAsync(5);
@@ -73,6 +75,37 @@ public class ConversationServiceTests
         realtimeFactory.CreateCount.Should().Be(1);
         realtimeFactory.Connection.StartCount.Should().Be(1);
         realtimeFactory.Connection.JoinedConversationIds.Should().Equal(5, 7, 5, 7);
+    }
+
+    [Fact]
+    public async Task SignalRConversationRealtimeConnectionFactory_WhenTokenMissing_ReturnsNull()
+    {
+        using var context = new TestContext();
+        var tokenStore = new RecordingTokenStore();
+        var factory = new SignalRConversationRealtimeConnectionFactory(
+            context.Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>(),
+            tokenStore);
+
+        var connection = await factory.CreateAsync();
+
+        connection.Should().BeNull();
+        tokenStore.GetCalls.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SignalRConversationRealtimeConnectionFactory_WhenTokenExists_CreatesConnectionThroughTokenStore()
+    {
+        using var context = new TestContext();
+        var tokenStore = new RecordingTokenStore { Token = "stored-token" };
+        var factory = new SignalRConversationRealtimeConnectionFactory(
+            context.Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>(),
+            tokenStore);
+
+        var connection = await factory.CreateAsync();
+
+        connection.Should().NotBeNull();
+        tokenStore.GetCalls.Should().Be(1);
+        await connection!.DisposeAsync();
     }
 
     private sealed class BlockingHttpMessageHandler : HttpMessageHandler

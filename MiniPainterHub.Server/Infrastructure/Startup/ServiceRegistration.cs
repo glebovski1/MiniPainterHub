@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
@@ -15,6 +16,7 @@ using MiniPainterHub.Server.ErrorHandling;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Realtime;
+using MiniPainterHub.Server.Features.Posts;
 using MiniPainterHub.Server.Services;
 using MiniPainterHub.Server.Services.Images;
 using MiniPainterHub.Server.Services.Interfaces;
@@ -46,6 +48,12 @@ public partial class Program
 
         builder.Services.AddDbContext<AppDbContext>(options =>
         {
+            if (isLocalToolingEnvironment)
+            {
+                options.ConfigureWarnings(warnings =>
+                    warnings.Log(RelationalEventId.PendingModelChangesWarning));
+            }
+
             if (useInMemoryDatabase)
             {
                 options.UseInMemoryDatabase("MiniPainterHubDev");
@@ -224,6 +232,7 @@ public partial class Program
     private static void AddDomainServices(IServiceCollection services)
     {
         services.AddScoped<IProfileService, ProfileService>();
+        services.AddScoped<IPostImageAttachmentService, PostImageAttachmentService>();
         services.AddScoped<IPostService, PostService>();
         services.AddScoped<IPostViewerService, PostViewerService>();
         services.AddScoped<ICommentService, CommentService>();

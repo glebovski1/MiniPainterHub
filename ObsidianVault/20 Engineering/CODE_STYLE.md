@@ -76,6 +76,15 @@ Services should:
   - `UseAuthorization()`
 - All modifying endpoints must require authorization and service-side permission checks.
 
-## 10) Documentation Rule
+## 10) CSS Ownership
+
+- Put global design tokens, resets, layout primitives, and cross-route utilities in `MiniPainterHub.WebApp/wwwroot/css/app.css`.
+- Put reusable component styles beside the shared component in its `.razor.css` file.
+- Put route-only styles beside the owning page in that page's `.razor.css` file.
+- Avoid adding page-specific selectors to `app.css`; move them into page-scoped CSS when ownership is clear.
+
+## 11) Documentation Rule
 
 When introducing a new pattern or changing an existing one, update the relevant vault note in `ObsidianVault/` in the same change. Use [Agent Navigation.md](<../00 Start Here/Agent Navigation.md>) to choose the source of truth.
+
+Run `python tools/docs/check-doc-references.py --repo .` after moving, deleting, or renaming docs, skills, or commonly referenced code paths.

@@ -1,8 +1,4 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Primitives;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
@@ -10,8 +6,6 @@ using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Features.Media;
 using MiniPainterHub.Server.Features.Posts;
 using MiniPainterHub.Server.Features.Tags;
-using MiniPainterHub.Server.Imaging;
-using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -24,28 +18,16 @@ namespace MiniPainterHub.Server.Services
     public class PostService : IPostService
     {
         private readonly AppDbContext _appDbContext;
-        private readonly IImageService _imageService;
-        private readonly IImageProcessor _imageProcessor;
-        private readonly IImageStore _imageStore;
-        private readonly ImagesOptions _imageOptions;
-        private readonly ILogger<PostService> _logger;
+        private readonly IPostImageAttachmentService _postImageAttachmentService;
         private readonly IAccountRestrictionService? _accountRestrictionService;
 
         public PostService(
             AppDbContext appDbContext,
-            IImageService imageService,
-            IImageProcessor imageProcessor,
-            IImageStore imageStore,
-            IOptions<ImagesOptions> imageOptions,
-            ILogger<PostService> logger,
+            IPostImageAttachmentService postImageAttachmentService,
             IAccountRestrictionService? accountRestrictionService = null)
         {
             _appDbContext = appDbContext ?? throw new ArgumentNullException(nameof(appDbContext));
-            _imageService = imageService ?? throw new ArgumentNullException(nameof(imageService));
-            _imageProcessor = imageProcessor ?? throw new ArgumentNullException(nameof(imageProcessor));
-            _imageStore = imageStore ?? throw new ArgumentNullException(nameof(imageStore));
-            _imageOptions = imageOptions?.Value ?? throw new ArgumentNullException(nameof(imageOptions));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _postImageAttachmentService = postImageAttachmentService ?? throw new ArgumentNullException(nameof(postImageAttachmentService));
             _accountRestrictionService = accountRestrictionService;
         }
 
@@ -77,6 +59,7 @@ namespace MiniPainterHub.Server.Services
             var newPost = new Post
             {
                 CreatedById = userId,
+                CreatedBy = user,
                 Title = dto.Title,
                 Content = dto.Content,
                 CreatedUtc = DateTime.UtcNow,
@@ -103,33 +86,7 @@ namespace MiniPainterHub.Server.Services
             await SyncTagsAsync(newPost, dto.Tags);
             await _appDbContext.SaveChangesAsync();
 
-            return new PostDto
-            {
-                Id = newPost.Id,
-                CreatedById = userId,
-                Title = newPost.Title,
-                Content = newPost.Content,
-                CreatedAt = newPost.CreatedUtc,
-                AuthorName = PostDtoMapper.ResolveDisplayName(user.UserName, user.Profile?.DisplayName),
-                ImageUrl = newPost.Images.OrderBy(i => i.Id).Select(i => i.ImageUrl).FirstOrDefault(),
-                Images = newPost.Images.Select(i => new PostImageDto
-                {
-                    Id = i.Id,
-                    ImageUrl = i.ImageUrl,
-                    PreviewUrl = i.PreviewUrl,
-                    ThumbnailUrl = i.ThumbnailUrl,
-                    Width = i.Width,
-                    Height = i.Height
-                }).ToList(),
-                Tags = newPost.PostTags
-                    .OrderBy(pt => pt.Tag.DisplayName)
-                    .Select(pt => new TagDto
-                    {
-                        Name = pt.Tag.DisplayName,
-                        Slug = pt.Tag.Slug
-                    })
-                    .ToList()
-            };
+            return PostDtoMapper.ToPostDto(newPost);
         }
 
         public async Task<bool> DeleteAsync(int postId, string userId)
@@ -143,19 +100,12 @@ namespace MiniPainterHub.Server.Services
                 throw new NotFoundException("Post not found.");
             }
 
-            var cleanupTargets = post.Images
-                .Select(image => new PostImageCleanupTarget(
-                    image.StoredImageId,
-                    image.ImageStorageKey,
-                    image.ThumbnailStorageKey))
-                .ToList();
-
             post.IsDeleted = true;
             post.SoftDeletedUtc = DateTime.UtcNow;
             post.UpdatedUtc = DateTime.UtcNow;
             await _appDbContext.SaveChangesAsync();
 
-            await CleanupDeletedPostImagesAsync(post.Id, cleanupTargets);
+            await _postImageAttachmentService.CleanupDeletedPostImagesAsync(post.Id, post.Images);
             return true;
         }
 
@@ -256,17 +206,7 @@ namespace MiniPainterHub.Server.Services
         public async Task<PostDto> CreateWithImagesAsync(string userId, CreateImagePostDto dto, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(dto);
-            ct.ThrowIfCancellationRequested();
-
-            if (dto.Images != null && dto.Images.Count > PostImageUploadValidator.MaxImagesPerPost)
-            {
-                throw new DomainValidationException("Invalid post images.", new Dictionary<string, string[]>
-                {
-                    ["Images"] = new[] { $"A maximum of {PostImageUploadValidator.MaxImagesPerPost} images is allowed." }
-                });
-            }
-
-            PostImageUploadValidator.Validate(dto.Images, dto.Thumbnails, _imageOptions);
+            _postImageAttachmentService.ValidateCreateWithImages(dto, ct);
 
             var created = await CreateAsync(userId, new CreatePostDto
             {
@@ -280,108 +220,13 @@ namespace MiniPainterHub.Server.Services
                 return created;
             }
 
-            _logger.LogInformation(
-                "Processing {Count} uploaded images for post {PostId} (pipeline enabled: {Enabled})",
-                Math.Min(dto.Images.Count, PostImageUploadValidator.MaxImagesPerPost),
-                created.Id,
-                _imageOptions.Enabled);
-
-            var processedImages = new List<ProcessedImageResult>();
-            try
-            {
-                if (_imageOptions.Enabled)
-                {
-                    await ProcessWithPipelineAsync(created.Id, dto.Images, processedImages, ct);
-                }
-                else
-                {
-                    await ProcessWithLegacyAsync(created.Id, dto.Images, dto.Thumbnails, processedImages, ct);
-                }
-
-                created.Images = await AddProcessedImagesAsync(
-                    created.Id,
-                    processedImages
-                        .Where(result => result.Image is not null)
-                        .Select(result => result));
-                created.ImageUrl = created.Images.OrderBy(i => i.Id).Select(i => i.ImageUrl).FirstOrDefault();
-
-                return created;
-            }
-            catch
-            {
-                await CleanupFailedCreateWithImagesAsync(created.Id, processedImages);
-                throw;
-            }
+            created.Images = await _postImageAttachmentService.AttachUploadedImagesAsync(created.Id, dto, ct);
+            created.ImageUrl = created.Images.OrderBy(i => i.Id).Select(i => i.ImageUrl).FirstOrDefault();
+            return created;
         }
 
-        public async Task<List<PostImageDto>> AddImagesAsync(int postId, IEnumerable<PostImageDto> images)
-        {
-            var pendingImages = (images ?? Enumerable.Empty<PostImageDto>())
-                .Select(image => new PendingPostImage(image, null, null, null));
-
-            return await AddImagesAsync(postId, pendingImages);
-        }
-
-        private async Task<List<PostImageDto>> AddProcessedImagesAsync(int postId, IEnumerable<ProcessedImageResult> images)
-        {
-            var pendingImages = images
-                .Where(result => result.Image is not null)
-                .Select(result => new PendingPostImage(
-                    result.Image!,
-                    result.StoredImageId,
-                    result.ImageStorageKey,
-                    result.ThumbnailStorageKey));
-
-            return await AddImagesAsync(postId, pendingImages);
-        }
-
-        private async Task<List<PostImageDto>> AddImagesAsync(int postId, IEnumerable<PendingPostImage> images)
-        {
-            var post = await _appDbContext.Posts
-                .Include(p => p.Images)
-                .FirstOrDefaultAsync(p => p.Id == postId && !p.IsDeleted)
-                ?? throw new NotFoundException("Post not found.");
-
-            var incoming = images ?? Enumerable.Empty<PendingPostImage>();
-            var remainingSlots = Math.Max(0, PostImageUploadValidator.MaxImagesPerPost - post.Images.Count);
-            var toAdd = incoming
-                .Take(remainingSlots)
-                .Select(pending => new PostImage
-                {
-                    PostId = postId,
-                    ImageUrl = pending.Image.ImageUrl,
-                    PreviewUrl = string.IsNullOrWhiteSpace(pending.Image.PreviewUrl) ? pending.Image.ImageUrl : pending.Image.PreviewUrl,
-                    ThumbnailUrl = pending.Image.ThumbnailUrl,
-                    Width = pending.Image.Width,
-                    Height = pending.Image.Height,
-                    StoredImageId = pending.StoredImageId,
-                    ImageStorageKey = pending.ImageStorageKey,
-                    ThumbnailStorageKey = pending.ThumbnailStorageKey
-                })
-                .ToList();
-
-            foreach (var entity in toAdd)
-            {
-                post.Images.Add(entity);
-            }
-
-            post.UpdatedUtc = DateTime.UtcNow;
-            await _appDbContext.SaveChangesAsync();
-
-            return await _appDbContext.PostImages
-                .Where(i => i.PostId == postId)
-                .OrderBy(i => i.Id)
-                .Select(i => new PostImageDto
-                {
-                    Id = i.Id,
-                    ImageUrl = i.ImageUrl,
-                    PreviewUrl = i.PreviewUrl,
-                    ThumbnailUrl = i.ThumbnailUrl,
-                    Width = i.Width,
-                    Height = i.Height
-                })
-                .ToListAsync();
-        }
+        public Task<List<PostImageDto>> AddImagesAsync(int postId, IEnumerable<PostImageDto> images) =>
+            _postImageAttachmentService.AddImagesAsync(postId, images);
 
         public Task<bool> ExistsAsync(int postId) =>
             _appDbContext.Posts.AnyAsync(post => post.Id == postId && !post.IsDeleted);
@@ -618,221 +463,6 @@ namespace MiniPainterHub.Server.Services
             }
         }
 
-        private async Task ProcessWithLegacyAsync(
-            int postId,
-            IReadOnlyList<IFormFile> images,
-            IReadOnlyList<IFormFile>? thumbnails,
-            List<ProcessedImageResult> results,
-            CancellationToken ct)
-        {
-            for (var i = 0; i < images.Count && i < PostImageUploadValidator.MaxImagesPerPost; i++)
-            {
-                ct.ThrowIfCancellationRequested();
-
-                var image = images[i];
-                var uploadedFiles = new List<string>();
-                try
-                {
-                    await using var stream = image.OpenReadStream();
-                    var fileName = $"{postId}_{i}_{image.FileName}";
-                    var url = await _imageService.UploadAsync(stream, fileName);
-                    uploadedFiles.Add(fileName);
-
-                    string? thumbUrl = null;
-                    string? thumbFileName = null;
-                    if (thumbnails != null && i < thumbnails.Count && thumbnails[i] is { Length: > 0 } thumb)
-                    {
-                        await using var thumbStream = thumb.OpenReadStream();
-                        thumbFileName = $"{postId}_{i}_thumb_{thumb.FileName}";
-                        thumbUrl = await _imageService.UploadAsync(thumbStream, thumbFileName);
-                        uploadedFiles.Add(thumbFileName);
-                    }
-
-                    results.Add(new ProcessedImageResult(
-                        new PostImageDto
-                        {
-                            ImageUrl = url,
-                            PreviewUrl = url,
-                            ThumbnailUrl = thumbUrl
-                        },
-                        null,
-                        fileName,
-                        thumbFileName,
-                        uploadedFiles));
-                }
-                catch
-                {
-                    results.Add(new ProcessedImageResult(null, null, null, null, uploadedFiles));
-                    throw;
-                }
-            }
-        }
-
-        private async Task ProcessWithPipelineAsync(
-            int postId,
-            IReadOnlyList<IFormFile> images,
-            List<ProcessedImageResult> results,
-            CancellationToken ct)
-        {
-            for (var i = 0; i < images.Count && i < PostImageUploadValidator.MaxImagesPerPost; i++)
-            {
-                ct.ThrowIfCancellationRequested();
-
-                var image = images[i];
-                var contentType = ResolveContentType(image);
-                var imageId = Guid.NewGuid();
-                try
-                {
-                    await using var stream = image.OpenReadStream();
-                    var variants = await _imageProcessor.ProcessAsync(stream, contentType, ct);
-                    var stored = await _imageStore.SaveAsync(ConvertToStorageGuid(postId), imageId, variants, ct);
-
-                    results.Add(new ProcessedImageResult(
-                        new PostImageDto
-                        {
-                            ImageUrl = stored.MaxUrl,
-                            PreviewUrl = stored.PreviewUrl,
-                            ThumbnailUrl = stored.ThumbUrl,
-                            Width = variants.Max.Width,
-                            Height = variants.Max.Height
-                        },
-                        imageId,
-                        null,
-                        null,
-                        Array.Empty<string>()));
-                }
-                catch
-                {
-                    results.Add(new ProcessedImageResult(null, imageId, null, null, Array.Empty<string>()));
-                    throw;
-                }
-            }
-        }
-
-        private async Task CleanupDeletedPostImagesAsync(int postId, IReadOnlyList<PostImageCleanupTarget> images)
-        {
-            if (images.Count == 0)
-            {
-                return;
-            }
-
-            var storagePostId = ConvertToStorageGuid(postId);
-
-            foreach (var image in images)
-            {
-                foreach (var key in image.LegacyStorageKeys)
-                {
-                    try
-                    {
-                        await _imageService.DeleteAsync(key);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to delete uploaded image artifact {FileName} for deleted post {PostId}", key, postId);
-                    }
-                }
-
-                if (!image.StoredImageId.HasValue)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    await _imageStore.DeleteAsync(storagePostId, image.StoredImageId.Value, CancellationToken.None);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to delete stored image variants for deleted post {PostId} image {ImageId}", postId, image.StoredImageId.Value);
-                }
-            }
-        }
-
-        private async Task CleanupFailedCreateWithImagesAsync(int postId, IReadOnlyList<ProcessedImageResult> processedImages)
-        {
-            var storagePostId = ConvertToStorageGuid(postId);
-
-            foreach (var processedImage in processedImages)
-            {
-                foreach (var fileName in processedImage.UploadedFileNames)
-                {
-                    try
-                    {
-                        await _imageService.DeleteAsync(fileName);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to delete uploaded image artifact {FileName} during rollback for post {PostId}", fileName, postId);
-                    }
-                }
-
-                if (!processedImage.StoredImageId.HasValue)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    await _imageStore.DeleteAsync(storagePostId, processedImage.StoredImageId.Value, CancellationToken.None);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to delete stored image variants for post {PostId} image {ImageId} during rollback", postId, processedImage.StoredImageId.Value);
-                }
-            }
-
-            try
-            {
-                var post = await _appDbContext.Posts
-                    .Include(p => p.Images)
-                    .Include(p => p.PostTags)
-                    .FirstOrDefaultAsync(p => p.Id == postId);
-
-                if (post is null)
-                {
-                    return;
-                }
-
-                if (post.Images.Count > 0)
-                {
-                    _appDbContext.PostImages.RemoveRange(post.Images);
-                }
-
-                if (post.PostTags.Count > 0)
-                {
-                    _appDbContext.PostTags.RemoveRange(post.PostTags);
-                }
-
-                _appDbContext.Posts.Remove(post);
-                await _appDbContext.SaveChangesAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to remove post {PostId} during image upload rollback", postId);
-            }
-        }
-
-        private static Guid ConvertToStorageGuid(int postId) =>
-            new(postId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-
-        private static string ResolveContentType(IFormFile file)
-        {
-            ArgumentNullException.ThrowIfNull(file);
-
-            if (!string.IsNullOrWhiteSpace(file.ContentType))
-            {
-                return file.ContentType;
-            }
-
-            if (file.Headers?.TryGetValue("Content-Type", out StringValues headerValue) == true
-                && !StringValues.IsNullOrEmpty(headerValue))
-            {
-                return headerValue.ToString();
-            }
-
-            return string.Empty;
-        }
-
         private IQueryable<Post> BuildPostGraphQuery() =>
             _appDbContext.Posts
                 .AsNoTracking()
@@ -845,40 +475,5 @@ namespace MiniPainterHub.Server.Services
 
         private sealed record PostSummaryPageItem(int Id, int CommentCount, int LikeCount);
 
-        private sealed record PendingPostImage(
-            PostImageDto Image,
-            Guid? StoredImageId,
-            string? ImageStorageKey,
-            string? ThumbnailStorageKey);
-
-        private sealed record ProcessedImageResult(
-            PostImageDto? Image,
-            Guid? StoredImageId,
-            string? ImageStorageKey,
-            string? ThumbnailStorageKey,
-            IReadOnlyList<string> UploadedFileNames);
-
-        private sealed record PostImageCleanupTarget(
-            Guid? StoredImageId,
-            string? ImageStorageKey,
-            string? ThumbnailStorageKey)
-        {
-            public IEnumerable<string> LegacyStorageKeys
-            {
-                get
-                {
-                    if (!string.IsNullOrWhiteSpace(ImageStorageKey))
-                    {
-                        yield return ImageStorageKey;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(ThumbnailStorageKey)
-                        && !string.Equals(ImageStorageKey, ThumbnailStorageKey, StringComparison.Ordinal))
-                    {
-                        yield return ThumbnailStorageKey;
-                    }
-                }
-            }
-        }
     }
 }

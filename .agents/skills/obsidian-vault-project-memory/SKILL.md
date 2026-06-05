@@ -15,7 +15,7 @@ Never create a new vault unless no vault can be found and the user explicitly wa
 
 1. Read `.codex/vault-memory.json`.
 2. Look for a folder containing `.obsidian/`.
-3. Check common folders: `knowledge`, `vault`, `notes`, `docs/vault`, `obsidian`, `project-memory`.
+3. Check common folders: `knowledge`, `vault`, `notes`, `obsidian`, `project-memory`; if a `docs` folder exists, inspect it for a vault subfolder.
 4. Check README, AGENTS.md, AGENT.md, or docs that mention a vault path.
 
 Use `scripts/vault_find.py` from the repository root for a safe first pass:

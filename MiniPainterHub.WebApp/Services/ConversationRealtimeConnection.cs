@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.JSInterop;
+using MiniPainterHub.WebApp.Services.Auth;
 
 namespace MiniPainterHub.WebApp.Services;
 
@@ -25,17 +25,17 @@ public interface IConversationRealtimeConnectionFactory
 public sealed class SignalRConversationRealtimeConnectionFactory : IConversationRealtimeConnectionFactory
 {
     private readonly NavigationManager _navigation;
-    private readonly IJSRuntime _jsRuntime;
+    private readonly ITokenStore _tokenStore;
 
-    public SignalRConversationRealtimeConnectionFactory(NavigationManager navigation, IJSRuntime jsRuntime)
+    public SignalRConversationRealtimeConnectionFactory(NavigationManager navigation, ITokenStore tokenStore)
     {
         _navigation = navigation;
-        _jsRuntime = jsRuntime;
+        _tokenStore = tokenStore;
     }
 
     public async Task<IConversationRealtimeConnection?> CreateAsync()
     {
-        var token = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", "authToken");
+        var token = await _tokenStore.GetTokenAsync();
         if (string.IsNullOrWhiteSpace(token))
         {
             return null;
@@ -45,7 +45,7 @@ public sealed class SignalRConversationRealtimeConnectionFactory : IConversation
             .WithUrl(_navigation.ToAbsoluteUri("/hubs/chat"), options =>
             {
                 options.AccessTokenProvider = async () =>
-                    await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", "authToken");
+                    await _tokenStore.GetTokenAsync();
             })
             .WithAutomaticReconnect()
             .Build();

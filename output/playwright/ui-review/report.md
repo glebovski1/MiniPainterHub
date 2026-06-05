@@ -6,7 +6,7 @@
 - Captures: `45`
 
 ## Reasons
-- Forced full UI review run.
+- Full sweep trigger matched: MiniPainterHub.WebApp/wwwroot/css/app.css
 
 ## Captures
 - shell-home-panel-open: http://127.0.0.1:5176/ [desktop] [seed-user] [shell, community, panel-open, desktop] -> `output/playwright/ui-review/01-shell-home-panel-open-desktop.png`
@@ -44,7 +44,7 @@
 - following-populated-desktop: http://127.0.0.1:5176/feed/following [desktop] [seed-user] [following, desktop, populated] -> `output/playwright/ui-review/33-following-populated-desktop-desktop.png`
 - profile-empty-desktop: http://127.0.0.1:5176/profile [desktop] [seed-user] [profile, desktop, empty] -> `output/playwright/ui-review/34-profile-empty-desktop-desktop.png`
 - profile-populated-desktop: http://127.0.0.1:5176/profile [desktop] [seed-user] [profile, desktop, populated] -> `output/playwright/ui-review/35-profile-populated-desktop-desktop.png`
-- profile-public-desktop: http://127.0.0.1:5176/users/4687282e-c924-4744-b969-b401601c2a12 [desktop] [seed-user] [profile, desktop, public, populated] -> `output/playwright/ui-review/36-profile-public-desktop-desktop.png`
+- profile-public-desktop: http://127.0.0.1:5176/users/349afa4a-447e-4257-86e9-0b69e609b7a0 [desktop] [seed-user] [profile, desktop, public, populated] -> `output/playwright/ui-review/36-profile-public-desktop-desktop.png`
 - messages-empty-desktop: http://127.0.0.1:5176/messages [desktop] [seed-user] [messages, desktop, empty] -> `output/playwright/ui-review/37-messages-empty-desktop-desktop.png`
 - messages-populated-desktop: http://127.0.0.1:5176/messages [desktop] [seed-user] [messages, desktop, populated] -> `output/playwright/ui-review/38-messages-populated-desktop-desktop.png`
 - messages-populated-mobile: http://127.0.0.1:5176/messages [mobile] [seed-user] [messages, mobile, populated] -> `output/playwright/ui-review/39-messages-populated-mobile-mobile.png`

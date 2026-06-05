@@ -26,11 +26,7 @@
             return false;
         }
 
-        try {
-            return !localStorage.getItem("authToken");
-        } catch {
-            return false;
-        }
+        return true;
     }
 
     function waitForAppContent() {

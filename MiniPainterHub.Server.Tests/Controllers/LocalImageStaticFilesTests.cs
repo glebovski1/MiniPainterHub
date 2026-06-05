@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using MiniPainterHub.Server.Data;
+using MiniPainterHub.Server.Tests.Infrastructure;
 using Xunit;
 
 namespace MiniPainterHub.Server.Tests.Controllers;
@@ -64,8 +65,7 @@ public class LocalImageStaticFilesTests : IClassFixture<LocalImageStaticFilesTes
 
             builder.ConfigureServices(services =>
             {
-                services.RemoveAll(typeof(DbContextOptions<AppDbContext>));
-                services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(_databaseName));
+                services.ReplaceAppDbContextWithInMemory(_databaseName);
             });
         }
 

@@ -25,6 +25,7 @@ using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Identity;
+using MiniPainterHub.Server.Tests.Infrastructure;
 using MiniPainterHub.Server.Services.Interfaces;
 using MiniPainterHub.Server.Services.Models;
 using SixLabors.ImageSharp;
@@ -304,8 +305,7 @@ public class PostsUploadTests : IClassFixture<PostsUploadTests.TestApplicationFa
             builder.UseEnvironment("Development");
             builder.ConfigureServices(services =>
             {
-                services.RemoveAll(typeof(DbContextOptions<AppDbContext>));
-                services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(_databaseName));
+                services.ReplaceAppDbContextWithInMemory(_databaseName);
 
                 services.RemoveAll(typeof(IImageStore));
                 services.AddSingleton<TestImageStore>();

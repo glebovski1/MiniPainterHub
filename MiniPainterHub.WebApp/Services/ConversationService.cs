@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.AspNetCore.Components;
-using Microsoft.JSInterop;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.WebApp.Services.Auth;
 using MiniPainterHub.WebApp.Services.Http;
 using MiniPainterHub.WebApp.Services.Interfaces;
 using System.Net.Http;
@@ -19,15 +19,15 @@ namespace MiniPainterHub.WebApp.Services
         private IReadOnlyList<ConversationSummaryDto> _conversations = Array.Empty<ConversationSummaryDto>();
         private Task<IReadOnlyList<ConversationSummaryDto>>? _loadConversationsTask;
 
-        public ConversationService(ApiClient api, NavigationManager navigation, IJSRuntime jsRuntime)
-            : this(api, navigation, jsRuntime, new SignalRConversationRealtimeConnectionFactory(navigation, jsRuntime))
+        public ConversationService(ApiClient api, NavigationManager navigation, ITokenStore tokenStore)
+            : this(api, navigation, tokenStore, new SignalRConversationRealtimeConnectionFactory(navigation, tokenStore))
         {
         }
 
         public ConversationService(
             ApiClient api,
             NavigationManager navigation,
-            IJSRuntime jsRuntime,
+            ITokenStore tokenStore,
             IConversationRealtimeConnectionFactory realtimeConnectionFactory)
         {
             _api = api;

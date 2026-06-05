@@ -1,0 +1,26 @@
+.search-results-card {
+    display: grid;
+    gap: 0.95rem;
+}
+
+.search-overview-results {
+    display: grid;
+    gap: 1rem;
+}
+
+.search-overview-section {
+    display: grid;
+    gap: 0.85rem;
+    padding: 1rem;
+    border: 1px solid rgba(217, 208, 194, 0.64);
+    border-radius: var(--radius-md);
+    background: rgba(250, 247, 240, 0.62);
+}
+
+.search-overview-section ::deep .section-heading {
+    margin-bottom: 0;
+}
+
+.search-overview-section--posts {
+    background: rgba(255, 253, 249, 0.58);
+}
