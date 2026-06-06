@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T16:53:14.310Z",
+  "generatedAt": "2026-06-06T17:36:41.626Z",
   "scope": "full",
   "reviewCommand": "npm --prefix e2e run test:ui-review:full",
   "groups": [
@@ -15,7 +15,7 @@
     "admin"
   ],
   "reasons": [
-    "Full sweep trigger matched: MiniPainterHub.WebApp/wwwroot/css/app.css"
+    "Forced full UI review run."
   ],
   "captures": [
     {
@@ -499,7 +499,7 @@
     {
       "name": "profile-public-desktop",
       "group": "profile",
-      "url": "http://127.0.0.1:5176/users/349afa4a-447e-4257-86e9-0b69e609b7a0",
+      "url": "http://127.0.0.1:5176/users/2d7ada6a-7d67-4ad4-a0d9-f73da4ef3517",
       "viewport": "desktop",
       "authState": "seed-user",
       "stateTags": [
@@ -563,31 +563,44 @@
       "relativeFile": "output/playwright/ui-review/40-connections-populated-desktop-desktop.png"
     },
     {
-      "name": "admin-reports-empty-desktop",
+      "name": "admin-inbox-default-desktop",
       "group": "admin",
-      "url": "http://127.0.0.1:5176/admin/reports",
+      "url": "http://127.0.0.1:5176/admin",
       "viewport": "desktop",
       "authState": "admin",
       "stateTags": [
         "admin",
         "desktop",
-        "reports",
-        "empty"
+        "inbox",
+        "default"
       ],
-      "relativeFile": "output/playwright/ui-review/41-admin-reports-empty-desktop-desktop.png"
+      "relativeFile": "output/playwright/ui-review/41-admin-inbox-default-desktop-desktop.png"
     },
     {
-      "name": "admin-moderation-desktop",
+      "name": "admin-controls-desktop",
       "group": "admin",
-      "url": "http://127.0.0.1:5176/admin/moderation",
+      "url": "http://127.0.0.1:5176/admin/controls",
       "viewport": "desktop",
       "authState": "admin",
       "stateTags": [
         "admin",
         "desktop",
-        "moderation"
+        "controls"
       ],
-      "relativeFile": "output/playwright/ui-review/42-admin-moderation-desktop-desktop.png"
+      "relativeFile": "output/playwright/ui-review/42-admin-controls-desktop-desktop.png"
+    },
+    {
+      "name": "admin-dashboard-desktop",
+      "group": "admin",
+      "url": "http://127.0.0.1:5176/admin/dashboard",
+      "viewport": "desktop",
+      "authState": "admin",
+      "stateTags": [
+        "admin",
+        "desktop",
+        "dashboard"
+      ],
+      "relativeFile": "output/playwright/ui-review/43-admin-dashboard-desktop-desktop.png"
     },
     {
       "name": "admin-audit-desktop",
@@ -600,37 +613,24 @@
         "desktop",
         "audit"
       ],
-      "relativeFile": "output/playwright/ui-review/43-admin-audit-desktop-desktop.png"
+      "relativeFile": "output/playwright/ui-review/44-admin-audit-desktop-desktop.png"
     },
     {
-      "name": "admin-suspensions-desktop",
+      "name": "admin-inbox-populated-desktop",
       "group": "admin",
-      "url": "http://127.0.0.1:5176/admin/suspensions",
+      "url": "http://127.0.0.1:5176/admin",
       "viewport": "desktop",
       "authState": "admin",
       "stateTags": [
         "admin",
         "desktop",
-        "suspensions"
-      ],
-      "relativeFile": "output/playwright/ui-review/44-admin-suspensions-desktop-desktop.png"
-    },
-    {
-      "name": "admin-reports-populated-desktop",
-      "group": "admin",
-      "url": "http://127.0.0.1:5176/admin/reports",
-      "viewport": "desktop",
-      "authState": "admin",
-      "stateTags": [
-        "admin",
-        "desktop",
-        "reports",
+        "inbox",
         "populated"
       ],
-      "relativeFile": "output/playwright/ui-review/45-admin-reports-populated-desktop-desktop.png"
+      "relativeFile": "output/playwright/ui-review/45-admin-inbox-populated-desktop-desktop.png"
     }
   ],
   "failures": [],
-  "completedAt": "2026-05-30T16:57:33.666Z",
+  "completedAt": "2026-06-06T17:41:37.210Z",
   "captureCount": 45
 }

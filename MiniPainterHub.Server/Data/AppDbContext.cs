@@ -20,6 +20,7 @@ namespace MiniPainterHub.Server.Data
         public DbSet<PostTag> PostTags { get; set; } = default!;
         public DbSet<Comment> Comments { get; set; } = default!;
         public DbSet<Like> Likes { get; set; } = default!;
+        public DbSet<AdminSiteControl> AdminSiteControls { get; set; } = default!;
         public DbSet<ModerationAuditLog> ModerationAuditLogs { get; set; } = default!;
         public DbSet<ContentReport> ContentReports { get; set; } = default!;
         public DbSet<Follow> Follows { get; set; } = default!;
@@ -155,6 +156,16 @@ namespace MiniPainterHub.Server.Data
             builder.Entity<ApplicationUser>(b =>
             {
                 b.Property(u => u.SuspensionReason).HasMaxLength(500);
+            });
+
+            builder.Entity<AdminSiteControl>(b =>
+            {
+                b.HasKey(c => c.Key);
+                b.Property(c => c.Key).HasMaxLength(64).IsRequired();
+                b.Property(c => c.Message).HasMaxLength(500);
+                b.Property(c => c.Reason).HasMaxLength(500);
+                b.Property(c => c.UpdatedByUserId).HasMaxLength(450).IsRequired();
+                b.HasIndex(c => c.UpdatedUtc);
             });
 
             builder.Entity<ModerationAuditLog>(b =>

@@ -121,6 +121,13 @@ internal static class BunitTestContextExtensions
         return stub;
     }
 
+    public static StubAdminService AddAdminStub(this TestContext context, StubAdminService? stub = null)
+    {
+        stub ??= new StubAdminService();
+        context.Services.AddSingleton<IAdminService>(stub);
+        return stub;
+    }
+
     public static string CurrentPath(this TestContext context)
     {
         var navigationManager = context.Services.GetRequiredService<NavigationManager>();

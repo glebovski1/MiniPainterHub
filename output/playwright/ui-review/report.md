@@ -6,7 +6,7 @@
 - Captures: `45`
 
 ## Reasons
-- Full sweep trigger matched: MiniPainterHub.WebApp/wwwroot/css/app.css
+- Forced full UI review run.
 
 ## Captures
 - shell-home-panel-open: http://127.0.0.1:5176/ [desktop] [seed-user] [shell, community, panel-open, desktop] -> `output/playwright/ui-review/01-shell-home-panel-open-desktop.png`
@@ -44,13 +44,13 @@
 - following-populated-desktop: http://127.0.0.1:5176/feed/following [desktop] [seed-user] [following, desktop, populated] -> `output/playwright/ui-review/33-following-populated-desktop-desktop.png`
 - profile-empty-desktop: http://127.0.0.1:5176/profile [desktop] [seed-user] [profile, desktop, empty] -> `output/playwright/ui-review/34-profile-empty-desktop-desktop.png`
 - profile-populated-desktop: http://127.0.0.1:5176/profile [desktop] [seed-user] [profile, desktop, populated] -> `output/playwright/ui-review/35-profile-populated-desktop-desktop.png`
-- profile-public-desktop: http://127.0.0.1:5176/users/349afa4a-447e-4257-86e9-0b69e609b7a0 [desktop] [seed-user] [profile, desktop, public, populated] -> `output/playwright/ui-review/36-profile-public-desktop-desktop.png`
+- profile-public-desktop: http://127.0.0.1:5176/users/2d7ada6a-7d67-4ad4-a0d9-f73da4ef3517 [desktop] [seed-user] [profile, desktop, public, populated] -> `output/playwright/ui-review/36-profile-public-desktop-desktop.png`
 - messages-empty-desktop: http://127.0.0.1:5176/messages [desktop] [seed-user] [messages, desktop, empty] -> `output/playwright/ui-review/37-messages-empty-desktop-desktop.png`
 - messages-populated-desktop: http://127.0.0.1:5176/messages [desktop] [seed-user] [messages, desktop, populated] -> `output/playwright/ui-review/38-messages-populated-desktop-desktop.png`
 - messages-populated-mobile: http://127.0.0.1:5176/messages [mobile] [seed-user] [messages, mobile, populated] -> `output/playwright/ui-review/39-messages-populated-mobile-mobile.png`
 - connections-populated-desktop: http://127.0.0.1:5176/connections [desktop] [seed-user] [connections, desktop, populated] -> `output/playwright/ui-review/40-connections-populated-desktop-desktop.png`
-- admin-reports-empty-desktop: http://127.0.0.1:5176/admin/reports [desktop] [admin] [admin, desktop, reports, empty] -> `output/playwright/ui-review/41-admin-reports-empty-desktop-desktop.png`
-- admin-moderation-desktop: http://127.0.0.1:5176/admin/moderation [desktop] [admin] [admin, desktop, moderation] -> `output/playwright/ui-review/42-admin-moderation-desktop-desktop.png`
-- admin-audit-desktop: http://127.0.0.1:5176/admin/audit [desktop] [admin] [admin, desktop, audit] -> `output/playwright/ui-review/43-admin-audit-desktop-desktop.png`
-- admin-suspensions-desktop: http://127.0.0.1:5176/admin/suspensions [desktop] [admin] [admin, desktop, suspensions] -> `output/playwright/ui-review/44-admin-suspensions-desktop-desktop.png`
-- admin-reports-populated-desktop: http://127.0.0.1:5176/admin/reports [desktop] [admin] [admin, desktop, reports, populated] -> `output/playwright/ui-review/45-admin-reports-populated-desktop-desktop.png`
+- admin-inbox-default-desktop: http://127.0.0.1:5176/admin [desktop] [admin] [admin, desktop, inbox, default] -> `output/playwright/ui-review/41-admin-inbox-default-desktop-desktop.png`
+- admin-controls-desktop: http://127.0.0.1:5176/admin/controls [desktop] [admin] [admin, desktop, controls] -> `output/playwright/ui-review/42-admin-controls-desktop-desktop.png`
+- admin-dashboard-desktop: http://127.0.0.1:5176/admin/dashboard [desktop] [admin] [admin, desktop, dashboard] -> `output/playwright/ui-review/43-admin-dashboard-desktop-desktop.png`
+- admin-audit-desktop: http://127.0.0.1:5176/admin/audit [desktop] [admin] [admin, desktop, audit] -> `output/playwright/ui-review/44-admin-audit-desktop-desktop.png`
+- admin-inbox-populated-desktop: http://127.0.0.1:5176/admin [desktop] [admin] [admin, desktop, inbox, populated] -> `output/playwright/ui-review/45-admin-inbox-populated-desktop-desktop.png`

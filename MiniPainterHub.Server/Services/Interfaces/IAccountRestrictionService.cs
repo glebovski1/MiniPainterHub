@@ -6,6 +6,7 @@ namespace MiniPainterHub.Server.Services.Interfaces
     public interface IAccountRestrictionService
     {
         Task EnsureCanLoginAsync(ApplicationUser user);
+        Task EnsureCanRegisterAsync();
         Task EnsureCanCreatePostAsync(string userId);
         Task EnsureCanCommentAsync(string userId);
     }

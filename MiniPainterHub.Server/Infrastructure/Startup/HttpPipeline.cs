@@ -39,6 +39,7 @@ public partial class Program
         app.UseResponseCompression();
         UseStaticAssetHeaderPolicy(app);
         app.UseAuthentication();
+        app.UseMiddleware<SiteActivityMiddleware>();
         app.UseMiddleware<MaintenanceModeMiddleware>();
         UsePublishedBootManifestStaticFile(app);
         app.UseBlazorFrameworkFiles();

@@ -243,10 +243,14 @@ public partial class Program
         services.AddScoped<DevelopmentContentSeeder>();
         services.AddScoped<IAccountRestrictionService, AccountRestrictionService>();
         services.AddScoped<IModerationService, ModerationService>();
+        services.AddScoped<IAdminInboxService, AdminInboxService>();
+        services.AddScoped<IAdminSiteControlService, AdminSiteControlService>();
+        services.AddScoped<IAdminDashboardService, AdminDashboardService>();
         services.AddScoped<ISearchService, SearchService>();
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IFollowService, FollowService>();
         services.AddScoped<IConversationService, ConversationService>();
+        services.AddSingleton<ISiteActivityTracker, SiteActivityTracker>();
         services.AddSingleton<IMaintenanceBypassService, MaintenanceBypassService>();
         services.AddSingleton<IChatNotifier, SignalRChatNotifier>();
     }

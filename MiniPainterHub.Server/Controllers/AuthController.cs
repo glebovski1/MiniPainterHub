@@ -47,6 +47,8 @@ namespace MiniPainterHub.Server.Controllers
                 throw new DomainValidationException("Registration request is invalid.", CreateModelStateErrors());
             }
 
+            await _accountRestrictionService.EnsureCanRegisterAsync();
+
             var user = new ApplicationUser { UserName = dto.UserName, Email = dto.Email };
             var result = await _userManager.CreateAsync(user, dto.Password);
 

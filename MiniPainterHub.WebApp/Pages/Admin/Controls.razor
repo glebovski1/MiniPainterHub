@@ -1,0 +1,258 @@
+@page "/admin/controls"
+@attribute [Authorize(Roles = "Admin")]
+@inject IAdminService AdminService
+
+<PageTitle>Admin Controls</PageTitle>
+
+<div class="page-shell content-stack admin-tools-page">
+    <section class="page-hero admin-tools-hero">
+        <div class="content-stack">
+            <div>
+                <p class="page-hero__eyebrow">Admin tools</p>
+                <h1 class="page-hero__title">Control center</h1>
+                <p class="page-hero__description">Critical switches for pausing public access, posting, comments, or registrations during incidents.</p>
+            </div>
+
+            <div class="metric-grid">
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Critical controls</span>
+                    <span class="metric-chip__value">4</span>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Disabled now</span>
+                    <span class="metric-chip__value">@_controls.Count(c => !c.EffectiveEnabled)</span>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Access</span>
+                    <span class="metric-chip__value">Admin only</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="status-panel status-panel--error" data-testid="admin-controls-error">
+            <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Controls unavailable</div>
+                <p class="status-panel__text mb-0">@_error</p>
+            </div>
+        </div>
+    }
+
+    <section class="admin-table-panel">
+        @if (_loading)
+        {
+            <div class="status-panel status-panel--info" data-testid="admin-controls-loading">
+                <div class="status-panel__icon"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Loading controls</div>
+                    <p class="status-panel__text mb-0">Reading the effective critical switches.</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle admin-controls-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Control</th>
+                            <th scope="col">State</th>
+                            <th scope="col">Pause until</th>
+                            <th scope="col">Message</th>
+                            <th scope="col">Reason</th>
+                            <th scope="col" class="text-end">Save</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var control in _controls)
+                        {
+                            var draft = GetDraft(control);
+                            <tr data-testid="admin-control-row">
+                                <td>
+                                    <div class="admin-cell-main">@control.Label</div>
+                                    <div class="admin-cell-muted">@control.Description</div>
+                                    @if (control.IsExpired)
+                                    {
+                                        <span class="badge text-bg-light">Expired pause, effectively enabled</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="form-check form-switch admin-control-switch">
+                                        <input id="@($"control-enabled-{control.Key}")"
+                                               class="form-check-input"
+                                               type="checkbox"
+                                               data-testid="admin-control-enabled"
+                                               @bind="draft.Enabled" />
+                                        <label class="form-check-label" for="@($"control-enabled-{control.Key}")">
+                                            @(draft.Enabled ? "Enabled" : "Paused")
+                                        </label>
+                                    </div>
+                                    <span class="@GetControlBadgeClass(control)">
+                                        @(control.EffectiveEnabled ? "Effective enabled" : "Effective paused")
+                                    </span>
+                                </td>
+                                <td>
+                                    <input class="form-control form-control-sm"
+                                           type="datetime-local"
+                                           data-testid="admin-control-until"
+                                           @bind="draft.DisabledUntilLocal"
+                                           disabled="@draft.Enabled" />
+                                </td>
+                                <td>
+                                    <input class="form-control form-control-sm"
+                                           data-testid="admin-control-message"
+                                           @bind="draft.Message"
+                                           placeholder="Message" />
+                                </td>
+                                <td>
+                                    <input class="form-control form-control-sm"
+                                           data-testid="admin-control-reason"
+                                           @bind="draft.Reason"
+                                           placeholder="Reason" />
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-primary btn-sm"
+                                            type="button"
+                                            data-testid="admin-control-save"
+                                            @onclick="() => SaveAsync(control.Key)"
+                                            disabled="@_saving">
+                                        @(_savingKey == control.Key ? "Saving..." : "Save")
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private readonly List<AdminSiteControlDto> _controls = new();
+    private readonly Dictionary<string, ControlDraft> _drafts = new(StringComparer.Ordinal);
+    private bool _loading;
+    private bool _saving;
+    private string? _savingKey;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var result = await AdminService.GetControlsAsync();
+            if (!result.Success || result.Value is null)
+            {
+                _controls.Clear();
+                _error = "Could not load controls.";
+                return;
+            }
+
+            _controls.Clear();
+            _controls.AddRange(result.Value);
+            foreach (var control in _controls)
+            {
+                _drafts[control.Key] = new ControlDraft
+                {
+                    Enabled = control.Enabled,
+                    DisabledUntilLocal = control.DisabledUntilUtc?.ToLocalTime(),
+                    Message = control.Message ?? string.Empty,
+                    Reason = control.Reason ?? string.Empty
+                };
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync(string key)
+    {
+        var draft = _drafts[key];
+        if (!draft.Enabled && string.IsNullOrWhiteSpace(draft.Reason))
+        {
+            _error = "Reason is required when pausing a control.";
+            return;
+        }
+
+        _saving = true;
+        _savingKey = key;
+        _error = null;
+        try
+        {
+            var result = await AdminService.UpdateControlAsync(key, new UpdateAdminSiteControlRequestDto
+            {
+                Enabled = draft.Enabled,
+                DisabledUntilUtc = draft.Enabled ? null : draft.DisabledUntilLocal?.ToUniversalTime(),
+                Message = NormalizeOptional(draft.Message),
+                Reason = NormalizeOptional(draft.Reason)
+            });
+
+            if (!result.Success || result.Value is null)
+            {
+                _error = "Could not save the control.";
+                return;
+            }
+
+            var index = _controls.FindIndex(c => c.Key == key);
+            if (index >= 0)
+            {
+                _controls[index] = result.Value;
+                _drafts[key] = new ControlDraft
+                {
+                    Enabled = result.Value.Enabled,
+                    DisabledUntilLocal = result.Value.DisabledUntilUtc?.ToLocalTime(),
+                    Message = result.Value.Message ?? string.Empty,
+                    Reason = result.Value.Reason ?? string.Empty
+                };
+            }
+        }
+        finally
+        {
+            _saving = false;
+            _savingKey = null;
+        }
+    }
+
+    private ControlDraft GetDraft(AdminSiteControlDto control)
+    {
+        if (!_drafts.TryGetValue(control.Key, out var draft))
+        {
+            draft = new ControlDraft
+            {
+                Enabled = control.Enabled,
+                DisabledUntilLocal = control.DisabledUntilUtc?.ToLocalTime(),
+                Message = control.Message ?? string.Empty,
+                Reason = control.Reason ?? string.Empty
+            };
+            _drafts[control.Key] = draft;
+        }
+
+        return draft;
+    }
+
+    private static string GetControlBadgeClass(AdminSiteControlDto control) =>
+        control.EffectiveEnabled ? "badge text-bg-success" : "badge text-bg-danger";
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private sealed class ControlDraft
+    {
+        public bool Enabled { get; set; }
+        public DateTime? DisabledUntilLocal { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
+    }
+}

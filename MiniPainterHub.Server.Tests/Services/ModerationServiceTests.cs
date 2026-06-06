@@ -80,6 +80,29 @@ public class ModerationServiceTests
         await act.Should().ThrowAsync<DomainValidationException>();
     }
 
+    [Fact]
+    public async Task ModeratePostAsync_WhenHidingPostDeletedOutsideModeration_ThrowsDomainValidationException()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var post = TestData.CreatePost(20, "author-1", isDeleted: true);
+        post.SoftDeletedUtc = DateTime.UtcNow.AddMinutes(-10);
+        post.ModeratedByUserId = null;
+        post.ModeratedUtc = null;
+        await context.Posts.AddAsync(post);
+        await context.SaveChangesAsync();
+
+        var service = new ModerationService(context, CreateUserManagerMock().Object);
+
+        var act = async () => await service.ModeratePostAsync(post.Id, "mod-1", hide: true, reason: "spam");
+
+        var ex = await act.Should().ThrowAsync<DomainValidationException>();
+        ex.Which.Errors.Should().ContainKey("postId");
+
+        var stored = await context.Posts.SingleAsync(p => p.Id == post.Id);
+        stored.ModeratedByUserId.Should().BeNull();
+        stored.ModerationReason.Should().BeNull();
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("2020-01-01T00:00:00Z")]
@@ -98,6 +121,61 @@ public class ModerationServiceTests
         var ex = await act.Should().ThrowAsync<DomainValidationException>();
         ex.Which.Errors.Should().ContainKey("suspendedUntilUtc");
         userManagerMock.Verify(m => m.FindByIdAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SuspendUserAsync_WhenTargetIsActor_ThrowsDomainValidationException()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var userManager = CreateUserManagerMock();
+        userManager.Setup(m => m.FindByIdAsync("admin-1"))
+            .ReturnsAsync(TestData.CreateUser("admin-1", "admin-1"));
+        var service = new ModerationService(context, userManager.Object);
+
+        var act = async () => await service.SuspendUserAsync("admin-1", "admin-1", DateTime.UtcNow.AddDays(1), "reason");
+
+        var ex = await act.Should().ThrowAsync<DomainValidationException>();
+        ex.Which.Errors.Should().ContainKey("targetUserId");
+        userManager.Verify(m => m.UpdateAsync(It.IsAny<ApplicationUser>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SuspendUserAsync_WhenTargetHasStaffRole_ThrowsDomainValidationException()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var target = TestData.CreateUser("mod-1", "mod-1");
+        var userManager = CreateUserManagerMock();
+        userManager.Setup(m => m.FindByIdAsync("mod-1"))
+            .ReturnsAsync(target);
+        userManager.Setup(m => m.GetRolesAsync(target))
+            .ReturnsAsync(["Moderator"]);
+        var service = new ModerationService(context, userManager.Object);
+
+        var act = async () => await service.SuspendUserAsync("mod-1", "admin-1", DateTime.UtcNow.AddDays(1), "reason");
+
+        var ex = await act.Should().ThrowAsync<DomainValidationException>();
+        ex.Which.Errors.Should().ContainKey("targetUserId");
+        userManager.Verify(m => m.UpdateAsync(It.IsAny<ApplicationUser>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SuspendUserAsync_WhenIdentityUpdateFails_ThrowsDomainValidationException()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var target = TestData.CreateUser("user-1", "user-1");
+        var userManager = CreateUserManagerMock();
+        userManager.Setup(m => m.FindByIdAsync("user-1"))
+            .ReturnsAsync(target);
+        userManager.Setup(m => m.GetRolesAsync(target))
+            .ReturnsAsync(Array.Empty<string>());
+        userManager.Setup(m => m.UpdateAsync(target))
+            .ReturnsAsync(IdentityResult.Failed(new IdentityError { Code = "Store", Description = "Write failed." }));
+        var service = new ModerationService(context, userManager.Object);
+
+        var act = async () => await service.SuspendUserAsync("user-1", "admin-1", DateTime.UtcNow.AddDays(1), "reason");
+
+        var ex = await act.Should().ThrowAsync<DomainValidationException>();
+        ex.Which.Errors.Should().ContainKey("Store");
     }
 
     [Theory]

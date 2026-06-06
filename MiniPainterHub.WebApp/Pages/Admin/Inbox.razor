@@ -1,0 +1,562 @@
+@page "/admin"
+@page "/admin/inbox"
+@attribute [Authorize(Roles = "Moderator,Admin")]
+@inject IAdminService AdminService
+@inject IModerationService ModerationService
+
+<PageTitle>Admin Inbox</PageTitle>
+
+<div class="page-shell content-stack admin-tools-page">
+    <section class="page-hero admin-tools-hero">
+        <div class="content-stack">
+            <div>
+                <p class="page-hero__eyebrow">Admin tools</p>
+                <h1 class="page-hero__title">Moderation inbox</h1>
+                <p class="page-hero__description">Review recent posts, comments, and report signals from one dense work surface.</p>
+            </div>
+
+            <div class="metric-grid">
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Loaded</span>
+                    <span class="metric-chip__value">@_items.Count</span>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Open signals</span>
+                    <span class="metric-chip__value">@_items.Sum(i => i.OpenReportCount)</span>
+                </div>
+                <div class="metric-chip">
+                    <span class="metric-chip__label">Window</span>
+                    <span class="metric-chip__value">Last @_query.WindowHours h</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="admin-filter-strip" aria-label="Inbox filters">
+        <div>
+            <label class="form-label" for="admin-inbox-window">Time</label>
+            <select id="admin-inbox-window" class="form-select form-select-sm" data-testid="admin-inbox-window" @bind="_query.WindowHours">
+                <option value="2">2 hours</option>
+                <option value="6">6 hours</option>
+                <option value="24">24 hours</option>
+                <option value="72">3 days</option>
+                <option value="168">7 days</option>
+            </select>
+        </div>
+        <div>
+            <label class="form-label" for="admin-inbox-type">Type</label>
+            <select id="admin-inbox-type" class="form-select form-select-sm" data-testid="admin-inbox-type" @bind="_query.ItemType">
+                <option value="@AdminInboxItemTypes.All">All</option>
+                <option value="@AdminInboxItemTypes.Post">Posts</option>
+                <option value="@AdminInboxItemTypes.Comment">Comments</option>
+            </select>
+        </div>
+        <div>
+            <label class="form-label" for="admin-inbox-state">State</label>
+            <select id="admin-inbox-state" class="form-select form-select-sm" data-testid="admin-inbox-state" @bind="_query.State">
+                <option value="@AdminInboxStates.All">All</option>
+                <option value="@AdminInboxStates.Reported">Reported</option>
+                <option value="@AdminInboxStates.Active">Active</option>
+                <option value="@AdminInboxStates.Hidden">Hidden</option>
+                <option value="@AdminInboxStates.Reviewed">Reviewed</option>
+            </select>
+        </div>
+        <div>
+            <label class="form-label" for="admin-inbox-page-size">Rows</label>
+            <select id="admin-inbox-page-size" class="form-select form-select-sm" data-testid="admin-inbox-page-size" @bind="_query.PageSize">
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+            </select>
+        </div>
+        <div class="admin-filter-strip__search">
+            <label class="form-label" for="admin-inbox-search">Search</label>
+            <input id="admin-inbox-search" class="form-control form-control-sm" data-testid="admin-inbox-search" @bind="_query.Search" />
+        </div>
+        <div class="admin-filter-strip__actions">
+            <button class="btn btn-primary btn-sm" type="button" data-testid="admin-inbox-apply" @onclick="ApplyFiltersAsync" disabled="@_loading">
+                @(_loading ? "Loading..." : "Apply")
+            </button>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="status-panel status-panel--error" data-testid="admin-inbox-error">
+            <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Inbox unavailable</div>
+                <p class="status-panel__text mb-0">@_error</p>
+            </div>
+        </div>
+    }
+
+    <div class="admin-inbox-layout">
+        <section class="admin-table-panel" aria-label="Inbox rows">
+            @if (_loading)
+            {
+                <div class="status-panel status-panel--info" data-testid="admin-inbox-loading">
+                    <div class="status-panel__icon"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></div>
+                    <div>
+                        <div class="status-panel__title">Loading inbox</div>
+                        <p class="status-panel__text mb-0">Refreshing the current moderation window.</p>
+                    </div>
+                </div>
+            }
+            else if (_items.Count == 0)
+            {
+                <EmptyState IconClass="bi bi-inbox"
+                            Title="No matching content"
+                            Description="Try a wider window or clear the search filter."
+                            TitleClass="empty-state__title h4"
+                            TestId="admin-inbox-empty" />
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle admin-inbox-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Time</th>
+                                <th scope="col">Author</th>
+                                <th scope="col">Content</th>
+                                <th scope="col">Signal</th>
+                                <th scope="col" class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in _items)
+                            {
+                                <tr class="@GetRowClass(item)" data-testid="admin-inbox-row">
+                                    <td class="text-nowrap">@item.CreatedUtc.ToLocalTime().ToString("g")</td>
+                                    <td>
+                                        <div class="admin-cell-main">@item.AuthorName</div>
+                                        <div class="admin-cell-muted">@ShortId(item.AuthorUserId)</div>
+                                    </td>
+                                    <td>
+                                        <div class="admin-content-title">
+                                            <span class="admin-type-pill">@item.TargetType</span>
+                                            <button class="admin-link-button" type="button" @onclick="() => SelectItemAsync(item)">
+                                                @item.Summary
+                                            </button>
+                                        </div>
+                                        @if (!string.IsNullOrWhiteSpace(item.ContextSummary))
+                                        {
+                                            <div class="admin-cell-muted">@item.ContextSummary</div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="admin-signal-stack">
+                                            <span class="@GetStateBadgeClass(item.State)">@item.State</span>
+                                        @if (item.OpenReportCount > 0)
+                                        {
+                                            <span class="badge text-bg-warning">@item.OpenReportCount open</span>
+                                        }
+                                        else if (item.TotalReportCount > 0)
+                                        {
+                                            <span class="badge text-bg-light">@item.TotalReportCount total</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="admin-cell-muted">none</span>
+                                        }
+                                        </div>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm" role="group" aria-label="Row actions">
+                                            <button class="btn btn-outline-secondary" type="button" data-testid="admin-inbox-select" @onclick="() => SelectItemAsync(item)">Inspect</button>
+                                            @if (item.IsDeleted)
+                                            {
+                                                <button class="btn btn-outline-success" type="button" data-testid="admin-inbox-restore" @onclick="() => ModerateAsync(item, hide: false)">Restore</button>
+                                            }
+                                            else
+                                            {
+                                                <button class="btn btn-outline-danger" type="button" data-testid="admin-inbox-hide" @onclick="() => ModerateAsync(item, hide: true)">Hide</button>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="paginator-bar">
+                    <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="LoadPreviousPageAsync" disabled="@(!_hasPreviousPage || _loading)">Previous</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="LoadNextPageAsync" disabled="@(!_hasNextPage || _loading)">Next</button>
+                    <span class="text-muted" data-testid="admin-inbox-page-state">Page @_query.Page of @_totalPages</span>
+                </div>
+            }
+        </section>
+
+        <aside class="admin-inspector" aria-label="Inspector" data-testid="admin-inbox-inspector">
+            @if (_detailLoading)
+            {
+                <div class="status-panel status-panel--info">
+                    <div class="status-panel__icon"><i class="bi bi-search" aria-hidden="true"></i></div>
+                    <div>
+                        <div class="status-panel__title">Loading inspector</div>
+                        <p class="status-panel__text mb-0">Fetching full content and report context.</p>
+                    </div>
+                </div>
+            }
+            else if (_detail is null)
+            {
+                <div class="admin-inspector__empty">
+                    <i class="bi bi-layout-sidebar-inset" aria-hidden="true"></i>
+                    <div>
+                        <strong>Select a row</strong>
+                        <p class="mb-0">Inspector details and actions appear here.</p>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="admin-inspector__header">
+                    <div>
+                        <p class="section-label">@_detail.TargetType #@_detail.TargetId</p>
+                        <h2 class="admin-inspector__title">@(_detail.Title ?? _detail.ContextSummary ?? "Content")</h2>
+                    </div>
+                    <span class="@GetStateBadgeClass(_detail.State)">@_detail.State</span>
+                </div>
+
+                <div class="admin-inspector__meta">
+                    <span>Author <strong>@_detail.AuthorName</strong></span>
+                    <span>Joined <strong>@FormatDate(_detail.AuthorJoinedUtc)</strong></span>
+                    <span>Reports <strong>@_detail.Reports.Count(r => r.Status == ReportStatuses.Open) open</strong></span>
+                </div>
+
+                <div class="admin-preview">
+                    <p>@_detail.Body</p>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(_detail.ModerationReason))
+                {
+                    <div class="admin-note">
+                        <strong>Moderation note</strong>
+                        <p>@_detail.ModerationReason</p>
+                    </div>
+                }
+
+                <div>
+                    <label class="form-label" for="admin-action-reason">Reason / note</label>
+                    <textarea id="admin-action-reason" class="form-control" rows="3" data-testid="admin-inbox-reason" @bind="_actionReason"></textarea>
+                </div>
+
+                <div class="page-toolbar admin-inspector__actions">
+                    @if (_detail.IsDeleted)
+                    {
+                        <button class="btn btn-outline-success btn-sm" type="button" data-testid="admin-inbox-detail-restore" @onclick="() => ModerateSelectedAsync(hide: false)" disabled="@_actionBusy">Restore</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-outline-danger btn-sm" type="button" data-testid="admin-inbox-detail-hide" @onclick="() => ModerateSelectedAsync(hide: true)" disabled="@_actionBusy">Hide</button>
+                    }
+                    <button class="btn btn-primary btn-sm" type="button" data-testid="admin-inbox-review" @onclick="ReviewSelectedAsync" disabled="@_actionBusy">Mark reviewed</button>
+                    <NavLink class="btn btn-outline-secondary btn-sm" href="@_detail.TargetUrl">Open target</NavLink>
+                    <NavLink class="btn btn-outline-secondary btn-sm" href="@_detail.AuditUrl">Audit</NavLink>
+                </div>
+
+                <AuthorizeView Roles="Admin">
+                    <Authorized>
+                        <div class="admin-suspend-panel">
+                            <div class="admin-suspend-panel__header">
+                                <strong>Suspend author</strong>
+                                <span>@ShortId(_detail.AuthorUserId)</span>
+                            </div>
+                            <label class="form-label" for="admin-suspend-until">Until (UTC)</label>
+                            <input id="admin-suspend-until" class="form-control form-control-sm" type="datetime-local" @bind="_suspendUntilLocal" />
+                            <button class="btn btn-outline-danger btn-sm mt-2" type="button" data-testid="admin-inbox-suspend" @onclick="SuspendAuthorAsync" disabled="@_actionBusy">Suspend author</button>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+
+                <div class="admin-report-list">
+                    <div class="admin-report-list__heading">Report context</div>
+                    @if (_detail.Reports.Count == 0)
+                    {
+                        <p class="admin-cell-muted mb-0">No reports for this target.</p>
+                    }
+                    else
+                    {
+                        @foreach (var report in _detail.Reports)
+                        {
+                            <div class="admin-report-row">
+                                <div>
+                                    <strong>@report.ReasonCode</strong>
+                                    <span class="@GetReportBadgeClass(report.Status)">@report.Status</span>
+                                </div>
+                                <p>@(string.IsNullOrWhiteSpace(report.Details) ? "No reporter details." : report.Details)</p>
+                                <span>@report.ReporterUserName · @report.CreatedUtc.ToLocalTime().ToString("g")</span>
+                            </div>
+                        }
+                    }
+                </div>
+            }
+        </aside>
+    </div>
+</div>
+
+@code {
+    private readonly List<AdminInboxItemDto> _items = new();
+    private readonly AdminInboxQueryDto _query = new()
+    {
+        Page = 1,
+        PageSize = 25,
+        WindowHours = 24,
+        ItemType = AdminInboxItemTypes.All,
+        State = AdminInboxStates.All
+    };
+
+    private bool _loading;
+    private bool _detailLoading;
+    private bool _actionBusy;
+    private int _totalPages = 1;
+    private string? _error;
+    private string? _selectedTargetKey;
+    private AdminInboxDetailDto? _detail;
+    private string _actionReason = string.Empty;
+    private DateTime _suspendUntilLocal = DateTime.UtcNow.AddDays(1).ToLocalTime();
+
+    private bool _hasPreviousPage => _query.Page > 1;
+    private bool _hasNextPage => _query.Page < _totalPages;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task ApplyFiltersAsync()
+    {
+        _query.Page = 1;
+        await LoadAsync();
+    }
+
+    private async Task LoadPreviousPageAsync()
+    {
+        if (!_hasPreviousPage)
+        {
+            return;
+        }
+
+        _query.Page--;
+        await LoadAsync();
+    }
+
+    private async Task LoadNextPageAsync()
+    {
+        if (!_hasNextPage)
+        {
+            return;
+        }
+
+        _query.Page++;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            var result = await AdminService.GetInboxAsync(_query);
+            if (!result.Success || result.Value is null)
+            {
+                _items.Clear();
+                _totalPages = 1;
+                _error = "Could not load admin inbox.";
+                return;
+            }
+
+            _items.Clear();
+            _items.AddRange(result.Value.Items);
+            _query.Page = result.Value.PageNumber;
+            _query.PageSize = result.Value.PageSize;
+            _totalPages = Math.Max(result.Value.TotalPages, 1);
+
+            if (_items.Count > 0 && _detail is null)
+            {
+                await SelectItemAsync(_items[0]);
+            }
+            else if (_detail is not null && !_items.Any(i => Key(i) == _selectedTargetKey))
+            {
+                _detail = null;
+                _selectedTargetKey = null;
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SelectItemAsync(AdminInboxItemDto item)
+    {
+        _detailLoading = true;
+        _error = null;
+        _selectedTargetKey = Key(item);
+        _actionReason = string.Empty;
+
+        try
+        {
+            var result = await AdminService.GetInboxDetailAsync(item.TargetType, item.TargetId);
+            if (!result.Success || result.Value is null)
+            {
+                _error = "Could not load inspector detail.";
+                return;
+            }
+
+            _detail = result.Value;
+        }
+        finally
+        {
+            _detailLoading = false;
+        }
+    }
+
+    private Task ModerateSelectedAsync(bool hide)
+    {
+        if (_detail is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        return ModerateAsync(_detail.TargetType, _detail.TargetId, hide);
+    }
+
+    private Task ModerateAsync(AdminInboxItemDto item, bool hide) =>
+        ModerateAsync(item.TargetType, item.TargetId, hide);
+
+    private async Task ModerateAsync(string targetType, string targetId, bool hide)
+    {
+        _actionBusy = true;
+        _error = null;
+        try
+        {
+            var request = new ModerationActionRequestDto { Reason = NormalizeOptional(_actionReason) };
+            var numericId = int.Parse(targetId);
+            var success = targetType == AdminInboxItemTypes.Post
+                ? hide
+                    ? await ModerationService.HidePostAsync(numericId, request)
+                    : await ModerationService.RestorePostAsync(numericId, request)
+                : hide
+                    ? await ModerationService.HideCommentAsync(numericId, request)
+                    : await ModerationService.RestoreCommentAsync(numericId, request);
+
+            if (!success)
+            {
+                _error = "Moderation action failed.";
+                return;
+            }
+
+            await ReloadAfterActionAsync(targetType, targetId);
+        }
+        finally
+        {
+            _actionBusy = false;
+        }
+    }
+
+    private async Task ReviewSelectedAsync()
+    {
+        if (_detail is null)
+        {
+            return;
+        }
+
+        _actionBusy = true;
+        _error = null;
+        try
+        {
+            var success = await AdminService.ReviewInboxItemAsync(_detail.TargetType, _detail.TargetId, new AdminInboxReviewRequestDto
+            {
+                Reason = NormalizeOptional(_actionReason)
+            });
+
+            if (!success)
+            {
+                _error = "Could not mark the item reviewed.";
+                return;
+            }
+
+            await ReloadAfterActionAsync(_detail.TargetType, _detail.TargetId);
+        }
+        finally
+        {
+            _actionBusy = false;
+        }
+    }
+
+    private async Task SuspendAuthorAsync()
+    {
+        if (_detail is null)
+        {
+            return;
+        }
+
+        _actionBusy = true;
+        _error = null;
+        try
+        {
+            var success = await ModerationService.SuspendUserAsync(_detail.AuthorUserId, new SuspendUserRequestDto
+            {
+                SuspendedUntilUtc = _suspendUntilLocal.ToUniversalTime(),
+                Reason = NormalizeOptional(_actionReason) ?? $"Admin inbox action for {_detail.TargetType} #{_detail.TargetId}"
+            });
+
+            if (!success)
+            {
+                _error = "Could not suspend the author.";
+                return;
+            }
+
+            await ReloadAfterActionAsync(_detail.TargetType, _detail.TargetId);
+        }
+        finally
+        {
+            _actionBusy = false;
+        }
+    }
+
+    private async Task ReloadAfterActionAsync(string targetType, string targetId)
+    {
+        await LoadAsync();
+        var item = _items.FirstOrDefault(i => i.TargetType == targetType && i.TargetId == targetId);
+        if (item is not null)
+        {
+            await SelectItemAsync(item);
+        }
+    }
+
+    private string GetRowClass(AdminInboxItemDto item) =>
+        Key(item) == _selectedTargetKey ? "admin-inbox-row admin-inbox-row--selected" : "admin-inbox-row";
+
+    private static string GetStateBadgeClass(string state) => state switch
+    {
+        AdminInboxStates.Reported => "badge text-bg-warning",
+        AdminInboxStates.Hidden => "badge text-bg-danger",
+        AdminInboxStates.Reviewed => "badge text-bg-success",
+        _ => "badge text-bg-light"
+    };
+
+    private static string GetReportBadgeClass(string status) => status switch
+    {
+        ReportStatuses.Open => "badge text-bg-warning",
+        ReportStatuses.Actioned => "badge text-bg-danger",
+        ReportStatuses.Dismissed => "badge text-bg-secondary",
+        _ => "badge text-bg-success"
+    };
+
+    private static string FormatDate(DateTime? value) =>
+        value.HasValue ? value.Value.ToLocalTime().ToString("MMM d, yyyy") : "Unknown";
+
+    private static string ShortId(string value) =>
+        value.Length <= 8 ? value : value[..8];
+
+    private static string Key(AdminInboxItemDto item) => $"{item.TargetType}:{item.TargetId}";
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}

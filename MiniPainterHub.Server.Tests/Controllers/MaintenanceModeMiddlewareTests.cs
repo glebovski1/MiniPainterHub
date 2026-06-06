@@ -5,8 +5,16 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Middleware;
+using MiniPainterHub.Server.Options;
+using MiniPainterHub.Server.Services.Interfaces;
 using MiniPainterHub.Server.Tests.Infrastructure;
+using Moq;
 using Xunit;
 
 namespace MiniPainterHub.Server.Tests.Controllers;
@@ -62,6 +70,30 @@ public class MaintenanceModeMiddlewareTests
         postsResponse.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
+    [Fact]
+    public async Task StaticFrameworkAsset_DoesNotQueryDynamicControls()
+    {
+        var nextCalled = false;
+        var middleware = new MaintenanceModeMiddleware(
+            _ =>
+            {
+                nextCalled = true;
+                return Task.CompletedTask;
+            },
+            new TestOptionsMonitor(new MaintenanceOptions { Enabled = false }),
+            Mock.Of<IMaintenanceBypassService>(),
+            Mock.Of<IProblemDetailsService>(),
+            NullLogger<MaintenanceModeMiddleware>.Instance);
+        var controls = new Mock<IAdminSiteControlService>(MockBehavior.Strict);
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/_framework/Microsoft.AspNetCore.Components.Forms.example.wasm";
+
+        await middleware.InvokeAsync(context, controls.Object);
+
+        nextCalled.Should().BeTrue();
+        controls.Verify(s => s.GetControlAsync(It.IsAny<string>()), Times.Never);
+    }
+
     private static IntegrationTestApplicationFactory CreateFactory(bool enabled, bool allowAdmins)
     {
         return new IntegrationTestApplicationFactory(new Dictionary<string, string?>
@@ -70,5 +102,19 @@ public class MaintenanceModeMiddlewareTests
             ["Maintenance:AllowAdmins"] = allowAdmins.ToString(),
             ["Maintenance:Message"] = "Maintenance in progress."
         });
+    }
+
+    private sealed class TestOptionsMonitor : IOptionsMonitor<MaintenanceOptions>
+    {
+        public TestOptionsMonitor(MaintenanceOptions currentValue)
+        {
+            CurrentValue = currentValue;
+        }
+
+        public MaintenanceOptions CurrentValue { get; }
+
+        public MaintenanceOptions Get(string? name) => CurrentValue;
+
+        public System.IDisposable? OnChange(System.Action<MaintenanceOptions, string?> listener) => null;
     }
 }

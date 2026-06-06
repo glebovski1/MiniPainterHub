@@ -1,0 +1,232 @@
+@page "/admin/dashboard"
+@attribute [Authorize(Roles = "Moderator,Admin")]
+@implements IAsyncDisposable
+@inject IAdminService AdminService
+
+<PageTitle>Admin Dashboard</PageTitle>
+
+<div class="page-shell content-stack admin-tools-page">
+    <section class="page-hero admin-tools-hero">
+        <div class="content-stack">
+            <div class="page-hero__header page-hero__header--with-actions">
+                <div>
+                    <p class="page-hero__eyebrow">Admin tools</p>
+                    <h1 class="page-hero__title">Site statistics</h1>
+                    <p class="page-hero__description">Live operational snapshot with request, content, account, API, and realtime health.</p>
+                </div>
+                <div class="admin-dashboard-live">
+                    <span class="@(_loading ? "admin-live-dot admin-live-dot--loading" : "admin-live-dot")"></span>
+                    <span>@(_loading ? "Refreshing" : "Live")</span>
+                    <span>@(_stats is null ? "Waiting for first update" : $"Updated {_stats.GeneratedUtc.ToLocalTime():T}")</span>
+                </div>
+            </div>
+
+            <div class="admin-dashboard-toolbar">
+                <label class="form-label" for="admin-dashboard-window">Window</label>
+                <select id="admin-dashboard-window" class="form-select form-select-sm" data-testid="admin-dashboard-window" @onchange="OnWindowChangedAsync" value="@_windowHours">
+                    <option value="2">2 hours</option>
+                    <option value="6">6 hours</option>
+                    <option value="24">24 hours</option>
+                    <option value="72">3 days</option>
+                    <option value="168">7 days</option>
+                </select>
+            </div>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="status-panel status-panel--error" data-testid="admin-dashboard-error">
+            <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Dashboard unavailable</div>
+                <p class="status-panel__text mb-0">@_error</p>
+            </div>
+        </div>
+    }
+
+    @if (_stats is null)
+    {
+        <div class="status-panel status-panel--info" data-testid="admin-dashboard-loading">
+            <div class="status-panel__icon"><i class="bi bi-graph-up" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Loading statistics</div>
+                <p class="status-panel__text mb-0">Preparing the first live dashboard snapshot.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <section class="admin-dashboard-metrics" data-testid="admin-dashboard-metrics">
+            @foreach (var metric in _stats.Metrics)
+            {
+                <div class="admin-dashboard-metric">
+                    <span class="admin-dashboard-metric__label">@metric.Label</span>
+                    <strong class="admin-dashboard-metric__value">@metric.Value@if (!string.IsNullOrWhiteSpace(metric.Unit)) { <span>@metric.Unit</span> }</strong>
+                    <span class="@GetMetricStatusClass(metric.Status)">@metric.Status</span>
+                </div>
+            }
+        </section>
+
+        <div class="admin-dashboard-grid">
+            <section class="admin-dashboard-panel">
+                <div class="admin-dashboard-panel__header">
+                    <div>
+                        <p class="section-label">Traffic</p>
+                        <h2 class="admin-dashboard-panel__title">Activity trend</h2>
+                    </div>
+                    <span class="admin-cell-muted">Window: @_stats.WindowHours h</span>
+                </div>
+
+                <div class="admin-activity-chart" aria-label="Activity chart">
+                    @foreach (var point in _stats.Activity)
+                    {
+                        <div class="admin-activity-point" title="@($"{point.TimestampUtc.ToLocalTime():g}: {point.PageViews} views, {point.ApiRequests} API")">
+                            <span class="admin-activity-bar admin-activity-bar--views" style="@GetBarStyle(point.PageViews)"></span>
+                            <span class="admin-activity-bar admin-activity-bar--api" style="@GetBarStyle(point.ApiRequests)"></span>
+                            @if (point.ApiErrors > 0)
+                            {
+                                <span class="admin-activity-error" style="@GetBarStyle(point.ApiErrors)"></span>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="admin-chart-legend">
+                    <span><i class="admin-legend admin-legend--views"></i>Page views</span>
+                    <span><i class="admin-legend admin-legend--api"></i>API</span>
+                    <span><i class="admin-legend admin-legend--errors"></i>Errors</span>
+                </div>
+            </section>
+
+            <section class="admin-dashboard-panel">
+                <div class="admin-dashboard-panel__header">
+                    <div>
+                        <p class="section-label">Health</p>
+                        <h2 class="admin-dashboard-panel__title">Current status</h2>
+                    </div>
+                    <span class="admin-cell-muted">Polling every 10 seconds</span>
+                </div>
+
+                <div class="admin-health-list">
+                    @foreach (var health in _stats.Health)
+                    {
+                        <div class="admin-health-row">
+                            <div>
+                                <strong>@health.Label</strong>
+                                <p>@health.Detail</p>
+                            </div>
+                            <span class="@GetHealthStatusClass(health.Status)">@health.Status</span>
+                        </div>
+                    }
+                </div>
+            </section>
+        </div>
+    }
+</div>
+
+@code {
+    private AdminDashboardStatsDto? _stats;
+    private CancellationTokenSource? _polling;
+    private Task? _pollingTask;
+    private bool _loading;
+    private string? _error;
+    private int _windowHours = 24;
+
+    private long _activityMax =>
+        _stats?.Activity.SelectMany(p => new[] { p.PageViews, p.ApiRequests, p.ApiErrors }).DefaultIfEmpty(1).Max() ?? 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _polling = new CancellationTokenSource();
+        await LoadAsync();
+        _pollingTask = PollAsync(_polling.Token);
+    }
+
+    private async Task OnWindowChangedAsync(ChangeEventArgs args)
+    {
+        if (int.TryParse(args.Value?.ToString(), out var value))
+        {
+            _windowHours = value;
+            await LoadAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var result = await AdminService.GetDashboardAsync(_windowHours);
+            if (!result.Success || result.Value is null)
+            {
+                _error = "Could not load dashboard statistics.";
+                return;
+            }
+
+            _stats = result.Value;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task PollAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(LoadAsync);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when the page is disposed.
+        }
+    }
+
+    private string GetBarStyle(long value)
+    {
+        var percent = _activityMax <= 0 ? 0 : Math.Clamp(value / (double)_activityMax * 100, 3, 100);
+        return $"height:{percent:0.#}%";
+    }
+
+    private static string GetMetricStatusClass(string status) =>
+        string.Equals(status, "Normal", StringComparison.OrdinalIgnoreCase)
+            ? "admin-dashboard-metric__status"
+            : "admin-dashboard-metric__status admin-dashboard-metric__status--watch";
+
+    private static string GetHealthStatusClass(string status) => status switch
+    {
+        "Healthy" or "Available" or "Idle" => "badge text-bg-success",
+        "Watch" => "badge text-bg-warning",
+        _ => "badge text-bg-danger"
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_polling is null)
+        {
+            return;
+        }
+
+        _polling.Cancel();
+        if (_pollingTask is not null)
+        {
+            try
+            {
+                await _pollingTask;
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected during disposal.
+            }
+        }
+
+        _polling.Dispose();
+    }
+}

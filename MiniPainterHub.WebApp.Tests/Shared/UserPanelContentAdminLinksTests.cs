@@ -20,13 +20,14 @@ public class UserPanelContentAdminLinksTests : TestContext
 
         var cut = RenderPanel();
 
-        cut.FindAll("[data-testid='admin-nav-moderation']").Should().BeEmpty();
+        cut.FindAll("[data-testid='admin-nav-inbox']").Should().BeEmpty();
+        cut.FindAll("[data-testid='admin-nav-controls']").Should().BeEmpty();
+        cut.FindAll("[data-testid='admin-nav-dashboard']").Should().BeEmpty();
         cut.FindAll("[data-testid='admin-nav-audit']").Should().BeEmpty();
-        cut.FindAll("[data-testid='admin-nav-suspensions']").Should().BeEmpty();
     }
 
     [Fact]
-    public void WhenModeratorRole_RendersModerationAndAuditOnly()
+    public void WhenModeratorRole_RendersInboxDashboardAndAuditOnly()
     {
         var auth = this.AddTestAuthorization();
         auth.SetAuthorized("moderator");
@@ -34,13 +35,14 @@ public class UserPanelContentAdminLinksTests : TestContext
 
         var cut = RenderPanel();
 
-        cut.FindAll("[data-testid='admin-nav-moderation']").Should().HaveCount(1);
+        cut.FindAll("[data-testid='admin-nav-inbox']").Should().HaveCount(1);
+        cut.FindAll("[data-testid='admin-nav-dashboard']").Should().HaveCount(1);
         cut.FindAll("[data-testid='admin-nav-audit']").Should().HaveCount(1);
-        cut.FindAll("[data-testid='admin-nav-suspensions']").Should().BeEmpty();
+        cut.FindAll("[data-testid='admin-nav-controls']").Should().BeEmpty();
     }
 
     [Fact]
-    public void WhenAdminRole_RendersAllAdminLinks()
+    public void WhenAdminRole_RendersPrimaryAdminLinks()
     {
         var auth = this.AddTestAuthorization();
         auth.SetAuthorized("admin");
@@ -48,9 +50,10 @@ public class UserPanelContentAdminLinksTests : TestContext
 
         var cut = RenderPanel();
 
-        cut.FindAll("[data-testid='admin-nav-moderation']").Should().HaveCount(1);
+        cut.FindAll("[data-testid='admin-nav-inbox']").Should().HaveCount(1);
+        cut.FindAll("[data-testid='admin-nav-controls']").Should().HaveCount(1);
+        cut.FindAll("[data-testid='admin-nav-dashboard']").Should().HaveCount(1);
         cut.FindAll("[data-testid='admin-nav-audit']").Should().HaveCount(1);
-        cut.FindAll("[data-testid='admin-nav-suspensions']").Should().HaveCount(1);
     }
 
     private IRenderedFragment RenderPanel()

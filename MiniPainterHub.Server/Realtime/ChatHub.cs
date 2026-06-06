@@ -10,10 +10,24 @@ namespace MiniPainterHub.Server.Realtime
     public class ChatHub : Hub
     {
         private readonly IConversationService _conversationService;
+        private readonly ISiteActivityTracker _activityTracker;
 
-        public ChatHub(IConversationService conversationService)
+        public ChatHub(IConversationService conversationService, ISiteActivityTracker activityTracker)
         {
             _conversationService = conversationService;
+            _activityTracker = activityTracker;
+        }
+
+        public override Task OnConnectedAsync()
+        {
+            _activityTracker.RecordSignalRConnected();
+            return base.OnConnectedAsync();
+        }
+
+        public override Task OnDisconnectedAsync(System.Exception? exception)
+        {
+            _activityTracker.RecordSignalRDisconnected();
+            return base.OnDisconnectedAsync(exception);
         }
 
         public async Task JoinConversation(int conversationId)

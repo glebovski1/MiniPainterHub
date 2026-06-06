@@ -390,3 +390,46 @@ internal sealed class StubReportService : IReportService
     public Task<ApiResult<PagedResult<ReportQueueItemDto>?>> GetQueueAsync(ReportQueueQueryDto query) => GetQueueHandler(query);
     public Task<bool> ResolveAsync(long reportId, ResolveReportRequestDto request) => ResolveHandler(reportId, request);
 }
+
+internal sealed class StubAdminService : IAdminService
+{
+    public Func<AdminInboxQueryDto, Task<ApiResult<PagedResult<AdminInboxItemDto>?>>> GetInboxHandler { get; set; } = query =>
+        Task.FromResult(new ApiResult<PagedResult<AdminInboxItemDto>?>(true, HttpStatusCode.OK, new PagedResult<AdminInboxItemDto>
+        {
+            Items = Array.Empty<AdminInboxItemDto>(),
+            PageNumber = query.Page,
+            PageSize = query.PageSize,
+            TotalCount = 0
+        }));
+    public Func<string, string, Task<ApiResult<AdminInboxDetailDto?>>> GetInboxDetailHandler { get; set; } = (_, _) =>
+        Task.FromResult(new ApiResult<AdminInboxDetailDto?>(true, HttpStatusCode.OK, null));
+    public Func<string, string, AdminInboxReviewRequestDto, Task<bool>> ReviewInboxItemHandler { get; set; } = (_, _, _) => Task.FromResult(true);
+    public Func<Task<ApiResult<IReadOnlyList<AdminSiteControlDto>?>>> GetControlsHandler { get; set; } = () =>
+        Task.FromResult(new ApiResult<IReadOnlyList<AdminSiteControlDto>?>(true, HttpStatusCode.OK, Array.Empty<AdminSiteControlDto>()));
+    public Func<string, UpdateAdminSiteControlRequestDto, Task<ApiResult<AdminSiteControlDto?>>> UpdateControlHandler { get; set; } = (key, request) =>
+        Task.FromResult(new ApiResult<AdminSiteControlDto?>(true, HttpStatusCode.OK, new AdminSiteControlDto
+        {
+            Key = key,
+            Enabled = request.Enabled,
+            EffectiveEnabled = request.Enabled,
+            DisabledUntilUtc = request.DisabledUntilUtc,
+            Message = request.Message,
+            Reason = request.Reason
+        }));
+    public Func<int, Task<ApiResult<AdminDashboardStatsDto?>>> GetDashboardHandler { get; set; } = windowHours =>
+        Task.FromResult(new ApiResult<AdminDashboardStatsDto?>(true, HttpStatusCode.OK, new AdminDashboardStatsDto
+        {
+            GeneratedUtc = DateTime.UtcNow,
+            WindowHours = windowHours,
+            Metrics = Array.Empty<AdminDashboardMetricDto>(),
+            Activity = Array.Empty<AdminDashboardActivityPointDto>(),
+            Health = Array.Empty<AdminDashboardHealthDto>()
+        }));
+
+    public Task<ApiResult<PagedResult<AdminInboxItemDto>?>> GetInboxAsync(AdminInboxQueryDto query) => GetInboxHandler(query);
+    public Task<ApiResult<AdminInboxDetailDto?>> GetInboxDetailAsync(string targetType, string targetId) => GetInboxDetailHandler(targetType, targetId);
+    public Task<bool> ReviewInboxItemAsync(string targetType, string targetId, AdminInboxReviewRequestDto request) => ReviewInboxItemHandler(targetType, targetId, request);
+    public Task<ApiResult<IReadOnlyList<AdminSiteControlDto>?>> GetControlsAsync() => GetControlsHandler();
+    public Task<ApiResult<AdminSiteControlDto?>> UpdateControlAsync(string key, UpdateAdminSiteControlRequestDto request) => UpdateControlHandler(key, request);
+    public Task<ApiResult<AdminDashboardStatsDto?>> GetDashboardAsync(int windowHours) => GetDashboardHandler(windowHours);
+}

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services.Interfaces;
 
@@ -34,10 +35,18 @@ namespace MiniPainterHub.Server.Middleware
             _logger = logger;
         }
 
-        public async Task InvokeAsync(HttpContext context)
+        public async Task InvokeAsync(HttpContext context, IAdminSiteControlService siteControlService)
         {
-            var options = _options.CurrentValue;
-            if (!options.Enabled || IsExemptPath(context.Request.Path))
+            if (IsExemptPath(context.Request.Path))
+            {
+                await _next(context);
+                return;
+            }
+
+            var options = IsStaticAssetPath(context.Request.Path)
+                ? _options.CurrentValue
+                : await ResolveEffectiveOptionsAsync(siteControlService);
+            if (!options.Enabled)
             {
                 await _next(context);
                 return;
@@ -60,9 +69,41 @@ namespace MiniPainterHub.Server.Middleware
             await WriteProblemAsync(context, options);
         }
 
+        private async Task<MaintenanceOptions> ResolveEffectiveOptionsAsync(IAdminSiteControlService siteControlService)
+        {
+            var staticOptions = _options.CurrentValue;
+            var publicSite = await siteControlService.GetControlAsync(AdminSiteControlKeys.PublicSite);
+            if (publicSite.EffectiveEnabled)
+            {
+                return staticOptions;
+            }
+
+            return new MaintenanceOptions
+            {
+                Enabled = true,
+                Message = string.IsNullOrWhiteSpace(publicSite.Message) ? staticOptions.Message : publicSite.Message,
+                PlannedEndUtc = publicSite.DisabledUntilUtc ?? staticOptions.PlannedEndUtc,
+                AllowAdmins = staticOptions.AllowAdmins
+            };
+        }
+
         private static bool IsExemptPath(PathString path) =>
             path.StartsWithSegments("/healthz", StringComparison.OrdinalIgnoreCase)
             || path.StartsWithSegments("/api/auth/maintenance-bypass", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsStaticAssetPath(PathString path)
+        {
+            if (path.StartsWithSegments("/_framework", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWithSegments("/css", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWithSegments("/JSHelpers", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var value = path.Value;
+            return !string.IsNullOrWhiteSpace(value)
+                && value.LastIndexOf('.') > value.LastIndexOf('/');
+        }
 
         private static bool AcceptsHtml(HttpRequest request)
         {

@@ -50,7 +50,9 @@ public class MainLayoutTests : TestContext
         var cut = RenderComponent<MainLayout>(parameters => parameters
             .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<p>Admin body</p>")));
 
-        cut.Find("aside.dashboard-sidebar-column [data-testid='admin-nav-suspensions']").Should().NotBeNull();
+        cut.Find("aside.dashboard-sidebar-column [data-testid='admin-nav-inbox']").Should().NotBeNull();
+        cut.Find("aside.dashboard-sidebar-column [data-testid='admin-nav-controls']").Should().NotBeNull();
+        cut.Find("aside.dashboard-sidebar-column [data-testid='admin-nav-dashboard']").Should().NotBeNull();
 
         state.ToggleDesktopCollapsed();
 
@@ -58,7 +60,9 @@ public class MainLayoutTests : TestContext
         {
             var sidebar = cut.Find("aside.dashboard-sidebar-column");
             sidebar.ClassList.Should().Contain("is-collapsed");
-            sidebar.QuerySelectorAll("[data-testid='admin-nav-suspensions']").Should().HaveCount(1);
+            sidebar.QuerySelectorAll("[data-testid='admin-nav-inbox']").Should().HaveCount(1);
+            sidebar.QuerySelectorAll("[data-testid='admin-nav-controls']").Should().HaveCount(1);
+            sidebar.QuerySelectorAll("[data-testid='admin-nav-dashboard']").Should().HaveCount(1);
             sidebar.HasAttribute("inert").Should().BeTrue();
         });
     }

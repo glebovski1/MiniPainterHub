@@ -173,6 +173,22 @@ async function createPost(page, suffix, options = {}) {
   return { title, content, tags };
 }
 
+async function setAdminControl(request, token, key, enabled) {
+  const response = await request.put(`/api/admin/controls/${encodeURIComponent(key)}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    data: {
+      enabled,
+      reason: enabled ? "Smoke test reset" : "Smoke test pause",
+      message: enabled ? null : "Temporarily paused by smoke test",
+    },
+  });
+
+  expect(response.ok(), `PUT control ${key} failed with HTTP ${response.status()}`).toBeTruthy();
+  return response.json();
+}
+
 test.beforeEach(async ({ page, request }) => {
   await resetAppState(request);
   await clearAuth(page);
@@ -729,21 +745,20 @@ test("messages thread loads and sending works", async ({ page, request }) => {
   await expect(page.locator(".message-thread .message-bubble").filter({ hasText: messageBody }).last()).toBeVisible();
 });
 
-test("admin can hide and restore post using visibility filter and inline actions", async ({ page }) => {
+test("admin can hide and restore post from the admin inbox", async ({ page }) => {
   await loginAsAdmin(page);
   const { title } = await createPost(page, "admin-post-moderation");
 
-  await page.getByTestId("post-inline-hide").click();
+  await page.goto("/admin");
+  await page.getByTestId("admin-inbox-search").fill(title);
+  await page.getByTestId("admin-inbox-apply").click();
 
-  await page.goto("/");
-  await page.getByTestId("post-visibility-select").selectOption("hidden");
+  await expect(page.getByTestId("admin-inbox-row").first()).toContainText(title);
+  await page.getByTestId("admin-inbox-hide").first().click();
+  await expect(page.getByTestId("admin-inbox-inspector")).toContainText("Hidden");
 
-  const hiddenCard = page.locator(".card", { hasText: title }).first();
-  await expect(hiddenCard.getByTestId("post-hidden-badge")).toBeVisible();
-  await hiddenCard.getByTestId("post-card-restore").click();
-  await expect(page.locator(".card", { hasText: title })).toHaveCount(0);
-  await page.getByTestId("post-visibility-select").selectOption("active");
-  await expect(page.locator(".card", { hasText: title }).first()).toBeVisible();
+  await page.getByTestId("admin-inbox-detail-restore").click();
+  await expect(page.getByTestId("admin-inbox-inspector")).toContainText("Active");
 });
 
 test("admin can hide and restore comment using comment visibility filter", async ({ page }) => {
@@ -782,10 +797,44 @@ test("user can submit a report and admin can resolve it", async ({ page }) => {
 
   await clearAuth(page);
   await loginAsAdmin(page);
-  await page.goto("/admin/reports");
+  await page.goto("/admin");
 
-  await expect(page.getByTestId("reports-row").first()).toContainText(title);
-  await page.getByTestId("report-resolution-note").first().fill("Handled in smoke test.");
-  await page.getByTestId("report-resolve-reviewed").first().click();
-  await expect(page.getByTestId("reports-empty")).toBeVisible();
+  await expect(page.getByTestId("admin-inbox-row").first()).toContainText(title);
+  await page.getByTestId("admin-inbox-reason").fill("Handled in smoke test.");
+  await page.getByTestId("admin-inbox-review").click();
+  await expect(page.getByTestId("admin-inbox-inspector")).toContainText("Reviewed");
+});
+
+test("admin can pause comments and creation is blocked until re-enabled", async ({ page, request }) => {
+  await loginAsAdmin(page);
+  await createPost(page, "comment-control");
+  const postId = page.url().match(/\/posts\/(\d+)$/)?.[1];
+  expect(postId, "Expected created post URL to contain an id.").toBeTruthy();
+
+  const adminToken = await loginViaApi(request, "admin", ADMIN_PASSWORD);
+  await setAdminControl(request, adminToken, "new-comments", false);
+
+  const userToken = await loginViaApi(request, "user", USER_PASSWORD);
+  const blocked = await request.post(`/api/posts/${postId}/comments`, {
+    headers: {
+      Authorization: `Bearer ${userToken}`,
+    },
+    data: {
+      postId: Number(postId),
+      text: "Blocked smoke comment",
+    },
+  });
+  expect(blocked.status()).toBe(403);
+
+  await setAdminControl(request, adminToken, "new-comments", true);
+  const allowed = await request.post(`/api/posts/${postId}/comments`, {
+    headers: {
+      Authorization: `Bearer ${userToken}`,
+    },
+    data: {
+      postId: Number(postId),
+      text: "Allowed smoke comment",
+    },
+  });
+  expect(allowed.ok(), `Comment should be allowed after re-enable, got HTTP ${allowed.status()}`).toBeTruthy();
 });

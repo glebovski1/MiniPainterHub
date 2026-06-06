@@ -29,6 +29,16 @@ namespace MiniPainterHub.Server.Services
         {
             var post = await _db.Posts.FirstOrDefaultAsync(p => p.Id == postId) ?? throw new NotFoundException("Post not found.");
 
+            if (hide && IsDeletedOutsideModeration(post.IsDeleted, post.ModeratedByUserId, post.ModeratedUtc, post.SoftDeletedUtc))
+            {
+                throw new DomainValidationException(
+                    "Posts deleted outside moderation cannot be hidden by moderation.",
+                    new System.Collections.Generic.Dictionary<string, string[]>
+                    {
+                        ["postId"] = new[] { "The post appears to be deleted outside moderation and cannot be converted into a moderation hide." }
+                    });
+            }
+
             if (!hide && !CanRestoreModeratedContent(post.IsDeleted, post.ModeratedByUserId, post.ModeratedUtc, post.SoftDeletedUtc))
             {
                 throw new DomainValidationException(
@@ -54,6 +64,16 @@ namespace MiniPainterHub.Server.Services
         public async Task ModerateCommentAsync(int commentId, string actorUserId, bool hide, string? reason)
         {
             var comment = await _db.Comments.FirstOrDefaultAsync(c => c.Id == commentId) ?? throw new NotFoundException("Comment not found.");
+
+            if (hide && IsDeletedOutsideModeration(comment.IsDeleted, comment.ModeratedByUserId, comment.ModeratedUtc, comment.SoftDeletedUtc))
+            {
+                throw new DomainValidationException(
+                    "Comments deleted outside moderation cannot be hidden by moderation.",
+                    new System.Collections.Generic.Dictionary<string, string[]>
+                    {
+                        ["commentId"] = new[] { "The comment appears to be deleted outside moderation and cannot be converted into a moderation hide." }
+                    });
+            }
 
             if (!hide && !CanRestoreModeratedContent(comment.IsDeleted, comment.ModeratedByUserId, comment.ModeratedUtc, comment.SoftDeletedUtc))
             {
@@ -90,10 +110,34 @@ namespace MiniPainterHub.Server.Services
             }
 
             var target = await _userManager.FindByIdAsync(targetUserId) ?? throw new NotFoundException("User not found.");
+            if (string.Equals(targetUserId, actorUserId, StringComparison.Ordinal))
+            {
+                throw new DomainValidationException(
+                    "Admins cannot suspend themselves.",
+                    new System.Collections.Generic.Dictionary<string, string[]>
+                    {
+                        ["targetUserId"] = new[] { "Choose a different target user." }
+                    });
+            }
+
+            var targetRoles = await _userManager.GetRolesAsync(target);
+            if (targetRoles.Any(role =>
+                    string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(role, "Moderator", StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new DomainValidationException(
+                    "Admin and moderator accounts cannot be suspended here.",
+                    new System.Collections.Generic.Dictionary<string, string[]>
+                    {
+                        ["targetUserId"] = new[] { "Protected staff accounts are blocked from v1 suspension actions." }
+                    });
+            }
+
             target.SuspendedUntilUtc = suspendedUntilUtc;
             target.SuspensionReason = reason;
             target.SuspensionUpdatedUtc = DateTime.UtcNow;
-            await _userManager.UpdateAsync(target);
+            var result = await _userManager.UpdateAsync(target);
+            EnsureIdentitySucceeded(result, "Suspension update failed.");
 
             await AddAuditAsync(actorUserId, "UserSuspend", "User", targetUserId, reason);
             await _db.SaveChangesAsync();
@@ -126,13 +170,33 @@ namespace MiniPainterHub.Server.Services
             return moderatedUtc.Value >= softDeletedUtc.Value;
         }
 
+        private static bool IsDeletedOutsideModeration(
+            bool isDeleted,
+            string? moderatedByUserId,
+            DateTime? moderatedUtc,
+            DateTime? softDeletedUtc)
+        {
+            if (!isDeleted || !softDeletedUtc.HasValue)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(moderatedByUserId) || !moderatedUtc.HasValue)
+            {
+                return true;
+            }
+
+            return moderatedUtc.Value < softDeletedUtc.Value;
+        }
+
         public async Task UnsuspendUserAsync(string targetUserId, string actorUserId, string? reason)
         {
             var target = await _userManager.FindByIdAsync(targetUserId) ?? throw new NotFoundException("User not found.");
             target.SuspendedUntilUtc = null;
             target.SuspensionReason = reason;
             target.SuspensionUpdatedUtc = DateTime.UtcNow;
-            await _userManager.UpdateAsync(target);
+            var result = await _userManager.UpdateAsync(target);
+            EnsureIdentitySucceeded(result, "Unsuspension update failed.");
 
             await AddAuditAsync(actorUserId, "UserUnsuspend", "User", targetUserId, reason);
             await _db.SaveChangesAsync();
@@ -313,6 +377,23 @@ namespace MiniPainterHub.Server.Services
                 .OrderBy(role => role, StringComparer.OrdinalIgnoreCase)
                 .FirstOrDefault()
                 ?? "Unknown";
+        }
+
+        private static void EnsureIdentitySucceeded(IdentityResult result, string message)
+        {
+            if (result.Succeeded)
+            {
+                return;
+            }
+
+            var errors = result.Errors
+                .GroupBy(e => string.IsNullOrWhiteSpace(e.Code) ? "Identity" : e.Code)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(e => string.IsNullOrWhiteSpace(e.Description) ? "Identity update failed." : e.Description).ToArray(),
+                    StringComparer.OrdinalIgnoreCase);
+
+            throw new DomainValidationException(message, errors);
         }
     }
 }

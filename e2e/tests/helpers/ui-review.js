@@ -970,22 +970,35 @@ const scenarioGroups = {
     await loginAsAdmin(page, request);
     await setViewport(page, VIEWPORTS.desktop);
 
-    await page.goto("/admin/reports");
+    await page.goto("/admin");
+    await page.locator("[data-testid='admin-inbox-row'], [data-testid='admin-inbox-empty']").first().waitFor({
+      state: "visible",
+      timeout: 10_000
+    });
     await capture(page, manifest, {
-      name: "admin-reports-empty-desktop",
+      name: "admin-inbox-default-desktop",
       group: "admin",
       viewport: VIEWPORTS.desktop,
       authState: "admin",
-      stateTags: ["admin", "desktop", "reports", "empty"]
+      stateTags: ["admin", "desktop", "inbox", "default"]
     });
 
-    await page.goto("/admin/moderation");
+    await page.goto("/admin/controls");
     await capture(page, manifest, {
-      name: "admin-moderation-desktop",
+      name: "admin-controls-desktop",
       group: "admin",
       viewport: VIEWPORTS.desktop,
       authState: "admin",
-      stateTags: ["admin", "desktop", "moderation"]
+      stateTags: ["admin", "desktop", "controls"]
+    });
+
+    await page.goto("/admin/dashboard");
+    await capture(page, manifest, {
+      name: "admin-dashboard-desktop",
+      group: "admin",
+      viewport: VIEWPORTS.desktop,
+      authState: "admin",
+      stateTags: ["admin", "desktop", "dashboard"]
     });
 
     await page.goto("/admin/audit");
@@ -997,25 +1010,18 @@ const scenarioGroups = {
       stateTags: ["admin", "desktop", "audit"]
     });
 
-    await page.goto("/admin/suspensions");
-    await capture(page, manifest, {
-      name: "admin-suspensions-desktop",
-      group: "admin",
-      viewport: VIEWPORTS.desktop,
-      authState: "admin",
-      stateTags: ["admin", "desktop", "suspensions"]
-    });
-
     await ensureReportedSeededPost(page, request);
     await clearClientState(page);
     await loginAsAdmin(page, request);
-    await page.goto("/admin/reports");
+    await page.goto("/admin");
+    await expect(page.getByTestId("admin-inbox-row").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("admin-inbox-inspector")).toBeVisible();
     await capture(page, manifest, {
-      name: "admin-reports-populated-desktop",
+      name: "admin-inbox-populated-desktop",
       group: "admin",
       viewport: VIEWPORTS.desktop,
       authState: "admin",
-      stateTags: ["admin", "desktop", "reports", "populated"]
+      stateTags: ["admin", "desktop", "inbox", "populated"]
     });
   }
 };

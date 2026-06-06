@@ -111,33 +111,33 @@
             <section class="dashboard-sidebar-section dashboard-sidebar-section--admin">
                 <div class="dashboard-sidebar-section__label">Admin</div>
                 <nav class="nav nav-pills flex-column dashboard-nav gap-1" aria-label="Admin panel navigation">
-                    <SidebarNavItem Href="/admin/moderation"
-                                    IconClass="bi bi-shield-lock"
-                                    Title="Moderation"
+                    <SidebarNavItem Href="/admin/inbox"
+                                    IconClass="bi bi-inbox"
+                                    Title="Inbox"
                                     Description=""
-                                    TestId="admin-nav-moderation" />
-
-                    <SidebarNavItem Href="/admin/audit"
-                                    IconClass="bi bi-journal-text"
-                                    Title="Audit log"
-                                    Description=""
-                                    TestId="admin-nav-audit" />
-
-                    <SidebarNavItem Href="/admin/reports"
-                                    IconClass="bi bi-flag"
-                                    Title="Reports"
-                                    Description=""
-                                    TestId="admin-nav-reports" />
+                                    TestId="admin-nav-inbox" />
 
                     <AuthorizeView Roles="Admin">
                         <Authorized Context="adminAuth">
-                            <SidebarNavItem Href="/admin/suspensions"
-                                            IconClass="bi bi-person-x"
-                                            Title="User suspensions"
+                            <SidebarNavItem Href="/admin/controls"
+                                            IconClass="bi bi-sliders"
+                                            Title="Controls"
                                             Description=""
-                                            TestId="admin-nav-suspensions" />
+                                            TestId="admin-nav-controls" />
                         </Authorized>
                     </AuthorizeView>
+
+                    <SidebarNavItem Href="/admin/dashboard"
+                                    IconClass="bi bi-graph-up"
+                                    Title="Dashboard"
+                                    Description=""
+                                    TestId="admin-nav-dashboard" />
+
+                    <SidebarNavItem Href="/admin/audit"
+                                    IconClass="bi bi-journal-text"
+                                    Title="Audit"
+                                    Description=""
+                                    TestId="admin-nav-audit" />
                 </nav>
             </section>
         </Authorized>
