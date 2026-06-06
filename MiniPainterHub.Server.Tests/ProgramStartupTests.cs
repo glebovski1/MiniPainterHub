@@ -5,6 +5,8 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MiniPainterHub.Server.Data;
@@ -70,6 +72,22 @@ public class ProgramStartupTests
         var response = await client.GetAsync("/healthz");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public void ConfigureRelationalWarnings_LogsPendingModelChangesWarning()
+    {
+        var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
+
+        Program.ConfigureRelationalWarnings(optionsBuilder);
+
+        var coreOptions = optionsBuilder.Options.Extensions
+            .OfType<CoreOptionsExtension>()
+            .Single();
+
+        coreOptions.WarningsConfiguration.GetBehavior(RelationalEventId.PendingModelChangesWarning)
+            .Should()
+            .Be(WarningBehavior.Log);
     }
 
     [Fact]

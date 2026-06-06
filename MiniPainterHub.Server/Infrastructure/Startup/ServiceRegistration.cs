@@ -48,11 +48,7 @@ public partial class Program
 
         builder.Services.AddDbContext<AppDbContext>(options =>
         {
-            if (isLocalToolingEnvironment)
-            {
-                options.ConfigureWarnings(warnings =>
-                    warnings.Log(RelationalEventId.PendingModelChangesWarning));
-            }
+            ConfigureRelationalWarnings(options);
 
             if (useInMemoryDatabase)
             {
@@ -82,6 +78,12 @@ public partial class Program
         builder.Services.AddAuthorization();
 
         return new ServiceRegistrationResult(hostedStartupConfiguration, connectionResolution);
+    }
+
+    internal static void ConfigureRelationalWarnings(DbContextOptionsBuilder options)
+    {
+        options.ConfigureWarnings(warnings =>
+            warnings.Log(RelationalEventId.PendingModelChangesWarning));
     }
 
     private static void AddJwtAuthentication(WebApplicationBuilder builder, JwtStartupConfiguration? jwt)
