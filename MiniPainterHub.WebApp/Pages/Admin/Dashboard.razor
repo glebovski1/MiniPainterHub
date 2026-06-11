@@ -132,6 +132,7 @@
     private bool _loading;
     private string? _error;
     private int _windowHours = 24;
+    private int _loadVersion;
 
     private long _activityMax =>
         _stats?.Activity.SelectMany(p => new[] { p.PageViews, p.ApiRequests, p.ApiErrors }).DefaultIfEmpty(1).Max() ?? 1;
@@ -154,11 +155,17 @@
 
     private async Task LoadAsync()
     {
+        var loadVersion = ++_loadVersion;
         _loading = true;
         _error = null;
         try
         {
             var result = await AdminService.GetDashboardAsync(_windowHours);
+            if (loadVersion != _loadVersion)
+            {
+                return;
+            }
+
             if (!result.Success || result.Value is null)
             {
                 _error = "Could not load dashboard statistics.";
@@ -169,7 +176,10 @@
         }
         finally
         {
-            _loading = false;
+            if (loadVersion == _loadVersion)
+            {
+                _loading = false;
+            }
         }
     }
 
@@ -180,7 +190,11 @@
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
-                await InvokeAsync(LoadAsync);
+                await InvokeAsync(async () =>
+                {
+                    await LoadAsync();
+                    StateHasChanged();
+                });
             }
         }
         catch (OperationCanceledException)

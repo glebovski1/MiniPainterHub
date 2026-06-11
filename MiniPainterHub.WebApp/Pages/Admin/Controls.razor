@@ -162,13 +162,7 @@
             _controls.AddRange(result.Value);
             foreach (var control in _controls)
             {
-                _drafts[control.Key] = new ControlDraft
-                {
-                    Enabled = control.Enabled,
-                    DisabledUntilLocal = control.DisabledUntilUtc?.ToLocalTime(),
-                    Message = control.Message ?? string.Empty,
-                    Reason = control.Reason ?? string.Empty
-                };
+                _drafts[control.Key] = CreateDraft(control);
             }
         }
         finally
@@ -209,13 +203,7 @@
             if (index >= 0)
             {
                 _controls[index] = result.Value;
-                _drafts[key] = new ControlDraft
-                {
-                    Enabled = result.Value.Enabled,
-                    DisabledUntilLocal = result.Value.DisabledUntilUtc?.ToLocalTime(),
-                    Message = result.Value.Message ?? string.Empty,
-                    Reason = result.Value.Reason ?? string.Empty
-                };
+                _drafts[key] = CreateDraft(result.Value);
             }
         }
         finally
@@ -229,18 +217,20 @@
     {
         if (!_drafts.TryGetValue(control.Key, out var draft))
         {
-            draft = new ControlDraft
-            {
-                Enabled = control.Enabled,
-                DisabledUntilLocal = control.DisabledUntilUtc?.ToLocalTime(),
-                Message = control.Message ?? string.Empty,
-                Reason = control.Reason ?? string.Empty
-            };
+            draft = CreateDraft(control);
             _drafts[control.Key] = draft;
         }
 
         return draft;
     }
+
+    private static ControlDraft CreateDraft(AdminSiteControlDto control) => new()
+    {
+        Enabled = control.EffectiveEnabled,
+        DisabledUntilLocal = control.EffectiveEnabled ? null : control.DisabledUntilUtc?.ToLocalTime(),
+        Message = control.Message ?? string.Empty,
+        Reason = control.Reason ?? string.Empty
+    };
 
     private static string GetControlBadgeClass(AdminSiteControlDto control) =>
         control.EffectiveEnabled ? "badge text-bg-success" : "badge text-bg-danger";

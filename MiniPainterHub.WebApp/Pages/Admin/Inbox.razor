@@ -163,15 +163,15 @@
                                         </div>
                                     </td>
                                     <td class="text-end">
-                                        <div class="btn-group btn-group-sm" role="group" aria-label="Row actions">
-                                            <button class="btn btn-outline-secondary" type="button" data-testid="admin-inbox-select" @onclick="() => SelectItemAsync(item)">Inspect</button>
+                                        <div class="d-flex flex-wrap justify-content-end gap-2" role="group" aria-label="Row actions">
+                                            <button class="btn btn-outline-secondary btn-sm" type="button" data-testid="admin-inbox-select" @onclick="() => SelectItemAsync(item)">Inspect</button>
                                             @if (item.IsDeleted)
                                             {
-                                                <button class="btn btn-outline-success" type="button" data-testid="admin-inbox-restore" @onclick="() => ModerateAsync(item, hide: false)">Restore</button>
+                                                <button class="btn btn-outline-success btn-sm" type="button" data-testid="admin-inbox-restore" @onclick="() => ModerateAsync(item, hide: false)">Restore</button>
                                             }
                                             else
                                             {
-                                                <button class="btn btn-outline-danger" type="button" data-testid="admin-inbox-hide" @onclick="() => ModerateAsync(item, hide: true)">Hide</button>
+                                                <button class="btn btn-outline-danger btn-sm" type="button" data-testid="admin-inbox-hide" @onclick="() => ModerateAsync(item, hide: true)">Hide</button>
                                             }
                                         </div>
                                     </td>
@@ -366,6 +366,7 @@
             {
                 _items.Clear();
                 _totalPages = 1;
+                ClearSelection();
                 _error = "Could not load admin inbox.";
                 return;
             }
@@ -382,8 +383,7 @@
             }
             else if (_detail is not null && !_items.Any(i => Key(i) == _selectedTargetKey))
             {
-                _detail = null;
-                _selectedTargetKey = null;
+                ClearSelection();
             }
         }
         finally
@@ -394,16 +394,23 @@
 
     private async Task SelectItemAsync(AdminInboxItemDto item)
     {
+        var requestedKey = Key(item);
         _detailLoading = true;
         _error = null;
-        _selectedTargetKey = Key(item);
+        _selectedTargetKey = requestedKey;
         _actionReason = string.Empty;
 
         try
         {
             var result = await AdminService.GetInboxDetailAsync(item.TargetType, item.TargetId);
+            if (_selectedTargetKey != requestedKey)
+            {
+                return;
+            }
+
             if (!result.Success || result.Value is null)
             {
+                _detail = null;
                 _error = "Could not load inspector detail.";
                 return;
             }
@@ -412,7 +419,10 @@
         }
         finally
         {
-            _detailLoading = false;
+            if (_selectedTargetKey == requestedKey)
+            {
+                _detailLoading = false;
+            }
         }
     }
 
@@ -528,6 +538,14 @@
         {
             await SelectItemAsync(item);
         }
+    }
+
+    private void ClearSelection()
+    {
+        _detail = null;
+        _selectedTargetKey = null;
+        _actionReason = string.Empty;
+        _detailLoading = false;
     }
 
     private string GetRowClass(AdminInboxItemDto item) =>

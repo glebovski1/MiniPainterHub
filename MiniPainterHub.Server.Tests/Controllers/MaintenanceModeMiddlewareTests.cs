@@ -7,9 +7,11 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Middleware;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services.Interfaces;
@@ -21,6 +23,51 @@ namespace MiniPainterHub.Server.Tests.Controllers;
 
 public class MaintenanceModeMiddlewareTests
 {
+    [Fact]
+    public async Task PublicSiteControl_WhenDisabled_EnforcesMaintenanceAndReEnableRestoresAccess()
+    {
+        using var factory = CreateFactory(enabled: false, allowAdmins: true);
+        await factory.ResetDatabaseAsync();
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            await db.AdminSiteControls.AddAsync(new AdminSiteControl
+            {
+                Key = AdminSiteControlKeys.PublicSite,
+                Enabled = false,
+                Message = "Public access is paused.",
+                Reason = "incident",
+                UpdatedByUserId = "admin-maintenance",
+                UpdatedUtc = System.DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+        });
+        using var anonymousClient = factory.CreateClient();
+        using var adminClient = factory.CreateAuthenticatedClient("admin-maintenance", "admin-maintenance", "Admin");
+
+        var pausedRequest = new HttpRequestMessage(HttpMethod.Get, "/");
+        pausedRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
+        var pausedResponse = await anonymousClient.SendAsync(pausedRequest);
+
+        pausedResponse.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+        (await pausedResponse.Content.ReadAsStringAsync()).Should().Contain("Public access is paused.");
+
+        var bypassResponse = await adminClient.PostAsync("/api/auth/maintenance-bypass", content: null);
+        var adminHomeResponse = await adminClient.GetAsync("/");
+        bypassResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        adminHomeResponse.StatusCode.Should().NotBe(HttpStatusCode.ServiceUnavailable);
+
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            var control = await db.AdminSiteControls.SingleAsync(c => c.Key == AdminSiteControlKeys.PublicSite);
+            control.Enabled = true;
+            control.DisabledUntilUtc = null;
+            await db.SaveChangesAsync();
+        });
+
+        var restoredResponse = await anonymousClient.GetAsync("/");
+        restoredResponse.StatusCode.Should().NotBe(HttpStatusCode.ServiceUnavailable);
+    }
+
     [Fact]
     public async Task WhenEnabled_HtmlRequestsReturnMaintenancePage_AndHealthzRemainsAvailable()
     {
