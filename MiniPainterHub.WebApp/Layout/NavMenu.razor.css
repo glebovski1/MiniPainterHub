@@ -16,7 +16,7 @@
     width: 100%;
 }
 
-.atelier-brand {
+.atelier-nav ::deep .atelier-brand {
     display: inline-flex;
     align-items: center;
     gap: 0.75rem;
@@ -33,7 +33,7 @@
     border-radius: 8px;
     position: relative;
     overflow: hidden;
-    background: linear-gradient(135deg, var(--primary-700) 0 56%, var(--accent-clay) 56%);
+    background: var(--primary-700);
     color: #fff7ef;
     font-weight: 800;
     letter-spacing: 0;
@@ -247,7 +247,8 @@
     }
 
     .atelier-nav {
-        grid-template-columns: auto minmax(17rem, 26rem) minmax(0, 1fr) auto;
+        grid-template-columns: auto minmax(14rem, 22rem) max-content auto;
+        justify-content: space-between;
         align-items: center;
         gap: 0.75rem 1rem;
         padding: 0.75rem 0;
@@ -256,6 +257,8 @@
     .atelier-nav__bar {
         width: auto;
         gap: 1rem;
+        grid-column: 1;
+        grid-row: 1;
         align-self: center;
     }
 
@@ -266,6 +269,7 @@
 
     .atelier-nav__search {
         grid-column: 2;
+        grid-row: 1;
         max-width: none;
         width: 100%;
         align-self: center;
@@ -273,6 +277,7 @@
 
     .atelier-nav__links {
         grid-column: 3;
+        grid-row: 1;
         flex-direction: row;
         align-items: center;
         justify-content: flex-start;
@@ -282,15 +287,19 @@
         border: 0;
         background: transparent;
         gap: 0.12rem;
+        min-width: max-content;
     }
 
     .atelier-nav__session {
         grid-column: 4;
+        grid-row: 1;
+        justify-self: end;
         flex-direction: row;
         align-items: center;
         justify-content: flex-end;
         align-self: center;
         padding: 0;
+        min-width: max-content;
     }
 
     .atelier-nav ::deep .atelier-nav__link i {
@@ -319,6 +328,8 @@
     .atelier-nav__bar {
         width: auto;
         gap: 0.9rem;
+        grid-column: 1;
+        grid-row: 1;
         align-self: center;
     }
 
@@ -329,12 +340,14 @@
 
     .atelier-nav__search {
         grid-column: 2;
+        grid-row: 1;
         max-width: none;
         width: 100%;
     }
 
     .atelier-nav__session {
         grid-column: 3;
+        grid-row: 1;
         flex-direction: row;
         align-items: center;
         justify-content: flex-end;
@@ -344,6 +357,7 @@
 
     .atelier-nav__links {
         grid-column: 1 / -1;
+        grid-row: 2;
         flex-direction: row;
         align-items: center;
         justify-content: flex-start;
@@ -414,7 +428,7 @@
         align-items: center;
     }
 
-    .atelier-brand {
+    .atelier-nav ::deep .atelier-brand {
         gap: 0.65rem;
         min-width: 0;
     }
