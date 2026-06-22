@@ -4,8 +4,6 @@ Thanks for contributing. This guide keeps changes consistent and reviewable.
 
 ## 1) Docs to Read First
 
-- `AGENTS.md`
-- `AGENT.md`
 - [Agent Navigation.md](<../00 Start Here/Agent Navigation.md>)
 - [ARCHITECTURE.md](<../20 Engineering/ARCHITECTURE.md>)
 - [CODE_STYLE.md](<../20 Engineering/CODE_STYLE.md>)
@@ -21,7 +19,7 @@ Thanks for contributing. This guide keeps changes consistent and reviewable.
 
 ## 3) Change Workflow
 
-1. Resolve the minimal relevant file scope first. For non-trivial work, use `AGENTS.md` and `.agents/skills/context-scope-guard`.
+1. Resolve the minimal relevant file scope first. Use [Agent Navigation.md](<../00 Start Here/Agent Navigation.md>) to route project documentation and keep reads focused.
 2. Make the smallest coherent change set.
 3. Add/update tests when behavior changes.
 4. Run required validation. For any non-doc code change, the minimum local gate is `dotnet build MiniPainterHub.sln` plus at least one affected automated test command before handoff.

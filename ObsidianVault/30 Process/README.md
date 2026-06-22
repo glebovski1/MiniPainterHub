@@ -1,6 +1,6 @@
 # Process Index
 
-Purpose: route contribution, workflow, review, and project-memory process notes.
+Purpose: route contribution, workflow, review, and project process notes.
 
 When to read: task workflow, validation expectations, UI quality gates, review standards, recurring pitfalls, or decision records.
 
@@ -17,7 +17,6 @@ Update triggers: workflow changes, validation command changes, new anti-patterns
 
 ## Logs
 
-- [Legacy AI change log](<AI_CHANGELOG.md>) is historical context only.
 - New meaningful vault edits should be logged under [vault change logs](<../_logs/vault-changes/>).
 - Post-edit reflection logs belong under [reflections](<../_logs/reflections/>).
 

@@ -1,12 +1,12 @@
 # Agent Navigation
 
-Use this note with `AGENTS.md` and `AGENT.md` when an agent needs durable project context.
+Use this note as the first stop for durable MiniPainterHub project context.
 
 ## Fast Route
 
-1. Start with `AGENTS.md` to set the minimal file scope.
-2. Use this note to choose one vault source of truth.
-3. Read only the selected note and directly referenced supporting notes.
+1. Use this note to choose one vault source of truth.
+2. Read only the selected note and directly referenced supporting notes.
+3. Keep repository and vault context focused on the current task.
 4. If code and vault docs conflict, trust running code and update the affected vault note.
 
 ## Task Routes

@@ -1,6 +1,6 @@
 # Vault Specification
 
-The Obsidian vault is the durable MiniPainterHub knowledge base. Root markdown files stay small because local agents and tools expect them, but long-lived project knowledge belongs here.
+The Obsidian vault is the durable MiniPainterHub knowledge base. Root markdown files stay small because local tools may expect them, but long-lived project knowledge belongs here.
 
 ## Goals
 
@@ -11,15 +11,14 @@ The Obsidian vault is the durable MiniPainterHub knowledge base. Root markdown f
 
 ## Current Assessment
 
-The vault move is a good foundation: it separates project knowledge from source code, keeps root agent files stable, and gives large docs a clearer home. Its current limitation is that [Project Index.md](<Project Index.md>) is only a flat table of contents. Agents need a routing layer, folder ownership rules, and update triggers so the vault remains flexible instead of becoming another renamed `docs` folder.
+The vault move is a good foundation: it separates project knowledge from source code, keeps root pointer files stable, and gives large docs a clearer home. Its current limitation is that [Project Index.md](<Project Index.md>) is only a flat table of contents. Contributors need a routing layer, folder ownership rules, and update triggers so the vault remains flexible instead of becoming another renamed `docs` folder.
 
 This specification, [Agent Navigation.md](<Agent Navigation.md>), [Knowledge Map.md](<Knowledge Map.md>), and folder `README.md` indexes provide that layer.
 
 ## Source-Of-Truth Rules
 
 - Running code wins over stale documentation.
-- `AGENTS.md` owns context minimization rules.
-- `AGENT.md` owns the root workflow contract and points into the vault.
+- Root `AGENT.md` and `AGENTS.md` are compatibility pointers into the vault.
 - [Agent Navigation.md](<Agent Navigation.md>) owns task-to-note routing.
 - [Knowledge Map.md](<Knowledge Map.md>) owns folder purpose and retrieval rules.
 - This file owns vault structure and refactoring policy.

@@ -12,4 +12,4 @@ Durable project documentation now lives in the local Obsidian vault:
 - [Deployment](<ObsidianVault/20 Engineering/DEPLOYMENT.md>)
 - [Portfolio screenshots](<ObsidianVault/50 Visual Assets/Portfolio Screenshots/>)
 
-Agent-facing instructions remain at [AGENT.md](AGENT.md) and [AGENTS.md](AGENTS.md) because local tooling expects those files at the repository root.
+Root compatibility pointers remain at [AGENT.md](AGENT.md) and [AGENTS.md](AGENTS.md); durable guidance belongs in the Obsidian vault.

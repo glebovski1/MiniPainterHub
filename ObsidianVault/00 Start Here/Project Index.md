@@ -30,7 +30,6 @@ Start here for durable MiniPainterHub project knowledge.
 - [Anti-patterns](<../30 Process/ANTI_PATTERNS.md>)
 - [AI workflow playbook](<../30 Process/WORKFLOW_PLAYBOOK.md>)
 - [UI quality playbook](<../30 Process/UI_QUALITY_PLAYBOOK.md>)
-- [AI change log](<../30 Process/AI_CHANGELOG.md>)
 - [Decisions](<../30 Process/Decisions/README.md>)
 
 ## Design And Visuals
@@ -47,7 +46,7 @@ Start here for durable MiniPainterHub project knowledge.
 - [Reflection logs](<../_logs/reflections/>)
 - [Archive](<../_archive/>)
 
-## Root Agent Files
+## Root Pointer Files
 
-- [Agent workflow contract](../../AGENT.md)
+- [Agent entry point](../../AGENT.md)
 - [Context control](../../AGENTS.md)
