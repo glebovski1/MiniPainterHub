@@ -38,11 +38,7 @@ jobs:
     env:
       AZURE_WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
       AZURE_WEBAPP_HOSTNAME: ${{ vars.AZURE_WEBAPP_HOSTNAME }}
-      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-      AZURE_WEBAPP_STAGING_SLOT: ${{ vars.AZURE_WEBAPP_STAGING_SLOT }}
-      AZURE_WEBAPP_STAGING_HOSTNAME: ${{ vars.AZURE_WEBAPP_STAGING_HOSTNAME }}
-      AZURE_WEBAPP_STAGING_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_STAGING_PUBLISH_PROFILE }}
-      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+      AZURE_WEBAPP_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
     steps:
       - name: Checkout deploy ref
         uses: actions/checkout@v4
@@ -60,6 +56,32 @@ jobs:
           echo "deploy_sha=$deploy_sha" >> "$GITHUB_OUTPUT"
           echo "Deploying $deploy_sha"
 
+          git fetch --force origin 'refs/tags/production-last-good:refs/tags/production-last-good' || true
+          rollback_sha=""
+          if git rev-parse --verify --quiet refs/tags/production-last-good^{commit} >/dev/null; then
+            rollback_sha="$(git rev-parse refs/tags/production-last-good^{commit})"
+          elif git rev-parse --verify --quiet HEAD^ >/dev/null; then
+            rollback_sha="$(git rev-parse HEAD^)"
+            echo "::warning title=No last-known-good tag::Falling back to the parent commit for rollback."
+          fi
+
+          if [ -n "$rollback_sha" ] && [ "$rollback_sha" = "$deploy_sha" ]; then
+            if git rev-parse --verify --quiet HEAD^ >/dev/null; then
+              rollback_sha="$(git rev-parse HEAD^)"
+              echo "::warning title=Last-known-good equals current deploy::Using the parent commit for rollback."
+            else
+              rollback_sha=""
+            fi
+          fi
+
+          if [ -n "$rollback_sha" ]; then
+            echo "Rollback target: $rollback_sha"
+          else
+            echo "::warning title=Rollback target unavailable::No production-last-good tag or parent commit is available."
+          fi
+
+          echo "rollback_sha=$rollback_sha" >> "$GITHUB_OUTPUT"
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -73,11 +95,7 @@ jobs:
           required_names=(
             AZURE_WEBAPP_NAME
             AZURE_WEBAPP_HOSTNAME
-            AZURE_RESOURCE_GROUP
-            AZURE_WEBAPP_STAGING_SLOT
-            AZURE_WEBAPP_STAGING_HOSTNAME
-            AZURE_WEBAPP_STAGING_PUBLISH_PROFILE
-            AZURE_CREDENTIALS
+            AZURE_WEBAPP_PUBLISH_PROFILE
           )
 
           missing=false
@@ -98,52 +116,15 @@ jobs:
       - name: Publish server artifact
         run: dotnet publish MiniPainterHub.Server/MiniPainterHub.Server.csproj --configuration Release --no-restore --output artifacts/publish/server
 
-      - name: Deploy to staging slot
+      - name: Deploy to existing Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          slot-name: ${{ env.AZURE_WEBAPP_STAGING_SLOT }}
-          publish-profile: ${{ env.AZURE_WEBAPP_STAGING_PUBLISH_PROFILE }}
+          publish-profile: ${{ env.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: artifacts/publish/server
 
-      - name: Verify staging health endpoint
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          health_url="https://${AZURE_WEBAPP_STAGING_HOSTNAME}/healthz"
-          for attempt in {1..12}; do
-            status="$(curl --silent --show-error --location --output /dev/null --write-out '%{http_code}' "$health_url" || true)"
-            if [ "$status" = "200" ]; then
-              echo "Staging health check passed at $health_url"
-              exit 0
-            fi
-
-            echo "Staging health check attempt $attempt returned HTTP $status; retrying in 10 seconds."
-            sleep 10
-          done
-
-          echo "::error title=Staging health check failed::$health_url did not return HTTP 200. Production was not changed."
-          exit 1
-
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          creds: ${{ env.AZURE_CREDENTIALS }}
-
-      - name: Swap staging into production
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          az webapp deployment slot swap \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$AZURE_WEBAPP_NAME" \
-            --slot "$AZURE_WEBAPP_STAGING_SLOT" \
-            --target-slot production
-
-      - name: Verify production health endpoint
-        id: verify_production
+      - name: Verify health endpoint
+        id: verify_current
         continue-on-error: true
         shell: bash
         run: |
@@ -153,32 +134,39 @@ jobs:
           for attempt in {1..12}; do
             status="$(curl --silent --show-error --location --output /dev/null --write-out '%{http_code}' "$health_url" || true)"
             if [ "$status" = "200" ]; then
-              echo "Production health check passed at $health_url"
+              echo "Health check passed at $health_url"
               exit 0
             fi
 
-            echo "Production health check attempt $attempt returned HTTP $status; retrying in 10 seconds."
+            echo "Health check attempt $attempt returned HTTP $status; retrying in 10 seconds."
             sleep 10
           done
 
-          echo "::error title=Production health check failed::$health_url did not return HTTP 200 after slot swap."
+          echo "::error title=Production health check failed::$health_url did not return HTTP 200 after deployment."
           exit 1
 
-      - name: Swap back after failed production health check
-        if: steps.verify_production.outcome == 'failure'
+      - name: Prepare rollback artifact
+        if: steps.verify_current.outcome == 'failure' && steps.deployment_refs.outputs.rollback_sha != ''
         shell: bash
         run: |
           set -euo pipefail
 
-          echo "::warning title=Swapping back::Production health check failed after swap. Restoring previous production build from ${AZURE_WEBAPP_STAGING_SLOT}."
-          az webapp deployment slot swap \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$AZURE_WEBAPP_NAME" \
-            --slot "$AZURE_WEBAPP_STAGING_SLOT" \
-            --target-slot production
+          rollback_sha="${{ steps.deployment_refs.outputs.rollback_sha }}"
+          echo "::warning title=Rolling back deployment::Current deployment failed health checks. Preparing rollback artifact from $rollback_sha."
+          git checkout --force "$rollback_sha"
+          dotnet restore MiniPainterHub.sln
+          dotnet publish MiniPainterHub.Server/MiniPainterHub.Server.csproj --configuration Release --no-restore --output artifacts/publish/rollback-server
 
-      - name: Verify restored production health endpoint
-        if: steps.verify_production.outcome == 'failure'
+      - name: Roll back Azure Web App
+        if: steps.verify_current.outcome == 'failure' && steps.deployment_refs.outputs.rollback_sha != ''
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ env.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: artifacts/publish/rollback-server
+
+      - name: Verify rollback health endpoint
+        if: steps.verify_current.outcome == 'failure' && steps.deployment_refs.outputs.rollback_sha != ''
         shell: bash
         run: |
           set -euo pipefail
@@ -187,19 +175,19 @@ jobs:
           for attempt in {1..12}; do
             status="$(curl --silent --show-error --location --output /dev/null --write-out '%{http_code}' "$health_url" || true)"
             if [ "$status" = "200" ]; then
-              echo "Restored production health check passed at $health_url"
+              echo "Rollback health check passed at $health_url"
               exit 0
             fi
 
-            echo "Restored production health check attempt $attempt returned HTTP $status; retrying in 10 seconds."
+            echo "Rollback health check attempt $attempt returned HTTP $status; retrying in 10 seconds."
             sleep 10
           done
 
-          echo "::error title=Restored production health check failed::$health_url did not return HTTP 200 after swap-back."
+          echo "::error title=Rollback health check failed::$health_url did not return HTTP 200 after rollback."
           exit 1
 
       - name: Mark deployment as last known good
-        if: steps.verify_production.outcome == 'success'
+        if: steps.verify_current.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -211,9 +199,13 @@ jobs:
           git push --force origin refs/tags/production-last-good
           echo "Marked $deploy_sha as production-last-good."
 
-      - name: Fail after swap-back
-        if: steps.verify_production.outcome == 'failure'
+      - name: Fail after rollback
+        if: steps.verify_current.outcome == 'failure'
         shell: bash
         run: |
-          echo "::error title=Production deployment rejected::Health check failed for ${{ steps.deployment_refs.outputs.deploy_sha }} after slot swap. Swap-back was attempted."
+          if [ -z "${{ steps.deployment_refs.outputs.rollback_sha }}" ]; then
+            echo "::error title=Production deployment failed::Health check failed and no rollback target was available."
+          else
+            echo "::error title=Production deployment rolled back::Health check failed for ${{ steps.deployment_refs.outputs.deploy_sha }}. Rolled back to ${{ steps.deployment_refs.outputs.rollback_sha }}."
+          fi
           exit 1
