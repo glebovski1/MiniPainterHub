@@ -10,9 +10,10 @@
     <PageHero Eyebrow="Discovery"
               Title="Search"
               Description="Find painters, posts, and technique tags with better scanability and clearer result grouping."
+              ClassName="search-page-hero"
               FrameName="Search Header">
         <Actions>
-            <form class="atelier-nav__search" @onsubmit="SubmitAsync">
+            <form class="atelier-nav__search search-hero-form" @onsubmit="SubmitAsync">
                 <label class="visually-hidden" for="search-query-input">Search posts, users, tags</label>
                 <input class="form-control"
                        id="search-query-input"

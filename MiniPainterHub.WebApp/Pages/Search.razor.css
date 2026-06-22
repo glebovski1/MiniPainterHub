@@ -3,6 +3,32 @@
     gap: 0.95rem;
 }
 
+::deep(.search-page-hero .page-hero__actions) {
+    width: min(32rem, 100%);
+    justify-self: end;
+}
+
+.search-hero-form {
+    width: min(32rem, 100%);
+    max-width: 32rem;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.55rem;
+    align-items: center;
+}
+
+.search-hero-form .form-control {
+    min-width: 0;
+    border-radius: 8px;
+}
+
+.search-hero-form .btn {
+    min-width: 7.5rem;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
 .search-overview-results {
     display: grid;
     gap: 1rem;
@@ -23,4 +49,21 @@
 
 .search-overview-section--posts {
     background: rgba(255, 253, 249, 0.58);
+}
+
+@media (max-width: 575.98px) {
+    ::deep(.search-page-hero .page-hero__actions) {
+        width: 100%;
+    }
+
+    .search-hero-form {
+        grid-template-columns: 1fr;
+        width: 100%;
+        gap: 0.6rem;
+    }
+
+    .search-hero-form .btn {
+        width: 100%;
+        min-width: 0;
+    }
 }

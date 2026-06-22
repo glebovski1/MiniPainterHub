@@ -26,8 +26,13 @@
     }
 
     <div class="card-body post-card__body">
+        <div class="post-card__meta-row">
+            <NavLink class="post-card__author-link" href="@($"/users/{Post.AuthorId}")">@Post.AuthorName</NavLink>
+            <span>@Post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</span>
+        </div>
+
         <div class="d-flex align-items-start justify-content-between gap-2">
-            <NavLink class="text-decoration-none text-dark flex-grow-1" href="@($"/posts/{Post.Id}")">
+            <NavLink class="post-card__title-link text-decoration-none text-dark flex-grow-1" href="@($"/posts/{Post.Id}")">
                 <h5 class="card-title post-card__title mb-0">@Post.Title</h5>
             </NavLink>
             <AuthorizeView Roles="Moderator,Admin">
@@ -37,7 +42,7 @@
             </AuthorizeView>
         </div>
 
-        <NavLink class="text-decoration-none text-dark" href="@($"/posts/{Post.Id}")">
+        <NavLink class="post-card__snippet-link text-decoration-none text-dark" href="@($"/posts/{Post.Id}")">
             <p class="card-text post-card__snippet text-truncate">@Post.Snippet</p>
         </NavLink>
 
@@ -51,14 +56,14 @@
 
     <div class="card-footer post-card__footer mt-auto">
         <div class="post-card__footer-meta">
-            <small class="text-muted">
-                <NavLink class="text-decoration-none" href="@($"/users/{Post.AuthorId}")">@Post.AuthorName</NavLink>
-                <span class="mx-1">&bull;</span> @Post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
-            </small>
             <div class="mini-stat-bar">
                 <span class="mini-stat"><i class="bi bi-chat-left-text" aria-hidden="true"></i> @Post.CommentCount</span>
                 <span class="mini-stat"><i class="bi bi-heart" aria-hidden="true"></i> @Post.LikeCount</span>
             </div>
+            <NavLink class="post-card__open" href="@($"/posts/{Post.Id}")">
+                <span>Open post</span>
+                <i class="bi bi-arrow-right-short" aria-hidden="true"></i>
+            </NavLink>
         </div>
     </div>
 

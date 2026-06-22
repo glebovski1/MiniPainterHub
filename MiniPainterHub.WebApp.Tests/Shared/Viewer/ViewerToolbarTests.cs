@@ -56,6 +56,7 @@ public class ViewerToolbarTests : TestContext
 
         cut.FindAll("[data-testid='viewer-rail-navigation']").Should().BeEmpty();
         cut.Find("[data-testid='viewer-rail-hints']").TextContent.Should().Contain("zoom");
+        cut.Find("[data-testid='viewer-rail-utility']").ClassList.Should().Contain("viewer-toolbar__section--utility-compact");
         cut.Find("[data-testid='viewer-fullscreen']").Should().NotBeNull();
     }
 }

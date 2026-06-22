@@ -72,3 +72,31 @@
         width: auto;
     }
 }
+
+/* Warm Community Refresh - mark composer */
+.viewer-composer {
+    border-color: rgba(210, 196, 176, 0.9);
+    background: rgba(255, 252, 246, 0.98);
+    box-shadow: 0 1.6rem 3rem rgba(38, 31, 25, 0.22);
+    color: var(--viewer-text, #2d2823);
+}
+
+.viewer-composer__eyebrow,
+.viewer-composer .form-label {
+    color: var(--viewer-muted, rgba(98, 88, 80, 0.78));
+}
+
+.viewer-composer__body {
+    color: var(--viewer-text, #2d2823);
+}
+
+.viewer-composer__tag {
+    background: rgba(80, 96, 76, 0.12);
+    color: var(--primary-700, #50604c);
+}
+
+.viewer-composer .form-control {
+    border-color: rgba(210, 196, 176, 0.92);
+    background: rgba(255, 252, 246, 0.94);
+    color: var(--viewer-text, #2d2823);
+}

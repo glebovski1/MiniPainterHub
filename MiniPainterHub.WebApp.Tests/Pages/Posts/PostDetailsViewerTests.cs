@@ -55,6 +55,7 @@ public class PostDetailsViewerTests : TestContext
             cut.Find("[data-testid='viewer-stage-image']");
             cut.Find("[data-testid='viewer-side-tab-info']").ClassList.Should().Contain("is-active");
             cut.Find("[data-testid='viewer-panel-info']").TextContent.Should().Contain("About this piece");
+            cut.Find("[data-testid='viewer-panel-title']").TextContent.Should().Be("Moonlit skin experiment");
             cut.Find("[data-testid='viewer-panel-comments']").HasAttribute("hidden").Should().BeTrue();
             cut.FindAll("[data-testid='viewer-comments-thread']").Should().BeEmpty();
             cut.FindAll("[data-testid='comment-list-container']").Should().HaveCount(1);

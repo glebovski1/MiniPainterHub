@@ -1,4 +1,5 @@
 @using System.Globalization
+@using System.Threading
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
 @using MiniPainterHub.Common.DTOs
@@ -36,55 +37,6 @@ else if (IsOpen)
 
             <div class="viewer-shell__content">
                 <div class="viewer-shell__body">
-                    <aside class="viewer-shell__control-rail @(Viewer.Images.Count > 0 ? "has-thumbnails" : "is-single-frame")" data-testid="viewer-control-rail">
-                        <ViewerToolbar Eyebrow="@Eyebrow"
-                                       Title="@Title"
-                                       TitleId="@TitleId"
-                                       CurrentIndex="@CurrentImageNumber"
-                                       TotalCount="@Viewer.Images.Count"
-                                       ZoomPercent="@ZoomPercent"
-                                       ScaleMode="@_transform.ScaleMode"
-                                       ScaleModeDescription="@ScaleModeDescription"
-                                       CanGoPrevious="@(Viewer.Images.Count > 1)"
-                                       CanGoNext="@(Viewer.Images.Count > 1)"
-                                       CanAddAuthorMark="@Viewer.CanManageAuthorMarks"
-                                       IsAuthorPlacementMode="@_isAuthorPlacementMode"
-                                       CanToggleFullscreen="@ViewerInterop.IsFullscreenSupported"
-                                       IsFullscreen="@ViewerInterop.IsFullscreen"
-                                       OnPrevious="PreviousImageAsync"
-                                       OnNext="NextImageAsync"
-                                       OnZoomIn="ZoomInAsync"
-                                       OnZoomOut="ZoomOutAsync"
-                                       OnSetFitMode="SetFitModeAsync"
-                                       OnSetFillMode="SetFillModeAsync"
-                                       OnSetActualSizeMode="SetActualSizeModeAsync"
-                                       OnToggleFullscreen="ToggleFullscreenAsync"
-                                       OnToggleAuthorPlacement="ToggleAuthorPlacementAsync"
-                                       OnClose="CloseAsync" />
-
-                        @if (Viewer.Images.Count > 0)
-                        {
-                            <section class="viewer-rail-section viewer-rail-section--thumbnails" data-testid="viewer-thumbnail-rail">
-                                <div class="viewer-rail-section__head">
-                                    <span class="viewer-rail-section__eyebrow">@(Viewer.Images.Count > 1 ? "Frames" : "Preview")</span>
-                                </div>
-
-                                <ThumbnailRail Images="@Viewer.Images"
-                                               ActiveImageId="@ResolvedImageId"
-                                               OnSelect="SelectImageAsync" />
-
-                                @if (Viewer.Images.Count > 1)
-                                {
-                                    <p class="viewer-rail-shortcuts" data-testid="viewer-shortcuts" aria-label="Viewer shortcuts">
-                                        <span><kbd>Left</kbd><kbd>Right</kbd> navigate</span>
-                                        <span><kbd>+</kbd><kbd>-</kbd> zoom</span>
-                                        <span><kbd>Esc</kbd> close</span>
-                                    </p>
-                                }
-                            </section>
-                        }
-                    </aside>
-
                     <div class="viewer-shell__stage-column">
                         @if (!string.IsNullOrWhiteSpace(CurrentInteractionHint))
                         {
@@ -94,7 +46,56 @@ else if (IsOpen)
                             </div>
                         }
 
-                        <div class="viewer-shell__stage-surface">
+                        <div class="viewer-shell__stage-surface @StageControlsClass"
+                             @onpointermove="RevealStageControlsTemporarilyAsync">
+                            <div class="viewer-shell__stage-chrome">
+                                @if (Viewer.Images.Count > 1)
+                                {
+                                    <button type="button"
+                                            class="viewer-shell__stage-nav-button viewer-shell__stage-nav-button--previous"
+                                            aria-label="Previous image"
+                                            title="Previous image"
+                                            data-testid="viewer-stage-prev"
+                                            @onclick="PreviousImageAsync">
+                                        <i class="bi bi-chevron-left" aria-hidden="true"></i>
+                                    </button>
+
+                                    <button type="button"
+                                            class="viewer-shell__stage-nav-button viewer-shell__stage-nav-button--next"
+                                            aria-label="Next image"
+                                            title="Next image"
+                                            data-testid="viewer-stage-next"
+                                            @onclick="NextImageAsync">
+                                        <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                    </button>
+                                }
+
+                                <ViewerToolbar Eyebrow="@Eyebrow"
+                                               Title="@Title"
+                                               TitleId="@TitleId"
+                                               CurrentIndex="@CurrentImageNumber"
+                                               TotalCount="@Viewer.Images.Count"
+                                               ZoomPercent="@ZoomPercent"
+                                               ScaleMode="@_transform.ScaleMode"
+                                               ScaleModeDescription="@ScaleModeDescription"
+                                               CanGoPrevious="@(Viewer.Images.Count > 1)"
+                                               CanGoNext="@(Viewer.Images.Count > 1)"
+                                               CanAddAuthorMark="@Viewer.CanManageAuthorMarks"
+                                               IsAuthorPlacementMode="@_isAuthorPlacementMode"
+                                               CanToggleFullscreen="@ViewerInterop.IsFullscreenSupported"
+                                               IsFullscreen="@ViewerInterop.IsFullscreen"
+                                               OnPrevious="PreviousImageAsync"
+                                               OnNext="NextImageAsync"
+                                               OnZoomIn="ZoomInAsync"
+                                               OnZoomOut="ZoomOutAsync"
+                                               OnSetFitMode="SetFitModeAsync"
+                                               OnSetFillMode="SetFillModeAsync"
+                                               OnSetActualSizeMode="SetActualSizeModeAsync"
+                                               OnToggleFullscreen="ToggleFullscreenAsync"
+                                               OnToggleAuthorPlacement="ToggleAuthorPlacementAsync"
+                                               OnClose="CloseAsync" />
+                            </div>
+
                             <ViewerStage @ref="_viewerStage"
                                          StageClass="@StageClass"
                                          Style="@StageStyle"
@@ -173,6 +174,28 @@ else if (IsOpen)
                                 </div>
                             </ViewerStage>
                         </div>
+
+                        @if (Viewer.Images.Count > 0)
+                        {
+                            <section class="viewer-shell__filmstrip viewer-rail-section viewer-rail-section--thumbnails" data-testid="viewer-thumbnail-rail">
+                                <div class="viewer-rail-section__head">
+                                    <span class="viewer-rail-section__eyebrow">@(Viewer.Images.Count > 1 ? "Frames" : "Preview")</span>
+                                </div>
+
+                                <ThumbnailRail Images="@Viewer.Images"
+                                               ActiveImageId="@ResolvedImageId"
+                                               OnSelect="SelectImageAsync" />
+
+                                @if (Viewer.Images.Count > 1)
+                                {
+                                    <p class="viewer-rail-shortcuts" data-testid="viewer-shortcuts" aria-label="Viewer shortcuts">
+                                        <span><kbd>Left</kbd><kbd>Right</kbd> navigate</span>
+                                        <span><kbd>+</kbd><kbd>-</kbd> zoom</span>
+                                        <span><kbd>Esc</kbd> close</span>
+                                    </p>
+                                }
+                            </section>
+                        }
                     </div>
 
                     <aside class="viewer-shell__side-panel" data-testid="viewer-side-panel" @ref="_sidePanelElement">
@@ -200,6 +223,7 @@ else if (IsOpen)
     private ElementReference _transformElement;
     private ViewerInteropController? _viewerInterop;
     private DotNetObjectReference<RichImageViewer>? _selfReference;
+    private CancellationTokenSource? _stageControlsHideCts;
 
     private MarkComposerValue _composerValue = new();
 
@@ -210,6 +234,7 @@ else if (IsOpen)
     private bool _pendingFocusCommentMark;
     private bool _pendingScrollActiveComment;
     private bool _suppressNextPlacementClick;
+    private bool _stageControlsVisible;
     private bool _wasOpenLastRender;
     private int _currentImageId;
     private int _lastIncomingImageId;
@@ -321,6 +346,8 @@ else if (IsOpen)
 
     private string StageClass =>
         $"viewer-stage-shell {(_transform.CanPan ? "is-pannable" : "is-slide-mode")} {(IsPlacementMode ? "is-placement-mode" : null)}";
+
+    private string? StageControlsClass => _stageControlsVisible ? "is-controls-visible" : null;
 
     private string StageStyle => "touch-action:none;";
 
@@ -1164,6 +1191,48 @@ else if (IsOpen)
         _imageLoadState.MarkFailed(imageId);
     }
 
+    private Task RevealStageControlsTemporarilyAsync()
+    {
+        var shouldRender = !_stageControlsVisible;
+        _stageControlsVisible = true;
+        ScheduleStageControlsHide();
+
+        return shouldRender ? InvokeAsync(StateHasChanged) : Task.CompletedTask;
+    }
+
+    private void ScheduleStageControlsHide()
+    {
+        _stageControlsHideCts?.Cancel();
+        _stageControlsHideCts?.Dispose();
+
+        var cts = new CancellationTokenSource();
+        _stageControlsHideCts = cts;
+        _ = HideStageControlsAfterDelayAsync(cts);
+    }
+
+    private async Task HideStageControlsAfterDelayAsync(CancellationTokenSource cts)
+    {
+        try
+        {
+            await Task.Delay(1600, cts.Token);
+            await InvokeAsync(() =>
+            {
+                if (_stageControlsHideCts != cts)
+                {
+                    return;
+                }
+
+                _stageControlsVisible = false;
+                _stageControlsHideCts = null;
+                cts.Dispose();
+                StateHasChanged();
+            });
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
     private void ResetViewState()
     {
         _transform.Reset(CurrentImage);
@@ -1238,6 +1307,9 @@ else if (IsOpen)
 
     public async ValueTask DisposeAsync()
     {
+        _stageControlsHideCts?.Cancel();
+        _stageControlsHideCts?.Dispose();
+
         if (_viewerInterop is not null)
         {
             await _viewerInterop.DisposeAsync(

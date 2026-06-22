@@ -128,7 +128,7 @@ async function collectViewerMetrics(page) {
   });
 }
 
-async function switchViewerImage(page, controlTestId = "viewer-next") {
+async function switchViewerImage(page, controlTestId = "viewer-stage-next") {
   const image = page.getByTestId("viewer-stage-image");
   const previousSrc = await image.getAttribute("src");
   const start = performance.now();
@@ -157,7 +157,7 @@ async function openViewerWithPhaseTimings(page) {
   await expect(page.getByTestId("rich-image-viewer-modal")).toBeVisible();
   timings.modalVisibleMs = Math.round(performance.now() - start);
 
-  await expect(page.getByTestId("viewer-control-rail")).toBeVisible();
+  await expect(page.getByTestId("viewer-close")).toBeVisible();
   await expect(page.getByTestId("viewer-stage")).toBeVisible();
   await expect(page.getByTestId("viewer-side-panel")).toBeVisible();
   timings.chromeVisibleMs = Math.round(performance.now() - start);
@@ -199,7 +199,7 @@ test("rich viewer interaction performance budgets", async ({ page, request }, te
     expect(metricsAfterOpen.maxThumbnailAspectSkew, `${viewport.name} thumbnail aspect skew`).toBeLessThanOrEqual(BUDGET.thumbnailMaxAspectSkew);
 
     const warmSwitchMs = await switchViewerImage(page);
-    const cachedSwitchMs = await switchViewerImage(page, "viewer-prev");
+    const cachedSwitchMs = await switchViewerImage(page, "viewer-stage-prev");
     expect(cachedSwitchMs, `${viewport.name} cached image switch time`).toBeLessThanOrEqual(BUDGET.cachedSwitchMs);
 
     const screenshotStart = performance.now();

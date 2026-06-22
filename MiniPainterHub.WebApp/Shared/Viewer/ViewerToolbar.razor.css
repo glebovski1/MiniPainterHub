@@ -472,3 +472,506 @@
         font-size: 0.48rem;
     }
 }
+
+/* Warm Community Refresh - viewer toolbar */
+.viewer-toolbar__title,
+.viewer-toolbar__value-box,
+.viewer-toolbar__footer kbd {
+    color: var(--viewer-text, #2d2823);
+}
+
+.viewer-toolbar__close,
+.viewer-toolbar__button-trio,
+.viewer-toolbar__mode-buttons,
+.viewer-toolbar__footer kbd {
+    border-color: rgba(210, 196, 176, 0.82);
+    background: rgba(255, 252, 246, 0.72);
+}
+
+.viewer-toolbar__button-trio--accent {
+    border-color: rgba(192, 120, 79, 0.22);
+    background: rgba(192, 120, 79, 0.1);
+}
+
+.viewer-toolbar__section {
+    border-top-color: rgba(210, 196, 176, 0.76);
+}
+
+.viewer-toolbar__section-title,
+.viewer-toolbar__section-detail,
+.viewer-toolbar__footer {
+    color: var(--viewer-muted, rgba(98, 88, 80, 0.78));
+}
+
+.viewer-toolbar__button-trio .btn,
+.viewer-toolbar__mode-buttons .btn,
+.viewer-toolbar__wide-action,
+.viewer-toolbar__icon-action {
+    color: var(--viewer-text, #2d2823);
+    border-color: rgba(210, 196, 176, 0.9);
+    background: rgba(255, 252, 246, 0.88);
+}
+
+.viewer-toolbar__button-trio .btn:hover,
+.viewer-toolbar__button-trio .btn:focus-visible,
+.viewer-toolbar__mode-buttons .btn:hover,
+.viewer-toolbar__mode-buttons .btn:focus-visible,
+.viewer-toolbar__wide-action:hover,
+.viewer-toolbar__wide-action:focus-visible,
+.viewer-toolbar__icon-action:hover,
+.viewer-toolbar__icon-action:focus-visible {
+    color: var(--ink-900, #2d2823);
+    border-color: rgba(192, 120, 79, 0.32);
+    background: rgba(255, 253, 248, 0.98);
+}
+
+.viewer-toolbar__mode.is-active,
+.viewer-toolbar__mode.btn-light {
+    color: #fffaf3;
+    background: linear-gradient(135deg, var(--primary-700, #50604c), var(--primary-600, #65745f));
+    border-color: transparent;
+}
+
+.viewer-toolbar__wide-action.btn-warning {
+    color: #fffaf3;
+    background: linear-gradient(135deg, var(--comment-accent, #c0784f), var(--accent-clay, #b46a45));
+    border-color: transparent;
+}
+
+/* Warm Community Refresh - composition pass */
+.viewer-toolbar {
+    gap: 0.68rem;
+}
+
+.viewer-toolbar__top {
+    padding: 0.66rem;
+    border: 1px solid rgba(210, 196, 176, 0.76);
+    border-radius: var(--radius-sm);
+    background: rgba(248, 240, 229, 0.62);
+}
+
+.viewer-toolbar__title {
+    font-size: clamp(0.88rem, 0.9vw, 1rem);
+    line-height: 1.18;
+}
+
+.viewer-toolbar__section {
+    padding: 0.68rem;
+    border: 1px solid rgba(210, 196, 176, 0.74);
+    border-radius: var(--radius-sm);
+    background: rgba(255, 252, 246, 0.66);
+}
+
+.viewer-toolbar__section + .viewer-toolbar__section {
+    margin-top: 0.08rem;
+}
+
+.viewer-toolbar__button-trio {
+    grid-template-columns: 2.25rem minmax(0, 1fr) 2.25rem;
+    padding: 0.18rem;
+}
+
+.viewer-toolbar__button-trio .btn,
+.viewer-toolbar__mode-buttons .btn,
+.viewer-toolbar__value-box,
+.viewer-toolbar__wide-action {
+    min-height: 2.24rem;
+}
+
+.viewer-toolbar__mode-buttons {
+    padding: 0.18rem;
+    border: 1px solid rgba(210, 196, 176, 0.68);
+    border-radius: var(--radius-sm);
+    background: rgba(248, 240, 229, 0.64);
+}
+
+.viewer-toolbar__wide-action {
+    justify-content: center;
+}
+
+@media (max-width: 991.98px) {
+    .viewer-toolbar__section {
+        padding: 0.58rem;
+    }
+}
+
+/* Gallery Night - selected design 2 */
+.viewer-toolbar {
+    gap: 0.58rem;
+}
+
+.viewer-toolbar__top,
+.viewer-toolbar__section {
+    border-color: rgba(95, 72, 53, 0.18);
+    background:
+        linear-gradient(180deg, rgba(255, 252, 244, 0.76), rgba(243, 230, 203, 0.62));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.58);
+}
+
+.viewer-toolbar__top {
+    padding: 0.58rem;
+    border-left: 3px solid rgba(104, 115, 95, 0.48);
+}
+
+.viewer-toolbar__title {
+    font-size: clamp(0.86rem, 0.82vw, 0.98rem);
+    color: #33281f;
+}
+
+.viewer-toolbar__section {
+    padding: 0.58rem;
+}
+
+.viewer-toolbar__section-title {
+    color: rgba(72, 59, 48, 0.78);
+}
+
+.viewer-toolbar__section-detail {
+    color: rgba(93, 76, 64, 0.68);
+}
+
+.viewer-toolbar__button-trio,
+.viewer-toolbar__mode-buttons {
+    border-color: rgba(95, 72, 53, 0.16);
+    background: rgba(255, 248, 232, 0.68);
+}
+
+.viewer-toolbar__button-trio {
+    grid-template-columns: 2rem minmax(0, 1fr) 2rem;
+}
+
+.viewer-toolbar__button-trio .btn,
+.viewer-toolbar__mode-buttons .btn,
+.viewer-toolbar__wide-action,
+.viewer-toolbar__icon-action {
+    border-color: rgba(95, 72, 53, 0.2);
+    background: rgba(255, 252, 244, 0.9);
+    color: #33281f;
+}
+
+.viewer-toolbar__button-trio .btn:hover,
+.viewer-toolbar__button-trio .btn:focus-visible,
+.viewer-toolbar__mode-buttons .btn:hover,
+.viewer-toolbar__mode-buttons .btn:focus-visible,
+.viewer-toolbar__wide-action:hover,
+.viewer-toolbar__wide-action:focus-visible,
+.viewer-toolbar__icon-action:hover,
+.viewer-toolbar__icon-action:focus-visible {
+    border-color: rgba(189, 118, 82, 0.42);
+    background: #fffaf0;
+}
+
+.viewer-toolbar__mode.is-active,
+.viewer-toolbar__mode.btn-light {
+    background: linear-gradient(135deg, var(--gallery-night-olive, #68735f), #56654f);
+    color: #fff8e8;
+}
+
+.viewer-toolbar__value-box {
+    color: #33281f;
+}
+
+.viewer-toolbar__wide-action.btn-warning {
+    background: linear-gradient(135deg, var(--gallery-night-clay, #bd7652), #9d5f42);
+}
+
+.viewer-toolbar__footer {
+    color: rgba(255, 248, 232, 0.64);
+    border-top-color: rgba(255, 248, 232, 0.12);
+}
+
+.viewer-toolbar__footer kbd {
+    border-color: rgba(242, 207, 138, 0.28);
+    background: rgba(255, 248, 232, 0.12);
+    color: #fff8e8;
+}
+
+@media (min-width: 992px) {
+    .viewer-toolbar__button-trio .btn,
+    .viewer-toolbar__mode-buttons .btn,
+    .viewer-toolbar__value-box,
+    .viewer-toolbar__wide-action {
+        min-height: 2.02rem;
+    }
+}
+
+/* Cinematic miniature showcase direction */
+.viewer-shell__stage-chrome .viewer-toolbar__top {
+    position: absolute;
+    z-index: 44;
+    pointer-events: auto;
+    top: clamp(0.72rem, 1vw, 1rem);
+    right: clamp(0.72rem, 1vw, 1rem);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.48rem;
+    width: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__identity {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__title {
+    color: #f5dfb8;
+    font-size: clamp(0.86rem, 0.9vw, 1rem);
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__close,
+.viewer-shell__stage-chrome .viewer-toolbar__icon-action {
+    pointer-events: auto;
+    width: 3rem;
+    min-height: 3rem;
+    border-radius: 0.72rem;
+    border-color: rgba(185, 132, 70, 0.26);
+    color: #f5dfb8;
+    background: rgba(9, 8, 7, 0.72);
+    box-shadow: 0 1rem 1.9rem rgba(0, 0, 0, 0.24);
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__body,
+.viewer-shell__stage-chrome .viewer-toolbar__groups {
+    display: block;
+    min-height: 0;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__section {
+    z-index: 42;
+    pointer-events: auto;
+    border-color: rgba(185, 132, 70, 0.22);
+    background:
+        linear-gradient(180deg, rgba(255, 232, 185, 0.07), rgba(255, 232, 185, 0.02)),
+        rgba(10, 9, 8, 0.82);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 1rem 2rem rgba(0, 0, 0, 0.28);
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__section-head {
+    display: none;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__section--zoom {
+    position: absolute;
+    left: 50%;
+    bottom: clamp(0.8rem, 1.1vw, 1.05rem);
+    display: grid;
+    grid-template-columns: minmax(10rem, 13rem) minmax(10rem, 13rem);
+    gap: 0.45rem;
+    width: auto;
+    padding: 0.34rem;
+    border-radius: 0.78rem;
+    transform: translateX(-50%);
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__section--navigation {
+    position: absolute;
+    right: clamp(0.8rem, 1.1vw, 1.05rem);
+    bottom: clamp(0.8rem, 1.1vw, 1.05rem);
+    width: clamp(11rem, 13vw, 14rem);
+    padding: 0.44rem;
+    border-radius: 0.84rem 0.84rem 0.24rem 0.84rem;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__section--utility {
+    position: absolute;
+    right: clamp(0.8rem, 1.1vw, 1.05rem);
+    bottom: clamp(4.55rem, 5.3vw, 5.35rem);
+    width: clamp(11rem, 13vw, 14rem);
+    padding: 0.44rem;
+    border-radius: 0.84rem 0.24rem 0.84rem 0.84rem;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__button-trio,
+.viewer-shell__stage-chrome .viewer-toolbar__mode-buttons {
+    border-color: rgba(185, 132, 70, 0.18);
+    background: rgba(255, 235, 197, 0.035);
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__button-trio {
+    grid-template-columns: 2.15rem minmax(3.8rem, 1fr) 2.15rem;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__button-trio .btn,
+.viewer-shell__stage-chrome .viewer-toolbar__mode-buttons .btn,
+.viewer-shell__stage-chrome .viewer-toolbar__wide-action,
+.viewer-shell__stage-chrome .viewer-toolbar__value-box {
+    min-height: 2.18rem;
+    border-radius: 0.56rem;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__button-trio .btn,
+.viewer-shell__stage-chrome .viewer-toolbar__mode-buttons .btn,
+.viewer-shell__stage-chrome .viewer-toolbar__wide-action {
+    color: #f0d9ad;
+    border-color: rgba(185, 132, 70, 0.2);
+    background: rgba(255, 235, 197, 0.055);
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__value-box {
+    color: #f4d38f;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__mode.is-active,
+.viewer-shell__stage-chrome .viewer-toolbar__mode.btn-light,
+.viewer-shell__stage-chrome .viewer-toolbar__wide-action.btn-warning {
+    color: #1a120b;
+    background: linear-gradient(135deg, #d39a4a, #8f5c2e);
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__utility-buttons {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__wide-action {
+    justify-content: center;
+    padding-inline: 0.62rem;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__wide-action span {
+    white-space: nowrap;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__footer {
+    display: none;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__section--utility-compact {
+    right: clamp(0.8rem, 1.1vw, 1.05rem);
+    bottom: clamp(0.8rem, 1.1vw, 1.05rem);
+    width: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__section--utility-compact .viewer-toolbar__utility-buttons {
+    width: auto;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__section--utility-compact .viewer-toolbar__wide-action {
+    width: 3rem;
+    min-width: 3rem;
+    min-height: 3rem;
+    justify-content: center;
+    padding: 0;
+    border-radius: 0.72rem;
+    border-color: rgba(185, 132, 70, 0.26);
+    color: #f5dfb8;
+    background: rgba(9, 8, 7, 0.72);
+    box-shadow: 0 1rem 1.9rem rgba(0, 0, 0, 0.24);
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__section--utility-compact .viewer-toolbar__wide-action span {
+    display: none;
+}
+
+@media (max-width: 991.98px) {
+    .viewer-shell__stage-chrome .viewer-toolbar__identity {
+        display: none;
+    }
+
+    .viewer-shell__stage-chrome .viewer-toolbar__top {
+        top: 0.52rem;
+        right: 0.52rem;
+    }
+
+    .viewer-shell__stage-chrome .viewer-toolbar__close {
+        width: 2.45rem;
+        min-height: 2.45rem;
+    }
+
+    .viewer-shell__stage-chrome .viewer-toolbar__section--zoom {
+        left: 50%;
+        right: auto;
+        bottom: 0.58rem;
+        top: auto;
+        grid-template-columns: minmax(0, 1fr);
+        width: auto;
+        transform: translateX(-50%);
+    }
+
+    .viewer-shell__stage-chrome .viewer-toolbar__mode-buttons {
+        display: none;
+    }
+
+    .viewer-shell__stage-chrome .viewer-toolbar__section--navigation,
+    .viewer-shell__stage-chrome .viewer-toolbar__section--utility {
+        display: none;
+    }
+}
+
+/* Cinematic viewer polish - inspector pass */
+.viewer-shell__stage-chrome .viewer-toolbar__button-trio {
+    grid-template-columns: 2.35rem minmax(4.25rem, 1fr) 2.35rem;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__button-trio .btn,
+.viewer-shell__stage-chrome .viewer-toolbar__mode-buttons .btn,
+.viewer-shell__stage-chrome .viewer-toolbar__wide-action,
+.viewer-shell__stage-chrome .viewer-toolbar__value-box {
+    min-height: 2.36rem;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__wide-action {
+    min-width: 0;
+}
+
+@media (max-width: 991.98px) {
+    .viewer-shell__stage-chrome .viewer-toolbar__section--zoom {
+        padding: 0.36rem;
+    }
+
+    .viewer-shell__stage-chrome .viewer-toolbar__button-trio {
+        grid-template-columns: 2.42rem minmax(3.6rem, 4.5rem) 2.42rem;
+        grid-template-rows: none;
+        gap: 0.28rem;
+    }
+
+    .viewer-shell__stage-chrome .viewer-toolbar__value-box {
+        min-height: 2rem;
+        padding-inline: 0.42rem;
+        writing-mode: horizontal-tb;
+        text-orientation: mixed;
+    }
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__section--navigation {
+    display: none;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__section--zoom {
+    transition:
+        opacity 160ms ease,
+        transform 160ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .viewer-shell__stage-chrome .viewer-toolbar__section--zoom {
+        opacity: 0;
+        pointer-events: none;
+        transform: translate(-50%, 0.48rem);
+    }
+
+    .viewer-shell__stage-surface.is-controls-visible .viewer-toolbar__section--zoom,
+    .viewer-shell__stage-chrome .viewer-toolbar__section--zoom:focus-within {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(-50%);
+    }
+}
