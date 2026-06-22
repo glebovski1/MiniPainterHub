@@ -76,3 +76,60 @@
         min-height: clamp(18rem, 56vh, 34rem);
     }
 }
+
+/* Warm Community Refresh - viewer stage */
+.viewer-stage-shell {
+    border-color: rgba(255, 250, 243, 0.08);
+    background: linear-gradient(180deg, rgba(45, 40, 35, 0.96), rgba(28, 24, 21, 0.99));
+}
+
+.viewer-stage-shell:focus-visible {
+    box-shadow: 0 0 0 3px rgba(192, 120, 79, 0.3);
+}
+
+/* Gallery Night - selected design 2 */
+.viewer-stage-shell {
+    border-color: rgba(242, 207, 138, 0.18);
+    background:
+        radial-gradient(ellipse at 50% 8%, rgba(242, 207, 138, 0.16), transparent 40%),
+        linear-gradient(180deg, #211915, #100d0b 72%);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 248, 232, 0.035),
+        inset 0 1.2rem 3rem rgba(242, 207, 138, 0.06);
+}
+
+.viewer-stage-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, rgba(8, 5, 3, 0.22), transparent 18%, transparent 82%, rgba(8, 5, 3, 0.22)),
+        radial-gradient(ellipse at center, transparent 48%, rgba(7, 5, 4, 0.28));
+    pointer-events: none;
+    z-index: 1;
+}
+
+::deep .viewer-stage__viewport {
+    z-index: 2;
+}
+
+.viewer-stage-shell:focus-visible {
+    box-shadow:
+        0 0 0 3px rgba(242, 207, 138, 0.28),
+        inset 0 0 0 1px rgba(255, 248, 232, 0.06);
+}
+
+/* Gallery Night - mobile stage constraint fix */
+@media (max-width: 991.98px) {
+    .viewer-stage-shell {
+        min-height: clamp(20rem, 46vh, 28rem);
+    }
+}
+
+/* Cinematic viewer polish - keep mobile stage inside its showcase frame */
+@media (max-width: 991.98px) {
+    .viewer-stage-shell {
+        height: 100%;
+        min-height: 0;
+    }
+}

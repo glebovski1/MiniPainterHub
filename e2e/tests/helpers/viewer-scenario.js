@@ -201,7 +201,7 @@ async function openViewerFromDetails(page, options = {}) {
   const { waitForImage = true } = options;
   await page.getByTestId("post-details-open-viewer-hero").click();
   await expect(page.getByTestId("rich-image-viewer-modal")).toBeVisible();
-  await expect(page.getByTestId("viewer-control-rail")).toBeVisible();
+  await expect(page.getByTestId("viewer-close")).toBeVisible();
   await expect(page.getByTestId("viewer-stage")).toBeVisible();
   if (waitForImage) {
     await expect(page.getByTestId("viewer-stage-image")).toBeVisible();

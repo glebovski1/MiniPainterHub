@@ -97,7 +97,7 @@
 
             @if (CanToggleFullscreen || CanAddAuthorMark)
             {
-                <section class="viewer-toolbar__section viewer-toolbar__section--utility" data-testid="viewer-rail-utility" aria-label="Viewer tools">
+                <section class="viewer-toolbar__section viewer-toolbar__section--utility @(CanToggleFullscreen && !CanAddAuthorMark ? "viewer-toolbar__section--utility-compact" : null)" data-testid="viewer-rail-utility" aria-label="Viewer tools">
                     <div class="viewer-toolbar__section-head">
                         <span class="viewer-toolbar__section-title">Actions</span>
                         @if (IsAuthorPlacementMode)

@@ -1,15 +1,25 @@
 .app-header {
-    padding: 0.55rem 0 0;
-    background: linear-gradient(180deg, rgba(248, 245, 239, 0.98), rgba(248, 245, 239, 0.94));
+    position: relative;
+    padding: 0;
+    background: rgba(241, 237, 228, 0.94);
+    border-bottom: 1px solid rgba(146, 131, 99, 0.26);
+    backdrop-filter: blur(16px);
     z-index: 100;
 }
 
+.app-header::before {
+    content: "";
+    display: block;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-700) 0 44%, var(--accent-clay) 44% 64%, var(--accent-brass) 64% 78%, #607083 78%);
+}
+
 .app-main {
-    padding: 0.85rem 0 var(--space-5);
+    padding: clamp(1.05rem, 1.8vw, 1.55rem) 0 var(--space-5);
 }
 
 .dashboard-main {
-    gap: 1rem;
+    gap: clamp(1.05rem, 1.8vw, 1.45rem);
     align-items: flex-start;
 }
 
@@ -24,13 +34,13 @@
 .dashboard-content-shell {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: clamp(1.25rem, 2.2vw, 1.9rem);
     min-width: 0;
 }
 
 .dashboard-sidebar-column {
-    width: 300px;
-    flex: 0 0 300px;
+    width: 286px;
+    flex: 0 0 286px;
     min-width: 0;
     overflow: hidden;
     transition: width 220ms ease, flex-basis 220ms ease;
@@ -42,9 +52,9 @@
 }
 
 .dashboard-sidebar-shell {
-    width: 300px;
+    width: 286px;
     min-height: calc(100vh - 7.8rem);
-    border-radius: var(--radius-xl);
+    border-radius: 8px;
     overflow: hidden;
     transition: transform 220ms ease, opacity 180ms ease;
 }
@@ -58,7 +68,7 @@
 @media (min-width: 992px) {
     .dashboard-sidebar-shell {
         position: sticky;
-        top: 0.8rem;
+        top: 1rem;
     }
 }
 

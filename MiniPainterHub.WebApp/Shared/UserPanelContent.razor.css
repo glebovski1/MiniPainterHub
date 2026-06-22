@@ -1,13 +1,15 @@
 .dashboard-sidebar-content {
     display: flex;
     flex-direction: column;
-    gap: 0.9rem;
+    gap: 1rem;
     min-height: 100%;
-    padding: 1rem;
-    border: 1px solid var(--border-soft);
-    border-radius: 20px;
-    background: rgba(255, 252, 247, 0.96);
-    box-shadow: var(--shadow-soft);
+    padding: 1rem 0.9rem;
+    border: 1px solid rgba(146, 131, 99, 0.24);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(255, 253, 248, 0.88), rgba(247, 243, 235, 0.84)),
+        var(--surface);
+    box-shadow: none;
 }
 
 .dashboard-sidebar-kicker,
@@ -22,11 +24,11 @@
 .dashboard-hub-card {
     position: relative;
     display: grid;
-    gap: 0.9rem;
-    padding: 0.9rem;
-    border-radius: 18px;
-    border: 1px solid rgba(31, 91, 82, 0.12);
-    background: rgba(255, 252, 247, 0.92);
+    gap: 0.95rem;
+    padding: 0.95rem;
+    border-radius: 8px;
+    border: 1px solid rgba(32, 39, 34, 0.1);
+    background: rgba(255, 253, 248, 0.88);
     color: var(--ink-900);
     overflow: hidden;
     box-shadow: none;
@@ -36,8 +38,8 @@
     content: "";
     position: absolute;
     inset: 0 0 auto;
-    height: 0.35rem;
-    background: linear-gradient(90deg, var(--primary-700), var(--accent-clay));
+    height: 0.22rem;
+    background: linear-gradient(90deg, var(--primary-700) 0 42%, var(--accent-clay) 42% 66%, var(--accent-brass) 66%);
 }
 
 .dashboard-hub-card::after {
@@ -104,20 +106,21 @@
 
 .dashboard-hub-stat {
     min-width: 0;
-    padding: 0.65rem 0.55rem;
-    border-radius: 14px;
-    border: 1px solid rgba(217, 208, 194, 0.92);
-    background: rgba(247, 243, 235, 0.88);
+    padding: 0.6rem 0.55rem;
+    border-radius: 8px;
+    border: 1px solid rgba(146, 131, 99, 0.2);
+    background: rgba(244, 239, 231, 0.72);
 }
 
 .dashboard-hub-stat__label {
     display: block;
-    font-size: 0.62rem;
+    font-size: 0.58rem;
     text-transform: none;
     letter-spacing: 0.02em;
     color: var(--ink-500);
     font-weight: 800;
-    overflow-wrap: anywhere;
+    overflow-wrap: normal;
+    white-space: nowrap;
     line-height: 1.2;
 }
 
@@ -152,29 +155,29 @@
 
 ::deep(.dashboard-nav-link) {
     color: var(--ink-900);
-    border: 1px solid rgba(217, 208, 194, 0.92);
-    border-radius: 14px;
-    padding: 0.7rem 0.8rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 0.6rem 0.65rem;
     display: flex;
     align-items: center;
     gap: 0.7rem;
-    background: rgba(255, 252, 247, 0.9);
+    background: transparent;
     box-shadow: none;
     transition: transform 140ms ease, background-color 140ms ease, border-color 140ms ease;
 }
 
 ::deep(.dashboard-nav-link:hover) {
-    transform: translateY(-1px);
+    transform: none;
     color: var(--ink-900);
-    background: rgba(255, 255, 255, 0.92);
-    border-color: rgba(75, 138, 143, 0.18);
+    background: rgba(255, 253, 248, 0.78);
+    border-color: rgba(80, 103, 92, 0.15);
 }
 
 ::deep(.dashboard-nav-link.active),
 ::deep(.dashboard-nav-link.active:hover) {
-    color: var(--primary-700);
-    background: rgba(31, 91, 82, 0.14);
-    border-color: rgba(31, 91, 82, 0.18);
+    color: #40564c;
+    background: rgba(80, 103, 92, 0.1);
+    border-color: rgba(80, 103, 92, 0.18);
     box-shadow: none;
 }
 
@@ -182,10 +185,10 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.95rem;
-    height: 1.95rem;
+    width: 1.86rem;
+    height: 1.86rem;
     border-radius: var(--radius-sm);
-    background: rgba(31, 91, 82, 0.08);
+    background: rgba(80, 103, 92, 0.09);
     color: var(--primary-700);
     flex-shrink: 0;
 }
@@ -216,6 +219,17 @@
 
 .dashboard-create-btn {
     font-weight: 700;
+    color: #fffdf8 !important;
+    background: var(--primary-700) !important;
+    border-color: var(--primary-700) !important;
+    box-shadow: 0 8px 18px rgba(80, 103, 92, 0.14) !important;
+}
+
+.dashboard-create-btn:hover,
+.dashboard-create-btn:focus-visible {
+    color: #fffefa !important;
+    background: #485c52 !important;
+    border-color: #485c52 !important;
 }
 
 @media (max-width: 575.98px) {

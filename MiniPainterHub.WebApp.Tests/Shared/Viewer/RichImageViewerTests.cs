@@ -56,16 +56,49 @@ public class RichImageViewerTests : TestContext
 
         var cut = RenderViewer();
 
-        cut.Find("[data-testid='viewer-control-rail']").TextContent.Should().Contain("60%");
+        cut.Find("[data-testid='viewer-rail-zoom']").TextContent.Should().Contain("60%");
         cut.Find("[data-testid='viewer-reset']").ClassList.Should().Contain("is-active");
 
         cut.Find("[data-testid='viewer-view-fill']").Click();
-        cut.Find("[data-testid='viewer-control-rail']").TextContent.Should().Contain("71%");
+        cut.Find("[data-testid='viewer-rail-zoom']").TextContent.Should().Contain("71%");
         cut.Find("[data-testid='viewer-view-fill']").ClassList.Should().Contain("is-active");
 
         cut.Find("[data-testid='viewer-view-actual']").Click();
-        cut.Find("[data-testid='viewer-control-rail']").TextContent.Should().Contain("100%");
+        cut.Find("[data-testid='viewer-rail-zoom']").TextContent.Should().Contain("100%");
         cut.Find("[data-testid='viewer-view-actual']").ClassList.Should().Contain("is-active");
+    }
+
+    [Fact]
+    public void StageNavigationArrowsRequestAdjacentImages()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var requestedImageId = 0;
+        var cut = RenderViewer(parameters => parameters
+            .Add(component => component.ActiveImageIdChanged, EventCallback.Factory.Create<int>(this, imageId => requestedImageId = imageId)));
+
+        cut.Find("[data-testid='viewer-stage-next']").Click();
+        requestedImageId.Should().Be(102);
+
+        cut.Find("[data-testid='viewer-stage-prev']").Click();
+        requestedImageId.Should().Be(101);
+    }
+
+    [Fact]
+    public void SingleFrameViewerOmitsStageNavigationArrows()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var cut = RenderComponent<RichImageViewer>(parameters => parameters
+            .Add(component => component.IsOpen, true)
+            .Add(component => component.Viewer, CreateViewer(imageCount: 1))
+            .Add(component => component.ActiveImageId, 101)
+            .Add(component => component.SidePanelContent, (RenderFragment)(_ => { })));
+
+        cut.FindAll("[data-testid='viewer-stage-prev']").Should().BeEmpty();
+        cut.FindAll("[data-testid='viewer-stage-next']").Should().BeEmpty();
     }
 
     [Fact]
@@ -201,12 +234,12 @@ public class RichImageViewerTests : TestContext
 
         cut.Find("[data-testid='viewer-view-actual']").Click();
         cut.Find("[data-testid='viewer-zoom-in']").Click();
-        cut.Find("[data-testid='viewer-control-rail']").TextContent.Should().Contain("125%");
+        cut.Find("[data-testid='viewer-rail-zoom']").TextContent.Should().Contain("125%");
 
         cut.SetParametersAndRender(parameters => ConfigureViewerParameters(parameters, false));
         cut.SetParametersAndRender(parameters => ConfigureViewerParameters(parameters, true));
 
-        cut.Find("[data-testid='viewer-control-rail']").TextContent.Should().Contain("60%");
+        cut.Find("[data-testid='viewer-rail-zoom']").TextContent.Should().Contain("60%");
         cut.Find("[data-testid='viewer-reset']").ClassList.Should().Contain("is-active");
     }
 

@@ -101,28 +101,28 @@ async function waitForViewerLayout(page) {
   await page.waitForFunction(() => {
     const image = document.querySelector("[data-testid='viewer-stage-image']");
     const stage = document.querySelector("[data-testid='viewer-stage']");
-    const rail = document.querySelector("[data-testid='viewer-control-rail']");
+    const viewerClose = document.querySelector("[data-testid='viewer-close']");
     const panel = document.querySelector("[data-testid='viewer-side-panel']");
     if (!(image instanceof HTMLElement)
       || !(stage instanceof HTMLElement)
-      || !(rail instanceof HTMLElement)
+      || !(viewerClose instanceof HTMLElement)
       || !(panel instanceof HTMLElement)) {
       return false;
     }
 
     const imageRect = image.getBoundingClientRect();
     const stageRect = stage.getBoundingClientRect();
-    const railRect = rail.getBoundingClientRect();
+    const viewerCloseRect = viewerClose.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
     return stageRect.width > 300
       && stageRect.height > 220
       && imageRect.width > 150
       && imageRect.height > 150
-      && railRect.width > 40
+      && viewerCloseRect.width > 30
       && panelRect.width > 220;
   });
 
-  await expect.poll(() => page.getByTestId("viewer-control-rail").boundingBox().then((box) => (box ? box.width : 0))).toBeGreaterThan(90);
+  await expect.poll(() => page.getByTestId("viewer-close").boundingBox().then((box) => (box ? box.width : 0))).toBeGreaterThan(30);
 }
 
 async function getViewerFitRatio(page) {
@@ -171,7 +171,7 @@ async function advanceViewer(page) {
     return;
   }
 
-  await clickReliably(page.getByTestId("viewer-next"));
+  await clickReliably(page.getByTestId("viewer-stage-next"));
 }
 
 async function clickReliably(locator) {
@@ -624,6 +624,7 @@ const scenarioGroups = {
       stateTags: ["posts", "desktop", "viewer-open", "portrait"]
     });
 
+    await page.getByTestId("viewer-stage").hover();
     await clickReliably(page.getByTestId("viewer-view-fill"));
     await waitForViewerLayout(page);
     await settle(page, 250);
@@ -647,6 +648,7 @@ const scenarioGroups = {
       stateTags: ["posts", "desktop", "viewer-open", "comments-tab"]
     });
 
+    await page.getByTestId("viewer-stage").hover();
     await clickReliably(page.getByTestId("viewer-reset"));
     await clickReliably(page.getByTestId("viewer-side-tab-info"));
     await waitForViewerLayout(page);
@@ -686,7 +688,7 @@ const scenarioGroups = {
     await expect(page.getByTestId("viewer-comment-state")).toContainText(`#${richViewerPost.markedCommentTwo.id}`);
     await expect(page.getByTestId("viewer-skeleton")).toHaveCount(0);
     await expect(page.getByTestId("viewer-stage-image")).toBeVisible();
-    await expect(page.getByTestId("viewer-control-rail")).toBeVisible();
+    await expect(page.getByTestId("viewer-close")).toBeVisible();
     await waitForViewerLayout(page);
     await settle(page, 500);
     await capture(page, manifest, {
@@ -792,7 +794,7 @@ const scenarioGroups = {
 
       await route.abort("failed");
     });
-    await clickReliably(page.getByTestId("viewer-next"));
+    await clickReliably(page.getByTestId("viewer-stage-next"));
     await expect(page.getByTestId("viewer-image-error")).toBeVisible();
     await capture(page, manifest, {
       name: "posts-detail-rich-viewer-error",

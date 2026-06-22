@@ -67,3 +67,35 @@
 .viewer-mark:focus-visible {
     outline: none;
 }
+
+/* Warm Community Refresh - viewer marks */
+.viewer-mark {
+    color: #2d2823;
+}
+
+.viewer-mark__pulse {
+    background: rgba(255, 250, 243, 0.3);
+}
+
+.viewer-mark--author .viewer-mark__core {
+    background: var(--viewer-author, #f4e3c7);
+    box-shadow: 0 0.8rem 1.6rem rgba(61, 48, 35, 0.24);
+}
+
+.viewer-mark--comment .viewer-mark__core {
+    background: var(--viewer-highlight, #c0784f);
+    color: #fffaf3;
+    box-shadow: 0 0.8rem 1.6rem rgba(120, 69, 46, 0.3);
+}
+
+.viewer-mark--draft .viewer-mark__core {
+    background: var(--viewer-accent, #65745f);
+    color: #fffaf3;
+    box-shadow: 0 0.8rem 1.6rem rgba(64, 77, 59, 0.28);
+}
+
+.viewer-mark.is-selected .viewer-mark__pulse,
+.viewer-mark--author:hover .viewer-mark__pulse,
+.viewer-mark--author:focus-visible .viewer-mark__pulse {
+    background: rgba(255, 250, 243, 0.46);
+}

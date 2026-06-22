@@ -301,7 +301,7 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
   await expect(page.getByTestId("viewer-comment-mark")).toHaveCount(0);
   await expect(page.getByTestId("viewer-side-tab-info")).toHaveClass(/is-active/);
   await expect(page.getByTestId("viewer-panel-info")).toContainText("About this piece");
-  await expect(page.getByTestId("viewer-control-rail")).toBeVisible();
+  await expect(page.getByTestId("viewer-close")).toBeVisible();
   await expect(page.getByTestId("viewer-stage")).toBeVisible();
   await expect(page.getByTestId("viewer-thumbnail-rail")).toBeVisible();
   await expect(page.getByTestId("viewer-close")).toBeVisible();
@@ -310,24 +310,25 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
   const stage = page.getByTestId("viewer-stage");
   const stageImage = page.getByTestId("viewer-stage-image");
   const toolbarZoom = page.getByTestId("viewer-rail-zoom");
-  const controlRail = page.getByTestId("viewer-control-rail");
+  const closeButton = page.getByTestId("viewer-close");
   const sidePanel = page.getByTestId("viewer-side-panel");
   const modal = page.getByTestId("rich-image-viewer");
 
-  const [railBox, panelBox, modalBox] = await Promise.all([
-    controlRail.boundingBox(),
+  const [closeButtonBox, panelBox, modalBox] = await Promise.all([
+    closeButton.boundingBox(),
     sidePanel.boundingBox(),
     modal.boundingBox(),
   ]);
-  expect(railBox).toBeTruthy();
+  expect(closeButtonBox).toBeTruthy();
   expect(panelBox).toBeTruthy();
   expect(modalBox).toBeTruthy();
   expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(modalBox.x + modalBox.width + 1);
 
   let { stageSurfaceBox, stageBox, fitBox, imageBox } = await getViewerBoxes(page);
   expect(stageBox.width).toBeGreaterThan(panelBox.width);
-  expect(railBox.x + railBox.width).toBeLessThanOrEqual(stageBox.x + 1);
   expect(stageBox.x + stageBox.width).toBeLessThanOrEqual(panelBox.x + 1);
+  expect(closeButtonBox.x + closeButtonBox.width).toBeLessThanOrEqual(stageSurfaceBox.x + stageSurfaceBox.width + 1);
+  expect(closeButtonBox.y).toBeGreaterThanOrEqual(stageSurfaceBox.y - 1);
   expectWithinTolerance(fitBox.x - stageBox.x, (stageBox.width - fitBox.width) / 2, 4);
   expectWithinTolerance(fitBox.y - stageBox.y, (stageBox.height - fitBox.height) / 2, 4);
   expectWithinTolerance(imageBox.x - stageBox.x, (stageBox.width - imageBox.width) / 2, 4);
@@ -335,6 +336,7 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
   expectWithinTolerance(fitBox.height, stageBox.height, 4);
   const fitArea = fitBox.width * fitBox.height;
 
+  await stage.hover();
   await page.getByTestId("viewer-view-fill").click();
   await expect(page.getByTestId("viewer-view-fill")).toHaveClass(/is-active/);
   await page.waitForTimeout(220);
@@ -346,6 +348,7 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
   expect(fitBox.y + fitBox.height).toBeGreaterThanOrEqual(stageBox.y + stageBox.height - 4);
   expect(imageBox.height).toBeGreaterThanOrEqual(stageBox.height - 4);
 
+  await stage.hover();
   await page.getByTestId("viewer-view-actual").click();
   await expect(page.getByTestId("viewer-view-actual")).toHaveClass(/is-active/);
   await expect(toolbarZoom).toContainText("100%");
@@ -368,10 +371,12 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
   expectWithinTolerance(imageBox.x - stageBox.x, (stageBox.width - imageBox.width) / 2, 4);
   expectWithinTolerance(imageBox.y - stageBox.y, (stageBox.height - imageBox.height) / 2, 4);
 
-  const expandedRailBox = await controlRail.boundingBox();
+  const expandedCloseButtonBox = await closeButton.boundingBox();
   const expandedStageBox = await stage.boundingBox();
-  expect(expandedRailBox.width).toBeLessThan(panelBox.width * 0.7);
-  expect(expandedRailBox.height).toBeGreaterThan(expandedStageBox.height - 8);
+  expect(expandedCloseButtonBox).toBeTruthy();
+  expect(expandedCloseButtonBox.x + expandedCloseButtonBox.width).toBeLessThanOrEqual(stageSurfaceBox.x + stageSurfaceBox.width + 1);
+  expect(expandedCloseButtonBox.y).toBeGreaterThanOrEqual(stageSurfaceBox.y - 1);
+  expect(expandedStageBox.width).toBeGreaterThan(panelBox.width);
 
   await page.getByTestId("viewer-side-tab-comments").click();
   await expect(page.getByTestId("viewer-side-tab-comments")).toHaveClass(/is-active/);
@@ -431,6 +436,8 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
   await expect(page.getByTestId("viewer-comment-mark")).toHaveCount(0);
   await expect(page.getByTestId("viewer-comment-state")).toHaveCount(0);
 
+  await page.getByTestId("viewer-stage").hover();
+  await stage.hover();
   await page.getByTestId("viewer-reset").click();
   await page.setViewportSize({ width: 1320, height: 760 });
   await page.waitForTimeout(260);
@@ -477,7 +484,7 @@ test("rich viewer preserves image fit across the aspect-ratio matrix", async ({ 
   for (let index = 0; index < viewerPost.viewer.images.length; index += 1) {
     if (index > 0) {
       const previousSrc = await page.getByTestId("viewer-stage-image").getAttribute("src");
-      await page.getByTestId("viewer-next").click();
+      await page.getByTestId("viewer-stage-next").click();
       await expect.poll(() => page.getByTestId("viewer-stage-image").getAttribute("src")).not.toBe(previousSrc);
     }
 
@@ -603,18 +610,18 @@ test("rich viewer mobile layout plus loading and error states work", async ({ pa
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(250);
   await expect(page.getByTestId("viewer-side-panel")).toBeVisible();
-  await expect(page.getByTestId("viewer-control-rail")).toBeVisible();
-  const [railBox, stageBox, panelBox] = await Promise.all([
-    page.getByTestId("viewer-control-rail").boundingBox(),
+  await expect(page.getByTestId("viewer-close")).toBeVisible();
+  const [closeButtonBox, stageBox, panelBox] = await Promise.all([
+    page.getByTestId("viewer-close").boundingBox(),
     page.getByTestId("viewer-stage").boundingBox(),
     page.getByTestId("viewer-side-panel").boundingBox(),
   ]);
-  expect(railBox).toBeTruthy();
+  expect(closeButtonBox).toBeTruthy();
   expect(stageBox).toBeTruthy();
   expect(panelBox).toBeTruthy();
-  expect(stageBox.y).toBeGreaterThanOrEqual(railBox.y + railBox.height - 1);
-  expect(stageBox.height).toBeGreaterThan(railBox.height);
-  expect(stageBox.height).toBeGreaterThan(panelBox.height * 0.85);
+  expect(closeButtonBox.x + closeButtonBox.width).toBeLessThanOrEqual(stageBox.x + stageBox.width + 1);
+  expect(closeButtonBox.y).toBeGreaterThanOrEqual(stageBox.y - 1);
+  expect(stageBox.height).toBeGreaterThan(panelBox.height * 0.8);
   expectWithinTolerance(stageBox.x, panelBox.x, 6);
   expectWithinTolerance(stageBox.width, panelBox.width, 6);
 });

@@ -10,6 +10,13 @@
   background: rgba(251, 247, 241, 0.96);
 }
 
+.dashboard-sidebar-offcanvas :global(.btn-close) {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0.65rem;
+  border-radius: 8px;
+}
+
 .dashboard-sidebar-offcanvas__eyebrow {
   font-size: 0.7rem;
   text-transform: uppercase;

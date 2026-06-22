@@ -329,6 +329,7 @@
                          hidden="@(_viewerSideTab != ViewerSideTab.Info)">
                         <section class="viewer-panel-section viewer-panel-section--hero">
                             <p class="viewer-panel__eyebrow">About this piece</p>
+                            <h2 class="viewer-panel__title" data-testid="viewer-panel-title">@post.Title</h2>
                             <div class="viewer-panel__meta">
                                 <NavLink class="viewer-panel__author" href="@($"/users/{post.CreatedById}")">By @post.AuthorName</NavLink>
                                 <span>@post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</span>
