@@ -204,11 +204,17 @@ namespace MiniPainterHub.Server.Data
                 .HasForeignKey(l => l.PostId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.Entity<Like>()
-                .HasOne(l => l.User)
-                .WithMany()
-                .HasForeignKey(l => l.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
+            builder.Entity<Like>(b =>
+            {
+                b.Property(l => l.UserId).HasMaxLength(450);
+
+                b.HasOne(l => l.User)
+                    .WithMany()
+                    .HasForeignKey(l => l.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasIndex(l => new { l.PostId, l.UserId }).IsUnique();
+            });
 
             builder.Entity<Follow>(b =>
             {
@@ -232,6 +238,10 @@ namespace MiniPainterHub.Server.Data
             {
                 b.Property(c => c.CreatedUtc).IsRequired();
                 b.Property(c => c.UpdatedUtc).IsRequired();
+                b.Property(c => c.DirectConversationKey).HasMaxLength(MiniPainterHub.Server.Features.Conversations.DirectConversationKey.Length);
+                b.HasIndex(c => c.DirectConversationKey)
+                    .IsUnique()
+                    .HasFilter("[DirectConversationKey] IS NOT NULL");
             });
 
             builder.Entity<ConversationParticipant>(b =>

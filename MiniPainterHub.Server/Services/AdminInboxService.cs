@@ -4,6 +4,7 @@ using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Features.Pagination;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
@@ -15,7 +16,6 @@ namespace MiniPainterHub.Server.Services
 {
     public sealed class AdminInboxService : IAdminInboxService
     {
-        private const int MaxPageSize = 100;
         private const int MaxWindowHours = 24 * 30;
         private static readonly string[] ActorRolePriority = { "Admin", "Moderator" };
 
@@ -408,10 +408,7 @@ namespace MiniPainterHub.Server.Services
                 errors["page"] = new[] { "Page number must be at least 1." };
             }
 
-            if (query.PageSize < 1 || query.PageSize > MaxPageSize)
-            {
-                errors["pageSize"] = new[] { $"Page size must be between 1 and {MaxPageSize}." };
-            }
+            PaginationGuard.AddPageSizeError(errors, query.PageSize);
 
             if (query.WindowHours < 1 || query.WindowHours > MaxWindowHours)
             {

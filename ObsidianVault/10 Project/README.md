@@ -154,8 +154,8 @@ The server hosts the API and serves the Blazor WebAssembly client.
 ```powershell
 dotnet run --project MiniPainterHub.Server -- `
   --seed-dev-content `
-  --avatars-dir .\tmp\imagegen\seed-avatars `
-  --post-images-dir .\tmp\imagegen\seed-post-images
+  --avatars-dir .\assets\dev-seed\avatars `
+  --post-images-dir .\assets\dev-seed\post-images
 ```
 
 Useful seeded accounts:

@@ -73,6 +73,7 @@ feature-owned helpers live under `MiniPainterHub.Server/Features`.
 Current extracted backend feature modules:
 - `Features/Tags`: shared tag text normalization, slug creation, and unique slug resolution for posts, search, and seeders.
 - `Features/Media`: post image upload limits and validation.
+- `Features/Pagination`: shared page/page-size validation for public list endpoints (`MaxPageSize = 100`).
 - `Features/Posts`: post DTO/projection mapping.
 
 Registered scoped domain services:
@@ -137,6 +138,8 @@ Entity relationships (configured in `OnModelCreating`):
 - `ContentReport` stores moderation queue state for post/comment/user reports.
 - `Follow` models the social graph between `ApplicationUser` rows.
 - `Conversation`/`ConversationParticipant`/`DirectMessage` model direct messaging.
+- `Like` has a database-level unique index on `(PostId, UserId)`; service code treats duplicate insert races as an already-liked outcome.
+- Direct one-to-one conversations store a deterministic `DirectConversationKey` with a filtered unique index. The key is generated from the sorted participant IDs so reverse-order conversation creation resolves to the same thread.
 
 Soft-delete behavior:
 - `Post.IsDeleted` and `Comment.IsDeleted` are used by services to hide deleted records.
@@ -214,6 +217,8 @@ Two storage paths:
 - Processing pipeline path through:
   - `IImageProcessor.ProcessAsync(...)` (variant generation)
   - `IImageStore.SaveAsync(...)` (persist variants)
+
+All post upload paths validate supported image MIME types before storage. The legacy direct upload path uses server-generated storage keys and rejects client filenames that contain path separators, rooted paths, or parent-directory segments.
 
 Post projection mapping is centralized in `Features/Posts/PostDtoMapper` so query and detail
 responses share thumbnail fallback and tag ordering behavior.

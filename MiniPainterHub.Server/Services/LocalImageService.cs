@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,7 +30,8 @@ namespace MiniPainterHub.Server.Services
 
         public async Task<string> UploadAsync(Stream fileStream, string fileName)
         {
-            var filePath = Path.Combine(_basePath, fileName);
+            var filePath = ResolveStoragePath(fileName);
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
             using var fs = new FileStream(filePath, FileMode.Create);
             await fileStream.CopyToAsync(fs);
             return $"{_requestPrefix}/{Uri.EscapeDataString(fileName)}";
@@ -37,7 +39,7 @@ namespace MiniPainterHub.Server.Services
 
         public Task<Stream> DownloadAsync(string fileName)
         {
-            var filePath = Path.Combine(_basePath, fileName);
+            var filePath = ResolveStoragePath(fileName);
 
             if (!File.Exists(filePath))
             {
@@ -50,7 +52,7 @@ namespace MiniPainterHub.Server.Services
 
         public Task DeleteAsync(string fileName)
         {
-            var filePath = Path.Combine(_basePath, fileName);
+            var filePath = ResolveStoragePath(fileName);
             if (File.Exists(filePath))
                 File.Delete(filePath);
             return Task.CompletedTask;
@@ -105,5 +107,37 @@ namespace MiniPainterHub.Server.Services
 
             return $"{_requestPrefix}/{postId:D}/{Uri.EscapeDataString(fileName)}";
         }
+
+        private string ResolveStoragePath(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                throw InvalidStorageKey();
+            }
+
+            var normalized = fileName.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+            if (Path.IsPathRooted(normalized) || normalized.Contains("..", StringComparison.Ordinal))
+            {
+                throw InvalidStorageKey();
+            }
+
+            var basePath = Path.GetFullPath(_basePath);
+            var candidate = Path.GetFullPath(Path.Combine(basePath, normalized));
+            var basePrefix = basePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                + Path.DirectorySeparatorChar;
+
+            if (!candidate.StartsWith(basePrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                throw InvalidStorageKey();
+            }
+
+            return candidate;
+        }
+
+        private static DomainValidationException InvalidStorageKey() =>
+            new("Invalid image storage key.", new Dictionary<string, string[]>
+            {
+                ["fileName"] = new[] { "Image storage keys must be relative paths within the configured image root." }
+            });
     }
 }

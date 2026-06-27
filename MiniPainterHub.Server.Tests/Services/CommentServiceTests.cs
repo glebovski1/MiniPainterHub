@@ -81,8 +81,9 @@ public class CommentServiceTests
     [Theory]
     [InlineData(0, 10, "page", "Page number must be at least 1.")]
     [InlineData(-1, 5, "page", "Page number must be at least 1.")]
-    [InlineData(1, 0, "pageSize", "Page size must be greater than 0.")]
-    [InlineData(2, -3, "pageSize", "Page size must be greater than 0.")]
+    [InlineData(1, 0, "pageSize", "Page size must be between 1 and 100.")]
+    [InlineData(2, -3, "pageSize", "Page size must be between 1 and 100.")]
+    [InlineData(1, 101, "pageSize", "Page size must be between 1 and 100.")]
     public async Task GetByPostIdAsync_WhenPaginationIsInvalid_ThrowsDomainValidationException(
         int page,
         int pageSize,
@@ -115,7 +116,18 @@ public class CommentServiceTests
         exception.Which.Errors.Should()
             .ContainKey("page").WhoseValue.Should().Contain("Page number must be at least 1.");
         exception.Which.Errors.Should()
-            .ContainKey("pageSize").WhoseValue.Should().Contain("Page size must be greater than 0.");
+            .ContainKey("pageSize").WhoseValue.Should().Contain("Page size must be between 1 and 100.");
+    }
+
+    [Fact]
+    public async Task GetByPostIdAsync_WhenPageSizeIsMaximum_IsAccepted()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var service = CreateService(context);
+
+        var result = await service.GetByPostIdAsync(1, 1, 100);
+
+        result.PageSize.Should().Be(100);
     }
 
     [Fact]

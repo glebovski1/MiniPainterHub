@@ -142,6 +142,40 @@ public class ReportServiceTests
         items[1].TargetUrl.Should().Be($"/posts/{post.Id}");
     }
 
+    [Theory]
+    [InlineData(0, 10, "page")]
+    [InlineData(1, 0, "pageSize")]
+    [InlineData(1, 101, "pageSize")]
+    public async Task GetQueueAsync_WhenPaginationIsInvalid_ThrowsDomainValidationException(int page, int pageSize, string expectedKey)
+    {
+        await using var context = AppDbContextFactory.Create();
+        var service = new ReportService(context);
+
+        var act = async () => await service.GetQueueAsync(new ReportQueueQueryDto
+        {
+            Page = page,
+            PageSize = pageSize
+        });
+
+        var ex = await act.Should().ThrowAsync<DomainValidationException>();
+        ex.Which.Errors.Should().ContainKey(expectedKey);
+    }
+
+    [Fact]
+    public async Task GetQueueAsync_WhenPageSizeIsMaximum_IsAccepted()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var service = new ReportService(context);
+
+        var result = await service.GetQueueAsync(new ReportQueueQueryDto
+        {
+            Page = 1,
+            PageSize = 100
+        });
+
+        result.PageSize.Should().Be(100);
+    }
+
     [Fact]
     public async Task ResolveAsync_WhenReportIsOpen_UpdatesReviewerStatusAndNote()
     {

@@ -6,6 +6,7 @@ using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Features.Pagination;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -131,22 +132,7 @@ namespace MiniPainterHub.Server.Services
 
         public async Task<PagedResult<CommentDto>> GetByPostIdAsync(int postId, int page = 1, int pageSize = 10, bool includeDeleted = false, bool deletedOnly = false)
         {
-            var errors = new Dictionary<string, string[]>();
-
-            if (page < 1)
-            {
-                errors["page"] = new[] { "Page number must be at least 1." };
-            }
-
-            if (pageSize <= 0)
-            {
-                errors["pageSize"] = new[] { "Page size must be greater than 0." };
-            }
-
-            if (errors.Count > 0)
-            {
-                throw new DomainValidationException("Pagination parameters are invalid.", errors);
-            }
+            PaginationGuard.Validate(page, pageSize);
 
             var query = _appDbContext.Comments
                 .AsNoTracking()

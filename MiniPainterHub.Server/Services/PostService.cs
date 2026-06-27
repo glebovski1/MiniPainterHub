@@ -4,6 +4,7 @@ using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Features.Media;
+using MiniPainterHub.Server.Features.Pagination;
 using MiniPainterHub.Server.Features.Posts;
 using MiniPainterHub.Server.Features.Tags;
 using MiniPainterHub.Server.Services.Interfaces;
@@ -238,7 +239,7 @@ namespace MiniPainterHub.Server.Services
 
         private async Task<PagedResult<PostSummaryDto>> GetPagedPostsAsync(IQueryable<Post> query, int page, int pageSize)
         {
-            ValidatePaging(page, pageSize);
+            PaginationGuard.Validate(page, pageSize);
 
             var ordered = query.OrderByDescending(p => p.CreatedUtc);
             var totalCount = await ordered.CountAsync();
@@ -420,26 +421,6 @@ namespace MiniPainterHub.Server.Services
             }
 
             return normalized;
-        }
-
-        private static void ValidatePaging(int page, int pageSize)
-        {
-            var errors = new Dictionary<string, string[]>();
-
-            if (page < 1)
-            {
-                errors["page"] = new[] { "Page number must be at least 1." };
-            }
-
-            if (pageSize <= 0)
-            {
-                errors["pageSize"] = new[] { "Page size must be greater than 0." };
-            }
-
-            if (errors.Count > 0)
-            {
-                throw new DomainValidationException("Pagination parameters are invalid.", errors);
-            }
         }
 
         private static void ValidateTopPostsQuery(int count, TimeSpan lookback)

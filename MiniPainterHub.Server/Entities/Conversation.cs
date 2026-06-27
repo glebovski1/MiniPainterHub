@@ -11,6 +11,8 @@ namespace MiniPainterHub.Server.Entities
 
         public DateTime UpdatedUtc { get; set; }
 
+        public string? DirectConversationKey { get; set; }
+
         public ICollection<ConversationParticipant> Participants { get; set; } = new List<ConversationParticipant>();
 
         public ICollection<DirectMessage> Messages { get; set; } = new List<DirectMessage>();

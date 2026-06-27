@@ -53,6 +53,23 @@ public class ConversationsControllerTests
     }
 
     [Fact]
+    public async Task GetMessages_WhenPageSizeExceedsMaximum_ReturnsValidationProblemDetails()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        await SeedConversationAsync(factory, "user-1", "user-2");
+        using var client = factory.CreateAuthenticatedClient("user-1", "user-1");
+
+        var response = await client.GetAsync("/api/conversations/1/messages?pageSize=101");
+
+        await ProblemDetailsAssertions.AssertAsync(
+            response,
+            HttpStatusCode.BadRequest,
+            "Validation error",
+            expectedErrorKeys: new[] { "pageSize" });
+    }
+
+    [Fact]
     public async Task SendMessage_WhenParticipant_SetsUnreadForOtherParticipant()
     {
         using var factory = new IntegrationTestApplicationFactory();

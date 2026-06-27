@@ -3,6 +3,7 @@ using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Features.Pagination;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
@@ -374,21 +375,7 @@ namespace MiniPainterHub.Server.Services
 
         private static void ValidatePaging(int page, int pageSize)
         {
-            var errors = new Dictionary<string, string[]>();
-            if (page < 1)
-            {
-                errors["page"] = new[] { "Page number must be at least 1." };
-            }
-
-            if (pageSize <= 0)
-            {
-                errors["pageSize"] = new[] { "Page size must be greater than 0." };
-            }
-
-            if (errors.Count > 0)
-            {
-                throw new DomainValidationException("Pagination parameters are invalid.", errors);
-            }
+            PaginationGuard.Validate(page, pageSize);
         }
     }
 }

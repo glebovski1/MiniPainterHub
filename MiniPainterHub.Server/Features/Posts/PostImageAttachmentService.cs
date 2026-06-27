@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Primitives;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
@@ -232,7 +231,8 @@ public sealed class PostImageAttachmentService : IPostImageAttachmentService
             try
             {
                 await using var stream = image.OpenReadStream();
-                var fileName = $"{postId}_{i}_{image.FileName}";
+                var contentType = PostImageUploadValidator.ResolveContentType(image);
+                var fileName = PostImageStorageKeys.CreateImageKey(postId, i, contentType);
                 var url = await _imageService.UploadAsync(stream, fileName);
                 uploadedFiles.Add(fileName);
 
@@ -241,7 +241,8 @@ public sealed class PostImageAttachmentService : IPostImageAttachmentService
                 if (thumbnails != null && i < thumbnails.Count && thumbnails[i] is { Length: > 0 } thumb)
                 {
                     await using var thumbStream = thumb.OpenReadStream();
-                    thumbFileName = $"{postId}_{i}_thumb_{thumb.FileName}";
+                    var thumbnailContentType = PostImageUploadValidator.ResolveContentType(thumb);
+                    thumbFileName = PostImageStorageKeys.CreateThumbnailKey(postId, i, thumbnailContentType);
                     thumbUrl = await _imageService.UploadAsync(thumbStream, thumbFileName);
                     uploadedFiles.Add(thumbFileName);
                 }
@@ -277,7 +278,7 @@ public sealed class PostImageAttachmentService : IPostImageAttachmentService
             cancellationToken.ThrowIfCancellationRequested();
 
             var image = images[i];
-            var contentType = ResolveContentType(image);
+            var contentType = PostImageUploadValidator.ResolveContentType(image);
             var imageId = Guid.NewGuid();
             try
             {
@@ -373,24 +374,6 @@ public sealed class PostImageAttachmentService : IPostImageAttachmentService
 
     private static Guid ConvertToStorageGuid(int postId) =>
         new(postId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-
-    private static string ResolveContentType(IFormFile file)
-    {
-        ArgumentNullException.ThrowIfNull(file);
-
-        if (!string.IsNullOrWhiteSpace(file.ContentType))
-        {
-            return file.ContentType;
-        }
-
-        if (file.Headers?.TryGetValue("Content-Type", out StringValues headerValue) == true
-            && !StringValues.IsNullOrEmpty(headerValue))
-        {
-            return headerValue.ToString();
-        }
-
-        return string.Empty;
-    }
 
     private sealed record PendingPostImage(
         PostImageDto Image,

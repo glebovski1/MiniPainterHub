@@ -55,12 +55,29 @@ namespace MiniPainterHub.Server.Services
                 var exists = await _appDbContext.Posts.AnyAsync(p => p.Id == postId && !p.IsDeleted);
                 if (!exists)
                     throw new NotFoundException($"Post {postId} not found.");
-                _appDbContext.Likes.Add(new Entities.Like
+                var addedLike = new Entities.Like
                 {
                     PostId = postId,
                     UserId = userId,
                     CreatedAt = DateTime.UtcNow
-                });
+                };
+                _appDbContext.Likes.Add(addedLike);
+
+                try
+                {
+                    await _appDbContext.SaveChangesAsync();
+                    return true;
+                }
+                catch (DbUpdateException)
+                {
+                    _appDbContext.Entry(addedLike).State = EntityState.Detached;
+                    if (await IsLikedAsync(postId, userId))
+                    {
+                        return true;
+                    }
+
+                    throw;
+                }
             }
 
             await _appDbContext.SaveChangesAsync();

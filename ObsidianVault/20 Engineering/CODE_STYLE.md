@@ -79,6 +79,7 @@ Services should:
 ## 10) CSS Ownership
 
 - Put global design tokens, resets, layout primitives, and cross-route utilities in `MiniPainterHub.WebApp/wwwroot/css/app.css`.
+- Put site-wide polish overrides that must load after the base global stylesheet in `MiniPainterHub.WebApp/wwwroot/css/app-polish.css`.
 - Put reusable component styles beside the shared component in its `.razor.css` file.
 - Put route-only styles beside the owning page in that page's `.razor.css` file.
 - Avoid adding page-specific selectors to `app.css`; move them into page-scoped CSS when ownership is clear.

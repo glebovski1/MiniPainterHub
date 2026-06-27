@@ -4,6 +4,8 @@ using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Features.Conversations;
+using MiniPainterHub.Server.Features.Pagination;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -124,20 +126,12 @@ namespace MiniPainterHub.Server.Services
                 throw new NotFoundException("User not found.");
             }
 
-            var existingConversationId = await _dbContext.Conversations
-                .Where(c => c.Participants.Count == 2
-                    && c.Participants.Any(p => p.UserId == userId)
-                    && c.Participants.Any(p => p.UserId == otherUserId))
-                .Select(c => c.Id)
-                .FirstOrDefaultAsync();
+            var directKey = DirectConversationKey.Create(userId, otherUserId);
+            var existingConversationId = await FindDirectConversationIdAsync(userId, otherUserId, directKey);
 
             if (existingConversationId != 0)
             {
-                var existingMembership = await LoadMembershipAsync(userId, existingConversationId)
-                    ?? throw new NotFoundException("Conversation not found.");
-                return TryMapSummary(existingMembership, userId, out var existingSummary)
-                    ? existingSummary
-                    : throw new ConflictException("Conversation data is invalid.");
+                return await LoadSummaryOrThrowAsync(userId, existingConversationId);
             }
 
             var utcNow = DateTime.UtcNow;
@@ -145,6 +139,7 @@ namespace MiniPainterHub.Server.Services
             {
                 CreatedUtc = utcNow,
                 UpdatedUtc = utcNow,
+                DirectConversationKey = directKey,
                 Participants = new List<ConversationParticipant>
                 {
                     new() { UserId = userId, JoinedUtc = utcNow, LastReadMessageUtc = null },
@@ -153,25 +148,58 @@ namespace MiniPainterHub.Server.Services
             };
 
             _dbContext.Conversations.Add(conversation);
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                _dbContext.Entry(conversation).State = EntityState.Detached;
+                var winningConversationId = await FindDirectConversationIdAsync(userId, otherUserId, directKey);
+                if (winningConversationId != 0)
+                {
+                    return await LoadSummaryOrThrowAsync(userId, winningConversationId);
+                }
 
-            var membership = await LoadMembershipAsync(userId, conversation.Id)
+                throw;
+            }
+
+            return await LoadSummaryOrThrowAsync(userId, conversation.Id);
+        }
+
+        private async Task<int> FindDirectConversationIdAsync(string userId, string otherUserId, string directKey)
+        {
+            var existingByKey = await _dbContext.Conversations
+                .Where(c => c.DirectConversationKey == directKey)
+                .Select(c => c.Id)
+                .FirstOrDefaultAsync();
+
+            if (existingByKey != 0)
+            {
+                return existingByKey;
+            }
+
+            return await _dbContext.Conversations
+                .Where(c => c.Participants.Count == 2
+                    && c.Participants.Any(p => p.UserId == userId)
+                    && c.Participants.Any(p => p.UserId == otherUserId))
+                .Select(c => c.Id)
+                .FirstOrDefaultAsync();
+        }
+
+        private async Task<ConversationSummaryDto> LoadSummaryOrThrowAsync(string userId, int conversationId)
+        {
+            var membership = await LoadMembershipAsync(userId, conversationId)
                 ?? throw new NotFoundException("Conversation not found.");
 
-            return TryMapSummary(membership, userId, out var createdSummary)
-                ? createdSummary
+            return TryMapSummary(membership, userId, out var summary)
+                ? summary
                 : throw new ConflictException("Conversation data is invalid.");
         }
 
         public async Task<PagedResult<DirectMessageDto>> GetMessagesAsync(string userId, int conversationId, int? beforeMessageId, int pageSize)
         {
-            if (pageSize <= 0)
-            {
-                throw new DomainValidationException("Pagination parameters are invalid.", new Dictionary<string, string[]>
-                {
-                    ["pageSize"] = new[] { "Page size must be greater than 0." }
-                });
-            }
+            PaginationGuard.ValidatePageSize(pageSize);
 
             await EnsureParticipantAsync(userId, conversationId);
 

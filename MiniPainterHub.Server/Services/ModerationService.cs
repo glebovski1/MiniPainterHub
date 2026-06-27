@@ -4,6 +4,7 @@ using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Features.Pagination;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
@@ -205,15 +206,7 @@ namespace MiniPainterHub.Server.Services
         public async Task<PagedResult<ModerationAuditDto>> GetAuditAsync(ModerationAuditQueryDto query)
         {
             var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-            if (query.Page <= 0)
-            {
-                errors["page"] = new[] { "Page number must be at least 1." };
-            }
-
-            if (query.PageSize <= 0)
-            {
-                errors["pageSize"] = new[] { "Page size must be greater than 0." };
-            }
+            PaginationGuard.AddErrors(errors, query.Page, query.PageSize);
 
             if (errors.Count > 0)
             {

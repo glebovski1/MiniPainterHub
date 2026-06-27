@@ -183,6 +183,7 @@ public class ModerationServiceTests
     [InlineData(-1, 20, "page")]
     [InlineData(1, 0, "pageSize")]
     [InlineData(1, -5, "pageSize")]
+    [InlineData(1, 101, "pageSize")]
     public async Task GetAuditAsync_WhenPaginationIsInvalid_ThrowsDomainValidationException(int page, int pageSize, string errorKey)
     {
         await using var context = AppDbContextFactory.Create();

@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
+using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services;
@@ -109,6 +110,32 @@ public class SearchServiceTests
         result.Posts.Should().BeEmpty();
         result.Users.Should().BeEmpty();
         result.Tags.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(0, 10, "page")]
+    [InlineData(1, 0, "pageSize")]
+    [InlineData(1, 101, "pageSize")]
+    public async Task SearchPostsAsync_WhenPaginationIsInvalid_ThrowsDomainValidationException(int page, int pageSize, string expectedKey)
+    {
+        await using var context = AppDbContextFactory.Create();
+        var service = new SearchService(context);
+
+        var act = async () => await service.SearchPostsAsync("glow", tagSlug: null, page, pageSize);
+
+        var ex = await act.Should().ThrowAsync<DomainValidationException>();
+        ex.Which.Errors.Should().ContainKey(expectedKey);
+    }
+
+    [Fact]
+    public async Task SearchUsersAsync_WhenPageSizeIsMaximum_IsAccepted()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var service = new SearchService(context);
+
+        var result = await service.SearchUsersAsync("glow", page: 1, pageSize: 100);
+
+        result.PageSize.Should().Be(100);
     }
 
     private static ApplicationUser CreateUserWithProfile(string id, string userName, string displayName, string? bio = null)

@@ -57,8 +57,9 @@ public class PostServiceTests
     [Theory]
     [InlineData(0, 10, "page", "Page number must be at least 1.")]
     [InlineData(-1, 5, "page", "Page number must be at least 1.")]
-    [InlineData(1, 0, "pageSize", "Page size must be greater than 0.")]
-    [InlineData(2, -3, "pageSize", "Page size must be greater than 0.")]
+    [InlineData(1, 0, "pageSize", "Page size must be between 1 and 100.")]
+    [InlineData(2, -3, "pageSize", "Page size must be between 1 and 100.")]
+    [InlineData(1, 101, "pageSize", "Page size must be between 1 and 100.")]
     public async Task GetAllAsync_WhenPaginationIsInvalid_ThrowsDomainValidationException(
         int page,
         int pageSize,
@@ -91,7 +92,18 @@ public class PostServiceTests
         exception.Which.Errors.Should()
             .ContainKey("page").WhoseValue.Should().Contain("Page number must be at least 1.");
         exception.Which.Errors.Should()
-            .ContainKey("pageSize").WhoseValue.Should().Contain("Page size must be greater than 0.");
+            .ContainKey("pageSize").WhoseValue.Should().Contain("Page size must be between 1 and 100.");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_WhenPageSizeIsMaximum_IsAccepted()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var service = CreateService(context);
+
+        var result = await service.GetAllAsync(1, 100);
+
+        result.PageSize.Should().Be(100);
     }
 
     [Fact]
@@ -333,8 +345,84 @@ public class PostServiceTests
 
         var storedImage = await context.PostImages.SingleAsync();
         storedImage.StoredImageId.Should().BeNull();
-        storedImage.ImageStorageKey.Should().Be($"{result.Id}_0_photo.jpg");
-        storedImage.ThumbnailStorageKey.Should().Be($"{result.Id}_0_thumb_thumb.jpg");
+        storedImage.ImageStorageKey.Should().StartWith($"post-{result.Id}-0-image-").And.EndWith(".jpg");
+        storedImage.ThumbnailStorageKey.Should().StartWith($"post-{result.Id}-0-thumb-").And.EndWith(".jpg");
+        storedImage.ImageStorageKey.Should().NotContain("photo");
+        storedImage.ThumbnailStorageKey.Should().NotContain("thumb.jpg");
+    }
+
+    [Fact]
+    public async Task CreateWithImagesAsync_WhenPipelineDisabledAndImageFileNameIsUnsafe_ThrowsDomainValidationException()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        await context.Users.AddAsync(user);
+        await context.SaveChangesAsync();
+        var service = CreateService(context, imageOptions: new ImagesOptions { Enabled = false });
+        var dto = new CreateImagePostDto
+        {
+            Title = "Legacy post",
+            Content = "Post content",
+            Images = new List<IFormFile>
+            {
+                CreateFormFile(new byte[] { 1, 2, 3 }, "../photo.jpg", "image/jpeg")
+            }
+        };
+
+        var act = async () => await service.CreateWithImagesAsync(user.Id, dto, CancellationToken.None);
+
+        var ex = await act.Should().ThrowAsync<DomainValidationException>();
+        ex.Which.Errors.Should().ContainKey("Images");
+    }
+
+    [Fact]
+    public async Task CreateWithImagesAsync_WhenPipelineDisabledAndImageMimeTypeIsUnsupported_ThrowsUnsupportedImageContentTypeException()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        await context.Users.AddAsync(user);
+        await context.SaveChangesAsync();
+        var service = CreateService(context, imageOptions: new ImagesOptions { Enabled = false });
+        var dto = new CreateImagePostDto
+        {
+            Title = "Legacy post",
+            Content = "Post content",
+            Images = new List<IFormFile>
+            {
+                CreateFormFile(new byte[] { 1, 2, 3 }, "photo.heic", "image/heic")
+            }
+        };
+
+        var act = async () => await service.CreateWithImagesAsync(user.Id, dto, CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnsupportedImageContentTypeException>();
+    }
+
+    [Fact]
+    public async Task CreateWithImagesAsync_WhenPipelineDisabledAndThumbnailMimeTypeIsUnsupported_ThrowsUnsupportedImageContentTypeException()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        await context.Users.AddAsync(user);
+        await context.SaveChangesAsync();
+        var service = CreateService(context, imageOptions: new ImagesOptions { Enabled = false });
+        var dto = new CreateImagePostDto
+        {
+            Title = "Legacy post",
+            Content = "Post content",
+            Images = new List<IFormFile>
+            {
+                CreateFormFile(new byte[] { 1, 2, 3 }, "photo.jpg", "image/jpeg")
+            },
+            Thumbnails = new List<IFormFile>
+            {
+                CreateFormFile(new byte[] { 4, 5, 6 }, "thumb.txt", "text/plain")
+            }
+        };
+
+        var act = async () => await service.CreateWithImagesAsync(user.Id, dto, CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnsupportedImageContentTypeException>();
     }
 
     [Fact]

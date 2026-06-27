@@ -93,6 +93,37 @@ public class AdminInboxServiceTests
         audit.TargetId.Should().Be("10");
     }
 
+    [Fact]
+    public async Task GetInboxAsync_WhenPageSizeExceedsMaximum_ThrowsDomainValidationException()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var service = new AdminInboxService(context, CreateUserManagerMock().Object);
+
+        var act = async () => await service.GetInboxAsync(new AdminInboxQueryDto
+        {
+            Page = 1,
+            PageSize = 101
+        });
+
+        var ex = await act.Should().ThrowAsync<MiniPainterHub.Server.Exceptions.DomainValidationException>();
+        ex.Which.Errors.Should().ContainKey("pageSize");
+    }
+
+    [Fact]
+    public async Task GetInboxAsync_WhenPageSizeIsMaximum_IsAccepted()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var service = new AdminInboxService(context, CreateUserManagerMock().Object);
+
+        var result = await service.GetInboxAsync(new AdminInboxQueryDto
+        {
+            Page = 1,
+            PageSize = 100
+        });
+
+        result.PageSize.Should().Be(100);
+    }
+
     private static Mock<UserManager<ApplicationUser>> CreateUserManagerMock()
     {
         var store = new Mock<IUserStore<ApplicationUser>>();
