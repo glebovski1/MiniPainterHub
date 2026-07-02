@@ -204,6 +204,26 @@ internal sealed class StubPostViewerService : IPostViewerService
     public Task<PostViewerDto> GetAsync(int postId) => GetHandler(postId);
 }
 
+internal sealed class StubPaintingGuideService : IPaintingGuideService
+{
+    public Func<int, int, Task<ApiResult<PagedResult<PaintingGuideSummaryDto>>>> GetAllHandler { get; set; } = (_, _) =>
+        Task.FromResult(new ApiResult<PagedResult<PaintingGuideSummaryDto>>(true, HttpStatusCode.OK, new PagedResult<PaintingGuideSummaryDto>()));
+
+    public Func<int, Task<PaintingGuideDto>> GetByIdHandler { get; set; } = id =>
+        Task.FromResult(new PaintingGuideDto { Id = id, Title = $"Guide {id}", Summary = "Guide summary", CreatedById = "stub-user" });
+
+    public Func<CreatePaintingGuideDto, Task<PaintingGuideDto>> CreateHandler { get; set; } = dto =>
+        Task.FromResult(new PaintingGuideDto { Id = 50, Title = dto.Title, Summary = dto.Summary, CreatedById = "stub-user", Steps = dto.Steps.Select((step, index) => new PaintingGuideStepDto { Id = index + 1, SortOrder = index + 1, Title = step.Title, Description = step.Description, PaintsUsed = step.PaintsUsed, Techniques = step.Techniques }).ToList() });
+
+    public Func<MultipartFormDataContent, Task<PaintingGuideDto>> CreateWithStepPhotosHandler { get; set; } = _ =>
+        Task.FromResult(new PaintingGuideDto { Id = 51, Title = "Guide with photos", Summary = "Guide summary", CreatedById = "stub-user" });
+
+    public Task<ApiResult<PagedResult<PaintingGuideSummaryDto>>> GetAllAsync(int page, int pageSize) => GetAllHandler(page, pageSize);
+    public Task<PaintingGuideDto> GetByIdAsync(int guideId) => GetByIdHandler(guideId);
+    public Task<PaintingGuideDto> CreateAsync(CreatePaintingGuideDto dto) => CreateHandler(dto);
+    public Task<PaintingGuideDto> CreateWithStepPhotosAsync(MultipartFormDataContent content) => CreateWithStepPhotosHandler(content);
+}
+
 internal sealed class StubAuthorMarkService : IAuthorMarkService
 {
     public Func<int, int, CreateAuthorMarkDto, Task<AuthorMarkDto>> CreateHandler { get; set; } = (_, imageId, dto) =>

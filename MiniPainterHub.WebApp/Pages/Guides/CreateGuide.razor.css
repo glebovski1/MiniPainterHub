@@ -1,0 +1,54 @@
+.guide-step-stack {
+    display: grid;
+    gap: 1rem;
+}
+
+.guide-step-editor {
+    display: grid;
+    gap: 0.85rem;
+    padding: 1rem;
+    border: 1px solid rgba(80, 103, 92, 0.14);
+    border-radius: 8px;
+    background: rgba(250, 247, 240, 0.58);
+}
+
+.guide-step-editor__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.guide-step-editor__header h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.24rem;
+    line-height: 1.12;
+}
+
+.guide-step-editor__grid {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.guide-step-editor__preview {
+    margin-top: 0.75rem;
+    max-width: 18rem;
+    overflow: hidden;
+    border: 1px solid rgba(32, 39, 34, 0.12);
+    border-radius: 8px;
+}
+
+.guide-step-editor__preview img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+}
+
+@media (min-width: 900px) {
+    .guide-step-editor__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

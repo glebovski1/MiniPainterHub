@@ -16,6 +16,8 @@ namespace MiniPainterHub.Server.Data
         public DbSet<PostImage> PostImages { get; set; } = default!;
         public DbSet<ImageAuthorMark> ImageAuthorMarks { get; set; } = default!;
         public DbSet<CommentImageMark> CommentImageMarks { get; set; } = default!;
+        public DbSet<PaintingGuide> PaintingGuides { get; set; } = default!;
+        public DbSet<PaintingGuideStep> PaintingGuideSteps { get; set; } = default!;
         public DbSet<Tag> Tags { get; set; } = default!;
         public DbSet<PostTag> PostTags { get; set; } = default!;
         public DbSet<Comment> Comments { get; set; } = default!;
@@ -111,6 +113,38 @@ namespace MiniPainterHub.Server.Data
                     .OnDelete(DeleteBehavior.Cascade);
 
                 b.HasIndex(m => m.PostImageId);
+            });
+
+            builder.Entity<PaintingGuide>(b =>
+            {
+                b.Property(g => g.Title).HasMaxLength(140).IsRequired();
+                b.Property(g => g.Summary).HasMaxLength(1000).IsRequired();
+                b.Property(g => g.Materials).HasMaxLength(2000);
+                b.Property(g => g.CreatedById).HasMaxLength(450).IsRequired();
+
+                b.HasOne(g => g.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(g => g.CreatedById)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasIndex(g => g.CreatedUtc);
+            });
+
+            builder.Entity<PaintingGuideStep>(b =>
+            {
+                b.Property(s => s.Title).HasMaxLength(120).IsRequired();
+                b.Property(s => s.Description).HasMaxLength(4000).IsRequired();
+                b.Property(s => s.PaintsUsed).HasMaxLength(1000);
+                b.Property(s => s.Techniques).HasMaxLength(1000);
+                b.Property(s => s.ImageUrl).HasMaxLength(2048);
+                b.Property(s => s.ImageStorageKey).HasMaxLength(1024);
+
+                b.HasOne(s => s.PaintingGuide)
+                    .WithMany(g => g.Steps)
+                    .HasForeignKey(s => s.PaintingGuideId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasIndex(s => new { s.PaintingGuideId, s.SortOrder }).IsUnique();
             });
 
             builder.Entity<PostTag>(b =>

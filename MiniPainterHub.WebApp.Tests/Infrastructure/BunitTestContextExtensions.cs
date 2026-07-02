@@ -53,6 +53,13 @@ internal static class BunitTestContextExtensions
         return stub;
     }
 
+    public static StubPaintingGuideService AddGuideStub(this TestContext context, StubPaintingGuideService? stub = null)
+    {
+        stub ??= new StubPaintingGuideService();
+        context.Services.AddSingleton<IPaintingGuideService>(stub);
+        return stub;
+    }
+
     public static StubAuthorMarkService AddAuthorMarkStub(this TestContext context, StubAuthorMarkService? stub = null)
     {
         stub ??= new StubAuthorMarkService();

@@ -56,6 +56,7 @@ public class Program
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IPostService, PostService>();
         builder.Services.AddScoped<IPostViewerService, PostViewerService>();
+        builder.Services.AddScoped<IPaintingGuideService, PaintingGuideService>();
         builder.Services.AddScoped<IAuthorMarkService, AuthorMarkService>();
         builder.Services.AddScoped<ICommentMarkService, CommentMarkService>();
         builder.Services.AddScoped<ICommentService, CommentService>();

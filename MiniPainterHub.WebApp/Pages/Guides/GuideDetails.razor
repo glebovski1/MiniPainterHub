@@ -1,0 +1,134 @@
+@page "/guides/{GuideId:int}"
+@using MiniPainterHub.Common.DTOs
+@inject IPaintingGuideService GuideService
+@inject NavigationManager Nav
+
+<PageTitle>@(_guide?.Title ?? "Guide")</PageTitle>
+
+<div class="page-shell content-stack">
+    @if (_isLoading)
+    {
+        <div class="status-panel status-panel--info" data-testid="guide-details-loading">
+            <div class="status-panel__icon"><i class="bi bi-journal-text" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Loading guide</div>
+                <p class="status-panel__text mb-0">Preparing the walkthrough.</p>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <div class="status-panel status-panel--error" role="alert" data-testid="guide-details-error">
+            <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Couldn't load guide</div>
+                <p class="status-panel__text mb-0">@_loadError</p>
+            </div>
+            <button class="btn btn-link btn-sm ms-auto" @onclick="LoadGuideAsync">Retry</button>
+        </div>
+    }
+    else if (_guide is null)
+    {
+        <EmptyState IconClass="bi bi-journal-x"
+                    Title="Guide not found"
+                    Description="This walkthrough may have been removed."
+                    TitleClass="empty-state__title h4" />
+    }
+    else
+    {
+        <PageHero Eyebrow="Painting guide"
+                  Title="@_guide.Title"
+                  Description="@($"By {_guide.AuthorName} • {_guide.Steps.Count} step(s)")"
+                  FrameName="Guide Details Header">
+            <Actions>
+                <button class="btn btn-outline-secondary" @onclick='() => Nav.NavigateTo("/guides")'>
+                    Back to guides
+                </button>
+            </Actions>
+        </PageHero>
+
+        <section class="surface-card guide-details-intro">
+            <p>@_guide.Summary</p>
+            @if (!string.IsNullOrWhiteSpace(_guide.Materials))
+            {
+                <div class="guide-materials" data-testid="guide-materials">
+                    <p class="section-label">Paints and materials</p>
+                    <div>@_guide.Materials</div>
+                </div>
+            }
+        </section>
+
+        <section class="guide-step-list" data-testid="guide-step-list">
+            @foreach (var step in _guide.Steps.OrderBy(step => step.SortOrder))
+            {
+                <article class="surface-card guide-step" data-testid="guide-step">
+                    <div class="guide-step__number">@step.SortOrder.ToString("00")</div>
+                    <div class="guide-step__content">
+                        <h2>@step.Title</h2>
+                        <p>@step.Description</p>
+
+                        @if (!string.IsNullOrWhiteSpace(step.PaintsUsed) || !string.IsNullOrWhiteSpace(step.Techniques))
+                        {
+                            <dl class="guide-step__notes">
+                                @if (!string.IsNullOrWhiteSpace(step.PaintsUsed))
+                                {
+                                    <div>
+                                        <dt>Colors</dt>
+                                        <dd>@step.PaintsUsed</dd>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(step.Techniques))
+                                {
+                                    <div>
+                                        <dt>Technique</dt>
+                                        <dd>@step.Techniques</dd>
+                                    </div>
+                                }
+                            </dl>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(step.ImageUrl))
+                    {
+                        <div class="guide-step__photo">
+                            <img src="@step.ImageUrl" alt="@step.Title" loading="lazy" />
+                        </div>
+                    }
+                </article>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    [Parameter] public int GuideId { get; set; }
+
+    private PaintingGuideDto? _guide;
+    private bool _isLoading = true;
+    private string? _loadError;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadGuideAsync();
+    }
+
+    private async Task LoadGuideAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            _guide = await GuideService.GetByIdAsync(GuideId);
+        }
+        catch
+        {
+            _guide = null;
+            _loadError = "Guide details are unavailable right now.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

@@ -87,6 +87,7 @@ Registered scoped domain services:
 - `IReportService -> ReportService`
 - `IFollowService -> FollowService`
 - `IConversationService -> ConversationService`
+- `IPaintingGuideService -> PaintingGuideService`
 - `IMaintenanceBypassService -> MaintenanceBypassService` (singleton, cookie issuance/validation)
 - `DevelopmentContentSeeder` for explicit development-only sample content/avatar maintenance commands
 
@@ -117,6 +118,8 @@ Domain DbSets:
 - `Profiles`
 - `Posts`
 - `PostImages`
+- `PaintingGuides`
+- `PaintingGuideSteps`
 - `Tags`
 - `PostTags`
 - `Comments`
@@ -133,6 +136,7 @@ Entity relationships (configured in `OnModelCreating`):
 - `Post` -> `ApplicationUser` (creator) with `DeleteBehavior.Restrict`.
 - `Post` stores optional paint recipe metadata (`MiniatureName`, `PaintsUsed`, `Techniques`, `Difficulty`, `TimeSpent`) that is surfaced on post create, feed cards, details, and viewer info.
 - `PostImage` -> `Post` with cascade delete.
+- `PaintingGuide` -> `ApplicationUser` (creator) with restrict delete; `PaintingGuideStep` -> `PaintingGuide` with cascade delete and a unique guide/order pair.
 - `Tag` <-> `Post` through `PostTag` join table.
 - `Comment` -> `Post` with cascade delete; `Comment` -> `Author` with restrict delete.
 - `Like` -> `Post` with cascade delete; `Like` -> `User` with restrict delete.
@@ -205,6 +209,11 @@ Main controllers under `MiniPainterHub.Server/Controllers`:
   - `POST /{reportId}/resolve`
 - `FollowsController` and `FeedController` for social graph and following feed
 - `ConversationsController` for direct messaging
+- `PaintingGuidesController` (`/api/guides`) for public guide browsing and authenticated guide creation
+  - `GET /`
+  - `GET /{id}`
+  - `POST /` (JSON guide create)
+  - `POST /with-step-photos` (multipart guide create with optional per-step photos)
 
 ## 5) Image Processing and Storage
 
@@ -222,6 +231,8 @@ Two storage paths:
 All post upload paths validate supported image MIME types before storage. The legacy direct upload path uses server-generated storage keys and rejects client filenames that contain path separators, rooted paths, or parent-directory segments.
 
 Posts can also carry optional paint recipe metadata. JSON and multipart create flows share the same recipe fields, and post detail/summary DTOs expose the data so the client can render recipe context without a second request.
+
+Painting guides are long-form user-authored walkthroughs. Each guide has ordered steps with descriptions, optional paint/color notes, optional technique notes, and optional step photos. Multipart guide creation sends photo-index pairs so a photo can attach to a specific step without requiring every step to have an image.
 
 Post projection mapping is centralized in `Features/Posts/PostDtoMapper` so query and detail
 responses share thumbnail fallback and tag ordering behavior.
@@ -253,8 +264,13 @@ The WebApp is a Blazor WebAssembly SPA:
   - standardized error parsing
   - notification handling
 
-Service clients in `MiniPainterHub.WebApp/Services` mirror server domains (`AuthService`, `PostService`, `CommentService`, `LikeService`, `ProfileService`, `SearchService`, `ReportService`, `FollowService`, `ConversationService`).
+Service clients in `MiniPainterHub.WebApp/Services` mirror server domains (`AuthService`, `PostService`, `PaintingGuideService`, `CommentService`, `LikeService`, `ProfileService`, `SearchService`, `ReportService`, `FollowService`, `ConversationService`).
 Service clients also include moderation flows (`ModerationService`) and keep query DTO/filter parity with the server API.
+
+Guide UX composition:
+- `Pages/Guides/GuideList.razor` lists public painting guides.
+- `Pages/Guides/CreateGuide.razor` lets authenticated users create ordered guide steps with optional photos.
+- `Pages/Guides/GuideDetails.razor` renders the walkthrough, color notes, technique notes, and attached images.
 
 Admin UX composition:
 - Left collapsible user panel (`Layout/MainLayout.razor` + `Shared/UserPanelContent.razor`) is the primary entry for admin actions.

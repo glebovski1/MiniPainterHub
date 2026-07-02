@@ -1,0 +1,285 @@
+@page "/guides/new"
+@attribute [Authorize]
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Forms
+@using MiniPainterHub.Common.DTOs
+@inject IPaintingGuideService GuideService
+@inject NavigationManager Nav
+
+<PageTitle>Write guide</PageTitle>
+
+<div class="page-shell content-stack">
+    <PageHero Eyebrow="Guide composer"
+              Title="Write a painting guide"
+              Description="Break a miniature down into steps, colors, techniques, and optional photos for each stage."
+              FrameName="Guide Composer Header" />
+
+    <section class="surface-card">
+        <EditForm Model="@_guide" OnSubmit="HandleSubmitAsync" data-testid="guide-create-form" class="form-grid">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger small mb-0" />
+
+            <div>
+                <label for="guide-title" class="form-label">Title</label>
+                <InputText id="guide-title"
+                           class="form-control"
+                           data-testid="guide-title"
+                           @bind-Value="_guide.Title"
+                           disabled="@_isSubmitting" />
+            </div>
+
+            <div>
+                <label for="guide-summary" class="form-label">Summary</label>
+                <InputTextArea id="guide-summary"
+                               class="form-control"
+                               rows="4"
+                               data-testid="guide-summary"
+                               @bind-Value="_guide.Summary"
+                               disabled="@_isSubmitting" />
+            </div>
+
+            <div>
+                <label for="guide-materials" class="form-label">Paints and materials</label>
+                <InputTextArea id="guide-materials"
+                               class="form-control"
+                               rows="4"
+                               data-testid="guide-materials"
+                               @bind-Value="_guide.Materials"
+                               disabled="@_isSubmitting"
+                               placeholder="Paints, brushes, basing materials, varnish..." />
+            </div>
+
+            <div class="guide-step-stack" data-testid="guide-step-editor">
+                @for (var i = 0; i < _steps.Count; i++)
+                {
+                    var step = _steps[i];
+                    <section class="guide-step-editor">
+                        <div class="guide-step-editor__header">
+                            <h2>Step @(i + 1)</h2>
+                            @if (_steps.Count > 1)
+                            {
+                                <button class="btn btn-outline-danger btn-sm"
+                                        type="button"
+                                        @onclick="@(() => RemoveStep(step))"
+                                        disabled="@_isSubmitting">
+                                    Remove
+                                </button>
+                            }
+                        </div>
+
+                        <div>
+                            <label class="form-label" for="@($"guide-step-title-{i}")">Step title</label>
+                            <InputText id="@($"guide-step-title-{i}")"
+                                       class="form-control"
+                                       data-testid="guide-step-title"
+                                       @bind-Value="step.Title"
+                                       disabled="@_isSubmitting" />
+                        </div>
+
+                        <div>
+                            <label class="form-label" for="@($"guide-step-description-{i}")">Description</label>
+                            <InputTextArea id="@($"guide-step-description-{i}")"
+                                           class="form-control"
+                                           rows="4"
+                                           data-testid="guide-step-description"
+                                           @bind-Value="step.Description"
+                                           disabled="@_isSubmitting" />
+                        </div>
+
+                        <div class="guide-step-editor__grid">
+                            <div>
+                                <label class="form-label" for="@($"guide-step-paints-{i}")">Colors used</label>
+                                <InputTextArea id="@($"guide-step-paints-{i}")"
+                                               class="form-control"
+                                               rows="3"
+                                               data-testid="guide-step-paints"
+                                               @bind-Value="step.PaintsUsed"
+                                               disabled="@_isSubmitting" />
+                            </div>
+
+                            <div>
+                                <label class="form-label" for="@($"guide-step-techniques-{i}")">Technique notes</label>
+                                <InputTextArea id="@($"guide-step-techniques-{i}")"
+                                               class="form-control"
+                                               rows="3"
+                                               data-testid="guide-step-techniques"
+                                               @bind-Value="step.Techniques"
+                                               disabled="@_isSubmitting" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="form-label" for="@($"guide-step-photo-{i}")">Step photo</label>
+                            <InputFile id="@($"guide-step-photo-{i}")"
+                                       class="form-control"
+                                       data-testid="guide-step-photo"
+                                       OnChange="@((args) => OnStepPhotoSelected(step, args))"
+                                       disabled="@_isSubmitting" />
+                            @if (!string.IsNullOrWhiteSpace(step.PreviewUrl))
+                            {
+                                <div class="guide-step-editor__preview">
+                                    <img src="@step.PreviewUrl" alt="Selected guide step preview" />
+                                </div>
+                            }
+                        </div>
+                    </section>
+                }
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-secondary" type="button" @onclick="AddStep" disabled="@(_isSubmitting || _steps.Count >= MaxSteps)">
+                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                    <span>Add step</span>
+                </button>
+                <button class="btn btn-primary" type="submit" data-testid="guide-submit" disabled="@_isSubmitting">
+                    @(_isSubmitting ? "Publishing..." : "Publish guide")
+                </button>
+                <button class="btn btn-outline-secondary" type="button" @onclick='() => Nav.NavigateTo("/guides")' disabled="@_isSubmitting">Cancel</button>
+            </div>
+        </EditForm>
+
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <div class="status-panel status-panel--error mt-3" role="alert" data-testid="guide-error">
+                <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Guide creation failed</div>
+                    <p class="status-panel__text mb-0">@_errorMessage</p>
+                </div>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private const int MaxSteps = 12;
+    private const long MaxPhotoBytes = 20L * 1024 * 1024;
+    private readonly CreatePaintingGuideDto _guide = new();
+    private readonly List<GuideStepEditor> _steps = new() { new GuideStepEditor() };
+    private bool _isSubmitting;
+    private string? _errorMessage;
+
+    private void AddStep()
+    {
+        if (_steps.Count < MaxSteps)
+        {
+            _steps.Add(new GuideStepEditor());
+        }
+    }
+
+    private void RemoveStep(GuideStepEditor step)
+    {
+        if (_steps.Count > 1)
+        {
+            _steps.Remove(step);
+        }
+    }
+
+    private void OnStepPhotoSelected(GuideStepEditor step, InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        step.Photo = file;
+
+        using var stream = file.OpenReadStream(MaxPhotoBytes);
+        var buffer = new byte[file.Size];
+        stream.Read(buffer, 0, (int)file.Size);
+        step.PreviewUrl = $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}";
+    }
+
+    private async Task HandleSubmitAsync(EditContext editContext)
+    {
+        if (_isSubmitting)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            var dto = BuildDto();
+            var created = _steps.Any(step => step.Photo is not null)
+                ? await GuideService.CreateWithStepPhotosAsync(BuildMultipartContent(dto))
+                : await GuideService.CreateAsync(dto);
+
+            Nav.NavigateTo($"/guides/{created.Id}");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private CreatePaintingGuideDto BuildDto() =>
+        new()
+        {
+            Title = _guide.Title,
+            Summary = _guide.Summary,
+            Materials = _guide.Materials,
+            Steps = _steps
+                .Select(step => new CreatePaintingGuideStepDto
+                {
+                    Title = step.Title,
+                    Description = step.Description,
+                    PaintsUsed = step.PaintsUsed,
+                    Techniques = step.Techniques
+                })
+                .ToList()
+        };
+
+    private MultipartFormDataContent BuildMultipartContent(CreatePaintingGuideDto dto)
+    {
+        var content = new MultipartFormDataContent
+        {
+            { new StringContent(dto.Title ?? string.Empty), nameof(dto.Title) },
+            { new StringContent(dto.Summary ?? string.Empty), nameof(dto.Summary) }
+        };
+
+        AddStringContentIfNotBlank(content, nameof(dto.Materials), dto.Materials);
+
+        for (var i = 0; i < dto.Steps.Count; i++)
+        {
+            var step = dto.Steps[i];
+            content.Add(new StringContent(step.Title ?? string.Empty), $"Steps[{i}].Title");
+            content.Add(new StringContent(step.Description ?? string.Empty), $"Steps[{i}].Description");
+            AddStringContentIfNotBlank(content, $"Steps[{i}].PaintsUsed", step.PaintsUsed);
+            AddStringContentIfNotBlank(content, $"Steps[{i}].Techniques", step.Techniques);
+
+            var photo = _steps[i].Photo;
+            if (photo is null)
+            {
+                continue;
+            }
+
+            var streamContent = new StreamContent(photo.OpenReadStream(MaxPhotoBytes));
+            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(photo.ContentType);
+            content.Add(streamContent, "stepPhotos", photo.Name);
+            content.Add(new StringContent(i.ToString(CultureInfo.InvariantCulture)), "stepPhotoIndices");
+        }
+
+        return content;
+    }
+
+    private static void AddStringContentIfNotBlank(MultipartFormDataContent content, string name, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            content.Add(new StringContent(value), name);
+        }
+    }
+
+    private sealed class GuideStepEditor
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string? PaintsUsed { get; set; }
+        public string? Techniques { get; set; }
+        public IBrowserFile? Photo { get; set; }
+        public string? PreviewUrl { get; set; }
+    }
+}
