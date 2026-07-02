@@ -116,7 +116,9 @@ namespace MiniPainterHub.Server.Services
             }
 
             var normalized = fileName.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
-            if (Path.IsPathRooted(normalized) || normalized.Contains("..", StringComparison.Ordinal))
+            if (Path.IsPathRooted(normalized)
+                || HasWindowsDriveQualifier(normalized)
+                || normalized.Contains("..", StringComparison.Ordinal))
             {
                 throw InvalidStorageKey();
             }
@@ -133,6 +135,14 @@ namespace MiniPainterHub.Server.Services
 
             return candidate;
         }
+
+        private static bool HasWindowsDriveQualifier(string path) =>
+            path.Length >= 2
+            && path[1] == ':'
+            && IsAsciiLetter(path[0]);
+
+        private static bool IsAsciiLetter(char value) =>
+            value is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
 
         private static DomainValidationException InvalidStorageKey() =>
             new("Invalid image storage key.", new Dictionary<string, string[]>
