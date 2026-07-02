@@ -1,0 +1,99 @@
+@page "/admin/news/new"
+@attribute [Authorize(Roles = "Admin")]
+@using MiniPainterHub.Common.DTOs
+@inject INewsAnnouncementService NewsService
+@inject NavigationManager Nav
+
+<PageTitle>Write announcement</PageTitle>
+
+<div class="page-shell content-stack">
+    <PageHero Eyebrow="Admin"
+              Title="Write announcement"
+              Description="Publish a site update, release note, challenge notice, or featured guide roundup."
+              FrameName="Announcement Composer Header" />
+
+    <section class="surface-card">
+        <EditForm Model="@_announcement" OnValidSubmit="HandleSubmitAsync" data-testid="news-create-form" class="form-grid">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger small mb-0" />
+
+            <div>
+                <label for="news-title" class="form-label">Title</label>
+                <InputText id="news-title"
+                           class="form-control"
+                           data-testid="news-title"
+                           @bind-Value="_announcement.Title"
+                           disabled="@_isSubmitting" />
+            </div>
+
+            <div>
+                <label for="news-summary" class="form-label">Summary</label>
+                <InputTextArea id="news-summary"
+                               class="form-control"
+                               rows="3"
+                               data-testid="news-summary"
+                               @bind-Value="_announcement.Summary"
+                               disabled="@_isSubmitting" />
+            </div>
+
+            <div>
+                <label for="news-body" class="form-label">Body</label>
+                <InputTextArea id="news-body"
+                               class="form-control"
+                               rows="10"
+                               data-testid="news-body"
+                               @bind-Value="_announcement.Body"
+                               disabled="@_isSubmitting" />
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary" data-testid="news-submit" disabled="@_isSubmitting">
+                    @(_isSubmitting ? "Publishing..." : "Publish announcement")
+                </button>
+                <button type="button" class="btn btn-outline-secondary" @onclick='() => Nav.NavigateTo("/news")' disabled="@_isSubmitting">Cancel</button>
+            </div>
+        </EditForm>
+
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <div class="status-panel status-panel--error mt-3" role="alert" data-testid="news-create-error">
+                <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Announcement failed</div>
+                    <p class="status-panel__text mb-0">@_errorMessage</p>
+                </div>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private readonly CreateNewsAnnouncementDto _announcement = new();
+    private bool _isSubmitting;
+    private string? _errorMessage;
+
+    private async Task HandleSubmitAsync()
+    {
+        if (_isSubmitting)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            var created = await NewsService.CreateAsync(_announcement);
+            Nav.NavigateTo($"/news/{created.Id}");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

@@ -1,0 +1,88 @@
+@page "/news/{AnnouncementId:int}"
+@using MiniPainterHub.Common.DTOs
+@inject INewsAnnouncementService NewsService
+@inject NavigationManager Nav
+
+<PageTitle>@(_announcement?.Title ?? "Announcement")</PageTitle>
+
+<div class="page-shell content-stack">
+    @if (_isLoading)
+    {
+        <div class="status-panel status-panel--info" data-testid="news-details-loading">
+            <div class="status-panel__icon"><i class="bi bi-megaphone" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Loading announcement</div>
+                <p class="status-panel__text mb-0">Preparing the update.</p>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <div class="status-panel status-panel--error" role="alert" data-testid="news-details-error">
+            <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Couldn't load announcement</div>
+                <p class="status-panel__text mb-0">@_loadError</p>
+            </div>
+            <button class="btn btn-link btn-sm ms-auto" @onclick="LoadAnnouncementAsync">Retry</button>
+        </div>
+    }
+    else if (_announcement is null)
+    {
+        <EmptyState IconClass="bi bi-megaphone"
+                    Title="Announcement not found"
+                    Description="This update may have been removed."
+                    TitleClass="empty-state__title h4" />
+    }
+    else
+    {
+        <PageHero Eyebrow="Announcement"
+                  Title="@_announcement.Title"
+                  Description="@($"Published {_announcement.PublishedAt.ToLocalTime():MMM dd, yyyy} by {_announcement.AuthorName}")"
+                  FrameName="Announcement Header">
+            <Actions>
+                <button class="btn btn-outline-secondary" @onclick='() => Nav.NavigateTo("/news")'>
+                    Back to news
+                </button>
+            </Actions>
+        </PageHero>
+
+        <article class="surface-card news-article" data-testid="news-details">
+            <p class="news-article__summary">@_announcement.Summary</p>
+            <div class="news-article__body">@_announcement.Body</div>
+        </article>
+    }
+</div>
+
+@code {
+    [Parameter] public int AnnouncementId { get; set; }
+
+    private NewsAnnouncementDto? _announcement;
+    private bool _isLoading = true;
+    private string? _loadError;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAnnouncementAsync();
+    }
+
+    private async Task LoadAnnouncementAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            _announcement = await NewsService.GetByIdAsync(AnnouncementId);
+        }
+        catch
+        {
+            _announcement = null;
+            _loadError = "Announcement details are unavailable right now.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

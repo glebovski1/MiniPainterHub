@@ -1,0 +1,111 @@
+@page "/news"
+@using MiniPainterHub.Common.DTOs
+@inject INewsAnnouncementService NewsService
+
+<PageTitle>News</PageTitle>
+
+<div class="page-shell content-stack">
+    <PageHero Eyebrow="News"
+              Title="News and announcements"
+              Description="Updates from the MiniPainterHub studio: releases, community notes, and featured guide roundups."
+              FrameName="News Header">
+        <Actions>
+            <AuthorizeView Roles="Admin">
+                <Authorized>
+                    <NavLink class="btn btn-primary" href="/admin/news/new" data-testid="news-create-link">
+                        <i class="bi bi-megaphone" aria-hidden="true"></i>
+                        <span>Write announcement</span>
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
+        </Actions>
+    </PageHero>
+
+    <section class="surface-card">
+        <SectionHeader Eyebrow="Latest"
+                       Title="Announcements"
+                       Description="Read recent project and community updates."
+                       TitleTag="h2"
+                       TitleClass="section-heading__title h3 mb-0"
+                       SectionName="News List" />
+
+        @if (!string.IsNullOrWhiteSpace(_loadError))
+        {
+            <div class="status-panel status-panel--error" role="alert" data-testid="news-error">
+                <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Couldn't load news</div>
+                    <p class="status-panel__text mb-0">@_loadError</p>
+                </div>
+                <button class="btn btn-link btn-sm ms-auto" @onclick="LoadNewsAsync">Retry</button>
+            </div>
+        }
+        else if (_isLoading)
+        {
+            <div class="status-panel status-panel--info" aria-live="polite" data-testid="news-loading">
+                <div class="status-panel__icon"><i class="bi bi-megaphone" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Loading news</div>
+                    <p class="status-panel__text mb-0">Gathering the latest announcements.</p>
+                </div>
+            </div>
+        }
+        else if (_items.Count == 0)
+        {
+            <EmptyState IconClass="bi bi-megaphone"
+                        Title="No announcements yet"
+                        Description="Admin-written updates will appear here."
+                        TitleClass="empty-state__title h4" />
+        }
+        else
+        {
+            <div class="news-list" data-testid="news-list">
+                @foreach (var item in _items)
+                {
+                    <article class="news-list-item" data-testid="news-card">
+                        <div class="news-list-item__meta">
+                            <span>@item.PublishedAt.ToLocalTime().ToString("MMM dd, yyyy")</span>
+                            <span>By @item.AuthorName</span>
+                        </div>
+                        <NavLink class="news-list-item__title" href="@($"/news/{item.Id}")">@item.Title</NavLink>
+                        <p>@item.Summary</p>
+                        <NavLink class="news-list-item__open" href="@($"/news/{item.Id}")">
+                            <span>Read announcement</span>
+                            <i class="bi bi-arrow-right-short" aria-hidden="true"></i>
+                        </NavLink>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private const int PageSize = 10;
+    private List<NewsAnnouncementSummaryDto> _items = new();
+    private bool _isLoading = true;
+    private string? _loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNewsAsync();
+    }
+
+    private async Task LoadNewsAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        var result = await NewsService.GetAllAsync(1, PageSize);
+        if (!result.Success)
+        {
+            _items = new List<NewsAnnouncementSummaryDto>();
+            _loadError = "Announcements are unavailable right now.";
+            _isLoading = false;
+            return;
+        }
+
+        _items = (result.Value?.Items ?? Array.Empty<NewsAnnouncementSummaryDto>()).ToList();
+        _isLoading = false;
+    }
+}

@@ -224,6 +224,22 @@ internal sealed class StubPaintingGuideService : IPaintingGuideService
     public Task<PaintingGuideDto> CreateWithStepPhotosAsync(MultipartFormDataContent content) => CreateWithStepPhotosHandler(content);
 }
 
+internal sealed class StubNewsAnnouncementService : INewsAnnouncementService
+{
+    public Func<int, int, Task<ApiResult<PagedResult<NewsAnnouncementSummaryDto>>>> GetAllHandler { get; set; } = (_, _) =>
+        Task.FromResult(new ApiResult<PagedResult<NewsAnnouncementSummaryDto>>(true, HttpStatusCode.OK, new PagedResult<NewsAnnouncementSummaryDto>()));
+
+    public Func<int, Task<NewsAnnouncementDto>> GetByIdHandler { get; set; } = id =>
+        Task.FromResult(new NewsAnnouncementDto { Id = id, Title = $"Announcement {id}", Summary = "Summary", Body = "Body", CreatedById = "admin" });
+
+    public Func<CreateNewsAnnouncementDto, Task<NewsAnnouncementDto>> CreateHandler { get; set; } = dto =>
+        Task.FromResult(new NewsAnnouncementDto { Id = 60, Title = dto.Title, Summary = dto.Summary, Body = dto.Body, CreatedById = "admin" });
+
+    public Task<ApiResult<PagedResult<NewsAnnouncementSummaryDto>>> GetAllAsync(int page, int pageSize) => GetAllHandler(page, pageSize);
+    public Task<NewsAnnouncementDto> GetByIdAsync(int announcementId) => GetByIdHandler(announcementId);
+    public Task<NewsAnnouncementDto> CreateAsync(CreateNewsAnnouncementDto dto) => CreateHandler(dto);
+}
+
 internal sealed class StubAuthorMarkService : IAuthorMarkService
 {
     public Func<int, int, CreateAuthorMarkDto, Task<AuthorMarkDto>> CreateHandler { get; set; } = (_, imageId, dto) =>

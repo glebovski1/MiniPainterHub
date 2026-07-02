@@ -120,6 +120,7 @@ Domain DbSets:
 - `PostImages`
 - `PaintingGuides`
 - `PaintingGuideSteps`
+- `NewsAnnouncements`
 - `Tags`
 - `PostTags`
 - `Comments`
@@ -137,6 +138,7 @@ Entity relationships (configured in `OnModelCreating`):
 - `Post` stores optional paint recipe metadata (`MiniatureName`, `PaintsUsed`, `Techniques`, `Difficulty`, `TimeSpent`) that is surfaced on post create, feed cards, details, and viewer info.
 - `PostImage` -> `Post` with cascade delete.
 - `PaintingGuide` -> `ApplicationUser` (creator) with restrict delete; `PaintingGuideStep` -> `PaintingGuide` with cascade delete and a unique guide/order pair.
+- `NewsAnnouncement` -> `ApplicationUser` (admin author) with restrict delete.
 - `Tag` <-> `Post` through `PostTag` join table.
 - `Comment` -> `Post` with cascade delete; `Comment` -> `Author` with restrict delete.
 - `Like` -> `Post` with cascade delete; `Like` -> `User` with restrict delete.
@@ -214,6 +216,10 @@ Main controllers under `MiniPainterHub.Server/Controllers`:
   - `GET /{id}`
   - `POST /` (JSON guide create)
   - `POST /with-step-photos` (multipart guide create with optional per-step photos)
+- `NewsAnnouncementsController` (`/api/news`) for public announcements and admin-authored updates
+  - `GET /`
+  - `GET /{id}`
+  - `POST /` (admin-only JSON create)
 
 ## 5) Image Processing and Storage
 
@@ -264,13 +270,17 @@ The WebApp is a Blazor WebAssembly SPA:
   - standardized error parsing
   - notification handling
 
-Service clients in `MiniPainterHub.WebApp/Services` mirror server domains (`AuthService`, `PostService`, `PaintingGuideService`, `CommentService`, `LikeService`, `ProfileService`, `SearchService`, `ReportService`, `FollowService`, `ConversationService`).
+Service clients in `MiniPainterHub.WebApp/Services` mirror server domains (`AuthService`, `PostService`, `PaintingGuideService`, `NewsAnnouncementService`, `CommentService`, `LikeService`, `ProfileService`, `SearchService`, `ReportService`, `FollowService`, `ConversationService`).
 Service clients also include moderation flows (`ModerationService`) and keep query DTO/filter parity with the server API.
 
 Guide UX composition:
 - `Pages/Guides/GuideList.razor` lists public painting guides.
 - `Pages/Guides/CreateGuide.razor` lets authenticated users create ordered guide steps with optional photos.
 - `Pages/Guides/GuideDetails.razor` renders the walkthrough, color notes, technique notes, and attached images.
+
+News UX composition:
+- `Pages/News/NewsList.razor` and `Pages/News/NewsDetails.razor` expose public announcements.
+- `Pages/Admin/CreateNewsAnnouncement.razor` is the admin-authored announcement composer.
 
 Admin UX composition:
 - Left collapsible user panel (`Layout/MainLayout.razor` + `Shared/UserPanelContent.razor`) is the primary entry for admin actions.

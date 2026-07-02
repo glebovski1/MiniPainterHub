@@ -60,6 +60,13 @@ internal static class BunitTestContextExtensions
         return stub;
     }
 
+    public static StubNewsAnnouncementService AddNewsStub(this TestContext context, StubNewsAnnouncementService? stub = null)
+    {
+        stub ??= new StubNewsAnnouncementService();
+        context.Services.AddSingleton<INewsAnnouncementService>(stub);
+        return stub;
+    }
+
     public static StubAuthorMarkService AddAuthorMarkStub(this TestContext context, StubAuthorMarkService? stub = null)
     {
         stub ??= new StubAuthorMarkService();

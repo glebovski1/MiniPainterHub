@@ -142,6 +142,16 @@
                                     Description=""
                                     TestId="admin-nav-dashboard" />
 
+                    <AuthorizeView Roles="Admin">
+                        <Authorized Context="newsAuth">
+                            <SidebarNavItem Href="/admin/news/new"
+                                            IconClass="bi bi-megaphone"
+                                            Title="New announcement"
+                                            Description=""
+                                            TestId="admin-nav-news" />
+                        </Authorized>
+                    </AuthorizeView>
+
                     <SidebarNavItem Href="/admin/audit"
                                     IconClass="bi bi-journal-text"
                                     Title="Audit"

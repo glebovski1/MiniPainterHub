@@ -238,6 +238,7 @@ public partial class Program
         services.AddScoped<IPostService, PostService>();
         services.AddScoped<IPostViewerService, PostViewerService>();
         services.AddScoped<IPaintingGuideService, PaintingGuideService>();
+        services.AddScoped<INewsAnnouncementService, NewsAnnouncementService>();
         services.AddScoped<ICommentService, CommentService>();
         services.AddScoped<CommentMarkService>();
         services.AddScoped<ICommentMarkService>(sp => sp.GetRequiredService<CommentMarkService>());

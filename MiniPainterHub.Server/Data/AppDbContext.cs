@@ -18,6 +18,7 @@ namespace MiniPainterHub.Server.Data
         public DbSet<CommentImageMark> CommentImageMarks { get; set; } = default!;
         public DbSet<PaintingGuide> PaintingGuides { get; set; } = default!;
         public DbSet<PaintingGuideStep> PaintingGuideSteps { get; set; } = default!;
+        public DbSet<NewsAnnouncement> NewsAnnouncements { get; set; } = default!;
         public DbSet<Tag> Tags { get; set; } = default!;
         public DbSet<PostTag> PostTags { get; set; } = default!;
         public DbSet<Comment> Comments { get; set; } = default!;
@@ -145,6 +146,21 @@ namespace MiniPainterHub.Server.Data
                     .OnDelete(DeleteBehavior.Cascade);
 
                 b.HasIndex(s => new { s.PaintingGuideId, s.SortOrder }).IsUnique();
+            });
+
+            builder.Entity<NewsAnnouncement>(b =>
+            {
+                b.Property(a => a.Title).HasMaxLength(140).IsRequired();
+                b.Property(a => a.Summary).HasMaxLength(500).IsRequired();
+                b.Property(a => a.Body).HasMaxLength(8000).IsRequired();
+                b.Property(a => a.CreatedById).HasMaxLength(450).IsRequired();
+
+                b.HasOne(a => a.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(a => a.CreatedById)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasIndex(a => a.PublishedUtc);
             });
 
             builder.Entity<PostTag>(b =>
