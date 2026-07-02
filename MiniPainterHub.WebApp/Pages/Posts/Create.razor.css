@@ -9,6 +9,15 @@
     gap: var(--space-2);
 }
 
+.recipe-fieldset {
+    display: grid;
+    gap: 0.9rem;
+    padding: 0.92rem;
+    border: 1px solid rgba(80, 103, 92, 0.14);
+    border-radius: 8px;
+    background: rgba(250, 247, 240, 0.58);
+}
+
 .preview-frame {
     border: 1px solid rgba(32, 39, 34, 0.1);
     border-radius: 8px;
@@ -86,6 +95,27 @@
     margin: 0;
     color: var(--ink-700);
     line-height: 1.58;
+}
+
+.preview-post-card__recipe {
+    display: grid;
+    gap: 0.36rem;
+    padding: 0.7rem 0.78rem;
+    border-radius: 8px;
+    background: rgba(75, 138, 143, 0.08);
+    color: var(--ink-700);
+    font-size: 0.9rem;
+}
+
+.preview-post-card__recipe span {
+    display: flex;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.preview-post-card__recipe strong {
+    color: var(--ink-900);
+    flex: 0 0 auto;
 }
 
 @media (min-width: 992px) {

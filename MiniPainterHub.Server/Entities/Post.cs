@@ -9,6 +9,11 @@ namespace MiniPainterHub.Server.Entities
         public int Id { get; set; }
         public string Title { get; set; } = default!;
         public string Content { get; set; } = default!;
+        public string? MiniatureName { get; set; }
+        public string? PaintsUsed { get; set; }
+        public string? Techniques { get; set; }
+        public string? Difficulty { get; set; }
+        public string? TimeSpent { get; set; }
         public string CreatedById { get; set; } = string.Empty;    // FK to ApplicationUser
         public DateTime CreatedUtc { get; set; }
         public DateTime UpdatedUtc { get; set; }

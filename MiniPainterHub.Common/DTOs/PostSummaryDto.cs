@@ -16,6 +16,15 @@ namespace MiniPainterHub.Common.DTOs
         [StringLength(100)]
         public string Snippet { get; set; } = default!;   // e.g. first 100 chars
 
+        [StringLength(120)]
+        public string? MiniatureName { get; set; }
+
+        [StringLength(1000)]
+        public string? Techniques { get; set; }
+
+        [StringLength(40)]
+        public string? Difficulty { get; set; }
+
         [StringLength(2048)]
         public string? ImageUrl { get; set; }
 

@@ -75,6 +75,50 @@ public partial class PostDetails
         || _draftCommentMark is not null
         || _activeCommentId.HasValue;
 
+    private bool HasPaintRecipe =>
+        post is not null
+        && (!string.IsNullOrWhiteSpace(post.MiniatureName)
+            || !string.IsNullOrWhiteSpace(post.PaintsUsed)
+            || !string.IsNullOrWhiteSpace(post.Techniques)
+            || !string.IsNullOrWhiteSpace(post.Difficulty)
+            || !string.IsNullOrWhiteSpace(post.TimeSpent));
+
+    private IEnumerable<RecipeDetailItem> PaintRecipeItems
+    {
+        get
+        {
+            if (post is null)
+            {
+                yield break;
+            }
+
+            if (!string.IsNullOrWhiteSpace(post.MiniatureName))
+            {
+                yield return new RecipeDetailItem("Miniature", post.MiniatureName);
+            }
+
+            if (!string.IsNullOrWhiteSpace(post.PaintsUsed))
+            {
+                yield return new RecipeDetailItem("Paints", post.PaintsUsed);
+            }
+
+            if (!string.IsNullOrWhiteSpace(post.Techniques))
+            {
+                yield return new RecipeDetailItem("Techniques", post.Techniques);
+            }
+
+            if (!string.IsNullOrWhiteSpace(post.Difficulty))
+            {
+                yield return new RecipeDetailItem("Difficulty", post.Difficulty);
+            }
+
+            if (!string.IsNullOrWhiteSpace(post.TimeSpent))
+            {
+                yield return new RecipeDetailItem("Time", post.TimeSpent);
+            }
+        }
+    }
+
     private bool IsViewerCommentsSurfaceActive =>
         _isViewerOpen
         && _viewerSideTab == ViewerSideTab.Comments
@@ -471,4 +515,6 @@ public partial class PostDetails
         Info,
         Comments
     }
+
+    private sealed record RecipeDetailItem(string Label, string Value);
 }

@@ -165,6 +165,22 @@
                     </div>
                 </section>
 
+                @if (HasPaintRecipe)
+                {
+                    <section class="post-details-aside__panel" data-testid="post-details-recipe">
+                        <p class="section-label">Paint recipe</p>
+                        <dl class="paint-recipe-list">
+                            @foreach (var item in PaintRecipeItems)
+                            {
+                                <div>
+                                    <dt>@item.Label</dt>
+                                    <dd>@item.Value</dd>
+                                </div>
+                            }
+                        </dl>
+                    </section>
+                }
+
                 <section class="post-details-aside__panel">
                     <p class="section-label">Viewer state</p>
                     <div class="post-details-aside__meta">
@@ -336,6 +352,22 @@
                             </div>
                             <div class="viewer-panel__copy">@post.Content</div>
                         </section>
+
+                        @if (HasPaintRecipe)
+                        {
+                            <section class="viewer-panel-section" data-testid="viewer-panel-recipe">
+                                <p class="viewer-panel__eyebrow">Paint recipe</p>
+                                <dl class="paint-recipe-list paint-recipe-list--viewer">
+                                    @foreach (var item in PaintRecipeItems)
+                                    {
+                                        <div>
+                                            <dt>@item.Label</dt>
+                                            <dd>@item.Value</dd>
+                                        </div>
+                                    }
+                                </dl>
+                            </section>
+                        }
 
                         @if (post.Tags is { Count: > 0 })
                         {

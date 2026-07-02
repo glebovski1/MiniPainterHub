@@ -13,6 +13,21 @@ namespace MiniPainterHub.Common.DTOs
         [StringLength(4000)]
         public string Content { get; set; } = default!;
 
+        [StringLength(120)]
+        public string? MiniatureName { get; set; }
+
+        [StringLength(2000)]
+        public string? PaintsUsed { get; set; }
+
+        [StringLength(1000)]
+        public string? Techniques { get; set; }
+
+        [StringLength(40)]
+        public string? Difficulty { get; set; }
+
+        [StringLength(80)]
+        public string? TimeSpent { get; set; }
+
         [MaxLength(TagRules.MaxTagsPerPost)]
         public List<string> Tags { get; set; } = new();
     }

@@ -115,6 +115,11 @@ public class PostServiceTests
         await context.SaveChangesAsync();
         var service = CreateService(context);
         var dto = TestData.CreatePostDto(imageCount: 6);
+        dto.MiniatureName = "Stormcast Liberator";
+        dto.PaintsUsed = "Mephiston Red, Ice Yellow";
+        dto.Techniques = "Layering and glazing";
+        dto.Difficulty = "Intermediate";
+        dto.TimeSpent = "6 hours";
 
         var result = await service.CreateAsync(user.Id, dto);
 
@@ -123,6 +128,11 @@ public class PostServiceTests
             CreatedById = user.Id,
             Title = dto.Title,
             Content = dto.Content,
+            MiniatureName = dto.MiniatureName,
+            PaintsUsed = dto.PaintsUsed,
+            Techniques = dto.Techniques,
+            Difficulty = dto.Difficulty,
+            TimeSpent = dto.TimeSpent,
             AuthorName = user.UserName,
             Images = dto.Images!.Take(6).Select(i => new { i.ImageUrl, i.ThumbnailUrl }).ToList()
         }, options => options.ExcludingMissingMembers());
@@ -131,6 +141,11 @@ public class PostServiceTests
 
         var storedPost = await context.Posts.Include(p => p.Images).SingleAsync();
         storedPost.CreatedById.Should().Be(user.Id);
+        storedPost.MiniatureName.Should().Be(dto.MiniatureName);
+        storedPost.PaintsUsed.Should().Be(dto.PaintsUsed);
+        storedPost.Techniques.Should().Be(dto.Techniques);
+        storedPost.Difficulty.Should().Be(dto.Difficulty);
+        storedPost.TimeSpent.Should().Be(dto.TimeSpent);
         storedPost.Images.Should().HaveCount(6);
         storedPost.Images.Select(i => i.ImageUrl)
             .Should().BeEquivalentTo(dto.Images!.Take(6).Select(i => i.ImageUrl));
@@ -181,6 +196,11 @@ public class PostServiceTests
         {
             Title = "Updated title",
             Content = "Updated content",
+            MiniatureName = "Updated miniature",
+            PaintsUsed = "Updated paint list",
+            Techniques = "Updated recipe notes",
+            Difficulty = "Display",
+            TimeSpent = "12 hours",
             Tags = new List<string> { "Weathering", "Glazing" }
         });
         var loaded = await service.GetByIdAsync(created.Id);
@@ -188,6 +208,11 @@ public class PostServiceTests
         updated.Should().BeTrue();
         loaded.Title.Should().Be("Updated title");
         loaded.Content.Should().Be("Updated content");
+        loaded.MiniatureName.Should().Be("Updated miniature");
+        loaded.PaintsUsed.Should().Be("Updated paint list");
+        loaded.Techniques.Should().Be("Updated recipe notes");
+        loaded.Difficulty.Should().Be("Display");
+        loaded.TimeSpent.Should().Be("12 hours");
         loaded.Images.Should().BeEquivalentTo(created.Images, options => options.WithStrictOrdering());
         loaded.ImageUrl.Should().Be(created.ImageUrl);
         loaded.Tags.Select(tag => tag.Name).Should().Equal("Glazing", "Weathering");
@@ -317,6 +342,45 @@ public class PostServiceTests
         storedImage.StoredImageId.Should().Be(savedImage.ImageId);
         storedImage.ImageStorageKey.Should().BeNull();
         storedImage.ThumbnailStorageKey.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CreateWithImagesAsync_WhenRecipeFieldsAreProvided_PersistsRecipeFields()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("user-1");
+        await context.Users.AddAsync(user);
+        await context.SaveChangesAsync();
+        var imageStore = new StubImageStore();
+        var service = CreateService(context, imageStore: imageStore);
+        var dto = new CreateImagePostDto
+        {
+            Title = "Pipeline post",
+            Content = "Post content",
+            MiniatureName = "Crimson Captain",
+            PaintsUsed = "Khorne Red, Evil Sunz Scarlet",
+            Techniques = "Layer, glaze, edge highlight",
+            Difficulty = "Intermediate",
+            TimeSpent = "5 hours",
+            Images = new List<IFormFile>
+            {
+                CreateFormFile(new byte[] { 1, 2, 3 }, "photo.jpg", "image/jpeg")
+            }
+        };
+
+        var result = await service.CreateWithImagesAsync(user.Id, dto, CancellationToken.None);
+
+        result.MiniatureName.Should().Be(dto.MiniatureName);
+        result.PaintsUsed.Should().Be(dto.PaintsUsed);
+        result.Techniques.Should().Be(dto.Techniques);
+        result.Difficulty.Should().Be(dto.Difficulty);
+        result.TimeSpent.Should().Be(dto.TimeSpent);
+        var storedPost = await context.Posts.SingleAsync();
+        storedPost.MiniatureName.Should().Be(dto.MiniatureName);
+        storedPost.PaintsUsed.Should().Be(dto.PaintsUsed);
+        storedPost.Techniques.Should().Be(dto.Techniques);
+        storedPost.Difficulty.Should().Be(dto.Difficulty);
+        storedPost.TimeSpent.Should().Be(dto.TimeSpent);
     }
 
     [Fact]

@@ -44,6 +44,60 @@
                                    disabled="@_isSubmitting" />
                 </div>
 
+                <div class="recipe-fieldset" data-testid="create-post-recipe-fields">
+                    <div>
+                        <label for="post-miniature" class="form-label">Miniature</label>
+                        <InputText id="post-miniature"
+                                   class="form-control"
+                                   data-testid="create-post-miniature"
+                                   @bind-Value="newPost.MiniatureName"
+                                   disabled="@_isSubmitting"
+                                   placeholder="e.g. Stormcast Liberator" />
+                    </div>
+
+                    <div>
+                        <label for="post-difficulty" class="form-label">Difficulty</label>
+                        <InputText id="post-difficulty"
+                                   class="form-control"
+                                   data-testid="create-post-difficulty"
+                                   @bind-Value="newPost.Difficulty"
+                                   disabled="@_isSubmitting"
+                                   placeholder="Beginner, intermediate, display" />
+                    </div>
+
+                    <div>
+                        <label for="post-time-spent" class="form-label">Time spent</label>
+                        <InputText id="post-time-spent"
+                                   class="form-control"
+                                   data-testid="create-post-time-spent"
+                                   @bind-Value="newPost.TimeSpent"
+                                   disabled="@_isSubmitting"
+                                   placeholder="e.g. 6 hours" />
+                    </div>
+
+                    <div>
+                        <label for="post-techniques" class="form-label">Techniques</label>
+                        <InputTextArea id="post-techniques"
+                                       class="form-control"
+                                       rows="3"
+                                       data-testid="create-post-techniques"
+                                       @bind-Value="newPost.Techniques"
+                                       disabled="@_isSubmitting"
+                                       placeholder="Layering, glazing, edge highlights..." />
+                    </div>
+
+                    <div>
+                        <label for="post-paints-used" class="form-label">Paints used</label>
+                        <InputTextArea id="post-paints-used"
+                                       class="form-control"
+                                       rows="4"
+                                       data-testid="create-post-paints-used"
+                                       @bind-Value="newPost.PaintsUsed"
+                                       disabled="@_isSubmitting"
+                                       placeholder="Citadel Mephiston Red, Vallejo Ice Yellow..." />
+                    </div>
+                </div>
+
                 <div>
                     <label for="post-tags" class="form-label">Tags</label>
                     <input id="post-tags"
@@ -115,6 +169,24 @@
                         <h3 class="preview-post-card__title">@PreviewTitle</h3>
                         <p class="preview-post-card__snippet">@PreviewSnippet</p>
 
+                        @if (HasRecipePreview)
+                        {
+                            <div class="preview-post-card__recipe" data-testid="create-post-recipe-preview">
+                                @if (!string.IsNullOrWhiteSpace(newPost.MiniatureName))
+                                {
+                                    <span><strong>Miniature</strong>@newPost.MiniatureName</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(newPost.Difficulty))
+                                {
+                                    <span><strong>Difficulty</strong>@newPost.Difficulty</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(newPost.TimeSpent))
+                                {
+                                    <span><strong>Time</strong>@newPost.TimeSpent</span>
+                                }
+                            </div>
+                        }
+
                         @if (ParsedTags.Count > 0)
                         {
                             <div class="d-flex flex-wrap gap-2">
@@ -177,6 +249,11 @@
     private string tagInput = string.Empty;
     private string errorMessage = string.Empty;
     private bool _isSubmitting;
+    private bool HasRecipePreview =>
+        !string.IsNullOrWhiteSpace(newPost.MiniatureName)
+        || !string.IsNullOrWhiteSpace(newPost.Difficulty)
+        || !string.IsNullOrWhiteSpace(newPost.TimeSpent);
+
     private List<string> ParsedTags => tagInput
         .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
         .Where(tag => !string.IsNullOrWhiteSpace(tag))
@@ -230,6 +307,11 @@
                     { new StringContent(newPost.Title ?? ""), nameof(newPost.Title) },
                     { new StringContent(newPost.Content ?? ""), nameof(newPost.Content) }
                 };
+                AddStringContentIfNotBlank(content, nameof(newPost.MiniatureName), newPost.MiniatureName);
+                AddStringContentIfNotBlank(content, nameof(newPost.PaintsUsed), newPost.PaintsUsed);
+                AddStringContentIfNotBlank(content, nameof(newPost.Techniques), newPost.Techniques);
+                AddStringContentIfNotBlank(content, nameof(newPost.Difficulty), newPost.Difficulty);
+                AddStringContentIfNotBlank(content, nameof(newPost.TimeSpent), newPost.TimeSpent);
 
                 foreach (var file in selectedFiles)
                 {
@@ -263,4 +345,12 @@
     }
 
     private void Cancel() => Nav.NavigateTo("/");
+
+    private static void AddStringContentIfNotBlank(MultipartFormDataContent content, string name, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            content.Add(new StringContent(value), name);
+        }
+    }
 }

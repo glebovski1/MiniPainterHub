@@ -131,6 +131,7 @@ Domain DbSets:
 Entity relationships (configured in `OnModelCreating`):
 - `Profile` one-to-one with `ApplicationUser` (shared PK/FK `UserId`).
 - `Post` -> `ApplicationUser` (creator) with `DeleteBehavior.Restrict`.
+- `Post` stores optional paint recipe metadata (`MiniatureName`, `PaintsUsed`, `Techniques`, `Difficulty`, `TimeSpent`) that is surfaced on post create, feed cards, details, and viewer info.
 - `PostImage` -> `Post` with cascade delete.
 - `Tag` <-> `Post` through `PostTag` join table.
 - `Comment` -> `Post` with cascade delete; `Comment` -> `Author` with restrict delete.
@@ -219,6 +220,8 @@ Two storage paths:
   - `IImageStore.SaveAsync(...)` (persist variants)
 
 All post upload paths validate supported image MIME types before storage. The legacy direct upload path uses server-generated storage keys and rejects client filenames that contain path separators, rooted paths, or parent-directory segments.
+
+Posts can also carry optional paint recipe metadata. JSON and multipart create flows share the same recipe fields, and post detail/summary DTOs expose the data so the client can render recipe context without a second request.
 
 Post projection mapping is centralized in `Features/Posts/PostDtoMapper` so query and detail
 responses share thumbnail fallback and tag ordering behavior.

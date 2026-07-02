@@ -23,6 +23,10 @@ public class CreateTests : TestContext
         cut.Find("[data-testid='create-post-form']").Should().NotBeNull();
         cut.Find("[data-testid='create-post-title']").Should().NotBeNull();
         cut.Find("[data-testid='create-post-content']").Should().NotBeNull();
+        cut.Find("[data-testid='create-post-recipe-fields']").Should().NotBeNull();
+        cut.Find("[data-testid='create-post-miniature']").Should().NotBeNull();
+        cut.Find("[data-testid='create-post-paints-used']").Should().NotBeNull();
+        cut.Find("[data-testid='create-post-techniques']").Should().NotBeNull();
         cut.Find("[data-testid='create-post-submit']").Should().NotBeNull();
     }
 
@@ -95,6 +99,56 @@ public class CreateTests : TestContext
         {
             captured.Should().NotBeNull();
             captured!.Tags.Should().Equal("glazing", "NMM");
+        });
+    }
+
+    [Fact]
+    public async Task Submit_WithRecipeFields_SendsThemToTheApiAndShowsPreview()
+    {
+        CreatePostDto? captured = null;
+        this.AddPostStub(new StubPostService
+        {
+            CreateHandler = dto =>
+            {
+                captured = dto;
+                return Task.FromResult(new PostDto
+                {
+                    Id = 126,
+                    Title = dto.Title,
+                    Content = dto.Content,
+                    CreatedById = "user-1",
+                    MiniatureName = dto.MiniatureName,
+                    PaintsUsed = dto.PaintsUsed,
+                    Techniques = dto.Techniques,
+                    Difficulty = dto.Difficulty,
+                    TimeSpent = dto.TimeSpent
+                });
+            }
+        });
+
+        var cut = RenderComponent<Create>();
+
+        cut.Find("[data-testid='create-post-title']").Change("Recipe title");
+        cut.Find("[data-testid='create-post-content']").Change("Recipe content");
+        cut.Find("[data-testid='create-post-miniature']").Change("Stormcast Liberator");
+        cut.Find("[data-testid='create-post-paints-used']").Change("Retributor Armour, Reikland Fleshshade");
+        cut.Find("[data-testid='create-post-techniques']").Change("Layering and glazing");
+        cut.Find("[data-testid='create-post-difficulty']").Change("Intermediate");
+        cut.Find("[data-testid='create-post-time-spent']").Change("4 hours");
+
+        cut.WaitForAssertion(() =>
+            cut.Find("[data-testid='create-post-recipe-preview']").TextContent.Should().Contain("Stormcast Liberator"));
+
+        await cut.Find("[data-testid='create-post-form']").SubmitAsync();
+
+        cut.WaitForAssertion(() =>
+        {
+            captured.Should().NotBeNull();
+            captured!.MiniatureName.Should().Be("Stormcast Liberator");
+            captured.PaintsUsed.Should().Be("Retributor Armour, Reikland Fleshshade");
+            captured.Techniques.Should().Be("Layering and glazing");
+            captured.Difficulty.Should().Be("Intermediate");
+            captured.TimeSpent.Should().Be("4 hours");
         });
     }
 

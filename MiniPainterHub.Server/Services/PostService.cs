@@ -63,6 +63,11 @@ namespace MiniPainterHub.Server.Services
                 CreatedBy = user,
                 Title = dto.Title,
                 Content = dto.Content,
+                MiniatureName = NormalizeRecipeField(dto.MiniatureName),
+                PaintsUsed = NormalizeRecipeField(dto.PaintsUsed),
+                Techniques = NormalizeRecipeField(dto.Techniques),
+                Difficulty = NormalizeRecipeField(dto.Difficulty),
+                TimeSpent = NormalizeRecipeField(dto.TimeSpent),
                 CreatedUtc = DateTime.UtcNow,
                 UpdatedUtc = DateTime.UtcNow,
                 Images = new List<PostImage>()
@@ -197,6 +202,11 @@ namespace MiniPainterHub.Server.Services
 
             post.Title = dto.Title;
             post.Content = dto.Content;
+            post.MiniatureName = NormalizeRecipeField(dto.MiniatureName);
+            post.PaintsUsed = NormalizeRecipeField(dto.PaintsUsed);
+            post.Techniques = NormalizeRecipeField(dto.Techniques);
+            post.Difficulty = NormalizeRecipeField(dto.Difficulty);
+            post.TimeSpent = NormalizeRecipeField(dto.TimeSpent);
             post.UpdatedUtc = DateTime.UtcNow;
 
             await SyncTagsAsync(post, dto.Tags);
@@ -213,6 +223,11 @@ namespace MiniPainterHub.Server.Services
             {
                 Title = dto.Title,
                 Content = dto.Content,
+                MiniatureName = dto.MiniatureName,
+                PaintsUsed = dto.PaintsUsed,
+                Techniques = dto.Techniques,
+                Difficulty = dto.Difficulty,
+                TimeSpent = dto.TimeSpent,
                 Tags = dto.Tags
             });
 
@@ -443,6 +458,9 @@ namespace MiniPainterHub.Server.Services
                 throw new DomainValidationException("Top posts query parameters are invalid.", errors);
             }
         }
+
+        private static string? NormalizeRecipeField(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
         private IQueryable<Post> BuildPostGraphQuery() =>
             _appDbContext.Posts

@@ -48,11 +48,19 @@ namespace MiniPainterHub.Server.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-            builder.Entity<Post>()
-                .HasOne(p => p.CreatedBy)
-                .WithMany()
-                .HasForeignKey(p => p.CreatedById)
-                .OnDelete(DeleteBehavior.Restrict);
+            builder.Entity<Post>(b =>
+            {
+                b.Property(p => p.MiniatureName).HasMaxLength(120);
+                b.Property(p => p.PaintsUsed).HasMaxLength(2000);
+                b.Property(p => p.Techniques).HasMaxLength(1000);
+                b.Property(p => p.Difficulty).HasMaxLength(40);
+                b.Property(p => p.TimeSpent).HasMaxLength(80);
+
+                b.HasOne(p => p.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(p => p.CreatedById)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
 
             builder.Entity<PostImage>(b =>
             {

@@ -166,6 +166,34 @@ public class PostCardTests : TestContext
     }
 
     [Fact]
+    public void WhenPostHasRecipeFields_RendersRecipeSummary()
+    {
+        var auth = this.AddTestAuthorization();
+        auth.SetAuthorized("reader");
+        this.AddModerationStub();
+
+        var post = new PostSummaryDto
+        {
+            Id = 10,
+            Title = "Title",
+            Snippet = "Snippet",
+            AuthorName = "author",
+            AuthorId = "author-1",
+            CreatedAt = DateTime.UtcNow,
+            MiniatureName = "Crimson Captain",
+            Difficulty = "Intermediate",
+            Techniques = "Glazing"
+        };
+
+        var cut = RenderWithAuth(post);
+
+        var recipe = cut.Find("[data-testid='post-card-recipe']").TextContent;
+        recipe.Should().Contain("Crimson Captain");
+        recipe.Should().Contain("Intermediate");
+        recipe.Should().Contain("Glazing");
+    }
+
+    [Fact]
     public void WhenHiddenPost_RendersHiddenBadge()
     {
         var auth = this.AddTestAuthorization();

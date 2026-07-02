@@ -46,6 +46,24 @@
             <p class="card-text post-card__snippet text-truncate">@Post.Snippet</p>
         </NavLink>
 
+        @if (HasRecipeSummary)
+        {
+            <div class="post-card__recipe" data-testid="post-card-recipe">
+                @if (!string.IsNullOrWhiteSpace(Post.MiniatureName))
+                {
+                    <span><i class="bi bi-brush" aria-hidden="true"></i>@Post.MiniatureName</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(Post.Difficulty))
+                {
+                    <span><i class="bi bi-speedometer2" aria-hidden="true"></i>@Post.Difficulty</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(Post.Techniques))
+                {
+                    <span><i class="bi bi-palette2" aria-hidden="true"></i>@Post.Techniques</span>
+                }
+            </div>
+        }
+
         <TagBadgeList Tags="Post.Tags" TestId="post-card-tags" />
 
         @if (Post.IsDeleted)
@@ -115,6 +133,10 @@
     private bool _moderationBusy;
     private string? _moderationError;
     private string? _moderationResult;
+    private bool HasRecipeSummary =>
+        !string.IsNullOrWhiteSpace(Post.MiniatureName)
+        || !string.IsNullOrWhiteSpace(Post.Difficulty)
+        || !string.IsNullOrWhiteSpace(Post.Techniques);
 
     private string FullImageUrl => MakeAbsoluteUrl(Post.ImageUrl);
     private string ThumbImageUrl => MakeAbsoluteUrl(ResolveThumbnailUrl());
