@@ -162,7 +162,7 @@ public partial class RichImageViewer
                 return string.Empty;
             }
 
-            var imageRect = _transform.GetImageRect(CurrentImage);
+            var imageRect = _transform.GetRenderedRect(CurrentImage);
             var imageRight = imageRect.Left + imageRect.Width;
             var imageBottom = imageRect.Top + imageRect.Height;
             return FormattableString.Invariant(

@@ -166,7 +166,7 @@ public class RichImageViewerTests : TestContext
     }
 
     [Fact]
-    public async Task StageChromeTracksPortraitImageEdgeForActionControls()
+    public async Task StageChromeTracksRenderedPortraitImageEdgeForActionControls()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         this.AddAuthorMarkStub();
@@ -186,6 +186,17 @@ public class RichImageViewerTests : TestContext
                 .Should()
                 .Contain("--viewer-action-image-right:853.12px")
                 .And.Contain("--viewer-action-image-bottom:900.00px");
+        });
+
+        await cut.Instance.OnViewerTransformSettled(1.25d, 0d, -30d);
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='viewer-stage-chrome']")
+                .GetAttribute("style")
+                .Should()
+                .Contain("--viewer-action-image-right:916.41px")
+                .And.Contain("--viewer-action-image-bottom:982.50px");
         });
     }
 
