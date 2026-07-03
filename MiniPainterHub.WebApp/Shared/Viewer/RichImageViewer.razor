@@ -48,7 +48,7 @@ else if (IsOpen)
 
                         <div class="viewer-shell__stage-surface @StageControlsClass"
                              @onpointermove="RevealStageControlsTemporarilyAsync">
-                            <div class="viewer-shell__stage-chrome">
+                            <div class="viewer-shell__stage-chrome" style="@StageChromeStyle" data-testid="viewer-stage-chrome">
                                 @if (Viewer.Images.Count > 1)
                                 {
                                     <button type="button"
