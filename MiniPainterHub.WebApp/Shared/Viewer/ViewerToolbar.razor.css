@@ -860,7 +860,29 @@
     box-shadow: none;
 }
 
+@media (min-width: 992px) {
+    .viewer-shell__stage-chrome .viewer-toolbar__section--utility {
+        --viewer-action-inset: clamp(0.72rem, 0.9vw, 0.96rem);
+        --viewer-action-size: clamp(11rem, 13vw, 14rem);
+        right: max(
+            var(--viewer-action-inset),
+            calc(100% - var(--viewer-action-image-right, 100%) - var(--viewer-action-size) - var(--viewer-action-inset))
+        );
+        bottom: max(
+            var(--viewer-action-inset),
+            calc(100% - var(--viewer-action-image-bottom, 100%) + var(--viewer-action-inset))
+        );
+    }
+
+    .viewer-shell__stage-chrome .viewer-toolbar__section--utility-compact {
+        --viewer-action-size: 3rem;
+    }
+}
+
 .viewer-shell__stage-chrome .viewer-toolbar__section--utility-compact .viewer-toolbar__utility-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.36rem;
     width: auto;
 }
 
@@ -875,6 +897,10 @@
     color: #f5dfb8;
     background: rgba(9, 8, 7, 0.72);
     box-shadow: 0 1rem 1.9rem rgba(0, 0, 0, 0.24);
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__section--utility-compact .viewer-toolbar__wide-action i {
+    font-size: 1rem;
 }
 
 .viewer-shell__stage-chrome .viewer-toolbar__section--utility-compact .viewer-toolbar__wide-action span {

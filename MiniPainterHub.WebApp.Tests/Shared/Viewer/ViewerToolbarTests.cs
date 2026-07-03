@@ -33,7 +33,7 @@ public class ViewerToolbarTests : TestContext
         cut.Find("[data-testid='viewer-view-fill']").ClassList.Should().Contain("is-active");
         cut.Find("[data-testid='viewer-reset']").Should().NotBeNull();
         cut.Find("[data-testid='viewer-view-actual']").Should().NotBeNull();
-        cut.Find("[data-testid='viewer-rail-utility']").Should().NotBeNull();
+        cut.Find("[data-testid='viewer-rail-utility']").ClassList.Should().Contain("viewer-toolbar__section--utility-compact");
         cut.Find("[data-testid='viewer-fullscreen']").Should().NotBeNull();
         cut.Find("[data-testid='viewer-add-note']").Should().NotBeNull();
         cut.Find("[data-testid='viewer-close']").Should().NotBeNull();

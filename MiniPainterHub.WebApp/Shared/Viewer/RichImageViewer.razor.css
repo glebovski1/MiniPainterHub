@@ -1065,15 +1065,15 @@
     z-index: 47;
     display: inline-grid;
     place-items: center;
-    width: clamp(2.9rem, 3.8vw, 4.4rem);
+    width: clamp(3.4rem, 7vw, 6.5rem);
     height: clamp(5rem, 18vh, 9rem);
     padding: 0;
-    border: 1px solid rgba(255, 235, 197, 0.08);
+    border: 1px solid rgba(255, 235, 197, 0.04);
     border-radius: 0.82rem;
-    color: rgba(255, 243, 214, 0.72);
-    background: rgba(10, 9, 8, 0.12);
+    color: rgba(255, 243, 214, 0.62);
+    background: rgba(10, 9, 8, 0.03);
     box-shadow: none;
-    opacity: 0.36;
+    opacity: 0.32;
     transform: translateY(-50%);
     transition:
         opacity 160ms ease,
@@ -1086,10 +1086,14 @@
 
 .viewer-shell__stage-nav-button--previous {
     left: clamp(0.34rem, 0.8vw, 0.74rem);
+    justify-items: start;
+    padding-left: clamp(0.55rem, 1vw, 0.95rem);
 }
 
 .viewer-shell__stage-nav-button--next {
     right: clamp(0.34rem, 0.8vw, 0.74rem);
+    justify-items: end;
+    padding-right: clamp(0.55rem, 1vw, 0.95rem);
 }
 
 .viewer-shell__stage-nav-button i {
@@ -1097,33 +1101,35 @@
     filter: drop-shadow(0 0.18rem 0.35rem rgba(0, 0, 0, 0.52));
 }
 
-.viewer-shell__stage-surface:hover .viewer-shell__stage-nav-button,
-.viewer-shell__stage-surface:focus-within .viewer-shell__stage-nav-button {
-    opacity: 0.58;
-}
-
 .viewer-shell__stage-nav-button:hover,
 .viewer-shell__stage-nav-button:focus-visible {
     border-color: rgba(242, 207, 138, 0.28);
     color: #fff3d6;
-    background: rgba(16, 14, 12, 0.42);
+    background: rgba(16, 14, 12, 0.26);
     opacity: 0.92;
+}
+
+.viewer-shell__stage-nav-button:focus-visible {
+    outline: 2px solid rgba(242, 207, 138, 0.44);
+    outline-offset: 2px;
 }
 
 @media (max-width: 991.98px) {
     .viewer-shell__stage-nav-button {
-        width: 2.45rem;
+        width: clamp(2.85rem, 14vw, 4rem);
         height: clamp(4rem, 18vh, 6.25rem);
         border-radius: 0.68rem;
-        opacity: 0.44;
+        opacity: 0.4;
     }
 
     .viewer-shell__stage-nav-button--previous {
         left: 0.28rem;
+        padding-left: 0.5rem;
     }
 
     .viewer-shell__stage-nav-button--next {
         right: 0.28rem;
+        padding-right: 0.5rem;
     }
 }
 

@@ -153,6 +153,23 @@ public partial class RichImageViewer
 
     private string StageStyle => "touch-action:none;";
 
+    private string StageChromeStyle
+    {
+        get
+        {
+            if (CurrentImage is null)
+            {
+                return string.Empty;
+            }
+
+            var imageRect = _transform.GetImageRect(CurrentImage);
+            var imageRight = imageRect.Left + imageRect.Width;
+            var imageBottom = imageRect.Top + imageRect.Height;
+            return FormattableString.Invariant(
+                $"--viewer-action-image-right:{imageRight:F2}px;--viewer-action-image-bottom:{imageBottom:F2}px;");
+        }
+    }
+
     private string GetFitModeDescription()
     {
         if (CurrentImage is null)

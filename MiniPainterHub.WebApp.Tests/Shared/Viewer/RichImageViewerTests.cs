@@ -166,6 +166,30 @@ public class RichImageViewerTests : TestContext
     }
 
     [Fact]
+    public async Task StageChromeTracksPortraitImageEdgeForActionControls()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var cut = RenderComponent<RichImageViewer>(parameters => parameters
+            .Add(component => component.IsOpen, true)
+            .Add(component => component.Viewer, CreateViewer(imageCount: 1, width: 900, height: 1600))
+            .Add(component => component.ActiveImageId, 101)
+            .Add(component => component.SidePanelContent, (RenderFragment)(_ => { })));
+
+        await cut.Instance.OnStageResized(1200d, 900d);
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='viewer-stage-chrome']")
+                .GetAttribute("style")
+                .Should()
+                .Contain("--viewer-action-image-right:853.12px")
+                .And.Contain("--viewer-action-image-bottom:900.00px");
+        });
+    }
+
+    [Fact]
     public void ViewerShellDoesNotBindArtworkAsDynamicBlurredBackdrop()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
@@ -279,7 +303,7 @@ public class RichImageViewerTests : TestContext
             .Add(component => component.SidePanelContent, (RenderFragment)(_ => { }));
     }
 
-    private static PostViewerDto CreateViewer(int imageCount = 2)
+    private static PostViewerDto CreateViewer(int imageCount = 2, int width = 1600, int height = 900)
     {
         var viewer = new PostViewerDto
         {
@@ -296,8 +320,8 @@ public class RichImageViewerTests : TestContext
             ImageUrl = "/images/moonlit-skin-1-full.png",
             PreviewUrl = "/images/moonlit-skin-1-preview.png",
             ThumbnailUrl = "/images/moonlit-skin-1-thumb.png",
-            Width = 1600,
-            Height = 900
+            Width = width,
+            Height = height
         });
 
         if (imageCount > 1)
