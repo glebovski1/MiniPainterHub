@@ -1,11 +1,9 @@
 .atelier-nav {
     display: grid;
-    gap: 0.7rem;
-    padding: 0.72rem 0;
+    gap: 0.75rem;
+    padding: 0.68rem 0;
     border: 0;
-    border-radius: 0;
     background: transparent;
-    box-shadow: none;
 }
 
 .atelier-nav__bar {
@@ -14,67 +12,83 @@
     justify-content: space-between;
     gap: 1rem;
     width: 100%;
+    min-width: 0;
 }
 
 .atelier-nav ::deep .atelier-brand {
     display: inline-flex;
     align-items: center;
     gap: 0.75rem;
+    min-width: 0;
     color: inherit;
     text-decoration: none;
 }
 
 .atelier-brand__mark {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.8rem;
-    height: 2.8rem;
-    border-radius: 8px;
-    position: relative;
+    width: 2.7rem;
+    height: 2.7rem;
+    border-radius: var(--radius-sm);
     overflow: hidden;
     background: var(--primary-700);
-    color: #fff7ef;
-    font-weight: 800;
+    color: var(--surface-strong);
+    font-weight: 900;
     letter-spacing: 0;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24), 0 8px 18px rgba(32, 39, 34, 0.09);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
 }
 
 .atelier-brand__mark::after {
     content: "";
     position: absolute;
     inset: 0.36rem;
-    border: 1px solid rgba(255, 255, 255, 0.26);
+    border: 1px solid rgba(255, 255, 255, 0.28);
     border-radius: 5px;
 }
 
 .atelier-brand__copy {
     display: grid;
-    gap: 0.12rem;
+    gap: 0.08rem;
+    min-width: 0;
 }
 
 .atelier-brand__title {
-    font-family: var(--font-ui);
-    font-size: 1.13rem;
-    font-weight: 800;
-    letter-spacing: 0;
     color: var(--ink-900);
+    font-family: var(--font-ui);
+    font-size: 1.12rem;
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 1.1;
 }
 
 .atelier-brand__subtitle {
-    font-size: 0.73rem;
     color: var(--ink-500);
+    font-size: 0.74rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.atelier-nav__actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    flex: 0 0 auto;
 }
 
 .atelier-nav__utility {
+    align-items: center;
+    gap: 0.45rem;
     white-space: nowrap;
 }
 
 .atelier-nav__collapse {
     display: flex;
     flex-direction: column;
-    gap: 0.85rem;
     align-items: stretch;
+    gap: 0.78rem;
     padding-top: 0.25rem;
 }
 
@@ -91,31 +105,31 @@
     align-items: center;
     gap: 0.42rem;
     flex: 1 1 26rem;
-    max-width: 32rem;
     min-width: 0;
+    max-width: 32rem;
+    min-height: 2.82rem;
     margin: 0;
-    min-height: 2.88rem;
-    padding: 0.28rem;
-    border: 1px solid rgba(146, 131, 99, 0.34);
-    border-radius: 8px;
-    background: rgba(255, 253, 248, 0.78);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    padding: 0.25rem;
+    border: 1px solid rgba(23, 33, 39, 0.12);
+    border-radius: var(--radius-sm);
+    background: rgba(255, 254, 250, 0.88);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76);
     transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
 .atelier-nav__search:focus-within {
-    border-color: rgba(80, 103, 92, 0.48);
-    background: rgba(255, 253, 248, 0.94);
-    box-shadow: 0 0 0 4px rgba(80, 103, 92, 0.12);
+    border-color: rgba(31, 91, 82, 0.4);
+    background: var(--surface-strong);
+    box-shadow: 0 0 0 4px rgba(31, 91, 82, 0.12);
 }
 
 .atelier-nav__search .form-control {
     min-width: 0;
+    min-height: 2.24rem;
+    padding-left: 0.72rem;
     border-color: transparent;
     background: transparent;
     box-shadow: none;
-    padding-left: 0.75rem;
-    min-height: 2.3rem;
 }
 
 .atelier-nav__search .form-control:focus {
@@ -123,19 +137,24 @@
 }
 
 .atelier-nav__search .btn {
-    min-height: 2.35rem;
-    padding-inline: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.36rem;
+    min-height: 2.28rem;
+    padding-inline: 0.86rem;
     box-shadow: none;
+    white-space: nowrap;
 }
 
 .atelier-nav__links,
 .atelier-nav__session {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
     flex-wrap: wrap;
-    padding-left: 0;
+    gap: 0.28rem;
     margin: 0;
+    padding-left: 0;
     list-style: none;
 }
 
@@ -144,22 +163,23 @@
     position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.58rem 0.72rem;
+    gap: 0.48rem;
+    min-height: 2.42rem;
+    padding: 0.55rem 0.66rem;
     border: 1px solid transparent;
-    border-radius: 8px;
-    color: var(--ink-700) !important;
-    font-weight: 700;
-    text-decoration: none;
-    font-size: 0.9rem;
-    line-height: 1;
+    border-radius: var(--radius-sm);
     background: transparent;
+    color: var(--ink-700) !important;
+    font-size: 0.88rem;
+    font-weight: 800;
+    line-height: 1;
+    text-decoration: none;
 }
 
 .atelier-nav ::deep .atelier-nav__link i,
 .atelier-nav__logout i {
+    color: var(--ink-500);
     font-size: 0.95rem;
-    opacity: 0.72;
 }
 
 .atelier-nav ::deep .atelier-nav__link span,
@@ -169,47 +189,46 @@
 
 .atelier-nav ::deep .atelier-nav__link:hover,
 .atelier-nav ::deep .atelier-nav__link:focus-visible,
-.atelier-nav__logout:hover {
-    background: rgba(255, 253, 248, 0.58);
-    border-color: rgba(80, 103, 92, 0.14);
+.atelier-nav__logout:hover,
+.atelier-nav__logout:focus-visible {
+    border-color: rgba(31, 91, 82, 0.14);
+    background: rgba(255, 254, 250, 0.76);
     color: var(--ink-900) !important;
 }
 
 .atelier-nav ::deep .atelier-nav__link.active {
+    border-color: rgba(31, 91, 82, 0.16);
+    background: rgba(31, 91, 82, 0.08);
     color: var(--primary-700) !important;
-    background: transparent;
-    border-color: transparent;
-    box-shadow: none;
 }
 
 .atelier-nav ::deep .atelier-nav__link.active::after {
     content: "";
     position: absolute;
-    left: 50%;
-    bottom: 0.18rem;
-    width: 1.35rem;
-    height: 3px;
+    left: 0.66rem;
+    right: 0.66rem;
+    bottom: 0.28rem;
+    height: 2px;
     border-radius: 999px;
-    background: linear-gradient(90deg, var(--accent-clay) 0 52%, var(--accent-brass) 52%);
-    transform: translateX(-50%);
+    background: linear-gradient(90deg, var(--primary-700), var(--accent-clay), var(--accent-brass));
 }
 
 .atelier-nav ::deep .atelier-nav__register {
-    background: rgba(141, 111, 96, 0.08);
-    border-color: rgba(141, 111, 96, 0.18);
+    border-color: rgba(184, 106, 67, 0.18);
+    background: rgba(184, 106, 67, 0.08);
     color: var(--accent-clay) !important;
 }
 
 .navbar-toggler {
-    border: 1px solid var(--border-soft);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.82);
-    width: 2.75rem;
-    height: 2.75rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    width: 2.68rem;
+    height: 2.68rem;
     padding: 0;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    background: rgba(255, 254, 250, 0.9);
 }
 
 .atelier-nav__toggle-icon,
@@ -247,19 +266,18 @@
     }
 
     .atelier-nav {
-        grid-template-columns: auto minmax(14rem, 22rem) max-content auto;
-        justify-content: space-between;
+        grid-template-columns: auto minmax(16rem, 24rem) minmax(0, auto) auto;
         align-items: center;
+        justify-content: space-between;
         gap: 0.75rem 1rem;
-        padding: 0.75rem 0;
+        padding: 0.72rem 0;
     }
 
     .atelier-nav__bar {
-        width: auto;
-        gap: 1rem;
         grid-column: 1;
         grid-row: 1;
-        align-self: center;
+        width: auto;
+        gap: 1rem;
     }
 
     .atelier-nav__collapse {
@@ -270,9 +288,9 @@
     .atelier-nav__search {
         grid-column: 2;
         grid-row: 1;
-        max-width: none;
-        width: 100%;
         align-self: center;
+        width: 100%;
+        max-width: none;
     }
 
     .atelier-nav__links {
@@ -281,35 +299,34 @@
         flex-direction: row;
         align-items: center;
         justify-content: flex-start;
-        align-self: center;
         flex-wrap: nowrap;
+        gap: 0.08rem;
+        min-width: max-content;
         padding: 0;
         border: 0;
         background: transparent;
-        gap: 0.12rem;
-        min-width: max-content;
     }
 
     .atelier-nav__session {
         grid-column: 4;
         grid-row: 1;
-        justify-self: end;
         flex-direction: row;
         align-items: center;
         justify-content: flex-end;
-        align-self: center;
-        padding: 0;
+        justify-self: end;
         min-width: max-content;
+        padding: 0;
     }
 
-    .atelier-nav ::deep .atelier-nav__link i {
+    .atelier-nav ::deep .atelier-nav__link i,
+    .atelier-nav__logout i {
         display: none;
     }
 
     .atelier-nav ::deep .atelier-nav__link,
     .atelier-nav__logout {
         padding-inline: 0.58rem;
-        font-size: 0.86rem;
+        font-size: 0.84rem;
     }
 }
 
@@ -321,16 +338,14 @@
     .atelier-nav {
         grid-template-columns: auto minmax(0, 1fr) auto;
         align-items: center;
-        gap: 0.62rem 0.9rem;
-        padding: 0.72rem 0;
+        gap: 0.65rem 0.9rem;
+        padding: 0.68rem 0;
     }
 
     .atelier-nav__bar {
-        width: auto;
-        gap: 0.9rem;
         grid-column: 1;
         grid-row: 1;
-        align-self: center;
+        width: auto;
     }
 
     .atelier-nav__collapse {
@@ -341,8 +356,8 @@
     .atelier-nav__search {
         grid-column: 2;
         grid-row: 1;
-        max-width: none;
         width: 100%;
+        max-width: none;
     }
 
     .atelier-nav__session {
@@ -351,7 +366,7 @@
         flex-direction: row;
         align-items: center;
         justify-content: flex-end;
-        align-self: center;
+        gap: 0.05rem;
         padding: 0;
     }
 
@@ -361,12 +376,13 @@
         flex-direction: row;
         align-items: center;
         justify-content: flex-start;
-        gap: 0.05rem;
-        padding-top: 0.1rem;
-        border-top: 1px solid rgba(146, 131, 99, 0.24);
+        gap: 0.08rem;
+        padding-top: 0.28rem;
+        border-top: 1px solid rgba(217, 208, 194, 0.72);
     }
 
-    .atelier-nav ::deep .atelier-nav__link i {
+    .atelier-nav ::deep .atelier-nav__link i,
+    .atelier-nav__logout i {
         display: none;
     }
 
@@ -375,15 +391,11 @@
         padding-inline: 0.58rem;
         font-size: 0.84rem;
     }
-
-    .atelier-nav__session {
-        gap: 0.05rem;
-    }
 }
 
 @media (max-width: 991.98px) {
     .atelier-nav {
-        padding: 0.72rem 0;
+        padding: 0.68rem 0;
     }
 
     .atelier-brand__subtitle {
@@ -391,31 +403,25 @@
     }
 
     .atelier-nav__collapse {
-        flex-direction: column;
         align-items: stretch;
         padding-top: 0.85rem;
-    }
-
-    .atelier-nav__collapse.show {
-        display: flex;
     }
 
     .atelier-nav__search {
         max-width: none;
     }
 
-.atelier-nav__links,
-.atelier-nav__session {
+    .atelier-nav__links,
+    .atelier-nav__session {
         width: 100%;
-        padding-top: 0.4rem;
-        border-top: 1px solid rgba(146, 131, 99, 0.24);
+        padding-top: 0.45rem;
+        border-top: 1px solid rgba(217, 208, 194, 0.72);
     }
 
     .atelier-nav ::deep .atelier-nav__link,
     .atelier-nav__logout {
-        width: 100%;
         justify-content: flex-start;
-        border-radius: var(--radius-md);
+        width: 100%;
     }
 }
 
@@ -424,17 +430,12 @@
         gap: 0;
     }
 
-    .atelier-nav__bar {
-        align-items: center;
-    }
-
     .atelier-nav ::deep .atelier-brand {
-        gap: 0.65rem;
-        min-width: 0;
+        gap: 0.62rem;
     }
 
     .atelier-brand__title {
-        font-size: 1.05rem;
+        font-size: 1.04rem;
     }
 
     .atelier-brand__mark {
@@ -448,21 +449,26 @@
 
     .atelier-nav__utility,
     .navbar-toggler {
-        width: 2.65rem;
-        height: 2.65rem;
+        width: 2.6rem;
+        height: 2.6rem;
         justify-content: center;
     }
 
     .atelier-nav__search {
-        padding: 0.25rem;
+        padding: 0.22rem;
+    }
+
+    .atelier-nav__search .btn span {
+        display: none;
     }
 
     .atelier-nav__search .btn {
-        min-width: 4.8rem;
+        width: 2.44rem;
+        padding-inline: 0;
     }
 
     .atelier-nav__links,
     .atelier-nav__session {
-        gap: 0.15rem;
+        gap: 0.12rem;
     }
 }

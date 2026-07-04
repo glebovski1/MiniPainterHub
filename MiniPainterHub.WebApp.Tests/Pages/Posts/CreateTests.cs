@@ -1,11 +1,19 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Bunit;
 using FluentAssertions;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.WebApp.Pages.Posts;
+using MiniPainterHub.WebApp.Services.Http;
 using MiniPainterHub.WebApp.Tests.Infrastructure;
 using Xunit;
 
@@ -13,10 +21,12 @@ namespace MiniPainterHub.WebApp.Tests.Pages.Posts;
 
 public class CreateTests : TestContext
 {
+    private const string DraftStorageKey = "minipainterhub.createPostDraft.v1";
+
     [Fact]
     public void RendersCreatePostFormWithStableSelectors()
     {
-        this.AddPostStub();
+        AddComposerStubs();
 
         var cut = RenderComponent<Create>();
 
@@ -27,14 +37,16 @@ public class CreateTests : TestContext
         cut.Find("[data-testid='create-post-miniature']").Should().NotBeNull();
         cut.Find("[data-testid='create-post-paints-used']").Should().NotBeNull();
         cut.Find("[data-testid='create-post-techniques']").Should().NotBeNull();
+        cut.Find("[data-testid='create-post-upload-zone']").Should().NotBeNull();
+        cut.Find("[data-testid='create-post-readiness']").Should().NotBeNull();
         cut.Find("[data-testid='create-post-submit']").Should().NotBeNull();
     }
 
     [Fact]
-    public async Task Submit_WithoutImages_CreatesPostAndNavigatesToDetails()
+    public async Task Submit_WithoutImages_CreatesPostNavigatesAndClearsDraft()
     {
         CreatePostDto? captured = null;
-        this.AddPostStub(new StubPostService
+        var js = AddComposerStubs(new StubPostService
         {
             CreateHandler = dto =>
             {
@@ -54,6 +66,8 @@ public class CreateTests : TestContext
 
         cut.Find("[data-testid='create-post-title']").Change("New title");
         cut.Find("[data-testid='create-post-content']").Change("New content");
+        js.LocalStorage.Should().ContainKey(DraftStorageKey);
+
         await cut.Find("[data-testid='create-post-form']").SubmitAsync();
 
         cut.WaitForAssertion(() =>
@@ -62,6 +76,7 @@ public class CreateTests : TestContext
             captured.Should().NotBeNull();
             captured!.Title.Should().Be("New title");
             captured.Content.Should().Be("New content");
+            js.LocalStorage.Should().NotContainKey(DraftStorageKey);
         });
     }
 
@@ -69,7 +84,7 @@ public class CreateTests : TestContext
     public async Task Submit_WithTags_PreviewsDistinctTagsAndSendsThemToTheApi()
     {
         CreatePostDto? captured = null;
-        this.AddPostStub(new StubPostService
+        AddComposerStubs(new StubPostService
         {
             CreateHandler = dto =>
             {
@@ -106,7 +121,7 @@ public class CreateTests : TestContext
     public async Task Submit_WithRecipeFields_SendsThemToTheApiAndShowsPreview()
     {
         CreatePostDto? captured = null;
-        this.AddPostStub(new StubPostService
+        AddComposerStubs(new StubPostService
         {
             CreateHandler = dto =>
             {
@@ -153,9 +168,227 @@ public class CreateTests : TestContext
     }
 
     [Fact]
-    public async Task Submit_WhenServiceThrows_ShowsErrorMessage()
+    public void Draft_RestoresTextAndTagsAndCanBeDiscarded()
     {
-        this.AddPostStub(new StubPostService
+        var js = AddComposerStubs();
+        js.LocalStorage[DraftStorageKey] = JsonSerializer.Serialize(new
+        {
+            title = "Draft title",
+            content = "Draft body",
+            miniatureName = "Test miniature",
+            tags = "glazing, nmm"
+        }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        var cut = RenderComponent<Create>();
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='create-post-draft-restored']").TextContent.Should().Contain("Draft restored");
+            cut.Find("[data-testid='create-post-title']").GetAttribute("value").Should().Be("Draft title");
+            cut.Find("[data-testid='create-post-tags']").GetAttribute("value").Should().Be("glazing, nmm");
+        });
+
+        cut.Find("[data-testid='create-post-discard-draft']").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            js.LocalStorage.Should().NotContainKey(DraftStorageKey);
+            cut.Find("[data-testid='create-post-title']").GetAttribute("value").Should().BeNullOrEmpty();
+            cut.Find("[data-testid='create-post-tags']").GetAttribute("value").Should().BeNullOrEmpty();
+        });
+    }
+
+    [Fact]
+    public void Draft_SavesTextAndTagsButDoesNotPersistFiles()
+    {
+        var js = AddComposerStubs();
+        var cut = RenderComponent<Create>();
+
+        cut.Find("[data-testid='create-post-title']").Change("Autosaved title");
+        cut.Find("[data-testid='create-post-tags']").Input("weathering");
+        cut.FindComponent<InputFile>().UploadFiles(CreateImage("cover.png", "image/png"));
+
+        cut.WaitForAssertion(() =>
+        {
+            js.LocalStorage.Should().ContainKey(DraftStorageKey);
+            var json = js.LocalStorage[DraftStorageKey];
+            json.Should().Contain("Autosaved title");
+            json.Should().Contain("weathering");
+            json.Should().NotContain("cover.png");
+        });
+    }
+
+    [Fact]
+    public void Tags_ShowSuggestionsAndInsertSelectedSuggestion()
+    {
+        AddComposerStubs(searchStub: new StubSearchService
+        {
+            SearchTagsHandler = (query, page, pageSize) =>
+                Task.FromResult(new ApiResult<PagedResult<SearchTagResultDto>?>(true, HttpStatusCode.OK, new PagedResult<SearchTagResultDto>
+                {
+                    Items = new[]
+                    {
+                        new SearchTagResultDto { Name = "glazing", Slug = "glazing", PostCount = 12 },
+                        new SearchTagResultDto { Name = "glow-effects", Slug = "glow-effects", PostCount = 4 }
+                    },
+                    PageNumber = page,
+                    PageSize = pageSize,
+                    TotalCount = 2
+                }))
+        });
+
+        var cut = RenderComponent<Create>();
+
+        cut.Find("[data-testid='create-post-tags']").Input("gl");
+
+        cut.WaitForAssertion(() =>
+            cut.FindAll("[data-testid='create-post-tag-suggestion']").Should().HaveCount(2));
+
+        cut.FindAll("[data-testid='create-post-tag-suggestion']")[0].Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='create-post-tags']").GetAttribute("value").Should().Be("glazing");
+            cut.Find("[data-testid='create-post-tags-preview']").TextContent.Should().Contain("#glazing");
+        });
+    }
+
+    [Fact]
+    public async Task Tags_WhenSuggestionSearchFails_StillAllowsManualTagSubmit()
+    {
+        CreatePostDto? captured = null;
+        AddComposerStubs(
+            postStub: new StubPostService
+            {
+                CreateHandler = dto =>
+                {
+                    captured = dto;
+                    return Task.FromResult(new PostDto { Id = 127, Title = dto.Title, Content = dto.Content, CreatedById = "user-1" });
+                }
+            },
+            searchStub: new StubSearchService
+            {
+                SearchTagsHandler = (_, _, _) =>
+                    Task.FromResult(new ApiResult<PagedResult<SearchTagResultDto>?>(false, HttpStatusCode.InternalServerError, null))
+            });
+
+        var cut = RenderComponent<Create>();
+
+        cut.Find("[data-testid='create-post-title']").Change("Manual tag title");
+        cut.Find("[data-testid='create-post-content']").Change("Manual tag content");
+        cut.Find("[data-testid='create-post-tags']").Input("zz");
+
+        cut.WaitForAssertion(() =>
+            cut.Find("[data-testid='create-post-tag-suggestion-message']").TextContent.Should().Contain("Suggestions are unavailable"));
+
+        await cut.Find("[data-testid='create-post-form']").SubmitAsync();
+
+        cut.WaitForAssertion(() =>
+        {
+            captured.Should().NotBeNull();
+            captured!.Tags.Should().Equal("zz");
+        });
+    }
+
+    [Fact]
+    public void UploadValidation_BlocksUnsupportedOversizedAndExtraImages()
+    {
+        AddComposerStubs();
+        var cut = RenderComponent<Create>();
+        var files = Enumerable.Range(1, PostImageUploadRules.MaxImagesPerPost - 2)
+            .Select(index => CreateImage($"valid-{index}.png", "image/png"))
+            .Append(InputFileContent.CreateFromBinary(new byte[1], "bad.gif", null, "image/gif"))
+            .Append(InputFileContent.CreateFromBinary(new byte[PostImageUploadRules.MaxUploadBytes + 1], "large.jpg", null, "image/jpeg"))
+            .Append(CreateImage("extra.png", "image/png"))
+            .ToArray();
+
+        cut.FindComponent<InputFile>().UploadFiles(files);
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.FindAll("[data-testid='create-post-image-card']").Should().HaveCount(PostImageUploadRules.MaxImagesPerPost + 1);
+            cut.Find("[data-testid='create-post-upload-warning']").TextContent.Should().Contain("Check the image queue");
+            cut.Find("[data-testid='create-post-submit']").HasAttribute("disabled").Should().BeTrue();
+            cut.Markup.Should().Contain("Remove this extra image");
+            cut.Markup.Should().Contain("Use JPEG, PNG, or WEBP images");
+            cut.Markup.Should().Contain("at or below 20 MB");
+        });
+    }
+
+    [Fact]
+    public void UploadValidation_RemovingInvalidImageAllowsSubmit()
+    {
+        AddComposerStubs();
+        var cut = RenderComponent<Create>();
+
+        cut.FindComponent<InputFile>().UploadFiles(
+            CreateImage("valid.png", "image/png"),
+            InputFileContent.CreateFromBinary(new byte[1], "bad.gif", null, "image/gif"));
+
+        cut.Find("[data-testid='create-post-submit']").HasAttribute("disabled").Should().BeTrue();
+
+        cut.FindAll("[data-testid='create-post-image-remove']")[1].Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.FindAll("[data-testid='create-post-image-card']").Should().ContainSingle();
+            cut.Find("[data-testid='create-post-submit']").HasAttribute("disabled").Should().BeFalse();
+        });
+    }
+
+    [Fact]
+    public async Task Submit_WithImages_UsesDisplayedOrderAndClearsDraft()
+    {
+        var imageNames = new List<string>();
+        var tagValues = new List<string>();
+        var js = AddComposerStubs(new StubPostService
+        {
+            CreateWithImageHandler = async content =>
+            {
+                foreach (var part in content)
+                {
+                    var disposition = part.Headers.ContentDisposition;
+                    var name = disposition?.Name?.Trim('"');
+                    if (name == "images")
+                    {
+                        imageNames.Add(disposition?.FileName?.Trim('"') ?? string.Empty);
+                    }
+                    else if (name == "tags")
+                    {
+                        tagValues.Add(await part.ReadAsStringAsync());
+                    }
+                }
+
+                return new PostDto { Id = 128, Title = "Uploaded", Content = "Uploaded content", CreatedById = "user-1" };
+            }
+        });
+
+        var cut = RenderComponent<Create>();
+        var nav = Services.GetRequiredService<NavigationManager>();
+
+        cut.Find("[data-testid='create-post-title']").Change("Image title");
+        cut.Find("[data-testid='create-post-content']").Change("Image content");
+        cut.Find("[data-testid='create-post-tags']").Input("glazing");
+        cut.FindComponent<InputFile>().UploadFiles(
+            CreateImage("first.png", "image/png"),
+            CreateImage("second.webp", "image/webp"));
+
+        cut.FindAll("[data-testid='create-post-image-move-down']")[0].Click();
+        await cut.Find("[data-testid='create-post-form']").SubmitAsync();
+
+        cut.WaitForAssertion(() =>
+        {
+            nav.Uri.Should().Be("http://localhost/posts/128");
+            imageNames.Should().Equal("second.webp", "first.png");
+            tagValues.Should().Equal("glazing");
+            js.LocalStorage.Should().NotContainKey(DraftStorageKey);
+        });
+    }
+
+    [Fact]
+    public async Task Submit_WhenServiceThrows_ShowsErrorMessageAndKeepsDraft()
+    {
+        var js = AddComposerStubs(new StubPostService
         {
             CreateHandler = _ => Task.FromException<PostDto>(new InvalidOperationException("Create failed"))
         });
@@ -167,7 +400,10 @@ public class CreateTests : TestContext
         await cut.Find("[data-testid='create-post-form']").SubmitAsync();
 
         cut.WaitForAssertion(() =>
-            cut.Find("[data-testid='create-post-error']").TextContent.Should().Contain("Create failed"));
+        {
+            cut.Find("[data-testid='create-post-error']").TextContent.Should().Contain("Create failed");
+            js.LocalStorage.Should().ContainKey(DraftStorageKey);
+        });
     }
 
     [Fact]
@@ -177,7 +413,7 @@ public class CreateTests : TestContext
         var releaseSubmit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var createCalls = 0;
 
-        this.AddPostStub(new StubPostService
+        AddComposerStubs(new StubPostService
         {
             CreateHandler = async dto =>
             {
@@ -205,7 +441,7 @@ public class CreateTests : TestContext
         cut.WaitForAssertion(() =>
         {
             cut.Find("[data-testid='create-post-submit']").HasAttribute("disabled").Should().BeTrue();
-            cut.Find("[data-testid='create-post-submit']").TextContent.Should().Contain("Creating...");
+            cut.Find("[data-testid='create-post-submit']").TextContent.Should().Contain("Publishing...");
             cut.Find("[data-testid='create-post-cancel']").HasAttribute("disabled").Should().BeTrue();
         });
 
@@ -219,7 +455,7 @@ public class CreateTests : TestContext
     [Fact]
     public void CancelButton_NavigatesToHome()
     {
-        this.AddPostStub();
+        AddComposerStubs();
         var cut = RenderComponent<Create>();
         var nav = Services.GetRequiredService<NavigationManager>();
 
@@ -227,4 +463,16 @@ public class CreateTests : TestContext
 
         nav.Uri.Should().Be("http://localhost/");
     }
+
+    private RecordingJsRuntime AddComposerStubs(StubPostService? postStub = null, StubSearchService? searchStub = null)
+    {
+        var js = new RecordingJsRuntime();
+        Services.AddSingleton<IJSRuntime>(js);
+        this.AddPostStub(postStub);
+        this.AddSearchStub(searchStub);
+        return js;
+    }
+
+    private static InputFileContent CreateImage(string fileName, string contentType) =>
+        InputFileContent.CreateFromBinary(new byte[] { 1, 2, 3, 4 }, fileName, null, contentType);
 }

@@ -3,7 +3,7 @@
 @inject NavigationManager Navigation
 @inject MiniPainterHub.WebApp.Services.Interfaces.IModerationService ModerationService
 
-<div class="card h-100 shadow-sm post-card">
+<article class="post-card h-100">
     @if (!string.IsNullOrEmpty(Post.ImageUrl))
     {
         <NavLink class="text-decoration-none post-card__media-link" href="@($"/posts/{Post.Id}")">
@@ -25,25 +25,25 @@
         </div>
     }
 
-    <div class="card-body post-card__body">
+    <div class="post-card__body">
         <div class="post-card__meta-row">
             <NavLink class="post-card__author-link" href="@($"/users/{Post.AuthorId}")">@Post.AuthorName</NavLink>
             <span>@Post.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</span>
         </div>
 
-        <div class="d-flex align-items-start justify-content-between gap-2">
-            <NavLink class="post-card__title-link text-decoration-none text-dark flex-grow-1" href="@($"/posts/{Post.Id}")">
-                <h5 class="card-title post-card__title mb-0">@Post.Title</h5>
+        <div class="post-card__title-row">
+            <NavLink class="post-card__title-link" href="@($"/posts/{Post.Id}")">
+                <h2 class="post-card__title">@Post.Title</h2>
             </NavLink>
             <AuthorizeView Roles="Moderator,Admin">
                 <Authorized>
-                    <span class="badge text-bg-secondary flex-shrink-0" data-testid="post-id-badge">#@Post.Id</span>
+                    <span class="post-card__id-badge" data-testid="post-id-badge">#@Post.Id</span>
                 </Authorized>
             </AuthorizeView>
         </div>
 
-        <NavLink class="post-card__snippet-link text-decoration-none text-dark" href="@($"/posts/{Post.Id}")">
-            <p class="card-text post-card__snippet text-truncate">@Post.Snippet</p>
+        <NavLink class="post-card__snippet-link" href="@($"/posts/{Post.Id}")">
+            <p class="post-card__snippet">@Post.Snippet</p>
         </NavLink>
 
         @if (HasRecipeSummary)
@@ -68,11 +68,11 @@
 
         @if (Post.IsDeleted)
         {
-            <span class="badge text-bg-warning mt-3" data-testid="post-hidden-badge">Hidden</span>
+            <span class="post-card__status-badge" data-testid="post-hidden-badge">Hidden</span>
         }
     </div>
 
-    <div class="card-footer post-card__footer mt-auto">
+    <div class="post-card__footer mt-auto">
         <div class="post-card__footer-meta">
             <div class="mini-stat-bar">
                 <span class="mini-stat"><i class="bi bi-chat-left-text" aria-hidden="true"></i> @Post.CommentCount</span>
@@ -87,8 +87,8 @@
 
     <AuthorizeView Roles="Moderator,Admin">
         <Authorized>
-            <div class="card-footer border-top-0 pt-0">
-                <div class="d-flex gap-2">
+            <div class="post-card__moderation">
+                <div class="post-card__moderation-actions">
                     @if (Post.IsDeleted)
                     {
                         <button class="btn btn-outline-secondary btn-sm"
@@ -122,7 +122,7 @@
             </div>
         </Authorized>
     </AuthorizeView>
-</div>
+</article>
 
 @code {
     [Parameter] public PostSummaryDto Post { get; set; } = default!;

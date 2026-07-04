@@ -412,7 +412,7 @@ async function ensureReportedSeededPost(page, request) {
   await loginAsSeedUser(page, request);
   await page.goto("/");
   await settle(page, 700);
-  const seededCard = page.locator(".card", { hasText: "Seeded: glazing check" }).first();
+  const seededCard = page.locator(".post-card", { hasText: "Seeded: glazing check" }).first();
   await expect(seededCard).toBeVisible();
   await clickReliably(seededCard.getByRole("link", { name: /Seeded: glazing check/i }).first());
   await settle(page, 700);
@@ -594,7 +594,7 @@ const scenarioGroups = {
     });
 
     await page.goto("/");
-    const seededCard = page.locator(".card", { hasText: "Seeded: glazing check" }).first();
+    const seededCard = page.locator(".post-card", { hasText: "Seeded: glazing check" }).first();
     await clickReliably(seededCard.getByRole("link", { name: /Seeded: glazing check/i }).first());
     await capture(page, manifest, {
       name: "posts-detail-seeded",

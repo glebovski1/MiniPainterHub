@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
+using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Exceptions;
-using MiniPainterHub.Server.Imaging;
 using MiniPainterHub.Server.Options;
 using System;
 using System.Collections.Generic;
@@ -11,8 +11,8 @@ namespace MiniPainterHub.Server.Features.Media;
 
 internal static class PostImageUploadValidator
 {
-    public const int MaxImagesPerPost = 8;
-    public const long MaxUploadBytes = 20L * 1024 * 1024;
+    public const int MaxImagesPerPost = PostImageUploadRules.MaxImagesPerPost;
+    public const long MaxUploadBytes = PostImageUploadRules.MaxUploadBytes;
 
     public static void Validate(
         IReadOnlyList<IFormFile>? images,
@@ -35,7 +35,7 @@ internal static class PostImageUploadValidator
             }
 
             var contentType = ResolveContentType(image);
-            if (!ImageContentTypes.IsAllowed(contentType))
+            if (!PostImageUploadRules.IsAllowedContentType(contentType))
             {
                 throw new UnsupportedImageContentTypeException(image.FileName, contentType);
             }
@@ -53,7 +53,7 @@ internal static class PostImageUploadValidator
             }
 
             var thumbnailContentType = ResolveContentType(thumb);
-            if (!ImageContentTypes.IsAllowed(thumbnailContentType))
+            if (!PostImageUploadRules.IsAllowedContentType(thumbnailContentType))
             {
                 throw new UnsupportedImageContentTypeException(thumb.FileName, thumbnailContentType);
             }

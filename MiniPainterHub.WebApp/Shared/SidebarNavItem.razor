@@ -13,7 +13,7 @@
 
         @if (!string.IsNullOrWhiteSpace(BadgeText))
         {
-            <span class="badge text-bg-primary">@BadgeText</span>
+            <span class="dashboard-nav-link__badge">@BadgeText</span>
         }
     }
     else
@@ -40,6 +40,6 @@
     [Parameter] public NavLinkMatch Match { get; set; } = NavLinkMatch.Prefix;
 
     private string CssClass => Split
-        ? "nav-link dashboard-nav-link dashboard-nav-link--split"
-        : "nav-link dashboard-nav-link";
+        ? "dashboard-nav-link dashboard-nav-link--split"
+        : "dashboard-nav-link";
 }

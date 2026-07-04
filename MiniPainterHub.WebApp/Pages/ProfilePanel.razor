@@ -15,12 +15,13 @@
                             data-testid="profile-edit"
                             @onclick="BeginEdit"
                             disabled="@Busy">
-                        Edit
+                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                        <span>Edit</span>
                     </button>
                 }
                 else
                 {
-                    <div class="d-flex gap-2">
+                    <div class="profile-panel__actions">
                         <button class="btn btn-primary btn-sm"
                                 data-testid="profile-save"
                                 @onclick="Save"
@@ -29,13 +30,13 @@
                             {
                                 <span class="spinner-border spinner-border-sm me-1" />
                             }
-                            Save
+                            <span>Save</span>
                         </button>
                         <button class="btn btn-outline-secondary btn-sm"
                                 data-testid="profile-cancel"
                                 @onclick="Cancel"
                                 disabled="@Busy">
-                            Cancel
+                            <span>Cancel</span>
                         </button>
                     </div>
                 }
@@ -56,26 +57,26 @@
                     <div class="profile-panel__handle">@("@")@(Profile?.UserName ?? "painter")</div>
                 </div>
 
-                <div class="metric-grid w-100">
-                    <div class="metric-chip">
+                <div class="metric-grid metric-grid--profile">
+                    <article class="metric-chip">
                         <span class="metric-chip__label">Followers</span>
                         <strong class="metric-chip__value">@Profile?.FollowerCount</strong>
-                    </div>
-                    <div class="metric-chip">
+                    </article>
+                    <article class="metric-chip">
                         <span class="metric-chip__label">Following</span>
                         <strong class="metric-chip__value">@Profile?.FollowingCount</strong>
-                    </div>
+                    </article>
                 </div>
 
                 @if (IsOwner && EditEnabled)
                 {
-                    <div class="w-100">
+                    <div class="profile-panel__avatar-tools">
                         <InputFile OnChange="OnAvatarSelected"
                                    accept="image/*"
                                    data-testid="profile-avatar-input"
-                                   class="form-control mb-2"
+                                   class="form-control"
                                    disabled="@Busy" />
-                        <div class="d-flex gap-2 justify-content-center">
+                        <div class="profile-panel__avatar-actions">
                             <button class="btn btn-outline-danger btn-sm"
                                     data-testid="profile-avatar-remove"
                                     @onclick="RemoveAvatar"
@@ -84,10 +85,10 @@
                                 {
                                     <span class="spinner-border spinner-border-sm me-1" />
                                 }
-                                Remove avatar
+                                <span>Remove avatar</span>
                             </button>
                         </div>
-                        <div class="form-text text-center mt-2">
+                        <div class="form-text text-center">
                             JPEG/PNG/WEBP, up to 5 MB.
                         </div>
                     </div>
@@ -96,8 +97,8 @@
         </aside>
 
         <div class="profile-panel__editor">
-            <div class="form-grid">
-                <div>
+            <div class="form-grid profile-panel__form-grid">
+                <div class="profile-panel__field">
                     <label class="form-label">Display name</label>
                     <input class="form-control"
                            data-testid="profile-display-name"
@@ -106,7 +107,7 @@
                            disabled="@(!IsOwner || !EditEnabled || Busy)" />
                 </div>
 
-                <div>
+                <div class="profile-panel__field">
                     <label class="form-label">Bio</label>
                     <textarea class="form-control"
                               data-testid="profile-bio"

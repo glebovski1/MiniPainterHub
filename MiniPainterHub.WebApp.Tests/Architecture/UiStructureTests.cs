@@ -36,6 +36,21 @@ public class UiStructureTests
         File.ReadAllText(indexHtml).Should().Contain("css/app-polish.css");
     }
 
+    [Fact]
+    public void PolishCss_DoesNotRedefineCoreDesignTokens()
+    {
+        var root = FindRepositoryRoot();
+        var polishCss = Path.Combine(root, "MiniPainterHub.WebApp/wwwroot/css/app-polish.css");
+        var source = File.ReadAllText(polishCss);
+
+        source.Should().Contain("Quiet Studio polish");
+        source.Should().NotContain("--canvas:");
+        source.Should().NotContain("--surface:");
+        source.Should().NotContain("--ink-900:");
+        source.Should().NotContain("--primary-700:");
+        source.Should().NotContain("--radius-lg:");
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

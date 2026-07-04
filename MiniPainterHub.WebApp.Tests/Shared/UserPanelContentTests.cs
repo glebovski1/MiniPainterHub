@@ -36,6 +36,8 @@ public class UserPanelContentTests : TestContext
             cut.Markup.Should().Contain("Connections");
             cut.Markup.Should().Contain("Messages");
             cut.Markup.Should().Contain(">1<");
+            cut.Find(".dashboard-sidebar-content").Should().NotBeNull();
+            cut.FindAll(".nav-pills").Should().BeEmpty();
         });
     }
 }

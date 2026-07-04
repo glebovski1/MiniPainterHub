@@ -1,7 +1,13 @@
 @page "/posts/new"
 @attribute [Authorize]
+@using System.Globalization
+@using System.Net.Http.Headers
+@using System.Text.Json
+@using Microsoft.JSInterop
 @using MiniPainterHub.Common.DTOs
 @inject IPostService PostService
+@inject ISearchService SearchService
+@inject IJSRuntime JS
 @inject NavigationManager Nav
 
 <PageTitle>Create new post</PageTitle>
@@ -9,17 +15,35 @@
 <div class="page-shell content-stack">
     <PageHero Eyebrow="Publish"
               Title="Create new post"
-              Description="Share a finished miniature, a work-in-progress note, or a technique breakdown without changing the existing post flow."
+              Description="Share a finished miniature, a work-in-progress note, or a technique breakdown from a focused studio composer."
               FrameName="Composer Header" />
 
     <div class="composer-grid">
-        <section class="surface-card">
+        <section class="surface-card composer-panel">
             <SectionHeader Eyebrow="Composer"
                            Title="Post details"
-                           Description="Keep the content strong and the tags easy to discover."
+                           Description="Build the story, attach the best shots, and publish when the preview feels ready."
                            TitleTag="h2"
                            TitleClass="section-heading__title h3 mb-0"
                            SectionName="Post Details" />
+
+            @if (_draftWasRestored)
+            {
+                <div class="status-panel status-panel--info composer-draft-panel" data-testid="create-post-draft-restored">
+                    <div class="status-panel__icon"><i class="bi bi-journal-check" aria-hidden="true"></i></div>
+                    <div>
+                        <div class="status-panel__title">Draft restored</div>
+                        <p class="status-panel__text mb-2">Text and tags came back from this browser. Reattach images before publishing.</p>
+                        <button type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                data-testid="create-post-discard-draft"
+                                @onclick="DiscardDraftAsync"
+                                disabled="@_isSubmitting">
+                            Discard draft
+                        </button>
+                    </div>
+                </div>
+            }
 
             <EditForm Model="@newPost" OnValidSubmit="HandleSubmit" data-testid="create-post-form" class="form-grid">
                 <DataAnnotationsValidator />
@@ -31,7 +55,9 @@
                                class="form-control"
                                data-testid="create-post-title"
                                @bind-Value="newPost.Title"
-                               disabled="@_isSubmitting" />
+                               @bind-Value:after="PersistDraftAsync"
+                               disabled="@_isSubmitting"
+                               placeholder="e.g. Red cloak glazing study" />
                 </div>
 
                 <div>
@@ -41,7 +67,9 @@
                                    rows="8"
                                    data-testid="create-post-content"
                                    @bind-Value="newPost.Content"
-                                   disabled="@_isSubmitting" />
+                                   @bind-Value:after="PersistDraftAsync"
+                                   disabled="@_isSubmitting"
+                                   placeholder="What did you paint, what changed, and what would you do differently next time?" />
                 </div>
 
                 <div class="recipe-fieldset" data-testid="create-post-recipe-fields">
@@ -51,6 +79,7 @@
                                    class="form-control"
                                    data-testid="create-post-miniature"
                                    @bind-Value="newPost.MiniatureName"
+                                   @bind-Value:after="PersistDraftAsync"
                                    disabled="@_isSubmitting"
                                    placeholder="e.g. Stormcast Liberator" />
                     </div>
@@ -61,6 +90,7 @@
                                    class="form-control"
                                    data-testid="create-post-difficulty"
                                    @bind-Value="newPost.Difficulty"
+                                   @bind-Value:after="PersistDraftAsync"
                                    disabled="@_isSubmitting"
                                    placeholder="Beginner, intermediate, display" />
                     </div>
@@ -71,6 +101,7 @@
                                    class="form-control"
                                    data-testid="create-post-time-spent"
                                    @bind-Value="newPost.TimeSpent"
+                                   @bind-Value:after="PersistDraftAsync"
                                    disabled="@_isSubmitting"
                                    placeholder="e.g. 6 hours" />
                     </div>
@@ -82,6 +113,7 @@
                                        rows="3"
                                        data-testid="create-post-techniques"
                                        @bind-Value="newPost.Techniques"
+                                       @bind-Value:after="PersistDraftAsync"
                                        disabled="@_isSubmitting"
                                        placeholder="Layering, glazing, edge highlights..." />
                     </div>
@@ -93,37 +125,179 @@
                                        rows="4"
                                        data-testid="create-post-paints-used"
                                        @bind-Value="newPost.PaintsUsed"
+                                       @bind-Value:after="PersistDraftAsync"
                                        disabled="@_isSubmitting"
                                        placeholder="Citadel Mephiston Red, Vallejo Ice Yellow..." />
                     </div>
                 </div>
 
-                <div>
+                <div class="tag-composer">
                     <label for="post-tags" class="form-label">Tags</label>
                     <input id="post-tags"
                            class="form-control"
                            data-testid="create-post-tags"
-                           @bind="tagInput"
-                           @bind:event="oninput"
+                           value="@tagInput"
+                           @oninput="OnTagsInputAsync"
                            disabled="@_isSubmitting"
+                           autocomplete="off"
                            placeholder="glazing, nmm, osl" />
-                    <div class="form-text">Comma-separated technique tags. Up to @MiniPainterHub.Common.DTOs.TagRules.MaxTagsPerPost tags.</div>
+                    <div class="form-text">Comma-separated technique tags. Up to @TagRules.MaxTagsPerPost tags.</div>
+
+                    @if (_tagSuggestionsLoading)
+                    {
+                        <div class="tag-suggestions tag-suggestions--loading" data-testid="create-post-tag-suggestions-loading">
+                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                            <span>Finding matching tags...</span>
+                        </div>
+                    }
+                    else if (_tagSuggestions.Count > 0)
+                    {
+                        <div class="tag-suggestions" data-testid="create-post-tag-suggestions">
+                            @foreach (var suggestion in _tagSuggestions)
+                            {
+                                <button type="button"
+                                        class="tag-suggestion"
+                                        data-testid="create-post-tag-suggestion"
+                                        @onclick="@(() => ChooseTagSuggestionAsync(suggestion))"
+                                        disabled="@_isSubmitting">
+                                    <span>#@suggestion.Name</span>
+                                    <small>@suggestion.PostCount.ToString("N0", CultureInfo.InvariantCulture) posts</small>
+                                </button>
+                            }
+                        </div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(_tagSuggestionMessage))
+                    {
+                        <p class="inline-note mb-0 mt-2" data-testid="create-post-tag-suggestion-message">@_tagSuggestionMessage</p>
+                    }
                 </div>
 
                 <div>
                     <label for="post-images" class="form-label">Images</label>
-                    <InputFile id="post-images"
-                               class="form-control"
-                               data-testid="create-post-images"
-                               OnChange="OnFilesSelected"
-                               disabled="@_isSubmitting"
-                               multiple />
+                    <div class="composer-upload" data-testid="create-post-upload-zone">
+                        <InputFile id="post-images"
+                                   class="composer-upload__input"
+                                   data-testid="create-post-images"
+                                   OnChange="OnFilesSelected"
+                                   disabled="@_isSubmitting"
+                                   multiple />
+                        <div class="composer-upload__body">
+                            <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+                            <div>
+                                <strong>Add miniature photos</strong>
+                                <span>Choose up to @PostImageUploadRules.MaxImagesPerPost @PostImageUploadRules.AllowedContentTypesLabel images, @MaxUploadMegabytes MB each.</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="d-flex flex-wrap gap-2">
-                    <button type="submit" class="btn btn-primary" data-testid="create-post-submit" disabled="@_isSubmitting">
-                        @(_isSubmitting ? "Creating..." : "Create")
+                @if (selectedImages.Count > 0)
+                {
+                    <div class="image-queue" data-testid="create-post-image-queue">
+                        <div class="image-queue__header">
+                            <div>
+                                <div class="inline-note fw-semibold">Image queue</div>
+                                <p class="inline-note mb-0">The first valid image becomes the feed card cover.</p>
+                            </div>
+                            <span class="@ImageQueueCountClass" data-testid="create-post-image-count">@selectedImages.Count / @PostImageUploadRules.MaxImagesPerPost</span>
+                        </div>
+
+                        @foreach (var image in selectedImages.Select((value, index) => new { value, index }))
+                        {
+                            <article class="@GetImageCardClass(image.value)" data-testid="create-post-image-card">
+                                <div class="image-card__preview">
+                                    @if (!string.IsNullOrWhiteSpace(image.value.PreviewUrl))
+                                    {
+                                        <img src="@image.value.PreviewUrl" alt="Selected image preview" data-testid="create-post-image-preview" />
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-file-image" aria-hidden="true"></i>
+                                    }
+                                </div>
+                                <div class="image-card__body">
+                                    <div class="image-card__title-row">
+                                        <strong>@image.value.File.Name</strong>
+                                        @if (image.index == 0 && image.value.IsValid)
+                                        {
+                                            <span class="badge text-bg-success">Cover</span>
+                                        }
+                                    </div>
+                                    <div class="image-card__meta">@FormatFileSize(image.value.File.Size) · @FormatContentType(image.value.File.ContentType)</div>
+                                    <div class="@GetImageStatusClass(image.value)" data-testid="create-post-image-status">
+                                        @if (image.value.IsValid)
+                                        {
+                                            <i class="bi bi-check2-circle" aria-hidden="true"></i>
+                                            <span>Ready to upload</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                                            <span>@image.value.ValidationMessage</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="image-card__actions" aria-label="Image ordering">
+                                    <button type="button"
+                                            class="btn btn-outline-secondary btn-sm"
+                                            data-testid="create-post-image-move-up"
+                                            aria-label="Move image earlier"
+                                            @onclick="@(() => MoveImage(image.value, -1))"
+                                            disabled="@(_isSubmitting || image.index == 0)">
+                                        <i class="bi bi-arrow-up" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-outline-secondary btn-sm"
+                                            data-testid="create-post-image-move-down"
+                                            aria-label="Move image later"
+                                            @onclick="@(() => MoveImage(image.value, 1))"
+                                            disabled="@(_isSubmitting || image.index == selectedImages.Count - 1)">
+                                        <i class="bi bi-arrow-down" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-outline-danger btn-sm"
+                                            data-testid="create-post-image-remove"
+                                            aria-label="Remove image"
+                                            @onclick="@(() => RemoveImage(image.value))"
+                                            disabled="@_isSubmitting">
+                                        <i class="bi bi-x-lg" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+
+                @if (HasUploadIssues)
+                {
+                    <div class="status-panel status-panel--warning" role="alert" data-testid="create-post-upload-warning">
+                        <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Check the image queue</div>
+                            <p class="status-panel__text mb-0">Resolve image warnings before publishing this post.</p>
+                        </div>
+                    </div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(_publishState))
+                {
+                    <div class="status-panel status-panel--info" aria-live="polite" data-testid="create-post-publishing-state">
+                        <div class="status-panel__icon"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Publishing post</div>
+                            <p class="status-panel__text mb-0">@_publishState</p>
+                        </div>
+                    </div>
+                }
+
+                <div class="composer-actions">
+                    <button type="submit" class="btn btn-primary" data-testid="create-post-submit" disabled="@PublishDisabled">
+                        @(_isSubmitting ? "Publishing..." : "Publish post")
                     </button>
+                    @if (HasDraftContent)
+                    {
+                        <button type="button" class="btn btn-outline-secondary" data-testid="create-post-discard-draft-inline" @onclick="DiscardDraftAsync" disabled="@_isSubmitting">Discard draft</button>
+                    }
                     <button type="button" class="btn btn-outline-secondary" data-testid="create-post-cancel" @onclick="Cancel" disabled="@_isSubmitting">Cancel</button>
                 </div>
             </EditForm>
@@ -140,7 +314,7 @@
             }
         </section>
 
-        <section class="surface-card">
+        <section class="surface-card composer-preview-panel">
             <SectionHeader Eyebrow="Preview"
                            Title="How it will read"
                            Description="A quick check for clarity before you publish."
@@ -151,15 +325,15 @@
             <div class="form-grid">
                 <div class="preview-post-card" data-testid="create-post-live-preview">
                     <div class="preview-post-card__media">
-                        @if (previewUrls.Count > 0)
+                        @if (CoverPreviewUrl is not null)
                         {
-                            <img src="@previewUrls[0]" alt="Post preview image" />
+                            <img src="@CoverPreviewUrl" alt="Post preview image" />
                         }
                         else
                         {
                             <div class="preview-post-card__placeholder">
                                 <i class="bi bi-image" aria-hidden="true"></i>
-                                <span>Add an image to see the card framing.</span>
+                                <span>Add a valid image to see the feed cover framing.</span>
                             </div>
                         }
                     </div>
@@ -199,6 +373,16 @@
                     </div>
                 </div>
 
+                <div class="preview-summary">
+                    <div class="inline-note fw-semibold mb-2">Readiness</div>
+                    <div class="readiness-list" data-testid="create-post-readiness">
+                        <span class="@GetReadinessClass(!string.IsNullOrWhiteSpace(newPost.Title))"><i class="bi bi-check2" aria-hidden="true"></i> Title</span>
+                        <span class="@GetReadinessClass(!string.IsNullOrWhiteSpace(newPost.Content))"><i class="bi bi-check2" aria-hidden="true"></i> Story</span>
+                        <span class="@GetReadinessClass(ParsedTags.Count > 0)"><i class="bi bi-check2" aria-hidden="true"></i> Tags</span>
+                        <span class="@GetReadinessClass(selectedImages.Any(image => image.IsValid))"><i class="bi bi-check2" aria-hidden="true"></i> Images</span>
+                    </div>
+                </div>
+
                 <div>
                     <div class="inline-note fw-semibold mb-2">Tag preview</div>
                     @if (ParsedTags.Count > 0)
@@ -217,14 +401,14 @@
                 </div>
 
                 <div>
-                    <div class="inline-note fw-semibold mb-2">Image preview</div>
-                    @if (previewUrls.Count > 0)
+                    <div class="inline-note fw-semibold mb-2">Image order</div>
+                    @if (selectedImages.Count > 0)
                     {
                         <div class="preview-grid">
-                            @foreach (var url in previewUrls)
+                            @foreach (var image in selectedImages.Where(image => image.IsValid))
                             {
                                 <div class="preview-frame">
-                                    <img src="@url"
+                                    <img src="@image.PreviewUrl"
                                          alt="Selected image preview"
                                          data-testid="create-post-image-preview" />
                                 </div>
@@ -242,23 +426,49 @@
 </div>
 
 @code {
-    private const int MaxImageFiles = 8;
+    private const string DraftStorageKey = "minipainterhub.createPostDraft.v1";
+    private const int TagSuggestionPageSize = 6;
+    private static readonly JsonSerializerOptions DraftJsonOptions = new(JsonSerializerDefaults.Web);
+
     private CreatePostDto newPost = new();
-    private IReadOnlyList<IBrowserFile> selectedFiles = Array.Empty<IBrowserFile>();
-    private List<string> previewUrls = new();
+    private readonly List<ComposerImageFile> selectedImages = new();
+    private IReadOnlyList<SearchTagResultDto> _tagSuggestions = Array.Empty<SearchTagResultDto>();
     private string tagInput = string.Empty;
     private string errorMessage = string.Empty;
+    private string? _publishState;
+    private string? _tagSuggestionMessage;
     private bool _isSubmitting;
+    private bool _draftWasRestored;
+    private bool _isRestoringDraft;
+    private bool _tagSuggestionsLoading;
+    private int _tagSearchVersion;
+
+    private static long MaxUploadMegabytes => PostImageUploadRules.MaxUploadBytes / 1024 / 1024;
+    private bool HasUploadIssues => selectedImages.Any(image => !image.IsValid);
+    private bool PublishDisabled => _isSubmitting || HasUploadIssues;
+    private bool HasDraftContent =>
+        !string.IsNullOrWhiteSpace(newPost.Title)
+        || !string.IsNullOrWhiteSpace(newPost.Content)
+        || !string.IsNullOrWhiteSpace(newPost.MiniatureName)
+        || !string.IsNullOrWhiteSpace(newPost.PaintsUsed)
+        || !string.IsNullOrWhiteSpace(newPost.Techniques)
+        || !string.IsNullOrWhiteSpace(newPost.Difficulty)
+        || !string.IsNullOrWhiteSpace(newPost.TimeSpent)
+        || !string.IsNullOrWhiteSpace(tagInput);
     private bool HasRecipePreview =>
         !string.IsNullOrWhiteSpace(newPost.MiniatureName)
         || !string.IsNullOrWhiteSpace(newPost.Difficulty)
         || !string.IsNullOrWhiteSpace(newPost.TimeSpent);
+    private string? CoverPreviewUrl => selectedImages.FirstOrDefault(image => image.IsValid)?.PreviewUrl;
+    private string ImageQueueCountClass => selectedImages.Count > PostImageUploadRules.MaxImagesPerPost
+        ? "badge text-bg-warning"
+        : "badge text-bg-secondary";
 
     private List<string> ParsedTags => tagInput
         .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
         .Where(tag => !string.IsNullOrWhiteSpace(tag))
         .Distinct(StringComparer.OrdinalIgnoreCase)
-        .Take(MiniPainterHub.Common.DTOs.TagRules.MaxTagsPerPost)
+        .Take(TagRules.MaxTagsPerPost)
         .ToList();
     private string PreviewTitle => string.IsNullOrWhiteSpace(newPost.Title) ? "Your post title will appear here" : newPost.Title.Trim();
     private string PreviewSnippet
@@ -275,62 +485,136 @@
         }
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await RestoreDraftAsync();
+        }
+    }
+
+    private async Task OnTagsInputAsync(ChangeEventArgs args)
+    {
+        tagInput = args.Value?.ToString() ?? string.Empty;
+        await PersistDraftAsync();
+        await RefreshTagSuggestionsAsync();
+    }
+
+    private async Task RefreshTagSuggestionsAsync()
+    {
+        var token = GetActiveTagToken();
+        var searchVersion = ++_tagSearchVersion;
+        _tagSuggestionMessage = null;
+
+        if (token.Length < 2)
+        {
+            _tagSuggestions = Array.Empty<SearchTagResultDto>();
+            _tagSuggestionsLoading = false;
+            return;
+        }
+
+        _tagSuggestionsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await SearchService.SearchTagsAsync(token, 1, TagSuggestionPageSize);
+            if (searchVersion != _tagSearchVersion)
+            {
+                return;
+            }
+
+            _tagSuggestions = result.Success && result.Value is not null
+                ? result.Value.Items
+                    .Where(tag => !ParsedTags.Contains(tag.Name, StringComparer.OrdinalIgnoreCase))
+                    .Take(TagSuggestionPageSize)
+                    .ToList()
+                : Array.Empty<SearchTagResultDto>();
+            _tagSuggestionMessage = result.Success ? null : "Suggestions are unavailable. You can still type tags manually.";
+        }
+        catch
+        {
+            if (searchVersion == _tagSearchVersion)
+            {
+                _tagSuggestions = Array.Empty<SearchTagResultDto>();
+                _tagSuggestionMessage = "Suggestions are unavailable. You can still type tags manually.";
+            }
+        }
+        finally
+        {
+            if (searchVersion == _tagSearchVersion)
+            {
+                _tagSuggestionsLoading = false;
+            }
+        }
+    }
+
+    private async Task ChooseTagSuggestionAsync(SearchTagResultDto suggestion)
+    {
+        var parts = tagInput.Split(',', StringSplitOptions.TrimEntries).ToList();
+        if (parts.Count == 0)
+        {
+            parts.Add(suggestion.Name);
+        }
+        else
+        {
+            parts[^1] = suggestion.Name;
+        }
+
+        tagInput = string.Join(", ", parts
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(TagRules.MaxTagsPerPost));
+        _tagSuggestions = Array.Empty<SearchTagResultDto>();
+        _tagSuggestionMessage = null;
+        await PersistDraftAsync();
+    }
+
+    private string GetActiveTagToken()
+    {
+        var lastComma = tagInput.LastIndexOf(',');
+        var token = lastComma >= 0 ? tagInput[(lastComma + 1)..] : tagInput;
+        return token.Trim();
+    }
+
     private void OnFilesSelected(InputFileChangeEventArgs e)
     {
-        selectedFiles = e.GetMultipleFiles(MaxImageFiles);
-        previewUrls.Clear();
-        foreach (var file in selectedFiles)
+        selectedImages.Clear();
+        errorMessage = string.Empty;
+
+        foreach (var file in e.GetMultipleFiles(Math.Max(e.FileCount, PostImageUploadRules.MaxImagesPerPost)))
         {
-            using var stream = file.OpenReadStream(5 * 1024 * 1024);
-            var buffer = new byte[file.Size];
-            stream.Read(buffer, 0, (int)file.Size);
-            previewUrls.Add($"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}");
+            selectedImages.Add(new ComposerImageFile(file, CreatePreviewUrl(file)));
         }
+
+        ValidateSelectedImages();
     }
 
     private async Task HandleSubmit()
     {
-        if (_isSubmitting)
+        if (_isSubmitting || HasUploadIssues)
         {
             return;
         }
 
         _isSubmitting = true;
         errorMessage = "";
+        _publishState = selectedImages.Count > 0 ? "Preparing selected images..." : "Publishing text and recipe details...";
         try
         {
             newPost.Tags = ParsedTags.ToList();
-            if (selectedFiles.Count > 0)
+            if (selectedImages.Count > 0)
             {
-                var content = new MultipartFormDataContent
-                {
-                    { new StringContent(newPost.Title ?? ""), nameof(newPost.Title) },
-                    { new StringContent(newPost.Content ?? ""), nameof(newPost.Content) }
-                };
-                AddStringContentIfNotBlank(content, nameof(newPost.MiniatureName), newPost.MiniatureName);
-                AddStringContentIfNotBlank(content, nameof(newPost.PaintsUsed), newPost.PaintsUsed);
-                AddStringContentIfNotBlank(content, nameof(newPost.Techniques), newPost.Techniques);
-                AddStringContentIfNotBlank(content, nameof(newPost.Difficulty), newPost.Difficulty);
-                AddStringContentIfNotBlank(content, nameof(newPost.TimeSpent), newPost.TimeSpent);
-
-                foreach (var file in selectedFiles)
-                {
-                    var stremaContent = new StreamContent(file.OpenReadStream(5 * 1024 * 1024));
-                    stremaContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
-                    content.Add(stremaContent, "Images", file.Name);
-                }
-
-                foreach (var tag in newPost.Tags)
-                {
-                    content.Add(new StringContent(tag), "tags");
-                }
-
+                _publishState = "Uploading images and publishing post...";
+                using var content = BuildMultipartContent(selectedImages);
                 var created = await PostService.CreateWithImageAsync(content);
+                await ClearDraftAsync();
                 Nav.NavigateTo($"/posts/{created.Id}");
             }
             else
             {
                 var created = await PostService.CreateAsync(newPost);
+                await ClearDraftAsync();
                 Nav.NavigateTo($"/posts/{created.Id}");
             }
         }
@@ -341,6 +625,198 @@
         finally
         {
             _isSubmitting = false;
+            _publishState = null;
+        }
+    }
+
+    private MultipartFormDataContent BuildMultipartContent(IEnumerable<ComposerImageFile> images)
+    {
+        var content = new MultipartFormDataContent
+        {
+            { new StringContent(newPost.Title ?? string.Empty), nameof(newPost.Title) },
+            { new StringContent(newPost.Content ?? string.Empty), nameof(newPost.Content) }
+        };
+        AddStringContentIfNotBlank(content, nameof(newPost.MiniatureName), newPost.MiniatureName);
+        AddStringContentIfNotBlank(content, nameof(newPost.PaintsUsed), newPost.PaintsUsed);
+        AddStringContentIfNotBlank(content, nameof(newPost.Techniques), newPost.Techniques);
+        AddStringContentIfNotBlank(content, nameof(newPost.Difficulty), newPost.Difficulty);
+        AddStringContentIfNotBlank(content, nameof(newPost.TimeSpent), newPost.TimeSpent);
+
+        foreach (var image in images)
+        {
+            var streamContent = new StreamContent(image.File.OpenReadStream(PostImageUploadRules.MaxUploadBytes));
+            streamContent.Headers.ContentType = new MediaTypeHeaderValue(image.File.ContentType);
+            content.Add(streamContent, "images", image.File.Name);
+        }
+
+        foreach (var tag in newPost.Tags)
+        {
+            content.Add(new StringContent(tag), "tags");
+        }
+
+        return content;
+    }
+
+    private void RemoveImage(ComposerImageFile image)
+    {
+        selectedImages.Remove(image);
+        ValidateSelectedImages();
+    }
+
+    private void MoveImage(ComposerImageFile image, int direction)
+    {
+        var currentIndex = selectedImages.IndexOf(image);
+        var nextIndex = currentIndex + direction;
+        if (currentIndex < 0 || nextIndex < 0 || nextIndex >= selectedImages.Count)
+        {
+            return;
+        }
+
+        selectedImages.RemoveAt(currentIndex);
+        selectedImages.Insert(nextIndex, image);
+        ValidateSelectedImages();
+    }
+
+    private void ValidateSelectedImages()
+    {
+        for (var i = 0; i < selectedImages.Count; i++)
+        {
+            var image = selectedImages[i];
+            image.ValidationMessage = ResolveImageValidationMessage(image.File, i);
+        }
+    }
+
+    private static string? ResolveImageValidationMessage(IBrowserFile file, int index)
+    {
+        if (index >= PostImageUploadRules.MaxImagesPerPost)
+        {
+            return $"Remove this extra image. A post can include up to {PostImageUploadRules.MaxImagesPerPost} images.";
+        }
+
+        if (!PostImageUploadRules.IsAllowedContentType(file.ContentType))
+        {
+            return $"Use {PostImageUploadRules.AllowedContentTypesLabel} images.";
+        }
+
+        if (file.Size > PostImageUploadRules.MaxUploadBytes)
+        {
+            return $"Keep each image at or below {MaxUploadMegabytes} MB.";
+        }
+
+        return null;
+    }
+
+    private static string? CreatePreviewUrl(IBrowserFile file)
+    {
+        if (!PostImageUploadRules.IsAllowedContentType(file.ContentType) || file.Size > PostImageUploadRules.MaxUploadBytes)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var stream = file.OpenReadStream(PostImageUploadRules.MaxUploadBytes);
+            using var memory = new MemoryStream();
+            stream.CopyTo(memory);
+            return $"data:{file.ContentType};base64,{Convert.ToBase64String(memory.ToArray())}";
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task RestoreDraftAsync()
+    {
+        try
+        {
+            var json = await JS.InvokeAsync<string?>("localStorage.getItem", DraftStorageKey);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return;
+            }
+
+            var draft = JsonSerializer.Deserialize<CreatePostDraft>(json, DraftJsonOptions);
+            if (draft is null || !draft.HasContent)
+            {
+                return;
+            }
+
+            _isRestoringDraft = true;
+            newPost = new CreatePostDto
+            {
+                Title = draft.Title ?? string.Empty,
+                Content = draft.Content ?? string.Empty,
+                MiniatureName = draft.MiniatureName,
+                PaintsUsed = draft.PaintsUsed,
+                Techniques = draft.Techniques,
+                Difficulty = draft.Difficulty,
+                TimeSpent = draft.TimeSpent
+            };
+            tagInput = draft.Tags ?? string.Empty;
+            _draftWasRestored = true;
+            _isRestoringDraft = false;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            _isRestoringDraft = false;
+        }
+    }
+
+    private async Task PersistDraftAsync()
+    {
+        if (_isRestoringDraft)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!HasDraftContent)
+            {
+                await ClearDraftAsync();
+                return;
+            }
+
+            var draft = new CreatePostDraft
+            {
+                Title = newPost.Title,
+                Content = newPost.Content,
+                MiniatureName = newPost.MiniatureName,
+                PaintsUsed = newPost.PaintsUsed,
+                Techniques = newPost.Techniques,
+                Difficulty = newPost.Difficulty,
+                TimeSpent = newPost.TimeSpent,
+                Tags = tagInput
+            };
+            await JS.InvokeVoidAsync("localStorage.setItem", DraftStorageKey, JsonSerializer.Serialize(draft, DraftJsonOptions));
+        }
+        catch
+        {
+            // Ignore browsers or test hosts without localStorage.
+        }
+    }
+
+    private async Task DiscardDraftAsync()
+    {
+        newPost = new CreatePostDto();
+        tagInput = string.Empty;
+        _draftWasRestored = false;
+        _tagSuggestions = Array.Empty<SearchTagResultDto>();
+        _tagSuggestionMessage = null;
+        await ClearDraftAsync();
+    }
+
+    private async Task ClearDraftAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.removeItem", DraftStorageKey);
+        }
+        catch
+        {
+            // Ignore browsers or test hosts without localStorage.
         }
     }
 
@@ -352,5 +828,68 @@
         {
             content.Add(new StringContent(value), name);
         }
+    }
+
+    private static string GetImageCardClass(ComposerImageFile image) =>
+        image.IsValid ? "image-card" : "image-card image-card--warning";
+
+    private static string GetImageStatusClass(ComposerImageFile image) =>
+        image.IsValid ? "image-card__status image-card__status--ready" : "image-card__status image-card__status--warning";
+
+    private static string GetReadinessClass(bool isReady) =>
+        isReady ? "readiness-pill readiness-pill--ready" : "readiness-pill";
+
+    private static string FormatContentType(string? contentType) =>
+        string.IsNullOrWhiteSpace(contentType) ? "Unknown type" : contentType.Replace("image/", string.Empty, StringComparison.OrdinalIgnoreCase).ToUpperInvariant();
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024)
+        {
+            return $"{bytes} B";
+        }
+
+        if (bytes < 1024 * 1024)
+        {
+            return $"{bytes / 1024d:0.#} KB";
+        }
+
+        return $"{bytes / 1024d / 1024d:0.#} MB";
+    }
+
+    private sealed class ComposerImageFile
+    {
+        public ComposerImageFile(IBrowserFile file, string? previewUrl)
+        {
+            File = file;
+            PreviewUrl = previewUrl;
+        }
+
+        public IBrowserFile File { get; }
+        public string? PreviewUrl { get; }
+        public string? ValidationMessage { get; set; }
+        public bool IsValid => string.IsNullOrWhiteSpace(ValidationMessage);
+    }
+
+    private sealed class CreatePostDraft
+    {
+        public string? Title { get; set; }
+        public string? Content { get; set; }
+        public string? MiniatureName { get; set; }
+        public string? PaintsUsed { get; set; }
+        public string? Techniques { get; set; }
+        public string? Difficulty { get; set; }
+        public string? TimeSpent { get; set; }
+        public string? Tags { get; set; }
+
+        public bool HasContent =>
+            !string.IsNullOrWhiteSpace(Title)
+            || !string.IsNullOrWhiteSpace(Content)
+            || !string.IsNullOrWhiteSpace(MiniatureName)
+            || !string.IsNullOrWhiteSpace(PaintsUsed)
+            || !string.IsNullOrWhiteSpace(Techniques)
+            || !string.IsNullOrWhiteSpace(Difficulty)
+            || !string.IsNullOrWhiteSpace(TimeSpent)
+            || !string.IsNullOrWhiteSpace(Tags);
     }
 }

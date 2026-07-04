@@ -17,6 +17,8 @@ public class ProfilePanelTests : TestContext
             .Add(p => p.EditEnabled, false));
 
         cut.Find("[data-testid='profile-edit']").Should().NotBeNull();
+        cut.Find(".profile-panel__layout").Should().NotBeNull();
+        cut.Find(".metric-grid--profile").TextContent.Should().Contain("Followers");
     }
 
     [Fact]

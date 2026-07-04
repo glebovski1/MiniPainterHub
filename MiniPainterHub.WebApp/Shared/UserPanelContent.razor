@@ -22,7 +22,7 @@
                                 ClassName="dashboard-hub-avatar" />
                     <div class="dashboard-hub-card__identity">
                         <div class="dashboard-hub-card__eyebrow">Signed in</div>
-                        <div class="dashboard-hub-card__name text-truncate">@GetDisplayName(auth)</div>
+                        <div class="dashboard-hub-card__name">@GetDisplayName(auth)</div>
                         <div class="dashboard-hub-card__handle">@("@")@GetUserName(auth)</div>
                         <div class="dashboard-hub-card__meta">
                             @if (_profile is null)
@@ -38,18 +38,18 @@
                 </div>
 
                 <div class="dashboard-hub-stats">
-                    <div class="dashboard-hub-stat">
+                    <article class="dashboard-hub-stat">
                         <span class="dashboard-hub-stat__label">Followers</span>
                         <strong class="dashboard-hub-stat__value">@(_profile?.FollowerCount ?? 0)</strong>
-                    </div>
-                    <div class="dashboard-hub-stat">
+                    </article>
+                    <article class="dashboard-hub-stat">
                         <span class="dashboard-hub-stat__label">Following</span>
                         <strong class="dashboard-hub-stat__value">@(_profile?.FollowingCount ?? 0)</strong>
-                    </div>
-                    <div class="dashboard-hub-stat">
+                    </article>
+                    <article class="dashboard-hub-stat">
                         <span class="dashboard-hub-stat__label">Unread</span>
                         <strong class="dashboard-hub-stat__value">@ConversationSummaries.UnreadConversationCount</strong>
-                    </div>
+                    </article>
                 </div>
 
                 <div class="dashboard-hub-actions">
@@ -72,7 +72,7 @@
 
     <section class="dashboard-sidebar-section">
         <div class="dashboard-sidebar-section__label">My space</div>
-        <nav class="nav nav-pills flex-column dashboard-nav gap-1" aria-label="Personal panel navigation">
+        <nav class="dashboard-nav" aria-label="Personal panel navigation">
             <SidebarNavItem Href="/"
                             IconClass="bi bi-house-door"
                             Title="My feed"
@@ -119,7 +119,7 @@
         <Authorized>
             <section class="dashboard-sidebar-section dashboard-sidebar-section--admin">
                 <div class="dashboard-sidebar-section__label">Admin</div>
-                <nav class="nav nav-pills flex-column dashboard-nav gap-1" aria-label="Admin panel navigation">
+                <nav class="dashboard-nav" aria-label="Admin panel navigation">
                     <SidebarNavItem Href="/admin/inbox"
                                     IconClass="bi bi-inbox"
                                     Title="Inbox"

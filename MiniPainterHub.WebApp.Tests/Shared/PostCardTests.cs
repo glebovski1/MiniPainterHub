@@ -14,6 +14,30 @@ namespace MiniPainterHub.WebApp.Tests.Shared;
 public class PostCardTests : TestContext
 {
     [Fact]
+    public void RendersAsOwnedArticleWithoutBootstrapCardShell()
+    {
+        this.AddTestAuthorization();
+        this.AddModerationStub();
+
+        var post = new PostSummaryDto
+        {
+            Id = 40,
+            Title = "Studio card",
+            Snippet = "A cleaner post card.",
+            AuthorName = "author",
+            AuthorId = "author-1",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var cut = RenderWithAuth(post);
+
+        cut.Find(".post-card").TagName.Should().Be("ARTICLE");
+        cut.FindAll(".card-body").Should().BeEmpty();
+        cut.FindAll(".card-footer").Should().BeEmpty();
+        cut.Find(".post-card__title").TextContent.Should().Be("Studio card");
+    }
+
+    [Fact]
     public void Image_WhenThumbnailUrlIsProvided_UsesThumbnailUrl()
     {
         this.AddTestAuthorization();

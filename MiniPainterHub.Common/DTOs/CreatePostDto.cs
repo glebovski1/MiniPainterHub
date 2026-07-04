@@ -31,7 +31,7 @@ namespace MiniPainterHub.Common.DTOs
         [MaxLength(TagRules.MaxTagsPerPost)]
         public List<string> Tags { get; set; } = new();
 
-        [MaxLength(5)]
+        [MaxLength(PostImageUploadRules.MaxImagesPerPost)]
         public List<PostImageDto>? Images { get; set; }
     }
 }

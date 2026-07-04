@@ -10,15 +10,15 @@
             <span class="atelier-brand__mark" aria-hidden="true">MP</span>
             <span class="atelier-brand__copy">
                 <span class="atelier-brand__title">MiniPainterHub</span>
-                <span class="atelier-brand__subtitle">A warm atelier for miniature painters</span>
+                <span class="atelier-brand__subtitle">Miniature painting studio</span>
             </span>
         </NavLink>
 
-        <div class="d-flex align-items-center gap-2">
+        <div class="atelier-nav__actions">
             <AuthorizeView>
                 <Authorized>
                     <button type="button"
-                            class="btn btn-sm btn-outline-secondary atelier-nav__utility d-none d-lg-inline-flex align-items-center gap-2"
+                            class="btn btn-sm btn-outline-secondary atelier-nav__utility d-none d-lg-inline-flex"
                             @onclick="ToggleDesktopPanel"
                             aria-label="Toggle desktop panel"
                             aria-pressed="@UserPanel.IsDesktopCollapsed">
@@ -27,7 +27,7 @@
                     </button>
 
                     <button type="button"
-                            class="btn btn-sm btn-outline-secondary atelier-nav__utility d-inline-flex align-items-center gap-2 d-lg-none"
+                            class="btn btn-sm btn-outline-secondary atelier-nav__utility d-inline-flex d-lg-none"
                             data-bs-toggle="offcanvas"
                             data-bs-target="#userPanelOffcanvas"
                             aria-controls="userPanelOffcanvas"
@@ -61,8 +61,10 @@
                    @bind="_searchQuery" />
             <button class="btn btn-primary"
                     type="submit"
+                    aria-label="Search"
                     data-testid="nav-search-submit">
-                Search
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <span>Search</span>
             </button>
         </form>
 

@@ -1260,14 +1260,14 @@
     }
 
     .viewer-shell__stage-column {
-        grid-template-rows: clamp(17.8rem, 36vh, 20rem) clamp(5rem, 14vw, 5.7rem);
+        grid-template-rows: clamp(20.5rem, 42vh, 23rem) clamp(5rem, 14vw, 5.7rem);
         height: auto;
         min-height: 0;
         overflow: visible;
     }
 
     .viewer-shell__stage-surface {
-        height: clamp(17.8rem, 36vh, 20rem);
+        height: clamp(20.5rem, 42vh, 23rem);
         min-height: 0;
     }
 
@@ -1287,8 +1287,8 @@
 /* Cinematic viewer polish - mobile filmstrip overlap guard */
 @media (max-width: 991.98px) {
     .viewer-shell__stage-column {
-        height: calc(clamp(17.8rem, 36vh, 20rem) + clamp(5rem, 14vw, 5.7rem) + 0.55rem);
-        min-height: calc(clamp(17.8rem, 36vh, 20rem) + clamp(5rem, 14vw, 5.7rem) + 0.55rem);
+        height: calc(clamp(20.5rem, 42vh, 23rem) + clamp(5rem, 14vw, 5.7rem) + 0.55rem);
+        min-height: calc(clamp(20.5rem, 42vh, 23rem) + clamp(5rem, 14vw, 5.7rem) + 0.55rem);
         align-self: start;
     }
 }

@@ -1,27 +1,28 @@
 .dashboard-sidebar-offcanvas {
-  --bs-offcanvas-width: min(88vw, 340px);
-  background: rgba(251, 247, 241, 0.98);
-  border-right: 1px solid rgba(77, 91, 89, 0.12);
-  box-shadow: 0.25rem 0 2rem rgba(33, 37, 41, 0.12);
+  --bs-offcanvas-width: min(90vw, 22rem);
+  background: rgba(252, 251, 247, 0.98);
+  border-right: 1px solid rgba(23, 33, 39, 0.12);
+  box-shadow: 0.35rem 0 2rem rgba(23, 33, 39, 0.14);
 }
 
 .dashboard-sidebar-offcanvas :global(.offcanvas-header) {
-  padding: 1.1rem 1rem;
-  background: rgba(251, 247, 241, 0.96);
+  padding: 1rem;
+  border-color: rgba(217, 208, 194, 0.82) !important;
+  background: rgba(248, 244, 237, 0.96);
 }
 
 .dashboard-sidebar-offcanvas :global(.btn-close) {
   width: 2.25rem;
   height: 2.25rem;
   padding: 0.65rem;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 
 .dashboard-sidebar-offcanvas__eyebrow {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  font-weight: 800;
+  font-weight: 900;
   color: var(--accent-clay);
   margin-bottom: 0.15rem;
 }

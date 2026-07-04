@@ -216,8 +216,8 @@ test("create post flow redirects to details and renders content", async ({ page 
 test("seeded post with image and tags renders on feed and details", async ({ page }) => {
   await page.goto("/");
 
-  const seededCard = page.locator(".card", { hasText: "Seeded: glazing check" }).first();
-  const weatheringCard = page.locator(".card", { hasText: "Seeded: weathering notes" }).first();
+  const seededCard = page.locator(".post-card", { hasText: "Seeded: glazing check" }).first();
+  const weatheringCard = page.locator(".post-card", { hasText: "Seeded: weathering notes" }).first();
   await expect(seededCard).toBeVisible();
   await expect(weatheringCard).toBeVisible();
   await expect(seededCard.getByTestId("post-card-image")).toBeVisible();
@@ -249,7 +249,7 @@ test("create post with image and tags renders on details and latest feed", async
 
   await page.goto("/");
 
-  const createdCard = page.locator(".card", { hasText: title }).first();
+  const createdCard = page.locator(".post-card", { hasText: title }).first();
   await expect(createdCard).toBeVisible();
   await expect(createdCard.getByTestId("post-card-image")).toBeVisible();
   await expect(createdCard.getByTestId("post-card-tags")).toContainText("#glazing");

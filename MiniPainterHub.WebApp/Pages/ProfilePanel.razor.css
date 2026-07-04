@@ -1,3 +1,16 @@
+.profile-panel {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.profile-panel__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
 .profile-panel__layout {
     display: grid;
     gap: var(--space-4);
@@ -5,10 +18,10 @@
 
 .profile-panel__rail,
 .profile-panel__editor {
-    border: 1px solid var(--border-soft);
-    border-radius: var(--radius-lg);
-    background: rgba(255, 252, 247, 0.78);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(23, 33, 39, 0.1);
+    border-radius: var(--radius-md);
+    background: rgba(255, 254, 250, 0.76);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.64);
 }
 
 .profile-panel__rail {
@@ -25,27 +38,92 @@
 
 .profile-panel__identity {
     display: grid;
-    gap: var(--space-1);
+    gap: 0.25rem;
+    min-width: 0;
 }
 
 .profile-panel__name {
-    font-size: var(--text-h5);
-    font-weight: 800;
     color: var(--ink-900);
+    font-size: var(--text-h5);
+    font-weight: 900;
+    line-height: 1.16;
+    overflow-wrap: anywhere;
 }
 
 .profile-panel__handle {
     color: var(--ink-500);
     font-size: var(--text-caption);
+    font-weight: 800;
     letter-spacing: 0.02em;
+    overflow-wrap: anywhere;
+}
+
+.metric-grid--profile {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.profile-panel__avatar-tools {
+    display: grid;
+    gap: 0.65rem;
+    width: 100%;
+}
+
+.profile-panel__avatar-actions {
+    display: flex;
+    justify-content: center;
 }
 
 .profile-panel__editor {
     padding: var(--space-4);
 }
 
+.profile-panel__form-grid {
+    display: grid;
+    gap: var(--space-3);
+}
+
+.profile-panel__field {
+    display: grid;
+    gap: 0.42rem;
+}
+
+.profile-panel__field .form-label {
+    margin: 0;
+    color: var(--ink-900);
+    font-size: var(--text-caption);
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
 @media (min-width: 992px) {
     .profile-panel__layout {
-        grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+        grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+        align-items: start;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .profile-panel {
+        gap: var(--space-3);
+    }
+
+    .profile-panel__rail,
+    .profile-panel__editor {
+        padding: var(--space-3);
+    }
+
+    .metric-grid--profile {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-panel__actions,
+    .profile-panel__actions .btn {
+        width: 100%;
+    }
+
+    .profile-panel__actions .btn {
+        justify-content: center;
     }
 }

@@ -5,11 +5,14 @@
     justify-content: center;
     width: var(--avatar-size);
     height: var(--avatar-size);
-    border-radius: calc(var(--avatar-size) * 0.3);
-    background: linear-gradient(135deg, rgba(31, 91, 82, 0.22), rgba(184, 106, 67, 0.2));
+    border: 1px solid rgba(23, 33, 39, 0.1);
+    border-radius: clamp(var(--radius-sm), calc(var(--avatar-size) * 0.26), var(--radius-lg));
+    background:
+        linear-gradient(135deg, rgba(31, 91, 82, 0.18), rgba(184, 106, 67, 0.16)),
+        var(--surface-muted);
     color: var(--primary-700);
-    font-weight: 800;
-    box-shadow: 0 14px 28px rgba(31, 91, 82, 0.08);
+    font-weight: 900;
+    box-shadow: 0 10px 22px rgba(23, 33, 39, 0.08);
     overflow: hidden;
 }
 
@@ -21,5 +24,5 @@
 
 .user-avatar__fallback {
     font-size: calc(var(--avatar-size) * 0.28);
-    letter-spacing: 0.08em;
+    letter-spacing: 0.04em;
 }

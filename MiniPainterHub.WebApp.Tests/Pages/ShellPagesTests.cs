@@ -169,7 +169,7 @@ public class ShellPagesTests : TestContext
         cut.WaitForAssertion(() =>
         {
             cut.Markup.Should().Contain("Explore posts");
-            cut.FindAll("h5.card-title").Select(node => node.TextContent).Should().ContainInOrder("Newer post", "Older post");
+            cut.FindAll(".post-card__title").Select(node => node.TextContent).Should().ContainInOrder("Newer post", "Older post");
         });
     }
 }
