@@ -18,6 +18,7 @@ Related docs:
 - `MiniPainterHub.Common`: shared DTO/auth contracts used by server and client.
 - `MiniPainterHub.Server.Tests`: server unit/integration-style tests.
 - `MiniPainterHub.WebApp.Tests`: bUnit component tests for Blazor UI behavior.
+- `MiniPainterHub.LoadTests`: NBomber API/load smoke and event-spike scenarios.
 
 High-level runtime flow:
 
@@ -39,14 +40,16 @@ Configured middleware (in order):
 
 1. Exception handling (`UseExceptionHandler`)
 2. HTTPS redirection
-3. Authentication (`UseAuthentication`)
-4. Maintenance gate (`UseMiddleware<MaintenanceModeMiddleware>`)
-5. Static file and Blazor framework files
-6. Authorization (`UseAuthorization`)
-7. API controller mapping (`MapControllers`)
-8. SignalR hub mapping (`MapHub<ChatHub>("/hubs/chat")`)
-9. SPA fallback (`MapFallbackToFile("index.html")`)
-10. Health endpoint (`/healthz`)
+3. Routing (`UseRouting`)
+4. Authentication (`UseAuthentication`)
+5. Rate limiting (`UseRateLimiter`)
+6. Maintenance gate (`UseMiddleware<MaintenanceModeMiddleware>`)
+7. Static file and Blazor framework files
+8. Authorization (`UseAuthorization`)
+9. API controller mapping (`MapControllers`)
+10. SignalR hub mapping (`MapHub<ChatHub>("/hubs/chat")`)
+11. SPA fallback (`MapFallbackToFile("index.html")`)
+12. Health endpoints (`/healthz`, `/healthz/live`, `/healthz/ready`)
 
 Development-only:
 - Swagger UI
@@ -61,7 +64,7 @@ Development-only:
 
 Production-only:
 - HSTS
-- `Database.MigrateAsync()`
+- Pending EF migrations fail startup unless `Database:AutoMigrateOnStartup=true` is explicitly enabled for an emergency single-instance rollout. Normal production migration application belongs to the deployment workflow before the app starts.
 - `DataSeeder.SeedAdminAsync(...)`
 
 ### 2.2 Dependency Injection and Service Layer
@@ -96,6 +99,12 @@ Image infrastructure:
 - `IImageService` + `IImageStore`:
   - Development: `LocalImageService`
   - Non-development: `AzureBlobImageService`
+- `IUploadConcurrencyLimiter -> UploadConcurrencyLimiter` gates expensive upload/image-processing work per user/IP and globally.
+
+Traffic shaping:
+- `TrafficShapingOptions` configures fixed-window rate limits for auth, search, write, upload, and realtime handshake traffic.
+- Rate-limited endpoints return HTTP `429` with `ProblemDetails` and `Retry-After` when the runtime exposes a retry value.
+- Auth uses both the auth rate-limit policy and Identity lockout (`5` failed attempts for `15` minutes by default).
 
 ### 2.3 Authentication and Authorization
 
@@ -226,7 +235,7 @@ Main controllers under `MiniPainterHub.Server/Controllers`:
 Post image uploads:
 - Entry: `PostsController.CreateWithImage([FromForm] CreateImagePostDto dto)`
 - Service: `PostService.CreateWithImagesAsync(...)`
-- Limits include max images per post and max upload size, centralized in `Features/Media/PostImageUploadValidator`.
+- Limits include max images per post, aggregate multipart file bytes, request/form size limits, and legacy-thumbnail rejection when the image-processing pipeline is enabled. Shared product limits live in `PostImageUploadRules`; server validation is centralized in `Features/Media/PostImageUploadValidator`.
 
 Two storage paths:
 - Legacy direct upload path through `IImageService.UploadAsync(...)`.
@@ -239,6 +248,7 @@ All post upload paths validate supported image MIME types before storage. The le
 Posts can also carry optional paint recipe metadata. JSON and multipart create flows share the same recipe fields, and post detail/summary DTOs expose the data so the client can render recipe context without a second request.
 
 Painting guides are long-form user-authored walkthroughs. Each guide has ordered steps with descriptions, optional paint/color notes, optional technique notes, and optional step photos. Multipart guide creation sends photo-index pairs so a photo can attach to a specific step without requiring every step to have an image.
+Guide photo limits are shared through `GuidePhotoUploadRules` and enforced with request/form size limits, total file-byte validation, source image dimension checks, and upload concurrency gates.
 
 Post projection mapping is centralized in `Features/Posts/PostDtoMapper` so query and detail
 responses share thumbnail fallback and tag ordering behavior.
@@ -307,5 +317,6 @@ Preferred validation commands:
 - `dotnet build MiniPainterHub.sln`
 - `dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj`
 - `dotnet test MiniPainterHub.WebApp.Tests/MiniPainterHub.WebApp.Tests.csproj`
+- `dotnet run --project MiniPainterHub.LoadTests/MiniPainterHub.LoadTests.csproj -- --profile smoke --base-url <ready server URL>`
 
 When adding tests with EF InMemory, seed realistic relational data (for example all referenced users for likes/comments) to avoid impossible production states.

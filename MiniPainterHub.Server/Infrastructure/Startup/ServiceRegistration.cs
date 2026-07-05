@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -13,6 +14,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.ErrorHandling;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Realtime;
@@ -24,7 +26,9 @@ using System;
 using System.Collections.Generic;
 using System.IO.Compression;
 using System.Linq;
+using System.Security.Claims;
 using System.Text;
+using System.Threading.RateLimiting;
 
 namespace MiniPainterHub;
 
@@ -64,6 +68,9 @@ public partial class Program
         builder.Services.AddDefaultIdentity<ApplicationUser>(o =>
         {
             o.SignIn.RequireConfirmedAccount = false;
+            o.Lockout.AllowedForNewUsers = true;
+            o.Lockout.MaxFailedAccessAttempts = 5;
+            o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
         })
         .AddRoles<IdentityRole>()
         .AddEntityFrameworkStores<AppDbContext>()
@@ -72,6 +79,7 @@ public partial class Program
         AddJwtAuthentication(builder, hostedStartupConfiguration?.Jwt);
         AddFrameworkServices(builder);
         AddOptions(builder);
+        AddTrafficShaping(builder);
         AddImageServices(builder, isLocalToolingEnvironment, hostedStartupConfiguration);
         AddDomainServices(builder.Services);
 
@@ -127,6 +135,8 @@ public partial class Program
     private static void AddFrameworkServices(WebApplicationBuilder builder)
     {
         builder.Services.AddDataProtection();
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddMemoryCache();
         builder.Services.AddControllers();
         builder.Services.AddSignalR();
         builder.Services.AddResponseCompression(options =>
@@ -199,6 +209,90 @@ public partial class Program
             .ValidateOnStart();
         builder.Services.AddOptions<MaintenanceOptions>()
             .Bind(builder.Configuration.GetSection("Maintenance"));
+        builder.Services.AddOptions<TrafficShapingOptions>()
+            .Bind(builder.Configuration.GetSection("TrafficShaping"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+    }
+
+    private static void AddTrafficShaping(WebApplicationBuilder builder)
+    {
+        var traffic = builder.Configuration.GetSection("TrafficShaping").Get<TrafficShapingOptions>() ?? new TrafficShapingOptions();
+
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.OnRejected = async (context, cancellationToken) =>
+            {
+                var httpContext = context.HttpContext;
+                httpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                {
+                    httpContext.Response.Headers.RetryAfter = Math.Ceiling(retryAfter.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                }
+
+                var problemDetails = new ProblemDetails
+                {
+                    Title = "Too many requests",
+                    Detail = "MiniPainterHub is receiving too many requests from this client. Please wait a moment and try again.",
+                    Status = StatusCodes.Status429TooManyRequests,
+                    Instance = httpContext.Request.Path
+                };
+
+                var problemDetailsService = httpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
+                await problemDetailsService.WriteAsync(new ProblemDetailsContext
+                {
+                    HttpContext = httpContext,
+                    ProblemDetails = problemDetails
+                });
+            };
+
+            options.AddPolicy(RateLimitingPolicies.Auth, context =>
+                CreateFixedWindowPartition(GetIpPartitionKey(context), traffic.Auth));
+            options.AddPolicy(RateLimitingPolicies.Search, context =>
+                CreateFixedWindowPartition(GetIpPartitionKey(context), traffic.Search));
+            options.AddPolicy(RateLimitingPolicies.Write, context =>
+                CreateFixedWindowPartition(GetUserOrIpPartitionKey(context), traffic.Write));
+            options.AddPolicy(RateLimitingPolicies.Upload, context =>
+                CreateFixedWindowPartition(GetUserOrIpPartitionKey(context), traffic.Upload));
+            options.AddPolicy(RateLimitingPolicies.Realtime, context =>
+                CreateFixedWindowPartition(GetIpPartitionKey(context), traffic.Realtime));
+        });
+    }
+
+    private static RateLimitPartition<string> CreateFixedWindowPartition(string partitionKey, RateLimitPolicyOptions policy) =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = Math.Max(1, policy.PermitLimit),
+                QueueLimit = 0,
+                Window = TimeSpan.FromSeconds(Math.Max(1, policy.WindowSeconds))
+            });
+
+    private static string GetUserOrIpPartitionKey(HttpContext context)
+    {
+        var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return string.IsNullOrWhiteSpace(userId)
+            ? GetIpPartitionKey(context)
+            : "user:" + userId;
+    }
+
+    private static string GetIpPartitionKey(HttpContext context)
+    {
+        var remoteIp = context.Connection.RemoteIpAddress;
+        if (remoteIp is null)
+        {
+            return "ip:unknown";
+        }
+
+        if (remoteIp.IsIPv4MappedToIPv6)
+        {
+            remoteIp = remoteIp.MapToIPv4();
+        }
+
+        return "ip:" + remoteIp;
     }
 
     private static void AddImageServices(
@@ -254,6 +348,7 @@ public partial class Program
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IFollowService, FollowService>();
         services.AddScoped<IConversationService, ConversationService>();
+        services.AddSingleton<IUploadConcurrencyLimiter, UploadConcurrencyLimiter>();
         services.AddSingleton<ISiteActivityTracker, SiteActivityTracker>();
         services.AddSingleton<IMaintenanceBypassService, MaintenanceBypassService>();
         services.AddSingleton<IChatNotifier, SignalRChatNotifier>();

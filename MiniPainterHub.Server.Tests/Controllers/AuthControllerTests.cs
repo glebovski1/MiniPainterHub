@@ -1,5 +1,6 @@
 using System.Linq;
 using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http;
@@ -101,6 +102,84 @@ public class AuthControllerTests
             HttpStatusCode.Unauthorized,
             "Unauthorized",
             "Invalid username or password.");
+    }
+
+    [Fact]
+    public async Task Login_WhenAuthRateLimitIsExceeded_ReturnsTooManyRequestsProblemDetails()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateClient();
+
+        HttpResponseMessage? limited = null;
+        for (var i = 0; i < 12; i++)
+        {
+            var response = await client.PostAsJsonAsync("/api/auth/login", new LoginDto
+            {
+                UserName = "missing-user",
+                Password = "WrongPass123!"
+            });
+
+            if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            {
+                limited = response;
+                break;
+            }
+
+            response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+
+        limited.Should().NotBeNull();
+        await ProblemDetailsAssertions.AssertAsync(
+            limited!,
+            HttpStatusCode.TooManyRequests,
+            "Too many requests",
+            "MiniPainterHub is receiving too many requests from this client. Please wait a moment and try again.");
+    }
+
+    [Fact]
+    public async Task Login_WhenPasswordFailsRepeatedly_LocksUserAndKeepsGenericError()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateClient();
+
+        await client.PostAsJsonAsync("/api/auth/register", new RegisterDto
+        {
+            UserName = "lockout-user",
+            Email = "lockout-user@example.test",
+            Password = "ValidPass123!"
+        });
+
+        for (var i = 0; i < 5; i++)
+        {
+            var failure = await client.PostAsJsonAsync("/api/auth/login", new LoginDto
+            {
+                UserName = "lockout-user",
+                Password = "WrongPass123!"
+            });
+            failure.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+
+        var lockedOut = await client.PostAsJsonAsync("/api/auth/login", new LoginDto
+        {
+            UserName = "lockout-user",
+            Password = "ValidPass123!"
+        });
+
+        await ProblemDetailsAssertions.AssertAsync(
+            lockedOut,
+            HttpStatusCode.Unauthorized,
+            "Unauthorized",
+            "Invalid username or password.");
+
+        await factory.ExecuteDbContextAsync(db =>
+        {
+            var user = db.Users.Single(u => u.UserName == "lockout-user");
+            user.LockoutEnd.Should().NotBeNull();
+            user.LockoutEnd!.Value.Should().BeAfter(DateTimeOffset.UtcNow);
+            return Task.CompletedTask;
+        });
     }
 
     [Fact]

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System.Threading.Tasks;
@@ -19,6 +21,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         [HttpPost("{userId}")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> Follow(string userId)
         {
             await _followService.FollowAsync(User.GetUserIdOrThrow(), userId);
@@ -26,6 +29,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         [HttpDelete("{userId}")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> Unfollow(string userId)
         {
             await _followService.UnfollowAsync(User.GetUserIdOrThrow(), userId);

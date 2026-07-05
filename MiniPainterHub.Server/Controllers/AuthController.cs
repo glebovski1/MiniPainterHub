@@ -7,12 +7,14 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using MiniPainterHub.Common.Auth;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 
@@ -40,6 +42,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         [HttpPost("register")]
+        [EnableRateLimiting(RateLimitingPolicies.Auth)]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
             if (!ModelState.IsValid)
@@ -68,6 +71,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting(RateLimitingPolicies.Auth)]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
             if (!ModelState.IsValid)
@@ -81,9 +85,9 @@ namespace MiniPainterHub.Server.Controllers
                 throw new UnauthorizedAccessException("Invalid username or password.");
             }
 
-            var result = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: false);
+            var result = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: true);
 
-            if (!result.Succeeded)
+            if (!result.Succeeded || result.IsLockedOut)
             {
                 throw new UnauthorizedAccessException("Invalid username or password.");
             }
@@ -134,6 +138,7 @@ namespace MiniPainterHub.Server.Controllers
 
         [HttpPost("maintenance-bypass")]
         [Authorize(Roles = "Admin")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public IActionResult EnableMaintenanceBypass()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -148,6 +153,7 @@ namespace MiniPainterHub.Server.Controllers
 
         [HttpDelete("maintenance-bypass")]
         [AllowAnonymous]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public IActionResult DisableMaintenanceBypass()
         {
             _maintenanceBypassService.ClearCookie(Response);

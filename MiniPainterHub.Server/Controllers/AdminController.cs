@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System.Collections.Generic;
@@ -39,6 +41,7 @@ namespace MiniPainterHub.Server.Controllers
 
         [HttpPost("inbox/{targetType}/{targetId}/review")]
         [Authorize(Roles = "Moderator,Admin")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> ReviewInboxItem(string targetType, string targetId, [FromBody] AdminInboxReviewRequestDto request)
         {
             await _inboxService.ReviewAsync(targetType, targetId, User.GetUserIdOrThrow(), request);
@@ -52,6 +55,7 @@ namespace MiniPainterHub.Server.Controllers
 
         [HttpPut("controls/{key}")]
         [Authorize(Roles = "Admin")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<ActionResult<AdminSiteControlDto>> UpdateControl(string key, [FromBody] UpdateAdminSiteControlRequestDto request) =>
             Ok(await _siteControlService.UpdateControlAsync(key, request, User.GetUserIdOrThrow()));
 

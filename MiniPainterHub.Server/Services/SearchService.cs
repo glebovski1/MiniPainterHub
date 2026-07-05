@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Exceptions;
@@ -15,11 +16,15 @@ namespace MiniPainterHub.Server.Services
     public sealed class SearchService : ISearchService
     {
         private const int OverviewTake = 5;
+        private const string LikeEscape = "\\";
+        private static readonly TimeSpan SearchCacheDuration = TimeSpan.FromSeconds(15);
         private readonly AppDbContext _appDbContext;
+        private readonly IMemoryCache? _cache;
 
-        public SearchService(AppDbContext appDbContext)
+        public SearchService(AppDbContext appDbContext, IMemoryCache? cache = null)
         {
             _appDbContext = appDbContext;
+            _cache = cache;
         }
 
         public async Task<SearchOverviewDto> GetOverviewAsync(string? query)
@@ -29,16 +34,24 @@ namespace MiniPainterHub.Server.Services
                 return new SearchOverviewDto();
             }
 
+            var cacheKey = CreateCacheKey("overview", query);
+            if (TryGetCached(cacheKey, out SearchOverviewDto? cachedOverview))
+            {
+                return cachedOverview!;
+            }
+
             var posts = await SearchPostsAsync(query, null, 1, OverviewTake);
             var users = await SearchUsersAsync(query, 1, OverviewTake);
             var tags = await SearchTagsAsync(query, 1, OverviewTake);
 
-            return new SearchOverviewDto
+            var result = new SearchOverviewDto
             {
                 Posts = posts.Items.ToList(),
                 Users = users.Items.ToList(),
                 Tags = tags.Items.ToList()
             };
+            SetCache(cacheKey, result);
+            return result;
         }
 
         public async Task<PagedResult<PostSummaryDto>> SearchPostsAsync(string? query, string? tagSlug, int page, int pageSize)
@@ -54,6 +67,15 @@ namespace MiniPainterHub.Server.Services
                 return EmptyPage<PostSummaryDto>(page, pageSize);
             }
 
+            var cacheKey = CreateCacheKey("posts", normalizedQuery, normalizedTagSlug ?? string.Empty, page, pageSize);
+            if (TryGetCached(cacheKey, out PagedResult<PostSummaryDto>? cachedPosts))
+            {
+                return cachedPosts!;
+            }
+
+            var containsPattern = CreateContainsPattern(normalizedQuery);
+            var startsPattern = CreateStartsPattern(normalizedQuery);
+
             var postsQuery = _appDbContext.Posts
                 .AsNoTracking()
                 .Where(p => !p.IsDeleted);
@@ -66,18 +88,18 @@ namespace MiniPainterHub.Server.Services
             if (hasSearchTerm)
             {
                 postsQuery = postsQuery.Where(p =>
-                    p.Title.ToLower().Contains(normalizedQuery)
-                    || p.Content.ToLower().Contains(normalizedQuery)
-                    || p.PostTags.Any(pt => pt.Tag.NormalizedName.Contains(normalizedQuery)));
+                    EF.Functions.Like(p.Title.ToLower(), containsPattern, LikeEscape)
+                    || EF.Functions.Like(p.Content.ToLower(), containsPattern, LikeEscape)
+                    || p.PostTags.Any(pt => EF.Functions.Like(pt.Tag.NormalizedName, containsPattern, LikeEscape)));
             }
 
             var rankedPosts = postsQuery.Select(p => new SearchPostCandidate
             {
                 ExactTagMatch = hasSearchTerm && p.PostTags.Any(pt => pt.Tag.NormalizedName == normalizedQuery),
-                TitleStartsMatch = hasSearchTerm && p.Title.ToLower().StartsWith(normalizedQuery),
-                TitleContainsMatch = hasSearchTerm && p.Title.ToLower().Contains(normalizedQuery),
-                ContentContainsMatch = hasSearchTerm && p.Content.ToLower().Contains(normalizedQuery),
-                TagContainsMatch = hasSearchTerm && p.PostTags.Any(pt => pt.Tag.NormalizedName.Contains(normalizedQuery)),
+                TitleStartsMatch = hasSearchTerm && EF.Functions.Like(p.Title.ToLower(), startsPattern, LikeEscape),
+                TitleContainsMatch = hasSearchTerm && EF.Functions.Like(p.Title.ToLower(), containsPattern, LikeEscape),
+                ContentContainsMatch = hasSearchTerm && EF.Functions.Like(p.Content.ToLower(), containsPattern, LikeEscape),
+                TagContainsMatch = hasSearchTerm && p.PostTags.Any(pt => EF.Functions.Like(pt.Tag.NormalizedName, containsPattern, LikeEscape)),
                 Summary = new PostSummaryDto
                 {
                     Id = p.Id,
@@ -125,7 +147,9 @@ namespace MiniPainterHub.Server.Services
                 item.ThumbnailUrl = ResolveSummaryThumbnailUrl(item.ImageUrl, item.ThumbnailUrl);
             }
 
-            return CreatePage(items, totalCount, page, pageSize);
+            var result = CreatePage(items, totalCount, page, pageSize);
+            SetCache(cacheKey, result);
+            return result;
         }
 
         public async Task<PagedResult<UserListItemDto>> SearchUsersAsync(string? query, int page, int pageSize)
@@ -137,6 +161,8 @@ namespace MiniPainterHub.Server.Services
             }
 
             var normalizedQuery = TagTextUtilities.NormalizeText(query!);
+            var containsPattern = CreateContainsPattern(normalizedQuery);
+            var startsPattern = CreateStartsPattern(normalizedQuery);
 
             var usersQuery = _appDbContext.Users
                 .AsNoTracking()
@@ -158,17 +184,17 @@ namespace MiniPainterHub.Server.Services
                     }
                 })
                 .Where(u =>
-                    u.SearchDisplayName.Contains(normalizedQuery)
-                    || u.SearchUserName.Contains(normalizedQuery)
-                    || u.SearchBio.Contains(normalizedQuery));
+                    EF.Functions.Like(u.SearchDisplayName, containsPattern, LikeEscape)
+                    || EF.Functions.Like(u.SearchUserName, containsPattern, LikeEscape)
+                    || EF.Functions.Like(u.SearchBio, containsPattern, LikeEscape));
 
             var totalCount = await usersQuery.CountAsync();
             var items = await usersQuery
-                .OrderByDescending(u => u.SearchDisplayName.StartsWith(normalizedQuery))
-                .ThenByDescending(u => u.SearchDisplayName.Contains(normalizedQuery))
-                .ThenByDescending(u => u.SearchUserName.StartsWith(normalizedQuery))
-                .ThenByDescending(u => u.SearchUserName.Contains(normalizedQuery))
-                .ThenByDescending(u => u.SearchBio.Contains(normalizedQuery))
+                .OrderByDescending(u => EF.Functions.Like(u.SearchDisplayName, startsPattern, LikeEscape))
+                .ThenByDescending(u => EF.Functions.Like(u.SearchDisplayName, containsPattern, LikeEscape))
+                .ThenByDescending(u => EF.Functions.Like(u.SearchUserName, startsPattern, LikeEscape))
+                .ThenByDescending(u => EF.Functions.Like(u.SearchUserName, containsPattern, LikeEscape))
+                .ThenByDescending(u => EF.Functions.Like(u.SearchBio, containsPattern, LikeEscape))
                 .ThenBy(u => u.User.DisplayName)
                 .ThenBy(u => u.User.UserName)
                 .Skip((page - 1) * pageSize)
@@ -188,6 +214,14 @@ namespace MiniPainterHub.Server.Services
             }
 
             var normalizedQuery = TagTextUtilities.NormalizeText(query!);
+            var cacheKey = CreateCacheKey("tags", normalizedQuery, page, pageSize);
+            if (TryGetCached(cacheKey, out PagedResult<SearchTagResultDto>? cachedTags))
+            {
+                return cachedTags!;
+            }
+
+            var containsPattern = CreateContainsPattern(normalizedQuery);
+            var startsPattern = CreateStartsPattern(normalizedQuery);
 
             var tagsQuery = _appDbContext.Tags
                 .AsNoTracking()
@@ -203,14 +237,14 @@ namespace MiniPainterHub.Server.Services
                     }
                 })
                 .Where(t =>
-                    t.NormalizedName.Contains(normalizedQuery)
-                    || t.Slug.Contains(normalizedQuery));
+                    EF.Functions.Like(t.NormalizedName, containsPattern, LikeEscape)
+                    || EF.Functions.Like(t.Slug, containsPattern, LikeEscape));
 
             var totalCount = await tagsQuery.CountAsync();
             var items = await tagsQuery
                 .OrderByDescending(t => t.NormalizedName == normalizedQuery)
-                .ThenByDescending(t => t.NormalizedName.StartsWith(normalizedQuery))
-                .ThenByDescending(t => t.NormalizedName.Contains(normalizedQuery))
+                .ThenByDescending(t => EF.Functions.Like(t.NormalizedName, startsPattern, LikeEscape))
+                .ThenByDescending(t => EF.Functions.Like(t.NormalizedName, containsPattern, LikeEscape))
                 .ThenByDescending(t => t.Tag.PostCount)
                 .ThenBy(t => t.Tag.Name)
                 .Skip((page - 1) * pageSize)
@@ -218,11 +252,46 @@ namespace MiniPainterHub.Server.Services
                 .Select(t => t.Tag)
                 .ToListAsync();
 
-            return CreatePage(items, totalCount, page, pageSize);
+            var result = CreatePage(items, totalCount, page, pageSize);
+            SetCache(cacheKey, result);
+            return result;
         }
 
         private static bool HasSearchTerm(string? query) =>
             !string.IsNullOrWhiteSpace(query) && TagTextUtilities.CollapseWhitespace(query).Length >= 2;
+
+        private static string CreateContainsPattern(string normalizedQuery) =>
+            "%" + EscapeLikePattern(normalizedQuery) + "%";
+
+        private static string CreateStartsPattern(string normalizedQuery) =>
+            EscapeLikePattern(normalizedQuery) + "%";
+
+        private static string EscapeLikePattern(string value) =>
+            value
+                .Replace(LikeEscape, LikeEscape + LikeEscape, StringComparison.Ordinal)
+                .Replace("%", LikeEscape + "%", StringComparison.Ordinal)
+                .Replace("_", LikeEscape + "_", StringComparison.Ordinal)
+                .Replace("[", "[[]", StringComparison.Ordinal);
+
+        private static string CreateCacheKey(string area, params object?[] values) =>
+            "search:" + area + ":" + string.Join(":", values.Select(value => value?.ToString() ?? string.Empty));
+
+        private bool TryGetCached<T>(string key, out T? value)
+        {
+            if (_cache is not null && _cache.TryGetValue(key, out T? cached))
+            {
+                value = cached;
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        private void SetCache<T>(string key, T value)
+        {
+            _cache?.Set(key, value, SearchCacheDuration);
+        }
 
         private static PagedResult<T> CreatePage<T>(IReadOnlyList<T> items, int totalCount, int page, int pageSize) =>
             new()

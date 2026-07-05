@@ -23,8 +23,9 @@ The deploy workflow:
 1. Starts after the `CI` workflow succeeds on `master`, or from manual `workflow_dispatch`.
 2. Pauses on the GitHub environment named `production`.
 3. Publishes `MiniPainterHub.Server`.
-4. Deploys the publish folder to the existing Azure App Service with `azure/webapps-deploy@v3`.
-5. Verifies `https://minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net/healthz` returns `200 OK`.
+4. Applies EF Core migrations to the production SQL database with the deployment SQL connection secret.
+5. Deploys the publish folder to the existing Azure App Service with `azure/webapps-deploy@v3`.
+6. Verifies `https://minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net/healthz/ready` returns `200 OK`.
 
 This repository does not create the production App Service. The production app already exists in Azure and is deployed through its App Service publish profile.
 
@@ -45,18 +46,20 @@ Environment secrets:
 
 ```text
 AZURE_WEBAPP_PUBLISH_PROFILE=<full App Service publish profile XML>
+PRODUCTION_SQL_CONNECTION_STRING=<SQL connection string allowed to apply EF migrations>
 ```
 
 Use a freshly downloaded publish profile from the target App Service when rotating credentials. Do not commit publish profiles or publish settings files.
+`PRODUCTION_SQL_CONNECTION_STRING` should target the same database used by `ConnectionStrings__DefaultConnection` in App Service configuration and should be rotated with the database credentials.
 
 ## First deployment
 
-1. Confirm the GitHub `production` environment has the variables and secret above.
+1. Confirm the GitHub `production` environment has the variables and secrets above.
 2. Open GitHub Actions and run `CI` or push through a PR into `master`.
 3. Wait for `CI` to pass.
 4. Open the `Deploy` workflow run.
 5. Approve the `production` environment.
-6. Confirm the deploy job completes and the `/healthz` check passes.
+6. Confirm the deploy job completes and the `/healthz/ready` check passes.
 
 Manual deploy is available from `Actions` -> `Deploy` -> `Run workflow`. The `ref` input can be `master`, a tag, or a commit SHA.
 
@@ -102,10 +105,13 @@ After deployment:
 
 1. Open the site root and confirm the Blazor app loads.
 2. Confirm `/healthz` returns `200 OK`.
-3. Confirm registration or login works.
-4. Confirm image upload works.
-5. Confirm the database migrated successfully from App Service logs.
-6. Confirm SignalR chat endpoints connect if chat is enabled.
+3. Confirm `/healthz/ready` returns `200 OK`.
+4. Confirm registration or login works.
+5. Confirm image upload works.
+6. Confirm the database migrated successfully from GitHub Actions logs.
+7. Confirm SignalR chat endpoints connect if chat is enabled.
+
+Production startup does not run EF migrations by default. If the deployment migration step is unavailable during a single-instance emergency rollout, temporarily set `Database__AutoMigrateOnStartup=true`, deploy once, then remove it after the app starts cleanly.
 
 ## Rollback
 

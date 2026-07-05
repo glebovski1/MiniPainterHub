@@ -39,6 +39,7 @@ jobs:
       AZURE_WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
       AZURE_WEBAPP_HOSTNAME: ${{ vars.AZURE_WEBAPP_HOSTNAME }}
       AZURE_WEBAPP_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+      PRODUCTION_SQL_CONNECTION_STRING: ${{ secrets.PRODUCTION_SQL_CONNECTION_STRING }}
     steps:
       - name: Checkout deploy ref
         uses: actions/checkout@v4
@@ -96,6 +97,7 @@ jobs:
             AZURE_WEBAPP_NAME
             AZURE_WEBAPP_HOSTNAME
             AZURE_WEBAPP_PUBLISH_PROFILE
+            PRODUCTION_SQL_CONNECTION_STRING
           )
 
           missing=false
@@ -116,6 +118,19 @@ jobs:
       - name: Publish server artifact
         run: dotnet publish MiniPainterHub.Server/MiniPainterHub.Server.csproj --configuration Release --no-restore --output artifacts/publish/server
 
+      - name: Install EF migration tool
+        run: dotnet tool install --global dotnet-ef --version 10.0.5
+
+      - name: Apply production database migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet ef database update \
+            --project MiniPainterHub.Server/MiniPainterHub.Server.csproj \
+            --startup-project MiniPainterHub.Server/MiniPainterHub.Server.csproj \
+            --configuration Release \
+            --connection "$PRODUCTION_SQL_CONNECTION_STRING"
+
       - name: Deploy to existing Azure Web App
         uses: azure/webapps-deploy@v3
         with:
@@ -130,7 +145,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          health_url="https://${AZURE_WEBAPP_HOSTNAME}/healthz"
+          health_url="https://${AZURE_WEBAPP_HOSTNAME}/healthz/ready"
           for attempt in {1..12}; do
             status="$(curl --silent --show-error --location --output /dev/null --write-out '%{http_code}' "$health_url" || true)"
             if [ "$status" = "200" ]; then
@@ -171,7 +186,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          health_url="https://${AZURE_WEBAPP_HOSTNAME}/healthz"
+          health_url="https://${AZURE_WEBAPP_HOSTNAME}/healthz/ready"
           for attempt in {1..12}; do
             status="$(curl --silent --show-error --location --output /dev/null --write-out '%{http_code}' "$health_url" || true)"
             if [ "$status" = "200" ]; then

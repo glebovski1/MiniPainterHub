@@ -43,6 +43,7 @@ namespace MiniPainterHub.Server.Data
                 b.Property(p => p.DisplayName).HasMaxLength(80);
                 b.Property(p => p.Bio).HasMaxLength(500);
                 b.Property(p => p.AvatarUrl).HasMaxLength(2048);
+                b.HasIndex(p => p.DisplayName);
 
                 b.HasOne(p => p.User)
                     .WithOne(u => u.Profile)
@@ -58,6 +59,8 @@ namespace MiniPainterHub.Server.Data
                 b.Property(p => p.Techniques).HasMaxLength(1000);
                 b.Property(p => p.Difficulty).HasMaxLength(40);
                 b.Property(p => p.TimeSpent).HasMaxLength(80);
+                b.HasIndex(p => new { p.IsDeleted, p.CreatedUtc });
+                b.HasIndex(p => new { p.CreatedById, p.IsDeleted, p.CreatedUtc });
 
                 b.HasOne(p => p.CreatedBy)
                     .WithMany()
@@ -176,6 +179,7 @@ namespace MiniPainterHub.Server.Data
                     .WithMany(t => t.PostTags)
                     .HasForeignKey(pt => pt.TagId)
                     .OnDelete(DeleteBehavior.Cascade);
+                b.HasIndex(pt => new { pt.TagId, pt.PostId });
             });
 
             builder.Entity<Tag>(b =>
@@ -213,7 +217,9 @@ namespace MiniPainterHub.Server.Data
 
             builder.Entity<ApplicationUser>(b =>
             {
+                b.Property(u => u.DisplayName).HasMaxLength(80);
                 b.Property(u => u.SuspensionReason).HasMaxLength(500);
+                b.HasIndex(u => u.DisplayName);
             });
 
             builder.Entity<AdminSiteControl>(b =>

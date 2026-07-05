@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Services.Interfaces; // IProfileService
 using System;
 using System.Linq;
@@ -34,6 +36,7 @@ public sealed class ProfilesController : ControllerBase
     }
 
     [HttpPost("me")]
+    [EnableRateLimiting(RateLimitingPolicies.Write)]
     public async Task<ActionResult<UserProfileDto>> CreateMyProfile([FromBody] CreateUserProfileDto body)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -45,6 +48,7 @@ public sealed class ProfilesController : ControllerBase
     }
 
     [HttpPut("me")]
+    [EnableRateLimiting(RateLimitingPolicies.Write)]
     public async Task<ActionResult<UserProfileDto>> UpdateMyProfile([FromBody] UpdateUserProfileDto body)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -59,6 +63,7 @@ public sealed class ProfilesController : ControllerBase
     [HttpPost("me/avatar")]
     [RequestSizeLimit(5_000_000)]
     [Consumes("multipart/form-data")]
+    [EnableRateLimiting(RateLimitingPolicies.Upload)]
     public async Task<ActionResult<UserProfileDto>> UploadAvatar([FromForm] IFormFile file)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -70,6 +75,7 @@ public sealed class ProfilesController : ControllerBase
     }
 
     [HttpDelete("me/avatar")]
+    [EnableRateLimiting(RateLimitingPolicies.Write)]
     public async Task<ActionResult<UserProfileDto>> RemoveAvatar()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

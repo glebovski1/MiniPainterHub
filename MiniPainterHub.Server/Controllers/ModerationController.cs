@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System.Collections.Generic;
@@ -22,6 +24,7 @@ namespace MiniPainterHub.Server.Controllers
 
         [HttpPost("posts/{postId:int}/hide")]
         [Authorize(Roles = "Moderator,Admin")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> HidePost(int postId, [FromBody] ModerationActionRequestDto dto)
         {
             await _moderationService.ModeratePostAsync(postId, User.GetUserIdOrThrow(), true, dto.Reason);
@@ -30,6 +33,7 @@ namespace MiniPainterHub.Server.Controllers
 
         [HttpPost("posts/{postId:int}/restore")]
         [Authorize(Roles = "Moderator,Admin")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> RestorePost(int postId, [FromBody] ModerationActionRequestDto dto)
         {
             await _moderationService.ModeratePostAsync(postId, User.GetUserIdOrThrow(), false, dto.Reason);
@@ -38,6 +42,7 @@ namespace MiniPainterHub.Server.Controllers
 
         [HttpPost("comments/{commentId:int}/hide")]
         [Authorize(Roles = "Moderator,Admin")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> HideComment(int commentId, [FromBody] ModerationActionRequestDto dto)
         {
             await _moderationService.ModerateCommentAsync(commentId, User.GetUserIdOrThrow(), true, dto.Reason);
@@ -46,6 +51,7 @@ namespace MiniPainterHub.Server.Controllers
 
         [HttpPost("comments/{commentId:int}/restore")]
         [Authorize(Roles = "Moderator,Admin")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> RestoreComment(int commentId, [FromBody] ModerationActionRequestDto dto)
         {
             await _moderationService.ModerateCommentAsync(commentId, User.GetUserIdOrThrow(), false, dto.Reason);
@@ -54,6 +60,7 @@ namespace MiniPainterHub.Server.Controllers
 
         [HttpPost("users/{userId}/suspend")]
         [Authorize(Roles = "Admin")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> SuspendUser(string userId, [FromBody] SuspendUserRequestDto dto)
         {
             await _moderationService.SuspendUserAsync(userId, User.GetUserIdOrThrow(), dto.SuspendedUntilUtc, dto.Reason);
@@ -62,6 +69,7 @@ namespace MiniPainterHub.Server.Controllers
 
         [HttpPost("users/{userId}/unsuspend")]
         [Authorize(Roles = "Admin")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> UnsuspendUser(string userId, [FromBody] ModerationActionRequestDto dto)
         {
             await _moderationService.UnsuspendUserAsync(userId, User.GetUserIdOrThrow(), dto.Reason);

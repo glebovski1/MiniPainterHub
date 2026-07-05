@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System.Threading.Tasks;
@@ -27,6 +29,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         [HttpPost("direct/{userId}")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<ActionResult<ConversationSummaryDto>> OpenDirectConversation(string userId)
         {
             var conversation = await _conversationService.GetOrCreateDirectConversationAsync(User.GetUserIdOrThrow(), userId);
@@ -41,6 +44,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         [HttpPost("{id:int}/messages")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<ActionResult<DirectMessageDto>> SendMessage(int id, [FromBody] CreateDirectMessageDto dto)
         {
             var message = await _conversationService.SendMessageAsync(User.GetUserIdOrThrow(), id, dto);
@@ -48,6 +52,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         [HttpPost("{id:int}/read")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> MarkRead(int id)
         {
             await _conversationService.MarkReadAsync(User.GetUserIdOrThrow(), id);

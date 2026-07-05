@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
@@ -40,6 +42,7 @@ public sealed class NewsAnnouncementsController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
+    [EnableRateLimiting(RateLimitingPolicies.Write)]
     public async Task<ActionResult<NewsAnnouncementDto>> Create([FromBody] CreateNewsAnnouncementDto dto)
     {
         var userId = User.GetUserIdOrThrow();

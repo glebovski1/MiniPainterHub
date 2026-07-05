@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using MiniPainterHub.Server.Data;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Middleware;
 using MiniPainterHub.Server.Realtime;
 using MiniPainterHub.Server.Services;
@@ -38,7 +39,9 @@ public partial class Program
         app.UseHttpsRedirection();
         app.UseResponseCompression();
         UseStaticAssetHeaderPolicy(app);
+        app.UseRouting();
         app.UseAuthentication();
+        app.UseRateLimiter();
         app.UseMiddleware<SiteActivityMiddleware>();
         app.UseMiddleware<MaintenanceModeMiddleware>();
         UsePublishedBootManifestStaticFile(app);
@@ -57,9 +60,9 @@ public partial class Program
         app.UseAuthorization();
 
         app.MapControllers();
-        app.MapHub<ChatHub>("/hubs/chat");
+        app.MapHub<ChatHub>("/hubs/chat").RequireRateLimiting(RateLimitingPolicies.Realtime);
         app.MapFallbackToFile("index.html");
-        app.MapGet("/healthz", () => Results.Ok("OK"));
+        MapHealthEndpoints(app);
 
         MapTestSupportResetEndpoint(app);
     }

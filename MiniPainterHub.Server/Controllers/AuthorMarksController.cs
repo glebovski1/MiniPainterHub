@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
@@ -21,6 +23,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         [HttpPost("posts/{postId}/images/{imageId}/author-marks")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<ActionResult<AuthorMarkDto>> Create(int postId, int imageId, [FromBody] CreateAuthorMarkDto dto)
         {
             var userId = User.GetUserIdOrThrow();
@@ -29,6 +32,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         [HttpPut("author-marks/{markId}")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<ActionResult<AuthorMarkDto>> Update(int markId, [FromBody] UpdateAuthorMarkDto dto)
         {
             var userId = User.GetUserIdOrThrow();
@@ -37,6 +41,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         [HttpDelete("author-marks/{markId}")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> Delete(int markId)
         {
             var userId = User.GetUserIdOrThrow();

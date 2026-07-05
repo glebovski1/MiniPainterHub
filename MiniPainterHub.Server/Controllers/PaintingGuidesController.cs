@@ -1,12 +1,15 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace MiniPainterHub.Server.Controllers;
@@ -42,6 +45,7 @@ public sealed class PaintingGuidesController : ControllerBase
     }
 
     [HttpPost]
+    [EnableRateLimiting(RateLimitingPolicies.Write)]
     public async Task<ActionResult<PaintingGuideDto>> Create([FromBody] CreatePaintingGuideDto dto)
     {
         var userId = User.GetUserIdOrThrow();
@@ -51,6 +55,9 @@ public sealed class PaintingGuidesController : ControllerBase
 
     [HttpPost("with-step-photos")]
     [Consumes("multipart/form-data")]
+    [RequestSizeLimit(GuidePhotoUploadRules.MaxMultipartBodyBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = GuidePhotoUploadRules.MaxMultipartBodyBytes)]
+    [EnableRateLimiting(RateLimitingPolicies.Upload)]
     public async Task<ActionResult<PaintingGuideDto>> CreateWithStepPhotos([FromForm] CreatePaintingGuideWithPhotosDto dto)
     {
         if (!ModelState.IsValid)
@@ -92,12 +99,48 @@ public sealed class PaintingGuidesController : ControllerBase
                 title: "Unsupported media type",
                 detail: ex.Message);
         }
+        catch (UnsupportedImageDimensionsException ex)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status413PayloadTooLarge,
+                title: "Image dimensions too large",
+                detail: ex.Message);
+        }
+        catch (UploadConcurrencyLimitExceededException ex)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status429TooManyRequests,
+                title: "Upload capacity reached",
+                detail: ex.Message);
+        }
     }
 
     private static IReadOnlyDictionary<int, IFormFile> BuildStepPhotoMap(CreatePaintingGuideWithPhotosDto dto)
     {
         var files = dto.StepPhotos ?? new List<IFormFile>();
         var indices = dto.StepPhotoIndices ?? new List<int>();
+        var errors = new Dictionary<string, string[]>();
+
+        if (files.Count > GuidePhotoUploadRules.MaxStepPhotosPerGuide)
+        {
+            errors["StepPhotos"] = new[] { $"A guide can include at most {GuidePhotoUploadRules.MaxStepPhotosPerGuide} step photos." };
+        }
+
+        if (files.Count != indices.Count)
+        {
+            errors["StepPhotoIndices"] = new[] { "Each uploaded step photo must include a matching step index." };
+        }
+
+        if (indices.Count != indices.Distinct().Count())
+        {
+            errors["StepPhotoIndices"] = new[] { "Each guide step can receive at most one uploaded photo." };
+        }
+
+        if (errors.Count > 0)
+        {
+            throw new DomainValidationException("Guide step photos are invalid.", errors);
+        }
+
         var mapped = new Dictionary<int, IFormFile>();
 
         for (var i = 0; i < files.Count && i < indices.Count; i++)

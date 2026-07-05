@@ -253,6 +253,38 @@ jobs:
           CI: true
         run: npm run test:smoke
 
+      - name: Run load smoke gate
+        shell: bash
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_URLS: http://127.0.0.1:5177
+          MPH_LOAD_BASE_URL: http://127.0.0.1:5177
+          MPH_LOAD_PROFILE: smoke
+        run: |
+          set -euo pipefail
+
+          mkdir -p artifacts/load-tests
+          dotnet run --project MiniPainterHub.Server/MiniPainterHub.Server.csproj --configuration Release --no-build --no-launch-profile > artifacts/load-tests/server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          for attempt in {1..45}; do
+            status="$(curl --silent --show-error --location --output /dev/null --write-out '%{http_code}' "$MPH_LOAD_BASE_URL/healthz/ready" || true)"
+            if [ "$status" = "200" ]; then
+              break
+            fi
+
+            if [ "$attempt" = "45" ]; then
+              echo "::error title=Load smoke server did not become ready::Last readiness status was HTTP $status."
+              cat artifacts/load-tests/server.log
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          dotnet run --project MiniPainterHub.LoadTests/MiniPainterHub.LoadTests.csproj --configuration Release --no-build -- --profile smoke --base-url "$MPH_LOAD_BASE_URL"
+
       - name: Enforce MiniPainterHub.Server coverage baseline (80%)
         shell: pwsh
         run: ./tools/coverage/check-server-coverage.ps1 -CoverageRoot artifacts/test-results -AssemblyName MiniPainterHub.Server -Threshold 80
@@ -265,4 +297,5 @@ jobs:
           path: |
             e2e/playwright-report
             e2e/test-results
+            artifacts/load-tests
           retention-days: 7

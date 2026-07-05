@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
@@ -91,6 +93,7 @@ namespace MiniPainterHub.Server.Controllers
         // POST: api/posts
         // JSON-only create
         [HttpPost]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<ActionResult<PostDto>> Create([FromBody] CreatePostDto dto)
         {
             var userId = User.GetUserIdOrThrow();
@@ -102,6 +105,9 @@ namespace MiniPainterHub.Server.Controllers
         // Multipart/form-data create with images and optional thumbnails
         [HttpPost("with-image")]
         [Consumes("multipart/form-data")]
+        [RequestSizeLimit(PostImageUploadRules.MaxMultipartBodyBytes)]
+        [RequestFormLimits(MultipartBodyLengthLimit = PostImageUploadRules.MaxMultipartBodyBytes)]
+        [EnableRateLimiting(RateLimitingPolicies.Upload)]
         public async Task<ActionResult<PostDto>> CreateWithImage(
             [FromForm] CreateImagePostDto dto)
         {
@@ -139,10 +145,25 @@ namespace MiniPainterHub.Server.Controllers
                     title: "Unsupported media type",
                     detail: ex.Message);
             }
+            catch (UnsupportedImageDimensionsException ex)
+            {
+                return Problem(
+                    statusCode: StatusCodes.Status413PayloadTooLarge,
+                    title: "Image dimensions too large",
+                    detail: ex.Message);
+            }
+            catch (UploadConcurrencyLimitExceededException ex)
+            {
+                return Problem(
+                    statusCode: StatusCodes.Status429TooManyRequests,
+                    title: "Upload capacity reached",
+                    detail: ex.Message);
+            }
         }
 
         // PUT: api/posts/5
         [HttpPut("{id}")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> Update(int id, [FromBody] UpdatePostDto dto)
         {
             var userId = User.GetUserIdOrThrow();
@@ -152,6 +173,7 @@ namespace MiniPainterHub.Server.Controllers
 
         // DELETE: api/posts/5
         [HttpDelete("{id}")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> Delete(int id)
         {
             var userId = User.GetUserIdOrThrow();

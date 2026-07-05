@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System.Threading.Tasks;
@@ -20,6 +22,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         [HttpPost("posts/{postId:int}")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> ReportPost(int postId, [FromBody] CreateReportRequestDto request)
         {
             await _reportService.SubmitPostReportAsync(User.GetUserIdOrThrow(), postId, request);
@@ -27,6 +30,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         [HttpPost("comments/{commentId:int}")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> ReportComment(int commentId, [FromBody] CreateReportRequestDto request)
         {
             await _reportService.SubmitCommentReportAsync(User.GetUserIdOrThrow(), commentId, request);
@@ -34,6 +38,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         [HttpPost("users/{userId}")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> ReportUser(string userId, [FromBody] CreateReportRequestDto request)
         {
             await _reportService.SubmitUserReportAsync(User.GetUserIdOrThrow(), userId, request);
@@ -49,6 +54,7 @@ namespace MiniPainterHub.Server.Controllers
 
         [HttpPost("{reportId:long}/resolve")]
         [Authorize(Roles = "Moderator,Admin")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> Resolve(long reportId, [FromBody] ResolveReportRequestDto request)
         {
             await _reportService.ResolveAsync(User.GetUserIdOrThrow(), reportId, request);

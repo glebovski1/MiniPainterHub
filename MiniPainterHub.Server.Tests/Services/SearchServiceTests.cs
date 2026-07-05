@@ -46,6 +46,26 @@ public class SearchServiceTests
     }
 
     [Fact]
+    public async Task SearchPostsAsync_EscapesLikeWildcards()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var author = CreateUserWithProfile("author-1", "author-one", "Author One");
+        var literalPost = CreatePost(1, author, "G_ marker", "Literal underscore search token.");
+        var wildcardCandidate = CreatePost(2, author, "Ga marker", "This should not match an escaped underscore query.");
+
+        context.Users.Add(author);
+        context.Profiles.Add(author.Profile!);
+        context.Posts.AddRange(literalPost, wildcardCandidate);
+        await context.SaveChangesAsync();
+
+        var service = new SearchService(context);
+
+        var result = await service.SearchPostsAsync("g_", tagSlug: null, page: 1, pageSize: 10);
+
+        result.Items.Select(post => post.Id).Should().Equal(literalPost.Id);
+    }
+
+    [Fact]
     public async Task SearchUsersAsync_OrdersStartsWithMatchesAheadOfContainsMatches()
     {
         await using var context = AppDbContextFactory.Create();

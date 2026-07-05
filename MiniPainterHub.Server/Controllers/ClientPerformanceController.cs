@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 
 namespace MiniPainterHub.Server.Controllers;
 
@@ -31,6 +33,7 @@ public sealed class ClientPerformanceController : ControllerBase
     }
 
     [HttpPost]
+    [EnableRateLimiting(RateLimitingPolicies.Write)]
     public IActionResult Post([FromBody] ClientPerformanceBatchDto batch)
     {
         ValidateBatch(batch);

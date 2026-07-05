@@ -24,6 +24,24 @@ public sealed class ImagesOptions
     public int Quality { get; set; } = 80;
 
     /// <summary>
+    /// Gets or sets the maximum accepted source image width before processing.
+    /// </summary>
+    [Range(1, 20000)]
+    public int MaxSourceWidth { get; set; } = 8000;
+
+    /// <summary>
+    /// Gets or sets the maximum accepted source image height before processing.
+    /// </summary>
+    [Range(1, 20000)]
+    public int MaxSourceHeight { get; set; } = 8000;
+
+    /// <summary>
+    /// Gets or sets the maximum accepted source image megapixel count before processing.
+    /// </summary>
+    [Range(1, 400)]
+    public int MaxSourceMegapixels { get; set; } = 50;
+
+    /// <summary>
     /// Gets or sets the preferred output format (webp, jpeg, png).
     /// </summary>
     [Required]

@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
@@ -35,6 +37,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         [HttpPut("comments/{commentId}/mark")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<ActionResult<CommentMarkDto>> Upsert(int commentId, [FromBody] ViewerMarkDraftDto dto)
         {
             var userId = User.GetUserIdOrThrow();
@@ -43,6 +46,7 @@ namespace MiniPainterHub.Server.Controllers
         }
 
         [HttpDelete("comments/{commentId}/mark")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> Delete(int commentId)
         {
             var userId = User.GetUserIdOrThrow();

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
@@ -8,13 +10,16 @@ using MiniPainterHub.Server.Features.Media;
 using MiniPainterHub.Server.Features.Pagination;
 using MiniPainterHub.Server.Features.Posts;
 using MiniPainterHub.Server.Imaging;
+using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using SixLabors.ImageSharp;
 
 namespace MiniPainterHub.Server.Services;
 
@@ -23,16 +28,25 @@ public class PaintingGuideService : IPaintingGuideService
     private const int MaxStepsPerGuide = 12;
     private readonly AppDbContext _appDbContext;
     private readonly IImageService _imageService;
+    private readonly IUploadConcurrencyLimiter? _uploadConcurrencyLimiter;
+    private readonly ImagesOptions _imageOptions;
+    private readonly ILogger<PaintingGuideService>? _logger;
     private readonly IAccountRestrictionService? _accountRestrictionService;
 
     public PaintingGuideService(
         AppDbContext appDbContext,
         IImageService imageService,
-        IAccountRestrictionService? accountRestrictionService = null)
+        IAccountRestrictionService? accountRestrictionService = null,
+        IUploadConcurrencyLimiter? uploadConcurrencyLimiter = null,
+        IOptions<ImagesOptions>? imageOptions = null,
+        ILogger<PaintingGuideService>? logger = null)
     {
         _appDbContext = appDbContext ?? throw new ArgumentNullException(nameof(appDbContext));
         _imageService = imageService ?? throw new ArgumentNullException(nameof(imageService));
         _accountRestrictionService = accountRestrictionService;
+        _uploadConcurrencyLimiter = uploadConcurrencyLimiter;
+        _imageOptions = imageOptions?.Value ?? new ImagesOptions();
+        _logger = logger;
     }
 
     public async Task<PagedResult<PaintingGuideSummaryDto>> GetAllAsync(int page, int pageSize)
@@ -135,15 +149,18 @@ public class PaintingGuideService : IPaintingGuideService
         await _appDbContext.SaveChangesAsync(cancellationToken);
 
         var uploadedKeys = new List<string>();
+        var uploadStopwatch = Stopwatch.StartNew();
         try
         {
             if (stepPhotos is not null)
             {
+                await using var uploadPermit = await AcquireGuideUploadPermitAsync(stepPhotos, cancellationToken);
                 foreach (var (stepIndex, photo) in stepPhotos.OrderBy(pair => pair.Key))
                 {
                     var step = guide.Steps[stepIndex];
                     var contentType = PostImageUploadValidator.ResolveContentType(photo);
                     var storageKey = CreateStepPhotoKey(guide.Id, stepIndex + 1, contentType);
+                    await ValidateSourceDimensionsAsync(photo, cancellationToken);
                     await using var stream = photo.OpenReadStream();
                     step.ImageUrl = await _imageService.UploadAsync(stream, storageKey);
                     step.ImageStorageKey = storageKey;
@@ -156,8 +173,27 @@ public class PaintingGuideService : IPaintingGuideService
         }
         catch
         {
+            _logger?.LogWarning(
+                "Guide step photo upload failed for guide {GuideId}. PhotoCount={PhotoCount}; TotalBytes={TotalBytes}; ElapsedMs={ElapsedMs}",
+                guide.Id,
+                stepPhotos?.Count ?? 0,
+                stepPhotos?.Values.Sum(photo => photo.Length) ?? 0,
+                uploadStopwatch.ElapsedMilliseconds);
             await CleanupFailedGuideCreateAsync(guide, uploadedKeys);
             throw;
+        }
+        finally
+        {
+            uploadStopwatch.Stop();
+            if (stepPhotos is not null)
+            {
+                _logger?.LogInformation(
+                    "Guide step photo upload finished for guide {GuideId}. PhotoCount={PhotoCount}; TotalBytes={TotalBytes}; ElapsedMs={ElapsedMs}",
+                    guide.Id,
+                    stepPhotos.Count,
+                    stepPhotos.Values.Sum(photo => photo.Length),
+                    uploadStopwatch.ElapsedMilliseconds);
+            }
         }
 
         return ToDto(guide);
@@ -239,6 +275,17 @@ public class PaintingGuideService : IPaintingGuideService
         }
 
         var errors = new Dictionary<string, string[]>();
+        if (stepPhotos.Count > GuidePhotoUploadRules.MaxStepPhotosPerGuide)
+        {
+            errors["StepPhotos"] = new[] { $"A guide can include at most {GuidePhotoUploadRules.MaxStepPhotosPerGuide} step photos." };
+        }
+
+        var totalBytes = stepPhotos.Values.Sum(photo => photo.Length);
+        if (totalBytes > GuidePhotoUploadRules.MaxMultipartBodyBytes)
+        {
+            throw new ImageTooLargeException("guide step photo request", totalBytes, GuidePhotoUploadRules.MaxMultipartBodyBytes);
+        }
+
         foreach (var (stepIndex, photo) in stepPhotos)
         {
             if (stepIndex < 0 || stepIndex >= stepCount)
@@ -248,13 +295,13 @@ public class PaintingGuideService : IPaintingGuideService
             }
 
             ValidateSafeFileName(photo, errors);
-            if (photo.Length > PostImageUploadValidator.MaxUploadBytes)
+            if (photo.Length > GuidePhotoUploadRules.MaxUploadBytes)
             {
-                throw new ImageTooLargeException(photo.FileName, photo.Length, PostImageUploadValidator.MaxUploadBytes);
+                throw new ImageTooLargeException(photo.FileName, photo.Length, GuidePhotoUploadRules.MaxUploadBytes);
             }
 
             var contentType = PostImageUploadValidator.ResolveContentType(photo);
-            if (!ImageContentTypes.IsAllowed(contentType))
+            if (!GuidePhotoUploadRules.IsAllowedContentType(contentType))
             {
                 throw new UnsupportedImageContentTypeException(photo.FileName, contentType);
             }
@@ -264,6 +311,46 @@ public class PaintingGuideService : IPaintingGuideService
         {
             throw new DomainValidationException("Guide step photos are invalid.", errors);
         }
+    }
+
+    private async ValueTask<IAsyncDisposable?> AcquireGuideUploadPermitAsync(
+        IReadOnlyDictionary<int, IFormFile> stepPhotos,
+        CancellationToken cancellationToken)
+    {
+        if (stepPhotos.Count == 0 || _uploadConcurrencyLimiter is null)
+        {
+            return null;
+        }
+
+        return await _uploadConcurrencyLimiter.TryAcquireAsync(cancellationToken)
+            ?? throw new UploadConcurrencyLimitExceededException();
+    }
+
+    private async Task ValidateSourceDimensionsAsync(IFormFile photo, CancellationToken cancellationToken)
+    {
+        await using var stream = photo.OpenReadStream();
+        var info = await Image.IdentifyAsync(stream, cancellationToken);
+        if (info is null)
+        {
+            throw new UnsupportedImageContentTypeException(photo.FileName, PostImageUploadValidator.ResolveContentType(photo));
+        }
+
+        var megapixels = info.Width * (long)info.Height;
+        var maxPixels = _imageOptions.MaxSourceMegapixels * 1_000_000L;
+        if (info.Width <= _imageOptions.MaxSourceWidth
+            && info.Height <= _imageOptions.MaxSourceHeight
+            && megapixels <= maxPixels)
+        {
+            return;
+        }
+
+        throw new UnsupportedImageDimensionsException(
+            photo.FileName,
+            info.Width,
+            info.Height,
+            _imageOptions.MaxSourceWidth,
+            _imageOptions.MaxSourceHeight,
+            _imageOptions.MaxSourceMegapixels);
     }
 
     private static void ValidateSafeFileName(IFormFile file, Dictionary<string, string[]> errors)

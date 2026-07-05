@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Threading.Tasks;
@@ -10,6 +12,7 @@ namespace MiniPainterHub.Server.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitingPolicies.Search)]
     public sealed class SearchController : ControllerBase
     {
         private readonly ISearchService _searchService;

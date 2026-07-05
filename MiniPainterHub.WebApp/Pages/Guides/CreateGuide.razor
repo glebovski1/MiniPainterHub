@@ -153,7 +153,7 @@
 
 @code {
     private const int MaxSteps = 12;
-    private const long MaxPhotoBytes = 20L * 1024 * 1024;
+    private const long MaxPhotoBytes = GuidePhotoUploadRules.MaxUploadBytes;
     private readonly CreatePaintingGuideDto _guide = new();
     private readonly List<GuideStepEditor> _steps = new() { new GuideStepEditor() };
     private bool _isSubmitting;

@@ -24,7 +24,9 @@ using Microsoft.Extensions.Options;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Features.Media;
 using MiniPainterHub.Server.Identity;
+using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Tests.Infrastructure;
 using MiniPainterHub.Server.Services.Interfaces;
 using MiniPainterHub.Server.Services.Models;
@@ -171,6 +173,60 @@ public class PostsUploadTests : IClassFixture<PostsUploadTests.TestApplicationFa
     }
 
     [Fact]
+    public async Task UploadEndpoint_WhenPipelineEnabled_RejectsClientSuppliedThumbnails()
+    {
+        await _factory.ResetAsync();
+        await SeedUserAsync();
+
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Test");
+
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent("Title"), "Title");
+        form.Add(new StringContent("Body"), "Content");
+
+        var imageContent = new ByteArrayContent(new byte[1024]);
+        imageContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+        form.Add(imageContent, "images", "photo.jpg");
+
+        var thumbContent = new ByteArrayContent(new byte[512]);
+        thumbContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+        form.Add(thumbContent, "thumbnails", "thumb.jpg");
+
+        var response = await client.PostAsync("/api/Posts/with-image", form);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var payload = await response.Content.ReadAsStringAsync();
+        payload.Should().Contain("client-supplied thumbnails are not accepted");
+        await AssertNoPersistedPostDataAsync();
+    }
+
+    [Fact]
+    public void PostImageUploadValidator_WhenAggregateBodyExceedsLimit_ThrowsImageTooLargeException()
+    {
+        var images = Enumerable.Range(0, PostImageUploadRules.MaxImagesPerPost)
+            .Select(i => CreateFormFileWithDeclaredLength(
+                PostImageUploadRules.MaxUploadBytes,
+                $"photo-{i}.jpg",
+                "image/jpeg"))
+            .ToList();
+        var thumbnails = new List<IFormFile>
+        {
+            CreateFormFileWithDeclaredLength(
+                PostImageUploadRules.MultipartFormOverheadBytes + 1,
+                "thumb.jpg",
+                "image/jpeg")
+        };
+
+        var act = () => PostImageUploadValidator.Validate(
+            images,
+            thumbnails,
+            new ImagesOptions { Enabled = false });
+
+        act.Should().Throw<ImageTooLargeException>();
+    }
+
+    [Fact]
     public async Task ServiceCreateWithImagesAsync_PersistsVariants()
     {
         await _factory.ResetAsync();
@@ -290,6 +346,16 @@ public class PostsUploadTests : IClassFixture<PostsUploadTests.TestApplicationFa
     {
         stream.Position = 0;
         return new FormFile(stream, 0, stream.Length, "images", fileName)
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = contentType
+        };
+    }
+
+    private static IFormFile CreateFormFileWithDeclaredLength(long length, string fileName, string contentType)
+    {
+        var stream = new MemoryStream(new byte[] { 0 });
+        return new FormFile(stream, 0, length, "images", fileName)
         {
             Headers = new HeaderDictionary(),
             ContentType = contentType

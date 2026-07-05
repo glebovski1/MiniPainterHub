@@ -6,6 +6,7 @@ using MiniPainterHub.Server.Options;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace MiniPainterHub.Server.Features.Media;
 
@@ -22,6 +23,25 @@ internal static class PostImageUploadValidator
         if (images is null)
         {
             return;
+        }
+
+        var totalBytes = images.SumLength();
+        if (thumbnails is not null)
+        {
+            if (imageOptions.Enabled && thumbnails.Any(file => file.Length > 0))
+            {
+                throw new DomainValidationException("Invalid post images.", new Dictionary<string, string[]>
+                {
+                    ["Thumbnails"] = new[] { "Server-side image processing is enabled, so client-supplied thumbnails are not accepted." }
+                });
+            }
+
+            totalBytes += thumbnails.SumLength();
+        }
+
+        if (totalBytes > PostImageUploadRules.MaxMultipartBodyBytes)
+        {
+            throw new ImageTooLargeException("post image request", totalBytes, PostImageUploadRules.MaxMultipartBodyBytes);
         }
 
         for (var i = 0; i < images.Count && i < MaxImagesPerPost; i++)
@@ -96,5 +116,16 @@ internal static class PostImageUploadValidator
                 [fieldName] = new[] { "Image filenames must not include paths or parent directory segments." }
             });
         }
+    }
+
+    private static long SumLength(this IReadOnlyList<IFormFile> files)
+    {
+        long total = 0;
+        for (var i = 0; i < files.Count; i++)
+        {
+            total += files[i].Length;
+        }
+
+        return total;
     }
 }

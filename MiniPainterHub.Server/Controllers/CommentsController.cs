@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
@@ -47,6 +49,7 @@ namespace MiniPainterHub.Server.Controllers
 
         // POST: api/posts/{postId}/comments
         [HttpPost("api/posts/{postId}/comments")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<ActionResult<CommentDto>> Create(
             int postId,
             [FromBody] CreateCommentDto dto)
@@ -66,6 +69,7 @@ namespace MiniPainterHub.Server.Controllers
 
         // PUT: api/comments/{id}
         [HttpPut("api/comments/{id}")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateCommentDto dto)
         {
             var userId = User.GetUserIdOrThrow();
@@ -75,6 +79,7 @@ namespace MiniPainterHub.Server.Controllers
 
         // DELETE: api/comments/{id}
         [HttpDelete("api/comments/{id}")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> Delete(int id)
         {
             var userId = User.GetUserIdOrThrow();

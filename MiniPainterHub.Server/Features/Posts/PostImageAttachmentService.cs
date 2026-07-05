@@ -12,6 +12,7 @@ using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,6 +25,7 @@ public sealed class PostImageAttachmentService : IPostImageAttachmentService
     private readonly IImageService _imageService;
     private readonly IImageProcessor _imageProcessor;
     private readonly IImageStore _imageStore;
+    private readonly IUploadConcurrencyLimiter _uploadConcurrencyLimiter;
     private readonly ImagesOptions _imageOptions;
     private readonly ILogger<PostImageAttachmentService> _logger;
 
@@ -34,11 +36,31 @@ public sealed class PostImageAttachmentService : IPostImageAttachmentService
         IImageStore imageStore,
         IOptions<ImagesOptions> imageOptions,
         ILogger<PostImageAttachmentService> logger)
+        : this(
+            appDbContext,
+            imageService,
+            imageProcessor,
+            imageStore,
+            NoopUploadConcurrencyLimiter.Instance,
+            imageOptions,
+            logger)
+    {
+    }
+
+    public PostImageAttachmentService(
+        AppDbContext appDbContext,
+        IImageService imageService,
+        IImageProcessor imageProcessor,
+        IImageStore imageStore,
+        IUploadConcurrencyLimiter uploadConcurrencyLimiter,
+        IOptions<ImagesOptions> imageOptions,
+        ILogger<PostImageAttachmentService> logger)
     {
         _appDbContext = appDbContext ?? throw new ArgumentNullException(nameof(appDbContext));
         _imageService = imageService ?? throw new ArgumentNullException(nameof(imageService));
         _imageProcessor = imageProcessor ?? throw new ArgumentNullException(nameof(imageProcessor));
         _imageStore = imageStore ?? throw new ArgumentNullException(nameof(imageStore));
+        _uploadConcurrencyLimiter = uploadConcurrencyLimiter ?? throw new ArgumentNullException(nameof(uploadConcurrencyLimiter));
         _imageOptions = imageOptions?.Value ?? throw new ArgumentNullException(nameof(imageOptions));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -69,15 +91,23 @@ public sealed class PostImageAttachmentService : IPostImageAttachmentService
             return new List<PostImageDto>();
         }
 
+        var imageCount = Math.Min(dto.Images.Count, PostImageUploadValidator.MaxImagesPerPost);
+        var totalBytes = dto.Images.Take(PostImageUploadValidator.MaxImagesPerPost).Sum(image => image.Length);
+        var stopwatch = Stopwatch.StartNew();
+
         _logger.LogInformation(
-            "Processing {Count} uploaded images for post {PostId} (pipeline enabled: {Enabled})",
-            Math.Min(dto.Images.Count, PostImageUploadValidator.MaxImagesPerPost),
+            "Processing {Count} uploaded images for post {PostId}. TotalBytes={TotalBytes}; PipelineEnabled={Enabled}",
+            imageCount,
             postId,
+            totalBytes,
             _imageOptions.Enabled);
 
         var processedImages = new List<ProcessedImageResult>();
         try
         {
+            await using var uploadPermit = await _uploadConcurrencyLimiter.TryAcquireAsync(cancellationToken)
+                ?? throw new UploadConcurrencyLimitExceededException();
+
             if (_imageOptions.Enabled)
             {
                 await ProcessWithPipelineAsync(postId, dto.Images, processedImages, cancellationToken);
@@ -95,8 +125,24 @@ public sealed class PostImageAttachmentService : IPostImageAttachmentService
         }
         catch
         {
+            _logger.LogWarning(
+                "Image upload processing failed for post {PostId}. Count={Count}; TotalBytes={TotalBytes}; ElapsedMs={ElapsedMs}",
+                postId,
+                imageCount,
+                totalBytes,
+                stopwatch.ElapsedMilliseconds);
             await CleanupFailedCreateWithImagesAsync(postId, processedImages);
             throw;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            _logger.LogInformation(
+                "Image upload processing finished for post {PostId}. Count={Count}; TotalBytes={TotalBytes}; ElapsedMs={ElapsedMs}",
+                postId,
+                imageCount,
+                totalBytes,
+                stopwatch.ElapsedMilliseconds);
         }
     }
 
@@ -409,5 +455,20 @@ public sealed class PostImageAttachmentService : IPostImageAttachmentService
                 }
             }
         }
+    }
+
+    private sealed class NoopUploadConcurrencyLimiter : IUploadConcurrencyLimiter
+    {
+        public static readonly NoopUploadConcurrencyLimiter Instance = new();
+
+        public ValueTask<IAsyncDisposable?> TryAcquireAsync(CancellationToken cancellationToken) =>
+            ValueTask.FromResult<IAsyncDisposable?>(NoopPermit.Instance);
+    }
+
+    private sealed class NoopPermit : IAsyncDisposable
+    {
+        public static readonly NoopPermit Instance = new();
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

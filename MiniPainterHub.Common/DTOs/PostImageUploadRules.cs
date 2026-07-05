@@ -16,6 +16,8 @@ namespace MiniPainterHub.Common.DTOs
 
         public const int MaxImagesPerPost = 8;
         public const long MaxUploadBytes = 20L * 1024 * 1024;
+        public const long MaxMultipartBodyBytes = MaxImagesPerPost * MaxUploadBytes + MultipartFormOverheadBytes;
+        public const long MultipartFormOverheadBytes = 2L * 1024 * 1024;
         public const string AllowedContentTypesLabel = "JPEG, PNG, or WEBP";
 
         public static IReadOnlyCollection<string> AllowedContentTypes => AllowedContentTypesSet;

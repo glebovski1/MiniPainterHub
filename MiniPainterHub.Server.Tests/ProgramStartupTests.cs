@@ -75,6 +75,22 @@ public class ProgramStartupTests
     }
 
     [Fact]
+    public async Task HealthzReady_WhenDependenciesAreAvailable_ReturnsOk()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/healthz/ready");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("Healthy");
+        body.Should().Contain("sql");
+        body.Should().Contain("imageStorage");
+    }
+
+    [Fact]
     public void ConfigureRelationalWarnings_LogsPendingModelChangesWarning()
     {
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();

@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services.Interfaces;
 using MiniPainterHub.Server.Services.Models;
@@ -47,6 +48,7 @@ public sealed class ImageProcessor : IImageProcessor
         try
         {
             using var image = await Image.LoadAsync<Rgba32>(buffer, ct);
+            EnsureSourceDimensionsSupported(image);
             ApplyOrientation(image);
             NormalizeMetadata(image.Metadata);
 
@@ -98,6 +100,26 @@ public sealed class ImageProcessor : IImageProcessor
         metadata.IptcProfile = null;
         metadata.XmpProfile = null;
         metadata.IccProfile = null;
+    }
+
+    private void EnsureSourceDimensionsSupported(Image image)
+    {
+        var megapixels = image.Width * (long)image.Height;
+        var maxPixels = _options.MaxSourceMegapixels * 1_000_000L;
+        if (image.Width <= _options.MaxSourceWidth
+            && image.Height <= _options.MaxSourceHeight
+            && megapixels <= maxPixels)
+        {
+            return;
+        }
+
+        throw new UnsupportedImageDimensionsException(
+            "uploaded image",
+            image.Width,
+            image.Height,
+            _options.MaxSourceWidth,
+            _options.MaxSourceHeight,
+            _options.MaxSourceMegapixels);
     }
 
     private async Task<ImageVariant> CreateVariantAsync(Image<Rgba32> source, ImageSizeOptions target, EncoderInfo encoderInfo, CancellationToken ct)

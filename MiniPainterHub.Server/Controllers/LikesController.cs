@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
 using System.Security.Claims;
@@ -36,6 +38,7 @@ namespace MiniPainterHub.Server.Controllers
         // POST: api/posts/{postId}/likes
         // Adds a like (or toggles if desired)
         [HttpPost]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> Like(int postId)
         {
             var userId = User.GetUserIdOrThrow();
@@ -46,6 +49,7 @@ namespace MiniPainterHub.Server.Controllers
         // DELETE: api/posts/{postId}/likes
         // Removes a like
         [HttpDelete]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
         public async Task<IActionResult> Unlike(int postId)
         {
             var userId = User.GetUserIdOrThrow();
