@@ -66,7 +66,7 @@
                 <div class="status-panel status-panel--info" data-testid="search-loading">
                     <div class="status-panel__icon"><i class="bi bi-search" aria-hidden="true"></i></div>
                     <div>
-                        <div class="status-panel__title">Searching…</div>
+                        <div class="status-panel__title">Searching...</div>
                         <p class="status-panel__text mb-0">Scanning painters, posts, and tags.</p>
                     </div>
                 </div>
@@ -138,6 +138,9 @@
                                             <div class="entity-row__content">
                                                 <div class="entity-row__title">@user.DisplayName</div>
                                                 <div class="entity-row__meta">@("@")@user.UserName</div>
+                                            </div>
+                                            <div class="entity-row__actions">
+                                                <span class="btn btn-outline-secondary btn-sm">View profile</span>
                                             </div>
                                         </NavLink>
                                     }
@@ -226,6 +229,9 @@
                                     <div class="entity-row__content">
                                         <div class="entity-row__title">@user.DisplayName</div>
                                         <div class="entity-row__meta">@("@")@user.UserName</div>
+                                    </div>
+                                    <div class="entity-row__actions">
+                                        <span class="btn btn-outline-secondary btn-sm">View profile</span>
                                     </div>
                                 </NavLink>
                             }

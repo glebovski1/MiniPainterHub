@@ -4,8 +4,8 @@
 
 <PageTitle>Audit Log</PageTitle>
 
-<div class="page-shell content-stack">
-    <section class="page-hero">
+<div class="page-shell content-stack admin-tools-page">
+    <section class="page-hero admin-tools-hero">
         <div class="content-stack">
             <div>
                 <p class="page-hero__eyebrow">Activity history</p>
@@ -30,19 +30,10 @@
         </div>
     </section>
 
-    <section class="surface-card">
-        <div class="surface-card__header">
+    <section class="admin-filter-strip" aria-label="Audit filters">
             <div>
-                <p class="section-label">Filters</p>
-                <h2 class="surface-card__title">Focus the log</h2>
-                <p class="surface-card__subtitle">Filter by target type, actor id, action type, and page size without resetting the moderator workflow.</p>
-            </div>
-        </div>
-
-        <div class="row g-3">
-            <div class="col-12 col-md-3">
                 <label class="form-label" for="audit-target-type">Target type</label>
-                <select id="audit-target-type" class="form-select" data-testid="audit-filter-target-type" @bind="_targetType">
+                <select id="audit-target-type" class="form-select form-select-sm" data-testid="audit-filter-target-type" @bind="_targetType">
                     <option value="">All</option>
                     <option value="Post">Post</option>
                     <option value="Comment">Comment</option>
@@ -50,31 +41,29 @@
                 </select>
             </div>
 
-            <div class="col-12 col-md-3">
+            <div>
                 <label class="form-label" for="audit-actor-user-id">Actor user id</label>
-                <input id="audit-actor-user-id" class="form-control" type="text" data-testid="audit-filter-actor-user-id" @bind="_actorUserId" />
+                <input id="audit-actor-user-id" class="form-control form-control-sm" type="text" data-testid="audit-filter-actor-user-id" @bind="_actorUserId" />
             </div>
 
-            <div class="col-12 col-md-3">
+            <div>
                 <label class="form-label" for="audit-action-type">Action type</label>
-                <input id="audit-action-type" class="form-control" type="text" data-testid="audit-filter-action-type" @bind="_actionType" />
+                <input id="audit-action-type" class="form-control form-control-sm" type="text" data-testid="audit-filter-action-type" @bind="_actionType" />
             </div>
 
-            <div class="col-12 col-md-3">
+            <div>
                 <label class="form-label" for="audit-page-size">Page size</label>
-                <select id="audit-page-size" class="form-select" data-testid="audit-filter-page-size" @bind="_pageSize">
+                <select id="audit-page-size" class="form-select form-select-sm" data-testid="audit-filter-page-size" @bind="_pageSize">
                     <option value="10">10</option>
                     <option value="20">20</option>
                     <option value="50">50</option>
                 </select>
             </div>
-        </div>
-
-        <div class="page-toolbar mt-4">
-            <button class="btn btn-primary" type="button" data-testid="audit-apply-filters" @onclick="ApplyFiltersAsync" disabled="@_loading">
+            <div class="admin-filter-strip__actions">
+            <button class="btn btn-primary btn-sm" type="button" data-testid="audit-apply-filters" @onclick="ApplyFiltersAsync" disabled="@_loading">
                 @(_loading ? "Loading..." : "Apply filters")
             </button>
-        </div>
+            </div>
     </section>
 
     @if (!string.IsNullOrWhiteSpace(_error))
@@ -99,7 +88,7 @@
     }
     else
     {
-        <section class="surface-card">
+        <section class="admin-table-panel">
             <div class="surface-card__header">
                 <div>
                     <p class="section-label">History</p>

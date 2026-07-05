@@ -59,9 +59,19 @@
     background: rgba(255, 253, 248, 0.84);
 }
 
+.message-conversation-list.list-group-flush > .list-group-item.active {
+    color: #fff;
+    background: var(--primary-700);
+    border-color: transparent;
+}
+
 .message-thread-panel {
     display: grid;
     gap: 0.95rem;
+}
+
+.message-thread-panel--implicit {
+    display: none;
 }
 
 .message-composer {
@@ -117,5 +127,9 @@
 
     .message-layout--polished {
         grid-template-columns: minmax(17.5rem, 0.56fr) minmax(0, 1.44fr);
+    }
+
+    .message-thread-panel--implicit {
+        display: grid;
     }
 }

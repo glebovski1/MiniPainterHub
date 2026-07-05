@@ -67,12 +67,12 @@
                     @foreach (var conversation in _conversations)
                     {
                         <button type="button"
-                                class="list-group-item list-group-item-action text-start @(ConversationId == conversation.Id ? "active" : string.Empty)"
+                                class="list-group-item list-group-item-action text-start @(ActiveThreadId == conversation.Id ? "active" : string.Empty)"
                                 @onclick="@(() => OpenConversation(conversation.Id))">
                             <div class="d-flex justify-content-between align-items-start gap-2">
                                 <div>
                                     <div class="fw-semibold">@conversation.OtherUser.DisplayName</div>
-                                    <div class="small @(ConversationId == conversation.Id ? "text-white-50" : "text-muted")">
+                                    <div class="small @(ActiveThreadId == conversation.Id ? "text-white-50" : "text-muted")">
                                         @(string.IsNullOrWhiteSpace(conversation.LatestMessagePreview) ? "No messages yet." : conversation.LatestMessagePreview)
                                     </div>
                                 </div>
@@ -87,8 +87,8 @@
             }
         </section>
 
-        <section class="surface-card message-thread-panel">
-            @if (!ConversationId.HasValue)
+        <section class="surface-card message-thread-panel @(IsImplicitThread ? "message-thread-panel--implicit" : string.Empty)">
+            @if (!ActiveThreadId.HasValue)
             {
                 <EmptyState IconClass="bi bi-chat-right-text"
                             Title="Select a conversation"
@@ -243,7 +243,7 @@
             _conversations = await Conversations.GetConversationsAsync(forceRefresh: true);
             _activeConversation = ConversationId.HasValue
                 ? _conversations.FirstOrDefault(c => c.Id == ConversationId.Value)
-                : null;
+                : _conversations.FirstOrDefault();
         }
         catch
         {
@@ -260,7 +260,8 @@
     private async Task LoadActiveConversationAsync()
     {
         _threadError = null;
-        if (!ConversationId.HasValue)
+        var activeThreadId = ActiveThreadId;
+        if (!activeThreadId.HasValue)
         {
             if (_joinedConversationId.HasValue)
             {
@@ -276,20 +277,20 @@
         _loadingMessages = true;
         try
         {
-            if (_joinedConversationId.HasValue && _joinedConversationId.Value != ConversationId.Value)
+            if (_joinedConversationId.HasValue && _joinedConversationId.Value != activeThreadId.Value)
             {
                 await LeaveConversationBestEffortAsync(_joinedConversationId.Value);
             }
 
-            _joinedConversationId = ConversationId.Value;
-            await JoinConversationBestEffortAsync(ConversationId.Value);
+            _joinedConversationId = activeThreadId.Value;
+            await JoinConversationBestEffortAsync(activeThreadId.Value);
 
-            var page = await Conversations.GetMessagesAsync(ConversationId.Value);
+            var page = await Conversations.GetMessagesAsync(activeThreadId.Value);
             _messages.Clear();
             _messages.AddRange(page.Items);
-            await Conversations.MarkReadAsync(ConversationId.Value);
+            await Conversations.MarkReadAsync(activeThreadId.Value);
 
-            _activeConversation = _conversations.FirstOrDefault(c => c.Id == ConversationId.Value);
+            _activeConversation = _conversations.FirstOrDefault(c => c.Id == activeThreadId.Value);
         }
         catch
         {
@@ -307,7 +308,8 @@
 
     private async Task SendAsync()
     {
-        if (!ConversationId.HasValue || string.IsNullOrWhiteSpace(_draft.Body))
+        var activeThreadId = ActiveThreadId;
+        if (!activeThreadId.HasValue || string.IsNullOrWhiteSpace(_draft.Body))
         {
             return;
         }
@@ -316,14 +318,14 @@
         _composerError = null;
         try
         {
-            var message = await Conversations.SendMessageAsync(ConversationId.Value, _draft);
+            var message = await Conversations.SendMessageAsync(activeThreadId.Value, _draft);
             if (_messages.All(existing => existing.Id != message.Id))
             {
                 _messages.Add(message);
             }
 
             _draft = new CreateDirectMessageDto();
-            await Conversations.MarkReadAsync(ConversationId.Value);
+            await Conversations.MarkReadAsync(activeThreadId.Value);
         }
         catch
         {
@@ -344,7 +346,7 @@
                 _conversations = await Conversations.GetConversationsAsync();
                 _activeConversation = ConversationId.HasValue
                     ? _conversations.FirstOrDefault(c => c.Id == ConversationId.Value)
-                    : null;
+                    : _conversations.FirstOrDefault();
                 _conversationError = null;
             }
             catch
@@ -358,7 +360,7 @@
 
     private void HandleMessageReceived(DirectMessageDto message)
     {
-        if (!ConversationId.HasValue || message.ConversationId != ConversationId.Value)
+        if (!ActiveThreadId.HasValue || message.ConversationId != ActiveThreadId.Value)
         {
             return;
         }
@@ -388,6 +390,9 @@
     {
         _ = InvokeAsync(StateHasChanged);
     }
+
+    private int? ActiveThreadId => ConversationId ?? _activeConversation?.Id ?? _conversations.FirstOrDefault()?.Id;
+    private bool IsImplicitThread => !ConversationId.HasValue && ActiveThreadId.HasValue;
 
     private async Task EnsureRealtimeBestEffortAsync()
     {

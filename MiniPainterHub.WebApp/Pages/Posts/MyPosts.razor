@@ -8,28 +8,52 @@
 
 <PageTitle>My posts</PageTitle>
 
-<h1 class="mb-4">My posts</h1>
+<div class="page-shell content-stack">
+    <PageHero Eyebrow="Your studio"
+              Title="My posts"
+              Description="Review your own gallery, open details quickly, and keep the authored-post list easy to scan."
+              FrameName="My Posts Header" />
 
-@if (!string.IsNullOrWhiteSpace(LoadError))
-{
-    <div class="alert alert-danger" data-testid="my-posts-error">@LoadError</div>
-}
-else if (string.IsNullOrWhiteSpace(MyId))
-{
-    <div class="d-flex align-items-center gap-2 text-secondary">
-        <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-        <span>Loading...</span>
-    </div>
-}
-else
-{
-    <UsersPost UserId="@MyId" UserName="@MyName" />
-}
+    <section class="surface-card">
+        <SectionHeader Eyebrow="Authored work"
+                       Title="@MyPostsTitle"
+                       Description="Newest work appears first with the same card actions as the public feed."
+                       TitleTag="h2"
+                       TitleClass="section-heading__title h3 mb-0"
+                       SectionName="My Posts List" />
+
+        @if (!string.IsNullOrWhiteSpace(LoadError))
+        {
+            <div class="status-panel status-panel--error" data-testid="my-posts-error">
+                <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Could not load your posts</div>
+                    <p class="status-panel__text mb-0">@LoadError</p>
+                </div>
+            </div>
+        }
+        else if (string.IsNullOrWhiteSpace(MyId))
+        {
+            <div class="status-panel status-panel--info" aria-live="polite" data-testid="my-posts-loading">
+                <div class="status-panel__icon"><i class="bi bi-brush" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Loading your posts</div>
+                    <p class="status-panel__text mb-0">Finding your profile and authored gallery.</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <UsersPost UserId="@MyId" UserName="@MyName" ShowTitle="false" />
+        }
+    </section>
+</div>
 
 @code {
     private string? MyId { get; set; }
     private string? MyName { get; set; }
     private string? LoadError { get; set; }
+    private string MyPostsTitle => $"Posts by {(string.IsNullOrWhiteSpace(MyName) ? "you" : MyName)}";
 
     protected override async Task OnInitializedAsync()
     {

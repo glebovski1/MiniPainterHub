@@ -1,14 +1,36 @@
 .dashboard-sidebar-offcanvas {
-  --bs-offcanvas-width: min(90vw, 22rem);
+  --bs-offcanvas-width: min(92vw, 23.5rem);
+  top: 0;
+  bottom: 0;
+  height: 100dvh;
   background: rgba(252, 251, 247, 0.98);
   border-right: 1px solid rgba(23, 33, 39, 0.12);
   box-shadow: 0.35rem 0 2rem rgba(23, 33, 39, 0.14);
+  overflow: hidden;
 }
 
 .dashboard-sidebar-offcanvas :global(.offcanvas-header) {
-  padding: 1rem;
+  flex: 0 0 auto;
+  padding: 0.9rem 1rem;
   border-color: rgba(217, 208, 194, 0.82) !important;
   background: rgba(248, 244, 237, 0.96);
+}
+
+.dashboard-sidebar-offcanvas :global(.offcanvas-body) {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background:
+    linear-gradient(180deg, rgba(255, 254, 250, 0.98), rgba(245, 239, 229, 0.96)),
+    var(--surface);
+}
+
+.dashboard-sidebar-offcanvas :global(.dashboard-sidebar-content) {
+  min-height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
 }
 
 .dashboard-sidebar-offcanvas :global(.btn-close) {
@@ -25,4 +47,14 @@
   font-weight: 900;
   color: var(--accent-clay);
   margin-bottom: 0.15rem;
+}
+
+@media (max-width: 575.98px) {
+  .dashboard-sidebar-offcanvas {
+    --bs-offcanvas-width: min(94vw, 22rem);
+  }
+
+  .dashboard-sidebar-offcanvas :global(.offcanvas-body) {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
 }

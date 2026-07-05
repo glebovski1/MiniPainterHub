@@ -23,7 +23,7 @@ else if (!string.IsNullOrWhiteSpace(_loadError))
 }
 else
 {
-    <div class="@ContainerClass" data-testid="@CarouselTestId">
+    <div class="@ContainerClass" data-testid="@CarouselTestId" data-ready="true">
         <ImageCarousel Mode="@ImageCarousel.CarouselMode.Auto"
                        IntervalMs="5000"
                        ShowControls="false"

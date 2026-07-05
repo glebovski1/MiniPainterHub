@@ -259,9 +259,20 @@
         border-width: 0;
         border-radius: 0;
         box-shadow: none;
+        padding: 0.85rem;
     }
 
     .dashboard-hub-stats {
         grid-template-columns: 1fr;
+    }
+
+    .dashboard-hub-card {
+        gap: 0.78rem;
+        padding: 0.88rem;
+    }
+
+    .dashboard-hub-actions .btn,
+    ::deep(.dashboard-nav-link) {
+        min-height: 2.45rem;
     }
 }

@@ -457,6 +457,7 @@ const scenarioGroups = {
       group: "shell",
       viewport: VIEWPORTS.mobile,
       authState: "seed-user",
+      fullPage: false,
       stateTags: ["shell", "community", "mobile", "panel-open"]
     });
   },
@@ -530,6 +531,10 @@ const scenarioGroups = {
     });
 
     await page.goto("/posts/top");
+    await page
+      .locator("[data-testid='top-posts-carousel'], [data-testid='top-posts-error']")
+      .first()
+      .waitFor({ state: "visible", timeout: 10_000 });
     await capture(page, manifest, {
       name: "community-top-posts-desktop",
       group: "community",
@@ -844,7 +849,12 @@ const scenarioGroups = {
       stateTags: ["posts", "mobile", "viewer-open", "panorama"]
     });
 
+    await setViewport(page, VIEWPORTS.desktop);
     await page.goto("/posts/mine");
+    await page
+      .locator(".post-card, .empty-state, [data-testid='my-posts-error']")
+      .first()
+      .waitFor({ state: "visible", timeout: 10_000 });
     await capture(page, manifest, {
       name: "posts-mine-desktop",
       group: "posts",

@@ -1,6 +1,6 @@
 .profile-panel {
     display: grid;
-    gap: var(--space-4);
+    gap: var(--space-3);
 }
 
 .profile-panel__actions {
@@ -13,7 +13,7 @@
 
 .profile-panel__layout {
     display: grid;
-    gap: var(--space-4);
+    gap: var(--space-3);
 }
 
 .profile-panel__rail,
@@ -25,7 +25,7 @@
 }
 
 .profile-panel__rail {
-    padding: var(--space-4);
+    padding: var(--space-3);
 }
 
 .profile-panel__rail-stack {
@@ -75,7 +75,7 @@
 }
 
 .profile-panel__editor {
-    padding: var(--space-4);
+    padding: var(--space-3);
 }
 
 .profile-panel__form-grid {
