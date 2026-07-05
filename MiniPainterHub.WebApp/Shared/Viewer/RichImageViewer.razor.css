@@ -1065,77 +1065,62 @@
     z-index: 47;
     display: inline-grid;
     place-items: center;
-    width: clamp(3.4rem, 7vw, 6.5rem);
-    height: clamp(5rem, 18vh, 9rem);
+    width: clamp(2.45rem, 3vw, 3rem);
+    height: clamp(2.45rem, 3vw, 3rem);
     padding: 0;
-    border: 1px solid rgba(255, 235, 197, 0.08);
-    border-radius: 0.82rem;
-    color: rgba(255, 243, 214, 0.78);
-    background: rgba(10, 9, 8, 0.08);
+    border: 1px solid transparent;
+    border-radius: 0.72rem;
+    color: rgba(242, 207, 138, 0.7);
+    background: transparent;
     box-shadow: none;
-    opacity: 0.46;
+    opacity: 1;
     overflow: hidden;
     transform: translateY(-50%);
     transition:
         opacity 160ms ease,
         background 160ms ease,
         border-color 160ms ease,
-        color 160ms ease;
+        color 160ms ease,
+        transform 160ms ease;
     cursor: pointer;
     pointer-events: auto;
 }
 
 .viewer-shell__stage-nav-button::before {
-    content: "";
-    position: absolute;
-    top: 18%;
-    bottom: 18%;
-    width: 0.18rem;
-    border-radius: 999px;
-    background: rgba(242, 207, 138, 0.42);
-    opacity: 0.72;
-    transition: opacity 160ms ease, background 160ms ease;
+    content: none;
 }
 
 .viewer-shell__stage-nav-button--previous {
-    left: clamp(0.34rem, 0.8vw, 0.74rem);
-    justify-items: start;
-    padding-left: clamp(0.55rem, 1vw, 0.95rem);
-    background: linear-gradient(90deg, rgba(10, 9, 8, 0.22), rgba(10, 9, 8, 0.06) 62%, transparent);
+    left: max(
+        clamp(0.4rem, 0.8vw, 0.74rem),
+        calc(var(--viewer-action-image-left, 0px) + clamp(0.28rem, 0.5vw, 0.46rem))
+    );
 }
 
 .viewer-shell__stage-nav-button--next {
-    right: clamp(0.34rem, 0.8vw, 0.74rem);
-    justify-items: end;
-    padding-right: clamp(0.55rem, 1vw, 0.95rem);
-    background: linear-gradient(270deg, rgba(10, 9, 8, 0.22), rgba(10, 9, 8, 0.06) 62%, transparent);
-}
-
-.viewer-shell__stage-nav-button--previous::before {
-    left: 0.24rem;
-}
-
-.viewer-shell__stage-nav-button--next::before {
-    right: 0.24rem;
+    right: max(
+        clamp(0.4rem, 0.8vw, 0.74rem),
+        calc(100% - var(--viewer-action-image-right, 100%) + clamp(0.28rem, 0.5vw, 0.46rem))
+    );
 }
 
 .viewer-shell__stage-nav-button i {
     position: relative;
-    font-size: clamp(1.58rem, 2.2vw, 2.28rem);
-    filter: drop-shadow(0 0.18rem 0.35rem rgba(0, 0, 0, 0.52));
+    font-size: clamp(1.12rem, 1.55vw, 1.34rem);
+    filter:
+        drop-shadow(0 0.12rem 0.25rem rgba(0, 0, 0, 0.78))
+        drop-shadow(0 0 0.32rem rgba(242, 207, 138, 0.18));
 }
 
+.viewer-shell__stage-surface.is-controls-visible .viewer-shell__stage-nav-button,
 .viewer-shell__stage-nav-button:hover,
 .viewer-shell__stage-nav-button:focus-visible {
-    border-color: rgba(242, 207, 138, 0.28);
+    border-color: rgba(242, 207, 138, 0.34);
     color: #fff3d6;
-    background: rgba(16, 14, 12, 0.26);
-    opacity: 0.92;
-}
-
-.viewer-shell__stage-nav-button:hover::before,
-.viewer-shell__stage-nav-button:focus-visible::before {
-    background: rgba(242, 207, 138, 0.72);
+    background: rgba(16, 14, 12, 0.46);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 244, 220, 0.08),
+        0 0.72rem 1.4rem rgba(0, 0, 0, 0.24);
     opacity: 1;
 }
 
@@ -1144,22 +1129,31 @@
     outline-offset: 2px;
 }
 
+.viewer-shell__stage-nav-button:hover,
+.viewer-shell__stage-nav-button:focus-visible {
+    opacity: 0.94;
+    transform: translateY(-50%) scale(1.03);
+}
+
 @media (max-width: 991.98px) {
     .viewer-shell__stage-nav-button {
-        width: clamp(2.85rem, 14vw, 4rem);
-        height: clamp(4rem, 18vh, 6.25rem);
-        border-radius: 0.68rem;
-        opacity: 0.4;
+        width: clamp(2.35rem, 11vw, 2.85rem);
+        height: clamp(2.35rem, 11vw, 2.85rem);
+        border-radius: 0.64rem;
     }
 
     .viewer-shell__stage-nav-button--previous {
-        left: 0.28rem;
-        padding-left: 0.5rem;
+        left: max(0.42rem, calc(var(--viewer-action-image-left, 0px) + 0.22rem));
     }
 
     .viewer-shell__stage-nav-button--next {
-        right: 0.28rem;
-        padding-right: 0.5rem;
+        right: max(0.42rem, calc(100% - var(--viewer-action-image-right, 100%) + 0.22rem));
+    }
+}
+
+@media (hover: none), (pointer: coarse) {
+    .viewer-shell__stage-nav-button {
+        color: rgba(242, 207, 138, 0.88);
     }
 }
 

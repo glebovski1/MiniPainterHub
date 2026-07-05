@@ -159,10 +159,12 @@ public partial class RichImageViewer
             }
 
             var imageRect = _transform.GetRenderedRect(CurrentImage);
+            var imageLeft = imageRect.Left;
+            var imageTop = imageRect.Top;
             var imageRight = imageRect.Left + imageRect.Width;
             var imageBottom = imageRect.Top + imageRect.Height;
             return FormattableString.Invariant(
-                $"--viewer-action-image-right:{imageRight:F2}px;--viewer-action-image-bottom:{imageBottom:F2}px;");
+                $"--viewer-action-image-left:{imageLeft:F2}px;--viewer-action-image-top:{imageTop:F2}px;--viewer-action-image-right:{imageRight:F2}px;--viewer-action-image-bottom:{imageBottom:F2}px;");
         }
     }
 

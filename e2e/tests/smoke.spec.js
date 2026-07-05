@@ -55,6 +55,27 @@ async function getViewerBoxes(page) {
   return { stageSurfaceBox, stageBox, fitBox, imageBox };
 }
 
+async function expectStageNavControlsFit(page, stageSurfaceBox) {
+  const controls = [
+    page.getByTestId("viewer-stage-prev"),
+    page.getByTestId("viewer-stage-next"),
+  ];
+
+  for (const control of controls) {
+    const box = await control.boundingBox();
+    expect(box).toBeTruthy();
+    expect(await control.getAttribute("title")).toBeNull();
+    expect(box.width).toBeLessThanOrEqual(68);
+    expect(box.height).toBeLessThanOrEqual(68);
+    expect(box.width / box.height).toBeGreaterThan(0.82);
+    expect(box.width / box.height).toBeLessThan(1.22);
+    expect(box.x).toBeGreaterThanOrEqual(stageSurfaceBox.x - 1);
+    expect(box.y).toBeGreaterThanOrEqual(stageSurfaceBox.y - 1);
+    expect(box.x + box.width).toBeLessThanOrEqual(stageSurfaceBox.x + stageSurfaceBox.width + 1);
+    expect(box.y + box.height).toBeLessThanOrEqual(stageSurfaceBox.y + stageSurfaceBox.height + 1);
+  }
+}
+
 async function getScrollLockState(page) {
   return page.evaluate(() => ({
     bodyOverflow: document.body.style.overflow,
@@ -329,6 +350,7 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
   expect(stageBox.x + stageBox.width).toBeLessThanOrEqual(panelBox.x + 1);
   expect(closeButtonBox.x + closeButtonBox.width).toBeLessThanOrEqual(stageSurfaceBox.x + stageSurfaceBox.width + 1);
   expect(closeButtonBox.y).toBeGreaterThanOrEqual(stageSurfaceBox.y - 1);
+  await expectStageNavControlsFit(page, stageSurfaceBox);
   expectWithinTolerance(fitBox.x - stageBox.x, (stageBox.width - fitBox.width) / 2, 4);
   expectWithinTolerance(fitBox.y - stageBox.y, (stageBox.height - fitBox.height) / 2, 4);
   expectWithinTolerance(imageBox.x - stageBox.x, (stageBox.width - imageBox.width) / 2, 4);
@@ -493,14 +515,17 @@ test("rich viewer preserves image fit across the aspect-ratio matrix", async ({ 
     const currentSrc = await page.getByTestId("viewer-stage-image").getAttribute("src");
     observedSources.add(currentSrc);
 
-    const [stageBox, fitBox, imageBox] = await Promise.all([
+    const [stageSurfaceBox, stageBox, fitBox, imageBox] = await Promise.all([
+      page.locator(".viewer-shell__stage-surface").boundingBox(),
       page.getByTestId("viewer-stage").boundingBox(),
       page.getByTestId("viewer-stage-fitbox").boundingBox(),
       page.getByTestId("viewer-stage-image").boundingBox(),
     ]);
+    expect(stageSurfaceBox).toBeTruthy();
     expect(stageBox).toBeTruthy();
     expect(fitBox).toBeTruthy();
     expect(imageBox).toBeTruthy();
+    await expectStageNavControlsFit(page, stageSurfaceBox);
     expect(fitBox.x).toBeGreaterThanOrEqual(stageBox.x - 1);
     expect(fitBox.y).toBeGreaterThanOrEqual(stageBox.y - 1);
     expect(fitBox.x + fitBox.width).toBeLessThanOrEqual(stageBox.x + stageBox.width + 1);
