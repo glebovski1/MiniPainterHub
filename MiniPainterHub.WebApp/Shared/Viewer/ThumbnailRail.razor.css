@@ -68,8 +68,7 @@
     gap: 0.22rem;
 }
 
-.viewer-thumbnail__index,
-.viewer-thumbnail__state {
+.viewer-thumbnail__index {
     padding: 0.12rem 0.22rem;
     border-radius: 999px;
     background: rgba(10, 14, 17, 0.7);
@@ -77,10 +76,6 @@
     font-size: 0.46rem;
     font-weight: 700;
     letter-spacing: 0.08em;
-}
-
-.viewer-thumbnail__state {
-    display: none;
 }
 
 .viewer-thumbnails--single {
@@ -110,20 +105,12 @@
     background: rgba(255, 255, 255, 0.015);
 }
 
-.viewer-thumbnail--solo .viewer-thumbnail__state {
-    display: inline-flex;
-}
-
 .viewer-thumbnail.is-active {
     border-color: rgba(130, 208, 203, 0.72);
     background: rgba(130, 208, 203, 0.08);
     box-shadow:
         0 0 0 2px rgba(130, 208, 203, 0.18),
         0 0.65rem 1.2rem rgba(0, 0, 0, 0.14);
-}
-
-.viewer-thumbnail.is-active .viewer-thumbnail__state {
-    display: inline-flex;
 }
 
 @media (min-width: 992px) {
@@ -193,8 +180,7 @@
         inset: 0.16rem auto auto 0.16rem;
     }
 
-    .viewer-thumbnail__index,
-    .viewer-thumbnail__state {
+    .viewer-thumbnail__index {
         font-size: 0.42rem;
     }
 }
@@ -220,8 +206,7 @@
     background: linear-gradient(180deg, rgba(38, 31, 25, 0.02), rgba(38, 31, 25, 0.48));
 }
 
-.viewer-thumbnail__index,
-.viewer-thumbnail__state {
+.viewer-thumbnail__index {
     background: rgba(45, 40, 35, 0.72);
     color: #fffaf3;
 }
@@ -312,8 +297,7 @@
         linear-gradient(90deg, rgba(242, 207, 138, 0.1), transparent 46%);
 }
 
-.viewer-thumbnail__index,
-.viewer-thumbnail__state {
+.viewer-thumbnail__index {
     background: rgba(31, 22, 16, 0.78);
     color: #fff8e8;
 }

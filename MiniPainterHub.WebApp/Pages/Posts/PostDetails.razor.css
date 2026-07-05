@@ -493,9 +493,9 @@
 }
 
 .viewer-panel__comments-list {
-    display: grid;
-    align-content: start;
-    gap: 0.62rem;
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
 }
 
 .viewer-panel__auth-callout {
@@ -515,7 +515,9 @@
 }
 
 ::deep(.viewer-panel__comments-list .comment-list--viewer-panel) {
+    flex: 1 1 auto;
     gap: 0.65rem;
+    min-height: 100%;
 }
 
 ::deep(.viewer-panel__comments-list .comment-item--viewer-panel .card-body) {
@@ -528,7 +530,7 @@
 }
 
 ::deep(.viewer-panel__comments-list .pagination) {
-    margin-top: 0.25rem;
+    margin-top: 0;
 }
 
 ::deep(.viewer-panel__content--comments .form-grid) {

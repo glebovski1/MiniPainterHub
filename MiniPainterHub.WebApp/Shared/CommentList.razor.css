@@ -1,8 +1,11 @@
 .comment-list--viewer-panel {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 0.95rem;
+    min-height: 100%;
 }
 
 .comment-list--viewer-panel nav {
-    margin-top: 0.15rem;
+    margin-top: auto;
+    padding-top: 0.15rem;
 }

@@ -10,8 +10,8 @@
                  alt=""
                  loading="lazy" />
             <span class="viewer-thumbnail__scrim" aria-hidden="true"></span>
-            <span class="viewer-thumbnail__meta">
-                <span class="viewer-thumbnail__state">Current</span>
+            <span class="viewer-thumbnail__meta" aria-hidden="true">
+                <span class="viewer-thumbnail__index">01</span>
             </span>
         </div>
     </div>
@@ -29,15 +29,14 @@ else if (Images.Count > 1)
                     data-testid="viewer-thumbnail"
                     role="tab"
                     aria-selected="@isActive"
-                    aria-label="Show image @(index + 1)"
+                    aria-label="@(isActive ? $"Current image {index + 1}" : $"Show image {index + 1}")"
                     @onclick="@(() => OnSelect.InvokeAsync(image.Id))">
                 <img src="@GetThumbnailSource(image)"
                      alt=""
                      loading="lazy" />
                 <span class="viewer-thumbnail__scrim" aria-hidden="true"></span>
-                <span class="viewer-thumbnail__meta">
+                <span class="viewer-thumbnail__meta" aria-hidden="true">
                     <span class="viewer-thumbnail__index">@((index + 1).ToString("00"))</span>
-                    <span class="viewer-thumbnail__state">@(isActive ? "Current" : "Open")</span>
                 </span>
             </button>
         }

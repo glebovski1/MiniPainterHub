@@ -160,8 +160,11 @@ async function advanceViewer(page) {
     let activeIndex = 0;
 
     for (let index = 0; index < thumbnailCount; index += 1) {
-      const thumbnailText = await thumbnails.nth(index).textContent();
-      if (thumbnailText && thumbnailText.includes("Current")) {
+      const thumbnail = thumbnails.nth(index);
+      const selectedAttribute = await thumbnail.getAttribute("aria-selected");
+      const isSelected = selectedAttribute?.toLowerCase();
+      const className = await thumbnail.getAttribute("class");
+      if (isSelected === "true" || className?.split(/\s+/).includes("is-active")) {
         activeIndex = index;
         break;
       }

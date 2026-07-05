@@ -1068,12 +1068,13 @@
     width: clamp(3.4rem, 7vw, 6.5rem);
     height: clamp(5rem, 18vh, 9rem);
     padding: 0;
-    border: 1px solid rgba(255, 235, 197, 0.04);
+    border: 1px solid rgba(255, 235, 197, 0.08);
     border-radius: 0.82rem;
-    color: rgba(255, 243, 214, 0.62);
-    background: rgba(10, 9, 8, 0.03);
+    color: rgba(255, 243, 214, 0.78);
+    background: rgba(10, 9, 8, 0.08);
     box-shadow: none;
-    opacity: 0.32;
+    opacity: 0.46;
+    overflow: hidden;
     transform: translateY(-50%);
     transition:
         opacity 160ms ease,
@@ -1084,19 +1085,42 @@
     pointer-events: auto;
 }
 
+.viewer-shell__stage-nav-button::before {
+    content: "";
+    position: absolute;
+    top: 18%;
+    bottom: 18%;
+    width: 0.18rem;
+    border-radius: 999px;
+    background: rgba(242, 207, 138, 0.42);
+    opacity: 0.72;
+    transition: opacity 160ms ease, background 160ms ease;
+}
+
 .viewer-shell__stage-nav-button--previous {
     left: clamp(0.34rem, 0.8vw, 0.74rem);
     justify-items: start;
     padding-left: clamp(0.55rem, 1vw, 0.95rem);
+    background: linear-gradient(90deg, rgba(10, 9, 8, 0.22), rgba(10, 9, 8, 0.06) 62%, transparent);
 }
 
 .viewer-shell__stage-nav-button--next {
     right: clamp(0.34rem, 0.8vw, 0.74rem);
     justify-items: end;
     padding-right: clamp(0.55rem, 1vw, 0.95rem);
+    background: linear-gradient(270deg, rgba(10, 9, 8, 0.22), rgba(10, 9, 8, 0.06) 62%, transparent);
+}
+
+.viewer-shell__stage-nav-button--previous::before {
+    left: 0.24rem;
+}
+
+.viewer-shell__stage-nav-button--next::before {
+    right: 0.24rem;
 }
 
 .viewer-shell__stage-nav-button i {
+    position: relative;
     font-size: clamp(1.58rem, 2.2vw, 2.28rem);
     filter: drop-shadow(0 0.18rem 0.35rem rgba(0, 0, 0, 0.52));
 }
@@ -1107,6 +1131,12 @@
     color: #fff3d6;
     background: rgba(16, 14, 12, 0.26);
     opacity: 0.92;
+}
+
+.viewer-shell__stage-nav-button:hover::before,
+.viewer-shell__stage-nav-button:focus-visible::before {
+    background: rgba(242, 207, 138, 0.72);
+    opacity: 1;
 }
 
 .viewer-shell__stage-nav-button:focus-visible {
