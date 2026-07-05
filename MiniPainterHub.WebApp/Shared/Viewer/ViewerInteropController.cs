@@ -19,9 +19,10 @@ internal sealed class ViewerInteropController
     public bool IsModalActive { get; private set; }
     public bool IsStageObserved { get; private set; }
     public bool IsGestureInteropActive { get; private set; }
+    public bool IsStageControlsActive { get; private set; }
     public bool IsFullscreenSupported { get; private set; }
     public bool IsFullscreen { get; private set; }
-    public bool HasActiveLifecycle => IsModalActive || IsStageObserved || IsGestureInteropActive;
+    public bool HasActiveLifecycle => IsModalActive || IsStageObserved || IsGestureInteropActive || IsStageControlsActive;
 
     public async Task WarmModuleAsync()
     {
@@ -39,6 +40,7 @@ internal sealed class ViewerInteropController
     public async Task EnsureViewerAsync(
         ElementReference rootElement,
         ElementReference stageElement,
+        ElementReference stageSurfaceElement,
         ElementReference transformElement,
         DotNetObjectReference<RichImageViewer> selfReference,
         ViewerTransformInteropSnapshot transform)
@@ -74,6 +76,12 @@ internal sealed class ViewerInteropController
                     selfReference,
                     transform);
                 IsGestureInteropActive = true;
+            }
+
+            if (!IsStageControlsActive)
+            {
+                await module.InvokeVoidAsync("activateStageControls", stageSurfaceElement);
+                IsStageControlsActive = true;
             }
         }
         catch
@@ -230,19 +238,28 @@ internal sealed class ViewerInteropController
         }
     }
 
-    public async Task DeactivateAsync(ElementReference rootElement, ElementReference stageElement, bool hasStage)
+    public async Task DeactivateAsync(
+        ElementReference rootElement,
+        ElementReference stageElement,
+        ElementReference stageSurfaceElement,
+        bool hasStage)
     {
-        await TeardownAsync(rootElement, stageElement, hasStage, disposeModule: false);
+        await TeardownAsync(rootElement, stageElement, stageSurfaceElement, hasStage, disposeModule: false);
     }
 
-    public async ValueTask DisposeAsync(ElementReference rootElement, ElementReference stageElement, bool hasStage)
+    public async ValueTask DisposeAsync(
+        ElementReference rootElement,
+        ElementReference stageElement,
+        ElementReference stageSurfaceElement,
+        bool hasStage)
     {
-        await TeardownAsync(rootElement, stageElement, hasStage, disposeModule: true);
+        await TeardownAsync(rootElement, stageElement, stageSurfaceElement, hasStage, disposeModule: true);
     }
 
     private async Task TeardownAsync(
         ElementReference rootElement,
         ElementReference stageElement,
+        ElementReference stageSurfaceElement,
         bool hasStage,
         bool disposeModule)
     {
@@ -267,6 +284,11 @@ internal sealed class ViewerInteropController
             if (IsGestureInteropActive && hasStage)
             {
                 await _module.InvokeVoidAsync("deactivateViewerGestures", stageElement);
+            }
+
+            if (IsStageControlsActive)
+            {
+                await _module.InvokeVoidAsync("deactivateStageControls", stageSurfaceElement);
             }
 
             if (IsModalActive)
@@ -302,6 +324,7 @@ internal sealed class ViewerInteropController
         IsStageObserved = false;
         IsModalActive = false;
         IsGestureInteropActive = false;
+        IsStageControlsActive = false;
         IsFullscreen = false;
     }
 

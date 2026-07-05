@@ -587,8 +587,8 @@ async function measureViewer(browser, token) {
     await waitForViewerImage(page);
     await waitForViewerFit(page);
     const openMs = Date.now() - startedAt;
-    const warmSwitchMs = await switchViewerImage(page, "viewer-next");
-    const cachedSwitchMs = await switchViewerImage(page, "viewer-prev");
+    const warmSwitchMs = await switchViewerImage(page, "viewer-stage-next");
+    const cachedSwitchMs = await switchViewerImage(page, "viewer-stage-prev");
     const snapshot = await runtimeSnapshot(page);
 
     return {

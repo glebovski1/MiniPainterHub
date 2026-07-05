@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace MiniPainterHub.WebApp.Shared.Viewer;
@@ -22,10 +21,10 @@ public partial class RichImageViewer
     private ElementReference _rootElement;
     private ElementReference _imageElement;
     private ElementReference _sidePanelElement;
+    private ElementReference _stageSurfaceElement;
     private ElementReference _transformElement;
     private ViewerInteropController? _viewerInterop;
     private DotNetObjectReference<RichImageViewer>? _selfReference;
-    private CancellationTokenSource? _stageControlsHideCts;
 
     private MarkComposerValue _composerValue = new();
 
@@ -36,7 +35,6 @@ public partial class RichImageViewer
     private bool _pendingFocusCommentMark;
     private bool _pendingScrollActiveComment;
     private bool _suppressNextPlacementClick;
-    private bool _stageControlsVisible;
     private bool _wasOpenLastRender;
     private int _currentImageId;
     private int _lastIncomingImageId;
@@ -148,8 +146,6 @@ public partial class RichImageViewer
 
     private string StageClass =>
         $"viewer-stage-shell {(_transform.CanPan ? "is-pannable" : "is-slide-mode")} {(IsPlacementMode ? "is-placement-mode" : null)}";
-
-    private string? StageControlsClass => _stageControlsVisible ? "is-controls-visible" : null;
 
     private string StageStyle => "touch-action:none;";
 
@@ -320,7 +316,10 @@ public partial class RichImageViewer
 
         if (IsOpen)
         {
-            if (!ViewerInterop.IsModalActive || !ViewerInterop.IsStageObserved || !ViewerInterop.IsGestureInteropActive)
+            if (!ViewerInterop.IsModalActive
+                || !ViewerInterop.IsStageObserved
+                || !ViewerInterop.IsGestureInteropActive
+                || !ViewerInterop.IsStageControlsActive)
             {
                 await EnsureViewerInteropAsync();
             }
@@ -426,6 +425,7 @@ public partial class RichImageViewer
         await ViewerInterop.EnsureViewerAsync(
             _rootElement,
             _viewerStage.StageElement,
+            _stageSurfaceElement,
             _transformElement,
             _selfReference,
             CreateTransformSnapshot());
@@ -449,6 +449,7 @@ public partial class RichImageViewer
         await ViewerInterop.DeactivateAsync(
             _rootElement,
             _viewerStage?.StageElement ?? default,
+            _stageSurfaceElement,
             _viewerStage is not null);
 
         _pointerGestures.Clear();
@@ -1010,48 +1011,6 @@ public partial class RichImageViewer
         _imageLoadState.MarkFailed(imageId);
     }
 
-    private Task RevealStageControlsTemporarilyAsync()
-    {
-        var shouldRender = !_stageControlsVisible;
-        _stageControlsVisible = true;
-        ScheduleStageControlsHide();
-
-        return shouldRender ? InvokeAsync(StateHasChanged) : Task.CompletedTask;
-    }
-
-    private void ScheduleStageControlsHide()
-    {
-        _stageControlsHideCts?.Cancel();
-        _stageControlsHideCts?.Dispose();
-
-        var cts = new CancellationTokenSource();
-        _stageControlsHideCts = cts;
-        _ = HideStageControlsAfterDelayAsync(cts);
-    }
-
-    private async Task HideStageControlsAfterDelayAsync(CancellationTokenSource cts)
-    {
-        try
-        {
-            await Task.Delay(1600, cts.Token);
-            await InvokeAsync(() =>
-            {
-                if (_stageControlsHideCts != cts)
-                {
-                    return;
-                }
-
-                _stageControlsVisible = false;
-                _stageControlsHideCts = null;
-                cts.Dispose();
-                StateHasChanged();
-            });
-        }
-        catch (OperationCanceledException)
-        {
-        }
-    }
-
     private void ResetViewState()
     {
         _transform.Reset(CurrentImage);
@@ -1126,14 +1085,12 @@ public partial class RichImageViewer
 
     public async ValueTask DisposeAsync()
     {
-        _stageControlsHideCts?.Cancel();
-        _stageControlsHideCts?.Dispose();
-
         if (_viewerInterop is not null)
         {
             await _viewerInterop.DisposeAsync(
                 _rootElement,
                 _viewerStage?.StageElement ?? default,
+                _stageSurfaceElement,
                 _viewerStage is not null);
         }
 

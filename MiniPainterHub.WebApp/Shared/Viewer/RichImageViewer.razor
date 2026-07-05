@@ -1,5 +1,4 @@
 @using System.Globalization
-@using System.Threading
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
 @using MiniPainterHub.Common.DTOs
@@ -46,8 +45,8 @@ else if (IsOpen)
                             </div>
                         }
 
-                        <div class="viewer-shell__stage-surface @StageControlsClass"
-                             @onpointermove="RevealStageControlsTemporarilyAsync">
+                        <div class="viewer-shell__stage-surface"
+                             @ref="_stageSurfaceElement">
                             <div class="viewer-shell__stage-chrome" style="@StageChromeStyle" data-testid="viewer-stage-chrome">
                                 @if (Viewer.Images.Count > 1)
                                 {
@@ -121,6 +120,8 @@ else if (IsOpen)
                                                              src="@CurrentImageSource"
                                                              data-testid="viewer-stage-image"
                                                              alt="@($"Artwork image {CurrentImageNumber}")"
+                                                             decoding="async"
+                                                             fetchpriority="high"
                                                              draggable="false"
                                                              @ref="_imageElement"
                                                              @onload="@(() => OnImageLoaded(CurrentImage.Id))"

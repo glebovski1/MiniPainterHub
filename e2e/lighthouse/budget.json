@@ -15,8 +15,13 @@
     ]
   },
   "viewer": {
-    "openMs": 1500,
-    "cachedSwitchMs": 500,
+    "openMs": 400,
+    "warmSwitchMs": 225,
+    "cachedSwitchMs": 250,
+    "dragPanP95FrameMs": 24,
+    "dragPanMaxFrameMs": 60,
+    "dragPanMaxDroppedFrames": 4,
+    "dragPanMaxLongTasks": 0,
     "screenshotMs": 10000,
     "thumbnailMaxAspectSkew": 1.45,
     "fitTolerancePx": 4
@@ -35,14 +40,14 @@
     "postStartupMaxLongTasks": 1
   },
   "runtime": {
-    "cachedRouteRenderMs": 1500,
+    "cachedRouteRenderMs": 600,
     "cachedFrameworkTransferBytes": 0,
-    "routeTransitionMs": 1000,
+    "routeTransitionMs": 250,
     "postStartupMaxLongTasksOver100Ms": 0,
     "cumulativeLayoutShift": 0.02,
     "apiP95Ms": 1000,
     "imageDecodeMs": 1000,
-    "viewerOpenMs": 1500,
-    "viewerCachedSwitchMs": 500
+    "viewerOpenMs": 350,
+    "viewerCachedSwitchMs": 200
   }
 }

@@ -144,6 +144,159 @@ async function switchViewerImage(page, controlTestId = "viewer-stage-next") {
   return Math.round(performance.now() - start);
 }
 
+async function beginDragFrameMetrics(page) {
+  await page.evaluate(() => {
+    const state = {
+      done: false,
+      frames: [],
+      longTasks: [],
+      observer: null,
+      rafId: 0,
+      startedAt: performance.now(),
+      lastFrameAt: 0
+    };
+
+    if ("PerformanceObserver" in window) {
+      try {
+        state.observer = new PerformanceObserver((list) => {
+          for (const entry of list.getEntries()) {
+            state.longTasks.push({
+              duration: entry.duration,
+              startTime: entry.startTime
+            });
+          }
+        });
+        state.observer.observe({ type: "longtask", buffered: false });
+      } catch {
+        state.observer = null;
+      }
+    }
+
+    const tick = (timestamp) => {
+      if (state.done) {
+        return;
+      }
+
+      if (state.lastFrameAt > 0) {
+        state.frames.push(timestamp - state.lastFrameAt);
+      }
+
+      state.lastFrameAt = timestamp;
+      state.rafId = requestAnimationFrame(tick);
+    };
+
+    window.__mphViewerDragMetrics = state;
+    state.rafId = requestAnimationFrame(tick);
+  });
+}
+
+async function finishDragFrameMetrics(page) {
+  return page.evaluate(async () => {
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    const state = window.__mphViewerDragMetrics;
+    if (!state) {
+      return {
+        durationMs: 0,
+        frameCount: 0,
+        p95FrameMs: 0,
+        maxFrameMs: 0,
+        droppedFramesOver34Ms: 0,
+        longTasksOver50Ms: []
+      };
+    }
+
+    state.done = true;
+    cancelAnimationFrame(state.rafId);
+    state.observer?.disconnect();
+
+    const frames = state.frames
+      .filter((value) => Number.isFinite(value) && value > 0)
+      .map((value) => Math.round(value * 10) / 10);
+    const sortedFrames = [...frames].sort((left, right) => left - right);
+    const p95Index = sortedFrames.length === 0
+      ? -1
+      : Math.min(sortedFrames.length - 1, Math.ceil(sortedFrames.length * 0.95) - 1);
+    const longTasksOver50Ms = state.longTasks
+      .filter((entry) => entry.duration > 50)
+      .map((entry) => ({
+        duration: Math.round(entry.duration),
+        startTime: Math.round(entry.startTime)
+      }));
+
+    delete window.__mphViewerDragMetrics;
+
+    return {
+      durationMs: Math.round(performance.now() - state.startedAt),
+      frameCount: frames.length,
+      p95FrameMs: p95Index >= 0 ? sortedFrames[p95Index] : 0,
+      maxFrameMs: sortedFrames.length > 0 ? sortedFrames[sortedFrames.length - 1] : 0,
+      droppedFramesOver34Ms: frames.filter((value) => value > 34).length,
+      longTasksOver50Ms
+    };
+  });
+}
+
+async function waitForViewerActualSizePan(page) {
+  await page.waitForFunction(() => {
+    const stage = document.querySelector("[data-testid='viewer-stage']");
+    const transform = document.querySelector("[data-testid='viewer-stage-transform']");
+    if (!(stage instanceof HTMLElement) || !(transform instanceof HTMLElement)) {
+      return false;
+    }
+
+    const stageRect = stage.getBoundingClientRect();
+    const transformRect = transform.getBoundingClientRect();
+    return transformRect.width > stageRect.width + 1
+      || transformRect.height > stageRect.height + 1;
+  }, undefined, { timeout: 10_000 });
+}
+
+async function measureViewerDragPan(page) {
+  const stage = page.getByTestId("viewer-stage");
+  await stage.hover();
+  await page.getByTestId("viewer-view-actual").evaluate((button) => button.click());
+  await expect(page.getByTestId("viewer-view-actual")).toHaveClass(/is-active/);
+  await waitForViewerActualSizePan(page);
+
+  const transform = page.getByTestId("viewer-stage-transform");
+  const transformBeforePan = await transform.getAttribute("style");
+  const stageBox = await stage.boundingBox();
+  expect(stageBox, "viewer stage box before drag-pan measurement").toBeTruthy();
+
+  const startX = stageBox.x + stageBox.width * 0.58;
+  const startY = stageBox.y + stageBox.height * 0.52;
+  const endX = stageBox.x + stageBox.width * 0.32;
+  const endY = stageBox.y + stageBox.height * 0.34;
+  const steps = 48;
+
+  await page.mouse.move(startX, startY);
+  await beginDragFrameMetrics(page);
+  await page.mouse.down();
+
+  for (let step = 1; step <= steps; step += 1) {
+    const progress = step / steps;
+    await page.mouse.move(
+      startX + ((endX - startX) * progress),
+      startY + ((endY - startY) * progress)
+    );
+    await page.waitForTimeout(8);
+  }
+
+  await page.mouse.up();
+  const dragMetrics = await finishDragFrameMetrics(page);
+  await expect.poll(() => transform.getAttribute("style")).not.toBe(transformBeforePan);
+
+  await page.getByTestId("viewer-reset").evaluate((button) => button.click());
+  await expect(page.getByTestId("viewer-reset")).toHaveClass(/is-active/);
+  await waitForViewerFit(page);
+
+  return {
+    ...dragMetrics,
+    transformChanged: true
+  };
+}
+
 async function openViewerWithPhaseTimings(page) {
   const timings = {};
   const trigger = page.getByTestId("post-details-open-viewer-hero");
@@ -200,7 +353,15 @@ test("rich viewer interaction performance budgets", async ({ page, request }, te
 
     const warmSwitchMs = await switchViewerImage(page);
     const cachedSwitchMs = await switchViewerImage(page, "viewer-stage-prev");
+    expect(warmSwitchMs, `${viewport.name} warm image switch time`).toBeLessThanOrEqual(BUDGET.warmSwitchMs);
     expect(cachedSwitchMs, `${viewport.name} cached image switch time`).toBeLessThanOrEqual(BUDGET.cachedSwitchMs);
+
+    const dragPan = await measureViewerDragPan(page);
+    console.log(`${viewport.name} viewer drag-pan metrics: ${JSON.stringify(dragPan)}`);
+    expect(dragPan.p95FrameMs, `${viewport.name} drag-pan p95 frame time`).toBeLessThanOrEqual(BUDGET.dragPanP95FrameMs);
+    expect(dragPan.maxFrameMs, `${viewport.name} drag-pan max frame time`).toBeLessThanOrEqual(BUDGET.dragPanMaxFrameMs);
+    expect(dragPan.droppedFramesOver34Ms, `${viewport.name} drag-pan dropped frames >34ms`).toBeLessThanOrEqual(BUDGET.dragPanMaxDroppedFrames);
+    expect(dragPan.longTasksOver50Ms.length, `${viewport.name} drag-pan long tasks`).toBeLessThanOrEqual(BUDGET.dragPanMaxLongTasks);
 
     const screenshotStart = performance.now();
     await page.getByTestId("rich-image-viewer").screenshot({
@@ -229,6 +390,7 @@ test("rich viewer interaction performance budgets", async ({ page, request }, te
       openTimings,
       warmSwitchMs,
       cachedSwitchMs,
+      dragPan,
       screenshotMs,
       afterOpen: metricsAfterOpen,
       afterResize: metricsAfterResize

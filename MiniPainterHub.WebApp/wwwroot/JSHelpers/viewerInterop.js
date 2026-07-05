@@ -2,7 +2,13 @@ const stageObservers = new WeakMap();
 const fullscreenListeners = new WeakMap();
 const modalStates = new WeakMap();
 const gestureStates = new WeakMap();
+const stageControlStates = new WeakMap();
 const preloadQueue = new Set();
+const decodedPreloadImages = new Map();
+const maxDecodedPreloadImages = 12;
+const preloadBatchSize = 3;
+const stageControlsHideDelayMs = 1600;
+const stageControlsLeaveDelayMs = 180;
 let preloadIdleHandle = 0;
 
 function readTransformValue(snapshot, camelName, pascalName, fallback) {
@@ -25,22 +31,36 @@ function applyTransformSnapshot(state, snapshot) {
     state.canPan = readTransformBool(snapshot, "canPan", "CanPan", state.canPan ?? false);
 }
 
-function getPanBounds(stageElement, transformElement, zoom) {
-    const stageWidth = stageElement?.clientWidth ?? 0;
-    const stageHeight = stageElement?.clientHeight ?? 0;
-    const baseWidth = transformElement?.offsetWidth ?? 0;
-    const baseHeight = transformElement?.offsetHeight ?? 0;
-
-    return {
-        maxPanX: Math.max(0, ((baseWidth * zoom) - stageWidth) / 2),
-        maxPanY: Math.max(0, ((baseHeight * zoom) - stageHeight) / 2)
+function refreshPanMetrics(state) {
+    state.panMetrics = {
+        stageWidth: state.stageElement?.clientWidth ?? 0,
+        stageHeight: state.stageElement?.clientHeight ?? 0,
+        baseWidth: state.transformElement?.offsetWidth ?? 0,
+        baseHeight: state.transformElement?.offsetHeight ?? 0
     };
 }
 
-function clampGestureState(state) {
+function getPanBounds(state) {
+    if (!state.panMetrics) {
+        refreshPanMetrics(state);
+    }
+
+    const { stageWidth, stageHeight, baseWidth, baseHeight } = state.panMetrics;
+
+    return {
+        maxPanX: Math.max(0, ((baseWidth * state.zoom) - stageWidth) / 2),
+        maxPanY: Math.max(0, ((baseHeight * state.zoom) - stageHeight) / 2)
+    };
+}
+
+function clampGestureState(state, refreshMetrics = false) {
     state.zoom = Math.min(state.maxZoom, Math.max(state.minZoom, state.zoom));
 
-    const bounds = getPanBounds(state.stageElement, state.transformElement, state.zoom);
+    if (refreshMetrics) {
+        refreshPanMetrics(state);
+    }
+
+    const bounds = getPanBounds(state);
     state.panX = Math.min(bounds.maxPanX, Math.max(-bounds.maxPanX, state.panX));
     state.panY = Math.min(bounds.maxPanY, Math.max(-bounds.maxPanY, state.panY));
     state.canPan = bounds.maxPanX > 0.001 || bounds.maxPanY > 0.001;
@@ -310,10 +330,58 @@ export function preloadImages(urls) {
     }
 
     urls
-        .filter(url => typeof url === "string" && url.length > 0)
+        .filter(url => typeof url === "string" && url.length > 0 && !decodedPreloadImages.has(url))
         .forEach(url => preloadQueue.add(url));
 
     schedulePreloadFlush();
+}
+
+function rememberDecodedPreload(url, image) {
+    if (decodedPreloadImages.has(url)) {
+        decodedPreloadImages.delete(url);
+    }
+
+    decodedPreloadImages.set(url, image);
+
+    while (decodedPreloadImages.size > maxDecodedPreloadImages) {
+        const oldestUrl = decodedPreloadImages.keys().next().value;
+        decodedPreloadImages.delete(oldestUrl);
+    }
+}
+
+function forgetDecodedPreload(url, image) {
+    if (decodedPreloadImages.get(url) === image) {
+        decodedPreloadImages.delete(url);
+    }
+}
+
+function preloadAndDecodeImage(url) {
+    if (decodedPreloadImages.has(url)) {
+        return;
+    }
+
+    const image = new Image();
+    image.decoding = "async";
+
+    if ("loading" in image) {
+        image.loading = "eager";
+    }
+
+    if ("fetchPriority" in image) {
+        image.fetchPriority = "low";
+    }
+
+    rememberDecodedPreload(url, image);
+    image.addEventListener("error", () => forgetDecodedPreload(url, image), { once: true });
+    image.src = url;
+
+    if (typeof image.decode === "function") {
+        image.decode().catch(() => {
+            if (!image.complete || image.naturalWidth === 0) {
+                forgetDecodedPreload(url, image);
+            }
+        });
+    }
 }
 
 function schedulePreloadFlush() {
@@ -323,18 +391,11 @@ function schedulePreloadFlush() {
 
     const flush = () => {
         preloadIdleHandle = 0;
-        const nextUrls = Array.from(preloadQueue).slice(0, 3);
+        const nextUrls = Array.from(preloadQueue).slice(0, preloadBatchSize);
 
         nextUrls.forEach(url => {
             preloadQueue.delete(url);
-            const image = new Image();
-            image.decoding = "async";
-            image.loading = "lazy";
-            if ("fetchPriority" in image) {
-                image.fetchPriority = "low";
-            }
-
-            image.src = url;
+            preloadAndDecodeImage(url);
         });
 
         if (preloadQueue.size > 0) {
@@ -360,7 +421,7 @@ export function activateViewerGestures(stageElement, transformElement, dotNetRef
         state.transformElement = transformElement;
         state.dotNetRef = dotNetRef;
         applyTransformSnapshot(state, snapshot);
-        clampGestureState(state);
+        clampGestureState(state, true);
         applyGestureTransform(state);
         return;
     }
@@ -385,6 +446,7 @@ export function activateViewerGestures(stageElement, transformElement, dotNetRef
         pinchLastCenter: null,
         rafId: 0,
         settleTimer: 0,
+        panMetrics: null,
         listeners: []
     };
     state.stageElement = stageElement;
@@ -393,7 +455,7 @@ export function activateViewerGestures(stageElement, transformElement, dotNetRef
     state.activePointers ??= new Map();
 
     applyTransformSnapshot(state, snapshot);
-    clampGestureState(state);
+    clampGestureState(state, true);
     applyGestureTransform(state);
 
     const onWheel = event => {
@@ -540,6 +602,7 @@ export function syncViewerTransform(stageElement, transformElement, snapshot) {
             canPan: false,
             rafId: 0,
             settleTimer: 0,
+            panMetrics: null,
             listeners: []
         };
         gestureStates.set(stageElement, state);
@@ -547,7 +610,7 @@ export function syncViewerTransform(stageElement, transformElement, snapshot) {
 
     state.transformElement = transformElement;
     applyTransformSnapshot(state, snapshot);
-    clampGestureState(state);
+    clampGestureState(state, true);
     applyGestureTransform(state);
 }
 
@@ -568,6 +631,107 @@ export function deactivateViewerGestures(stageElement) {
     window.clearTimeout(state.settleTimer);
     state.stageElement?.classList.remove("is-gesturing");
     gestureStates.delete(stageElement);
+}
+
+export function activateStageControls(element) {
+    if (!element || stageControlStates.has(element)) {
+        return;
+    }
+
+    const state = {
+        hideTimer: 0,
+        hideDeadline: 0,
+        isFocusHeld: false,
+        isVisible: false,
+        listeners: []
+    };
+
+    const showNow = () => {
+        if (state.isVisible) {
+            return;
+        }
+
+        element.classList.add("is-controls-visible");
+        state.isVisible = true;
+    };
+
+    const hideNow = () => {
+        element.classList.remove("is-controls-visible");
+        state.hideDeadline = 0;
+        state.hideTimer = 0;
+        state.isVisible = false;
+    };
+
+    const runHideTimer = () => {
+        const remainingMs = state.hideDeadline - performance.now();
+        if (remainingMs > 8) {
+            state.hideTimer = window.setTimeout(runHideTimer, remainingMs);
+            return;
+        }
+
+        hideNow();
+    };
+
+    const scheduleHide = delayMs => {
+        state.hideDeadline = performance.now() + delayMs;
+
+        if (!state.hideTimer) {
+            state.hideTimer = window.setTimeout(runHideTimer, delayMs);
+        }
+    };
+
+    const showControls = () => {
+        showNow();
+
+        if (!state.isFocusHeld) {
+            scheduleHide(stageControlsHideDelayMs);
+        }
+    };
+
+    const keepControlsVisible = () => {
+        state.isFocusHeld = true;
+        showNow();
+        window.clearTimeout(state.hideTimer);
+        state.hideTimer = 0;
+        state.hideDeadline = 0;
+    };
+
+    const hideControlsSoon = event => {
+        if (event?.relatedTarget instanceof Node && element.contains(event.relatedTarget)) {
+            return;
+        }
+
+        state.isFocusHeld = false;
+        scheduleHide(stageControlsLeaveDelayMs);
+    };
+
+    state.listeners = [
+        ["pointermove", showControls, { passive: true }],
+        ["pointerleave", hideControlsSoon, { passive: true }],
+        ["focusin", keepControlsVisible, false],
+        ["focusout", hideControlsSoon, false]
+    ];
+
+    for (const [eventName, handler, options] of state.listeners) {
+        element.addEventListener(eventName, handler, options);
+    }
+
+    stageControlStates.set(element, state);
+}
+
+export function deactivateStageControls(element) {
+    const state = stageControlStates.get(element);
+    if (!state) {
+        return;
+    }
+
+    for (const [eventName, handler, options] of state.listeners) {
+        element.removeEventListener(eventName, handler, options);
+    }
+
+    window.clearTimeout(state.hideTimer);
+    element.classList.remove("is-controls-visible");
+    stageControlStates.delete(element);
 }
 
 export function getRelativePoint(element, clientX, clientY) {
