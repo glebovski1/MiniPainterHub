@@ -124,6 +124,7 @@ jobs:
           echo "PRODUCTION_SQL_CONNECTION_STRING is not configured; resolving DefaultConnection from App Service."
           python - <<'PY'
           import base64
+          import binascii
           import json
           import os
           import sys
@@ -160,48 +161,56 @@ jobs:
           publish_url = profile.attrib["publishUrl"].strip()
           if not publish_url.startswith(("http://", "https://")):
               publish_url = f"https://{publish_url}"
-          environment_url = f"{publish_url.rstrip('/')}/api/environment"
-
           credentials = base64.b64encode(
               f"{profile.attrib['userName']}:{profile.attrib['userPWD']}".encode("utf-8")
           ).decode("ascii")
+          powershell = (
+              "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \""
+              "$matches = @(Get-ChildItem Env: | Where-Object { "
+              "((($_.Name -replace '[^A-Za-z0-9]', '').ToLower()).EndsWith('defaultconnection')) "
+              "}); "
+              "$values = @($matches | ForEach-Object { $_.Value } | Sort-Object -Unique); "
+              "if ($values.Count -ne 1) { exit 42 }; "
+              "[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($values[0]))\""
+          )
+          command_payload = json.dumps(
+              {"command": powershell, "dir": r"D:\home"}
+          ).encode("utf-8")
           request = Request(
-              environment_url,
+              f"{publish_url.rstrip('/')}/api/command",
+              data=command_payload,
               headers={
                   "Accept": "application/json",
                   "Authorization": f"Basic {credentials}",
+                  "Content-Type": "application/json",
               },
           )
 
           try:
               with urlopen(request, timeout=30) as response:
-                  environment = json.load(response)
+                  command_result = json.load(response)
           except Exception as error:
-              sys.exit(f"Unable to read App Service configuration through SCM: {error}")
+              sys.exit(f"Unable to inspect App Service configuration through SCM: {error}")
 
-          normalized = {str(key).lower(): value for key, value in environment.items()}
-          candidate_names = (
-              "ConnectionStrings__DefaultConnection",
-              "ConnectionStrings:DefaultConnection",
-              "APPSETTING_ConnectionStrings__DefaultConnection",
-              "APPSETTING_ConnectionStrings:DefaultConnection",
-              "SQLCONNSTR_DefaultConnection",
-              "SQLAZURECONNSTR_DefaultConnection",
-              "CUSTOMCONNSTR_DefaultConnection",
-          )
-          connection_string = next(
-              (
-                  normalized[name.lower()]
-                  for name in candidate_names
-                  if normalized.get(name.lower())
-              ),
-              None,
-          )
-          if not connection_string:
+          normalized_result = {
+              str(key).lower(): value for key, value in command_result.items()
+          }
+          if normalized_result.get("exitcode") != 0:
               sys.exit(
-                  "DefaultConnection was not found in the App Service environment. "
-                  "Configure PRODUCTION_SQL_CONNECTION_STRING in GitHub instead."
+                  "App Service did not expose exactly one DefaultConnection value. "
+                  "Configure PRODUCTION_SQL_CONNECTION_STRING explicitly."
               )
+
+          encoded_connection = str(normalized_result.get("output", "")).strip()
+          try:
+              connection_string = base64.b64decode(
+                  encoded_connection, validate=True
+              ).decode("utf-8")
+          except (binascii.Error, UnicodeDecodeError):
+              sys.exit("App Service returned an invalid encoded DefaultConnection value.")
+
+          if not connection_string:
+              sys.exit("App Service returned an empty DefaultConnection value.")
 
           escaped_mask = (
               str(connection_string)
