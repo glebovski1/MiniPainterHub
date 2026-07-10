@@ -46,15 +46,17 @@ Environment secrets:
 
 ```text
 AZURE_WEBAPP_PUBLISH_PROFILE=<full App Service publish profile XML>
-PRODUCTION_SQL_CONNECTION_STRING=<SQL connection string allowed to apply EF migrations>
+PRODUCTION_SQL_CONNECTION_STRING=<optional SQL connection string override for EF migrations>
 ```
 
 Use a freshly downloaded publish profile from the target App Service when rotating credentials. Do not commit publish profiles or publish settings files.
-`PRODUCTION_SQL_CONNECTION_STRING` should target the same database used by `ConnectionStrings__DefaultConnection` in App Service configuration and should be rotated with the database credentials.
+When `PRODUCTION_SQL_CONNECTION_STRING` is configured, it should target the same database used by `ConnectionStrings__DefaultConnection` in App Service configuration and should be rotated with the database credentials.
+
+When the SQL secret is omitted, the deploy job uses the publish profile's SCM credentials to read `DefaultConnection` from the existing App Service environment. The value is masked immediately and exists only in the deployment job environment. This fallback keeps the existing App Service configuration as the source of truth without committing or printing the connection string.
 
 ## First deployment
 
-1. Confirm the GitHub `production` environment has the variables and secrets above.
+1. Confirm the GitHub `production` environment has the variables and `AZURE_WEBAPP_PUBLISH_PROFILE` secret above. Add `PRODUCTION_SQL_CONNECTION_STRING` only when an explicit migration credential override is required.
 2. Open GitHub Actions and run `CI` or push through a PR into `master`.
 3. Wait for `CI` to pass.
 4. Open the `Deploy` workflow run.

@@ -97,7 +97,6 @@ jobs:
             AZURE_WEBAPP_NAME
             AZURE_WEBAPP_HOSTNAME
             AZURE_WEBAPP_PUBLISH_PROFILE
-            PRODUCTION_SQL_CONNECTION_STRING
           )
 
           missing=false
@@ -111,6 +110,117 @@ jobs:
           if [ "$missing" = true ]; then
             exit 1
           fi
+
+      - name: Resolve production SQL connection
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -n "${PRODUCTION_SQL_CONNECTION_STRING:-}" ]; then
+            echo "Using PRODUCTION_SQL_CONNECTION_STRING from the production GitHub environment."
+            exit 0
+          fi
+
+          echo "PRODUCTION_SQL_CONNECTION_STRING is not configured; resolving DefaultConnection from App Service."
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import sys
+          import uuid
+          import xml.etree.ElementTree as ET
+          from urllib.request import Request, urlopen
+
+          publish_profile = os.environ.get("AZURE_WEBAPP_PUBLISH_PROFILE", "")
+          if not publish_profile:
+              sys.exit("AZURE_WEBAPP_PUBLISH_PROFILE is unavailable.")
+
+          try:
+              root = ET.fromstring(publish_profile)
+          except ET.ParseError as error:
+              sys.exit(f"AZURE_WEBAPP_PUBLISH_PROFILE is not valid XML: {error}")
+
+          profiles = root.findall(".//publishProfile")
+          profile = next(
+              (
+                  candidate
+                  for candidate in profiles
+                  if (
+                      candidate.attrib.get("publishMethod", "").lower() == "zipdeploy"
+                      or ".scm." in candidate.attrib.get("publishUrl", "").lower()
+                  )
+                  and candidate.attrib.get("userName")
+                  and candidate.attrib.get("userPWD")
+              ),
+              None,
+          )
+          if profile is None:
+              sys.exit("The publish profile does not contain App Service SCM credentials.")
+
+          publish_url = profile.attrib["publishUrl"].strip()
+          if not publish_url.startswith(("http://", "https://")):
+              publish_url = f"https://{publish_url}"
+          environment_url = f"{publish_url.rstrip('/')}/api/environment"
+
+          credentials = base64.b64encode(
+              f"{profile.attrib['userName']}:{profile.attrib['userPWD']}".encode("utf-8")
+          ).decode("ascii")
+          request = Request(
+              environment_url,
+              headers={
+                  "Accept": "application/json",
+                  "Authorization": f"Basic {credentials}",
+              },
+          )
+
+          try:
+              with urlopen(request, timeout=30) as response:
+                  environment = json.load(response)
+          except Exception as error:
+              sys.exit(f"Unable to read App Service configuration through SCM: {error}")
+
+          normalized = {str(key).lower(): value for key, value in environment.items()}
+          candidate_names = (
+              "ConnectionStrings__DefaultConnection",
+              "ConnectionStrings:DefaultConnection",
+              "APPSETTING_ConnectionStrings__DefaultConnection",
+              "APPSETTING_ConnectionStrings:DefaultConnection",
+              "SQLCONNSTR_DefaultConnection",
+              "SQLAZURECONNSTR_DefaultConnection",
+              "CUSTOMCONNSTR_DefaultConnection",
+          )
+          connection_string = next(
+              (
+                  normalized[name.lower()]
+                  for name in candidate_names
+                  if normalized.get(name.lower())
+              ),
+              None,
+          )
+          if not connection_string:
+              sys.exit(
+                  "DefaultConnection was not found in the App Service environment. "
+                  "Configure PRODUCTION_SQL_CONNECTION_STRING in GitHub instead."
+              )
+
+          escaped_mask = (
+              str(connection_string)
+              .replace("%", "%25")
+              .replace("\r", "%0D")
+              .replace("\n", "%0A")
+          )
+          print(f"::add-mask::{escaped_mask}")
+
+          delimiter = f"mph_{uuid.uuid4().hex}"
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
+              env_file.write(
+                  f"PRODUCTION_SQL_CONNECTION_STRING<<{delimiter}\n"
+                  f"{connection_string}\n"
+                  f"{delimiter}\n"
+              )
+
+          print("Resolved DefaultConnection from the App Service environment.")
+          PY
 
       - name: Restore
         run: dotnet restore MiniPainterHub.sln
