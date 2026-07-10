@@ -6,6 +6,12 @@ When to read: refreshing portfolio screenshots, checking visual asset provenance
 
 Update triggers: screenshot refreshes, asset folder additions, or changes to the deterministic capture workflow.
 
+## Brand Assets
+
+The proposed MiniPainterHub logo system lives in [Brand](<Brand/>).
+
+It includes the primary emblem, light and reversed horizontal lockups, a favicon-scale variant, a review board, and export guidance. Usage and implementation rules live in [Brand Identity](<../40 Design/Brand Identity.md>).
+
 ## Portfolio Screenshots
 
 Current screenshot assets live in [Portfolio Screenshots](<Portfolio Screenshots/>).
