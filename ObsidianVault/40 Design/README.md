@@ -8,6 +8,8 @@ Update triggers: new active design artifacts, a design plan becomes superseded, 
 
 ## Active Design References
 
+- [Brand identity and logo usage](<Brand Identity.md>)
+- [Brand vector assets](<../50 Visual Assets/Brand/>)
 - [Workshop Gallery export spec](<Workshop Gallery/export-spec.md>)
 - [Workshop Gallery mockup package](<Workshop Gallery/>)
 
