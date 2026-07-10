@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1080" role="img" aria-labelledby="title desc">
+  <title id="title">MiniPainterHub logo system board</title>
+  <desc id="desc">A brand board showing the primary emblem, wordmark, reversed logo, scale samples, and color palette.</desc>
+  <rect width="1600" height="1080" fill="#F3EFE6"/>
+  <text x="72" y="88" fill="#172127" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="48" font-weight="850" letter-spacing="-1.5">MiniPainterHub</text>
+  <text x="72" y="132" fill="#5D676D" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="22" font-weight="700" letter-spacing="3.5">LOGO SYSTEM / V1.0</text>
+  <rect x="1360" y="72" width="168" height="48" rx="24" fill="#FCFBF7" stroke="#D9D0C2"/>
+  <text x="1444" y="103" text-anchor="middle" fill="#1F5B52" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="18" font-weight="800">JUL 2026</text>
+
+  <rect x="72" y="178" width="472" height="566" rx="30" fill="#FCFBF7" stroke="#D9D0C2"/>
+  <text x="112" y="226" fill="#B86A43" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="17" font-weight="850" letter-spacing="3">PRIMARY MARK</text>
+  <g transform="translate(128 268) scale(0.703125)">
+  <rect width="512" height="512" rx="116" fill="#1F5B52"/>
+  <rect x="14" y="14" width="484" height="484" rx="104" fill="none" stroke="#FCFBF7" stroke-opacity=".18" stroke-width="8"/>
+  <circle cx="256" cy="252" r="151" fill="none" stroke="#FCFBF7" stroke-opacity=".82" stroke-width="22"/>
+  <circle cx="124" cy="202" r="20" fill="#B86A43"/>
+  <circle cx="388" cy="244" r="18" fill="#C49B48"/>
+  <circle cx="337" cy="376" r="16" fill="#FCFBF7"/>
+  <g transform="rotate(43 256 256)">
+    <rect x="243" y="148" width="32" height="252" rx="16" fill="#B86A43"/>
+    <rect x="239" y="92" width="40" height="76" rx="10" fill="#C49B48"/>
+    <path d="M239 94c4-31 11-53 20-70 9 17 16 39 20 70z" fill="#172127"/>
+    <path d="M252 49c2-9 4-17 7-25 3 8 5 16 7 25-4-2-9-2-14 0z" fill="#B86A43"/>
+    <rect x="246" y="390" width="26" height="45" rx="13" fill="#172127" fill-opacity=".9"/>
+    <circle cx="259" cy="431" r="13" fill="#172127" fill-opacity=".9"/>
+  </g>
+  <circle cx="256" cy="190" r="42" fill="#FCFBF7"/>
+  <path d="M215 184c7-35 29-56 58-56 18 0 36 9 47 24-19-2-38 4-53 17-11 9-19 21-24 34-8-9-17-15-28-19z" fill="#B86A43"/>
+  <path d="M193 321c7-60 30-94 63-94 34 0 57 34 64 94z" fill="#FCFBF7"/>
+  <path d="M213 321h86l18 39H195z" fill="#C49B48"/>
+  <rect x="176" y="356" width="160" height="35" rx="17.5" fill="#FCFBF7"/>
+  </g>
+  <text x="112" y="680" fill="#172127" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="24" font-weight="800">Miniature + brush + hub</text>
+  <text x="112" y="716" fill="#5D676D" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="18" font-weight="650">A display figure anchors the craft.</text>
+
+  <rect x="572" y="178" width="956" height="264" rx="30" fill="#FCFBF7" stroke="#D9D0C2"/>
+  <text x="612" y="226" fill="#B86A43" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="17" font-weight="850" letter-spacing="3">PRIMARY LOCKUP</text>
+  <g transform="translate(620 256) scale(0.27734375)">
+  <rect width="512" height="512" rx="116" fill="#1F5B52"/>
+  <rect x="14" y="14" width="484" height="484" rx="104" fill="none" stroke="#FCFBF7" stroke-opacity=".18" stroke-width="8"/>
+  <circle cx="256" cy="252" r="151" fill="none" stroke="#FCFBF7" stroke-opacity=".82" stroke-width="22"/>
+  <circle cx="124" cy="202" r="20" fill="#B86A43"/>
+  <circle cx="388" cy="244" r="18" fill="#C49B48"/>
+  <circle cx="337" cy="376" r="16" fill="#FCFBF7"/>
+  <g transform="rotate(43 256 256)">
+    <rect x="243" y="148" width="32" height="252" rx="16" fill="#B86A43"/>
+    <rect x="239" y="92" width="40" height="76" rx="10" fill="#C49B48"/>
+    <path d="M239 94c4-31 11-53 20-70 9 17 16 39 20 70z" fill="#172127"/>
+    <path d="M252 49c2-9 4-17 7-25 3 8 5 16 7 25-4-2-9-2-14 0z" fill="#B86A43"/>
+    <rect x="246" y="390" width="26" height="45" rx="13" fill="#172127" fill-opacity=".9"/>
+    <circle cx="259" cy="431" r="13" fill="#172127" fill-opacity=".9"/>
+  </g>
+  <circle cx="256" cy="190" r="42" fill="#FCFBF7"/>
+  <path d="M215 184c7-35 29-56 58-56 18 0 36 9 47 24-19-2-38 4-53 17-11 9-19 21-24 34-8-9-17-15-28-19z" fill="#B86A43"/>
+  <path d="M193 321c7-60 30-94 63-94 34 0 57 34 64 94z" fill="#FCFBF7"/>
+  <path d="M213 321h86l18 39H195z" fill="#C49B48"/>
+  <rect x="176" y="356" width="160" height="35" rx="17.5" fill="#FCFBF7"/>
+  </g>
+  <text x="794" y="335" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="76" font-weight="850" letter-spacing="-3">
+    <tspan fill="#172127">MiniPainter</tspan><tspan fill="#1F5B52">Hub</tspan>
+  </text>
+  <text x="800" y="382" fill="#5D676D" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="19" font-weight="750" letter-spacing="3.2">MINIATURE PAINTING STUDIO</text>
+
+  <rect x="572" y="470" width="956" height="274" rx="30" fill="#172127"/>
+  <text x="612" y="518" fill="#C49B48" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="17" font-weight="850" letter-spacing="3">REVERSED LOCKUP</text>
+  <g transform="translate(620 550) scale(0.27734375)">
+  <rect width="512" height="512" rx="116" fill="#1F5B52"/>
+  <rect x="14" y="14" width="484" height="484" rx="104" fill="none" stroke="#FCFBF7" stroke-opacity=".18" stroke-width="8"/>
+  <circle cx="256" cy="252" r="151" fill="none" stroke="#FCFBF7" stroke-opacity=".82" stroke-width="22"/>
+  <circle cx="124" cy="202" r="20" fill="#B86A43"/>
+  <circle cx="388" cy="244" r="18" fill="#C49B48"/>
+  <circle cx="337" cy="376" r="16" fill="#FCFBF7"/>
+  <g transform="rotate(43 256 256)">
+    <rect x="243" y="148" width="32" height="252" rx="16" fill="#B86A43"/>
+    <rect x="239" y="92" width="40" height="76" rx="10" fill="#C49B48"/>
+    <path d="M239 94c4-31 11-53 20-70 9 17 16 39 20 70z" fill="#172127"/>
+    <path d="M252 49c2-9 4-17 7-25 3 8 5 16 7 25-4-2-9-2-14 0z" fill="#B86A43"/>
+    <rect x="246" y="390" width="26" height="45" rx="13" fill="#172127" fill-opacity=".9"/>
+    <circle cx="259" cy="431" r="13" fill="#172127" fill-opacity=".9"/>
+  </g>
+  <circle cx="256" cy="190" r="42" fill="#FCFBF7"/>
+  <path d="M215 184c7-35 29-56 58-56 18 0 36 9 47 24-19-2-38 4-53 17-11 9-19 21-24 34-8-9-17-15-28-19z" fill="#B86A43"/>
+  <path d="M193 321c7-60 30-94 63-94 34 0 57 34 64 94z" fill="#FCFBF7"/>
+  <path d="M213 321h86l18 39H195z" fill="#C49B48"/>
+  <rect x="176" y="356" width="160" height="35" rx="17.5" fill="#FCFBF7"/>
+  </g>
+  <text x="794" y="629" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="76" font-weight="850" letter-spacing="-3">
+    <tspan fill="#FCFBF7">MiniPainter</tspan><tspan fill="#C49B48">Hub</tspan>
+  </text>
+  <text x="800" y="676" fill="#D9D0C2" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="19" font-weight="750" letter-spacing="3.2">MINIATURE PAINTING STUDIO</text>
+
+  <rect x="72" y="778" width="720" height="230" rx="30" fill="#FCFBF7" stroke="#D9D0C2"/>
+  <text x="112" y="826" fill="#B86A43" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="17" font-weight="850" letter-spacing="3">SMALL-SCALE CHECK</text>
+  <g transform="translate(112 865) scale(0.21875)">
+  <rect width="512" height="512" rx="116" fill="#1F5B52"/><rect x="14" y="14" width="484" height="484" rx="104" fill="none" stroke="#FCFBF7" stroke-opacity=".18" stroke-width="8"/><circle cx="256" cy="252" r="151" fill="none" stroke="#FCFBF7" stroke-opacity=".82" stroke-width="22"/><circle cx="124" cy="202" r="20" fill="#B86A43"/><circle cx="388" cy="244" r="18" fill="#C49B48"/><circle cx="337" cy="376" r="16" fill="#FCFBF7"/><g transform="rotate(43 256 256)"><rect x="243" y="148" width="32" height="252" rx="16" fill="#B86A43"/><rect x="239" y="92" width="40" height="76" rx="10" fill="#C49B48"/><path d="M239 94c4-31 11-53 20-70 9 17 16 39 20 70z" fill="#172127"/><path d="M252 49c2-9 4-17 7-25 3 8 5 16 7 25-4-2-9-2-14 0z" fill="#B86A43"/><rect x="246" y="390" width="26" height="45" rx="13" fill="#172127" fill-opacity=".9"/><circle cx="259" cy="431" r="13" fill="#172127" fill-opacity=".9"/></g><circle cx="256" cy="190" r="42" fill="#FCFBF7"/><path d="M215 184c7-35 29-56 58-56 18 0 36 9 47 24-19-2-38 4-53 17-11 9-19 21-24 34-8-9-17-15-28-19z" fill="#B86A43"/><path d="M193 321c7-60 30-94 63-94 34 0 57 34 64 94z" fill="#FCFBF7"/><path d="M213 321h86l18 39H195z" fill="#C49B48"/><rect x="176" y="356" width="160" height="35" rx="17.5" fill="#FCFBF7"/>
+  </g>
+  <g transform="translate(262 890) scale(0.125)">
+  <rect width="512" height="512" rx="116" fill="#1F5B52"/><rect x="14" y="14" width="484" height="484" rx="104" fill="none" stroke="#FCFBF7" stroke-opacity=".18" stroke-width="8"/><circle cx="256" cy="252" r="151" fill="none" stroke="#FCFBF7" stroke-opacity=".82" stroke-width="22"/><circle cx="124" cy="202" r="20" fill="#B86A43"/><circle cx="388" cy="244" r="18" fill="#C49B48"/><circle cx="337" cy="376" r="16" fill="#FCFBF7"/><g transform="rotate(43 256 256)"><rect x="243" y="148" width="32" height="252" rx="16" fill="#B86A43"/><rect x="239" y="92" width="40" height="76" rx="10" fill="#C49B48"/><path d="M239 94c4-31 11-53 20-70 9 17 16 39 20 70z" fill="#172127"/><path d="M252 49c2-9 4-17 7-25 3 8 5 16 7 25-4-2-9-2-14 0z" fill="#B86A43"/><rect x="246" y="390" width="26" height="45" rx="13" fill="#172127" fill-opacity=".9"/><circle cx="259" cy="431" r="13" fill="#172127" fill-opacity=".9"/></g><circle cx="256" cy="190" r="42" fill="#FCFBF7"/><path d="M215 184c7-35 29-56 58-56 18 0 36 9 47 24-19-2-38 4-53 17-11 9-19 21-24 34-8-9-17-15-28-19z" fill="#B86A43"/><path d="M193 321c7-60 30-94 63-94 34 0 57 34 64 94z" fill="#FCFBF7"/><path d="M213 321h86l18 39H195z" fill="#C49B48"/><rect x="176" y="356" width="160" height="35" rx="17.5" fill="#FCFBF7"/>
+  </g>
+  <g transform="translate(370 906) scale(0.0625)">
+  <rect width="512" height="512" rx="116" fill="#1F5B52"/><rect x="14" y="14" width="484" height="484" rx="104" fill="none" stroke="#FCFBF7" stroke-opacity=".18" stroke-width="8"/><circle cx="256" cy="252" r="151" fill="none" stroke="#FCFBF7" stroke-opacity=".82" stroke-width="22"/><circle cx="124" cy="202" r="20" fill="#B86A43"/><circle cx="388" cy="244" r="18" fill="#C49B48"/><circle cx="337" cy="376" r="16" fill="#FCFBF7"/><g transform="rotate(43 256 256)"><rect x="243" y="148" width="32" height="252" rx="16" fill="#B86A43"/><rect x="239" y="92" width="40" height="76" rx="10" fill="#C49B48"/><path d="M239 94c4-31 11-53 20-70 9 17 16 39 20 70z" fill="#172127"/><path d="M252 49c2-9 4-17 7-25 3 8 5 16 7 25-4-2-9-2-14 0z" fill="#B86A43"/><rect x="246" y="390" width="26" height="45" rx="13" fill="#172127" fill-opacity=".9"/><circle cx="259" cy="431" r="13" fill="#172127" fill-opacity=".9"/></g><circle cx="256" cy="190" r="42" fill="#FCFBF7"/><path d="M215 184c7-35 29-56 58-56 18 0 36 9 47 24-19-2-38 4-53 17-11 9-19 21-24 34-8-9-17-15-28-19z" fill="#B86A43"/><path d="M193 321c7-60 30-94 63-94 34 0 57 34 64 94z" fill="#FCFBF7"/><path d="M213 321h86l18 39H195z" fill="#C49B48"/><rect x="176" y="356" width="160" height="35" rx="17.5" fill="#FCFBF7"/>
+  </g>
+  <text x="112" y="994" fill="#5D676D" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="16" font-weight="700">112 px</text>
+  <text x="262" y="994" fill="#5D676D" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="16" font-weight="700">64 px</text>
+  <text x="370" y="994" fill="#5D676D" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="16" font-weight="700">32 px</text>
+  <line x1="464" y1="850" x2="464" y2="972" stroke="#D9D0C2"/>
+  <text x="504" y="884" fill="#172127" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="20" font-weight="800">Minimum sizes</text>
+  <text x="504" y="920" fill="#5D676D" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="17" font-weight="650">Mark: 24 px digital</text>
+  <text x="504" y="951" fill="#5D676D" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="17" font-weight="650">Lockup: 220 px digital</text>
+
+  <rect x="820" y="778" width="708" height="230" rx="30" fill="#FCFBF7" stroke="#D9D0C2"/>
+  <text x="860" y="826" fill="#B86A43" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="17" font-weight="850" letter-spacing="3">CORE PALETTE</text>
+  <g font-family="Manrope, Inter, 'Segoe UI', sans-serif">
+    <rect x="860" y="862" width="112" height="72" rx="16" fill="#1F5B52"/>
+    <text x="860" y="967" fill="#172127" font-size="15" font-weight="800">ATELIER</text>
+    <text x="860" y="990" fill="#5D676D" font-size="14" font-weight="700">#1F5B52</text>
+    <rect x="990" y="862" width="112" height="72" rx="16" fill="#B86A43"/>
+    <text x="990" y="967" fill="#172127" font-size="15" font-weight="800">CLAY</text>
+    <text x="990" y="990" fill="#5D676D" font-size="14" font-weight="700">#B86A43</text>
+    <rect x="1120" y="862" width="112" height="72" rx="16" fill="#C49B48"/>
+    <text x="1120" y="967" fill="#172127" font-size="15" font-weight="800">BRASS</text>
+    <text x="1120" y="990" fill="#5D676D" font-size="14" font-weight="700">#C49B48</text>
+    <rect x="1250" y="862" width="112" height="72" rx="16" fill="#172127"/>
+    <text x="1250" y="967" fill="#172127" font-size="15" font-weight="800">INK</text>
+    <text x="1250" y="990" fill="#5D676D" font-size="14" font-weight="700">#172127</text>
+    <rect x="1380" y="862" width="112" height="72" rx="16" fill="#FCFBF7" stroke="#D9D0C2"/>
+    <text x="1380" y="967" fill="#172127" font-size="15" font-weight="800">SURFACE</text>
+    <text x="1380" y="990" fill="#5D676D" font-size="14" font-weight="700">#FCFBF7</text>
+  </g>
+
+  <text x="72" y="1050" fill="#7D8589" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="15" font-weight="700">Original vector artwork • Built from the existing MiniPainterHub design tokens</text>
+</svg>
