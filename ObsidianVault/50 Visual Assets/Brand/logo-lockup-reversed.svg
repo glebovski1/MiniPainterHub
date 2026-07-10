@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 360" role="img" aria-labelledby="title desc">
+  <title id="title">MiniPainterHub reversed logo</title>
+  <desc id="desc">Light MiniPainterHub wordmark beside a miniature painter community emblem for dark backgrounds.</desc>
+  <g transform="translate(40 40) scale(.546875)">
+  <rect width="512" height="512" rx="116" fill="#1F5B52"/>
+  <rect x="14" y="14" width="484" height="484" rx="104" fill="none" stroke="#FCFBF7" stroke-opacity=".18" stroke-width="8"/>
+  <circle cx="256" cy="252" r="151" fill="none" stroke="#FCFBF7" stroke-opacity=".82" stroke-width="22"/>
+  <circle cx="124" cy="202" r="20" fill="#B86A43"/>
+  <circle cx="388" cy="244" r="18" fill="#C49B48"/>
+  <circle cx="337" cy="376" r="16" fill="#FCFBF7"/>
+  <g transform="rotate(43 256 256)">
+    <rect x="243" y="148" width="32" height="252" rx="16" fill="#B86A43"/>
+    <rect x="239" y="92" width="40" height="76" rx="10" fill="#C49B48"/>
+    <path d="M239 94c4-31 11-53 20-70 9 17 16 39 20 70z" fill="#172127"/>
+    <path d="M252 49c2-9 4-17 7-25 3 8 5 16 7 25-4-2-9-2-14 0z" fill="#B86A43"/>
+    <rect x="246" y="390" width="26" height="45" rx="13" fill="#172127" fill-opacity=".9"/>
+    <circle cx="259" cy="431" r="13" fill="#172127" fill-opacity=".9"/>
+  </g>
+  <circle cx="256" cy="190" r="42" fill="#FCFBF7"/>
+  <path d="M215 184c7-35 29-56 58-56 18 0 36 9 47 24-19-2-38 4-53 17-11 9-19 21-24 34-8-9-17-15-28-19z" fill="#B86A43"/>
+  <path d="M193 321c7-60 30-94 63-94 34 0 57 34 64 94z" fill="#FCFBF7"/>
+  <path d="M213 321h86l18 39H195z" fill="#C49B48"/>
+  <rect x="176" y="356" width="160" height="35" rx="17.5" fill="#FCFBF7"/>
+  </g>
+  <text x="365" y="187" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="106" font-weight="850" letter-spacing="-4">
+    <tspan fill="#FCFBF7">MiniPainter</tspan><tspan fill="#C49B48">Hub</tspan>
+  </text>
+  <text x="372" y="254" fill="#D9D0C2" font-family="Manrope, Inter, 'Segoe UI', sans-serif" font-size="29" font-weight="700" letter-spacing="4.4">MINIATURE PAINTING STUDIO</text>
+  <rect x="372" y="284" width="96" height="7" rx="3.5" fill="#B86A43"/>
+  <rect x="478" y="284" width="44" height="7" rx="3.5" fill="#C49B48"/>
+</svg>
