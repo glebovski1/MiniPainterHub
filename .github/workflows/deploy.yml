@@ -244,11 +244,42 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          dotnet ef database update \
-            --project MiniPainterHub.Server/MiniPainterHub.Server.csproj \
-            --startup-project MiniPainterHub.Server/MiniPainterHub.Server.csproj \
-            --configuration Release \
-            --connection "$PRODUCTION_SQL_CONNECTION_STRING"
+
+          max_attempts=4
+          transient_pattern='Error Number:(40613|40197|40501|4060|10928|10929|49918|49919|49920)|likely due to a transient failure'
+
+          for attempt in $(seq 1 "$max_attempts"); do
+            migration_log="$(mktemp)"
+            set +e
+            dotnet ef database update \
+              --project MiniPainterHub.Server/MiniPainterHub.Server.csproj \
+              --startup-project MiniPainterHub.Server/MiniPainterHub.Server.csproj \
+              --configuration Release \
+              --connection "$PRODUCTION_SQL_CONNECTION_STRING" 2>&1 | tee "$migration_log"
+            exit_code=${PIPESTATUS[0]}
+            set -e
+
+            if [ "$exit_code" -eq 0 ]; then
+              rm -f "$migration_log"
+              exit 0
+            fi
+
+            if ! grep --extended-regexp --ignore-case --quiet "$transient_pattern" "$migration_log"; then
+              rm -f "$migration_log"
+              exit "$exit_code"
+            fi
+
+            if [ "$attempt" -eq "$max_attempts" ]; then
+              rm -f "$migration_log"
+              echo "::error title=Production database unavailable::EF migrations still failed after $max_attempts transient retries."
+              exit "$exit_code"
+            fi
+
+            retry_delay=$((attempt * 20))
+            rm -f "$migration_log"
+            echo "::warning title=Transient Azure SQL failure::Migration attempt $attempt failed transiently; retrying in ${retry_delay}s."
+            sleep "$retry_delay"
+          done
 
       - name: Deploy to existing Azure Web App
         uses: azure/webapps-deploy@v3

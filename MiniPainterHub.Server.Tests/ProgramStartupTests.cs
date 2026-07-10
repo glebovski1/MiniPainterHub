@@ -126,6 +126,17 @@ public class ProgramStartupTests
         executionStrategy.RetriesOnFailure.Should().BeTrue();
     }
 
+    [Fact]
+    public void DesignTimeFactory_EnablesTransientRetries()
+    {
+        using var db = new DesignTimeAppDbContextFactory().CreateDbContext([]);
+
+        var executionStrategy = db.Database.CreateExecutionStrategy();
+
+        executionStrategy.Should().BeOfType<SqlServerRetryingExecutionStrategy>();
+        executionStrategy.RetriesOnFailure.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData(false, true)]
     [InlineData(true, false)]

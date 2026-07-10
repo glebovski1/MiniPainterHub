@@ -8,7 +8,9 @@ namespace MiniPainterHub.Server.Data
         public AppDbContext CreateDbContext(string[] args)
         {
             var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
-            optionsBuilder.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=MiniPainterHubDesignTime;Trusted_Connection=True;MultipleActiveResultSets=true");
+            optionsBuilder.UseSqlServer(
+                "Server=(localdb)\\mssqllocaldb;Database=MiniPainterHubDesignTime;Trusted_Connection=True;MultipleActiveResultSets=true",
+                global::MiniPainterHub.Program.ConfigureSqlServerOptions);
             return new AppDbContext(optionsBuilder.Options);
         }
     }
