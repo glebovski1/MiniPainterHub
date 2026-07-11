@@ -1316,3 +1316,26 @@
         align-self: start;
     }
 }
+
+/* Atelier audit remediation - focused single-image presentation and deterministic panel contrast */
+.viewer-shell__side-panel {
+    background: #2f261d;
+    color: #e5ceb0;
+}
+
+.viewer-shell.is-single-image .viewer-shell__stage-column {
+    grid-template-rows: minmax(0, 1fr);
+}
+
+@media (max-width: 991.98px) {
+    .viewer-shell.is-single-image .viewer-shell__stage-column {
+        grid-template-rows: clamp(24rem, 58vh, 31rem);
+        height: clamp(24rem, 58vh, 31rem);
+        min-height: clamp(24rem, 58vh, 31rem);
+    }
+
+    .viewer-shell.is-single-image .viewer-shell__stage-surface {
+        height: clamp(24rem, 58vh, 31rem);
+        min-height: 0;
+    }
+}

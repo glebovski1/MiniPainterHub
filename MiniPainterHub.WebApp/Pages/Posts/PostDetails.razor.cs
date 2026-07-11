@@ -59,6 +59,26 @@ public partial class PostDetails
     private PostViewerImageDto? CurrentPreviewImage =>
         viewer?.Images.FirstOrDefault(image => image.Id == ResolvedActiveImageId) ?? viewer?.Images.FirstOrDefault();
 
+    private string GetDetailImageAlt(PostViewerImageDto image)
+    {
+        var title = post?.Title ?? viewer?.Title ?? "Artwork";
+        if (viewer is null || viewer.Images.Count <= 1)
+        {
+            return title;
+        }
+
+        var index = viewer.Images.FindIndex(candidate => candidate.Id == image.Id);
+        var imageNumber = index >= 0 ? index + 1 : 1;
+        return $"{title}, image {imageNumber} of {viewer.Images.Count}";
+    }
+
+    private string GetThumbnailAccessibleName(int index)
+    {
+        var title = post?.Title ?? viewer?.Title ?? "Artwork";
+        var count = viewer?.Images.Count ?? 0;
+        return $"View {title}, image {index + 1} of {count}";
+    }
+
     private int ResolvedActiveImageId =>
         viewer?.Images.Any(image => image.Id == _activeImageId) == true
             ? _activeImageId

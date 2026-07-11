@@ -3,15 +3,13 @@
 @inject IAuthService AuthService
 @inject NavigationManager Nav
 @inject UserPanelState UserPanel
+@inject IJSRuntime JS
 
 <nav class="navbar navbar-expand-lg atelier-nav">
     <div class="atelier-nav__bar">
-        <NavLink class="navbar-brand atelier-brand" href="/">
-            <span class="atelier-brand__mark" aria-hidden="true">MP</span>
-            <span class="atelier-brand__copy">
-                <span class="atelier-brand__title">MiniPainterHub</span>
-                <span class="atelier-brand__subtitle">Miniature painting studio</span>
-            </span>
+        <NavLink class="navbar-brand atelier-brand" href="/" @onclick="CloseNavigationAsync">
+            <img class="atelier-brand__mark" src="brand/minipainterhub-mark.svg" alt="" data-testid="brand-mark" />
+            <span class="atelier-brand__title">MiniPainterHub</span>
         </NavLink>
 
         <div class="atelier-nav__actions">
@@ -38,9 +36,11 @@
                 </Authorized>
             </AuthorizeView>
 
-            <button class="navbar-toggler" type="button"
+            <button class="navbar-toggler"
+                    type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#navbarNav"
+                    data-testid="nav-toggle"
                     aria-controls="navbarNav"
                     aria-expanded="false"
                     aria-label="Toggle navigation">
@@ -50,66 +50,75 @@
     </div>
 
     <div class="collapse navbar-collapse atelier-nav__collapse align-items-center" id="navbarNav">
-        <form class="atelier-nav__search" role="search" @onsubmit="SubmitSearchAsync">
-            <label class="visually-hidden" for="nav-search-input">Search posts, users, tags</label>
-            <input class="form-control"
-                   id="nav-search-input"
-                   type="search"
-                   placeholder="Search posts, users, tags"
-                   aria-label="Search"
-                   data-testid="nav-search-input"
-                   @bind="_searchQuery" />
-            <button class="btn btn-primary"
-                    type="submit"
-                    aria-label="Search"
-                    data-testid="nav-search-submit">
-                <i class="bi bi-search" aria-hidden="true"></i>
-                <span>Search</span>
-            </button>
-        </form>
+        <NavLink class="atelier-nav__search-link"
+                 href="/search"
+                 data-testid="nav-search-link"
+                 @onclick="CloseNavigationAsync">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <span>Search</span>
+        </NavLink>
 
         <ul class="navbar-nav atelier-nav__links mb-2 mb-xl-0">
             <li class="nav-item">
-                <NavLink class="nav-link atelier-nav__link" href="/" Match="NavLinkMatch.All">
+                <NavLink class="nav-link atelier-nav__link" href="/" Match="NavLinkMatch.All" @onclick="CloseNavigationAsync">
                     <i class="bi bi-clock-history" aria-hidden="true"></i>
                     <span>Latest</span>
                 </NavLink>
             </li>
             <li class="nav-item">
-                <NavLink class="nav-link atelier-nav__link" href="/posts/all">
+                <NavLink class="nav-link atelier-nav__link" href="/posts/all" @onclick="CloseNavigationAsync">
                     <i class="bi bi-grid-1x2" aria-hidden="true"></i>
                     <span>Explore</span>
                 </NavLink>
             </li>
             <li class="nav-item">
-                <NavLink class="nav-link atelier-nav__link" href="/posts/top">
+                <NavLink class="nav-link atelier-nav__link" href="/posts/top" @onclick="CloseNavigationAsync">
                     <i class="bi bi-trophy" aria-hidden="true"></i>
                     <span>Top posts</span>
                 </NavLink>
             </li>
             <li class="nav-item">
-                <NavLink class="nav-link atelier-nav__link" href="/guides">
+                <NavLink class="nav-link atelier-nav__link" href="/guides" @onclick="CloseNavigationAsync">
                     <i class="bi bi-journal-text" aria-hidden="true"></i>
                     <span>Guides</span>
                 </NavLink>
             </li>
             <li class="nav-item">
-                <NavLink class="nav-link atelier-nav__link" href="/news">
+                <NavLink class="nav-link atelier-nav__link" href="/news" @onclick="CloseNavigationAsync">
                     <i class="bi bi-megaphone" aria-hidden="true"></i>
                     <span>News</span>
                 </NavLink>
             </li>
-            <li class="nav-item">
-                <NavLink class="nav-link atelier-nav__link" href="/home">
-                    <i class="bi bi-stars" aria-hidden="true"></i>
-                    <span>Highlights</span>
-                </NavLink>
-            </li>
-            <li class="nav-item">
-                <NavLink class="nav-link atelier-nav__link" href="/about">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    <span>About</span>
-                </NavLink>
+            <li class="nav-item dropdown atelier-nav__more-menu">
+                <button class="nav-link atelier-nav__link atelier-nav__more dropdown-toggle"
+                        type="button"
+                        id="navMoreMenu"
+                        data-bs-toggle="dropdown"
+                        data-testid="nav-more"
+                        aria-expanded="false">
+                    <i class="bi bi-three-dots" aria-hidden="true"></i>
+                    <span>More</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end atelier-nav__dropdown" aria-labelledby="navMoreMenu">
+                    <li>
+                        <NavLink class="dropdown-item atelier-nav__dropdown-item"
+                                 href="/home"
+                                 data-testid="nav-more-highlights"
+                                 @onclick="CloseNavigationAsync">
+                            <i class="bi bi-stars" aria-hidden="true"></i>
+                            <span>Highlights</span>
+                        </NavLink>
+                    </li>
+                    <li>
+                        <NavLink class="dropdown-item atelier-nav__dropdown-item"
+                                 href="/about"
+                                 data-testid="nav-more-about"
+                                 @onclick="CloseNavigationAsync">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            <span>About</span>
+                        </NavLink>
+                    </li>
+                </ul>
             </li>
         </ul>
 
@@ -125,13 +134,13 @@
                 </Authorized>
                 <NotAuthorized>
                     <li class="nav-item">
-                        <NavLink class="nav-link atelier-nav__link" href="/login" data-testid="nav-login">
+                        <NavLink class="nav-link atelier-nav__link" href="/login" data-testid="nav-login" @onclick="CloseNavigationAsync">
                             <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
                             <span>Login</span>
                         </NavLink>
                     </li>
                     <li class="nav-item">
-                        <NavLink class="nav-link atelier-nav__link atelier-nav__register" href="/register">
+                        <NavLink class="nav-link atelier-nav__link atelier-nav__register" href="/register" @onclick="CloseNavigationAsync">
                             <i class="bi bi-person-plus" aria-hidden="true"></i>
                             <span>Register</span>
                         </NavLink>
@@ -143,33 +152,20 @@
 </nav>
 
 @code {
-    private string _searchQuery = string.Empty;
-
     private void ToggleDesktopPanel()
     {
         UserPanel.ToggleDesktopCollapsed();
     }
 
-    private Task SubmitSearchAsync()
+    private async Task CloseNavigationAsync()
     {
-        var query = string.IsNullOrWhiteSpace(_searchQuery) ? null : _searchQuery.Trim();
-        Nav.NavigateTo(BuildSearchUri(query));
-        return Task.CompletedTask;
-    }
-
-    private static string BuildSearchUri(string? query)
-    {
-        if (string.IsNullOrWhiteSpace(query))
-        {
-            return "/search";
-        }
-
-        return $"/search?q={Uri.EscapeDataString(query)}";
+        await JS.InvokeVoidAsync("miniPainterHubNavigation.closeMobileNavigation", "navbarNav");
     }
 
     private async Task Logout()
     {
         await AuthService.LogoutAsync();
+        await CloseNavigationAsync();
         Nav.NavigateTo("/login");
     }
 }

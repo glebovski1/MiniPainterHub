@@ -99,6 +99,9 @@ public class RichImageViewerTests : TestContext
 
         cut.FindAll("[data-testid='viewer-stage-prev']").Should().BeEmpty();
         cut.FindAll("[data-testid='viewer-stage-next']").Should().BeEmpty();
+        cut.Find("[data-testid='rich-image-viewer']").ClassList.Should().Contain("is-single-image");
+        cut.FindAll("[data-testid='viewer-thumbnail-rail']").Should().BeEmpty();
+        cut.Find("[data-testid='viewer-stage-image']").GetAttribute("alt").Should().Be("Moonlit skin experiment");
     }
 
     [Fact]
@@ -228,6 +231,27 @@ public class RichImageViewerTests : TestContext
     }
 
     [Fact]
+    public void MultiImageViewerUsesContextualImageAndThumbnailLabels()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var cut = RenderViewer();
+
+        cut.Find("[data-testid='viewer-stage-image']")
+            .GetAttribute("alt")
+            .Should()
+            .Be("Moonlit skin experiment, image 1 of 2");
+
+        cut.FindAll("[data-testid='viewer-thumbnail']")
+            .Select(thumbnail => thumbnail.GetAttribute("aria-label"))
+            .Should()
+            .Equal(
+                "View Moonlit skin experiment, image 1 of 2",
+                "View Moonlit skin experiment, image 2 of 2");
+    }
+
+    [Fact]
     public void FilmstripShowsCompactShortcutHints()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
@@ -241,7 +265,7 @@ public class RichImageViewerTests : TestContext
     }
 
     [Fact]
-    public void SingleFrameRailKeepsPreviewRailOmitsBrowseGroupAndShowsHints()
+    public void SingleFrameOmitsFilmstripButKeepsToolbarHints()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         this.AddAuthorMarkStub();
@@ -252,7 +276,8 @@ public class RichImageViewerTests : TestContext
             .Add(component => component.ActiveImageId, 101)
             .Add(component => component.SidePanelContent, (RenderFragment)(_ => { })));
 
-        cut.Find("[data-testid='viewer-thumbnail-rail']").TextContent.Should().Contain("Preview");
+        cut.FindAll("[data-testid='viewer-thumbnail-rail']").Should().BeEmpty();
+        cut.FindAll("[data-testid='viewer-thumbnail-static']").Should().BeEmpty();
         cut.FindAll("[data-testid='viewer-rail-navigation']").Should().BeEmpty();
         cut.FindAll("[data-testid='viewer-shortcuts']").Should().BeEmpty();
         cut.Find("[data-testid='viewer-rail-hints']").TextContent.Should().Contain("zoom");

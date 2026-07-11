@@ -11,7 +11,8 @@ const SCOPE_FILE = process.env.UI_REVIEW_SCOPE_FILE || path.join(OUTPUT_DIR, "sc
 const MATRIX = loadMatrix(path.resolve(__dirname, "../../ui-review.matrix.json"));
 
 const VIEWPORTS = {
-  desktop: { width: 1440, height: 1400, name: "desktop" },
+  desktop: { width: 1440, height: 1000, name: "desktop" },
+  desktopCompact: { width: 1280, height: 1000, name: "desktop-1280" },
   mobile: { width: 390, height: 844, name: "mobile" }
 };
 
@@ -345,29 +346,8 @@ async function openMobilePanel(page) {
   await expect(button).toBeVisible();
   await clickReliably(button);
 
-  try {
-    await expect(panel).toHaveClass(/show/);
-    await expect(panel).toBeVisible({ timeout: 2_000 });
-  } catch {
-    await page.evaluate(() => {
-      const panelElement = document.getElementById("userPanelOffcanvas");
-      if (!panelElement) {
-        return;
-      }
-
-      const bootstrapApi = window.bootstrap?.Offcanvas;
-      if (bootstrapApi) {
-        bootstrapApi.getOrCreateInstance(panelElement).show();
-      }
-
-      panelElement.classList.add("show");
-      panelElement.style.visibility = "visible";
-      panelElement.style.transform = "translateX(0)";
-    });
-
-    await expect(panel).toHaveClass(/show/);
-    await expect(panel).toBeVisible();
-  }
+  await expect(panel).toHaveClass(/show/);
+  await expect(panel).toBeVisible({ timeout: 2_000 });
 
   await settle(page, 400);
 }
@@ -450,7 +430,38 @@ const scenarioGroups = {
       stateTags: ["shell", "community", "panel-collapsed", "desktop"]
     });
 
+    await setViewport(page, VIEWPORTS.desktopCompact);
+    await page.goto("/");
+    await capture(page, manifest, {
+      name: "shell-home-compact-desktop",
+      group: "shell",
+      viewport: VIEWPORTS.desktopCompact,
+      authState: "seed-user",
+      stateTags: ["shell", "community", "desktop", "compact-width"]
+    });
+
     await setViewport(page, VIEWPORTS.mobile);
+    const navToggle = page.getByTestId("nav-toggle");
+    const navCollapse = page.locator("#navbarNav");
+    await clickReliably(navToggle);
+    await expect(navToggle).toHaveAttribute("aria-expanded", "true");
+    await expect(navCollapse).toHaveClass(/show/);
+    await clickReliably(page.getByTestId("nav-more"));
+    await expect(page.getByTestId("nav-more-about")).toBeVisible();
+    await capture(page, manifest, {
+      name: "shell-home-mobile-navigation-open",
+      group: "shell",
+      viewport: VIEWPORTS.mobile,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["shell", "community", "mobile", "navigation-open"]
+    });
+
+    await clickReliably(page.getByTestId("nav-search-link"));
+    await page.waitForURL((url) => url.pathname === "/search");
+    await expect(navToggle).toHaveAttribute("aria-expanded", "false");
+    await expect(navCollapse).not.toHaveClass(/show/);
+
     await openMobilePanel(page);
     await capture(page, manifest, {
       name: "shell-home-mobile-panel-open",
@@ -487,6 +498,16 @@ const scenarioGroups = {
       stateTags: ["auth", "desktop", "error"]
     });
 
+    await setViewport(page, VIEWPORTS.desktopCompact);
+    await capture(page, manifest, {
+      name: "auth-login-error-compact-desktop",
+      group: "auth",
+      viewport: VIEWPORTS.desktopCompact,
+      authState: "unauthenticated",
+      stateTags: ["auth", "desktop", "compact-width", "error"]
+    });
+
+    await setViewport(page, VIEWPORTS.desktop);
     await page.goto("/register");
     await capture(page, manifest, {
       name: "auth-register-desktop",
@@ -544,12 +565,46 @@ const scenarioGroups = {
     });
   },
 
+  async about({ page, request, manifest }) {
+    await startFreshState(page, request);
+
+    await setViewport(page, VIEWPORTS.desktop);
+    await page.goto("/about");
+    await capture(page, manifest, {
+      name: "about-manifesto-desktop",
+      group: "about",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["about", "desktop", "manifesto"]
+    });
+
+    await setViewport(page, VIEWPORTS.desktopCompact);
+    await capture(page, manifest, {
+      name: "about-manifesto-compact-desktop",
+      group: "about",
+      viewport: VIEWPORTS.desktopCompact,
+      authState: "unauthenticated",
+      stateTags: ["about", "desktop", "compact-width", "manifesto"]
+    });
+
+    await setViewport(page, VIEWPORTS.mobile);
+    await page.goto("/about");
+    await capture(page, manifest, {
+      name: "about-manifesto-mobile",
+      group: "about",
+      viewport: VIEWPORTS.mobile,
+      authState: "unauthenticated",
+      stateTags: ["about", "mobile", "manifesto"]
+    });
+  },
+
   async search({ page, request, manifest }) {
     await startFreshState(page, request);
     await loginAsSeedUser(page, request);
     await setViewport(page, VIEWPORTS.desktop);
 
-    await page.goto("/search?q=seeded&tab=posts");
+    await page.goto("/search?q=weathering&tab=posts");
+    await expect(page.getByTestId("search-post-result").first()).toBeVisible();
     await capture(page, manifest, {
       name: "search-post-results-desktop",
       group: "search",
@@ -558,13 +613,35 @@ const scenarioGroups = {
       stateTags: ["search", "desktop", "posts-results"]
     });
 
+    await setViewport(page, VIEWPORTS.desktopCompact);
+    await capture(page, manifest, {
+      name: "search-post-results-compact-desktop",
+      group: "search",
+      viewport: VIEWPORTS.desktopCompact,
+      authState: "seed-user",
+      stateTags: ["search", "desktop", "compact-width", "posts-results"]
+    });
+
+    await setViewport(page, VIEWPORTS.desktop);
     await page.goto("/search?q=user&tab=users");
+    await expect(page.getByTestId("search-user-result").first()).toBeVisible();
     await capture(page, manifest, {
       name: "search-user-results-desktop",
       group: "search",
       viewport: VIEWPORTS.desktop,
       authState: "seed-user",
       stateTags: ["search", "desktop", "users-results"]
+    });
+
+    await setViewport(page, VIEWPORTS.mobile);
+    await page.goto("/search?q=weathering&tab=posts");
+    await expect(page.getByTestId("search-post-result").first()).toBeVisible();
+    await capture(page, manifest, {
+      name: "search-post-results-mobile",
+      group: "search",
+      viewport: VIEWPORTS.mobile,
+      authState: "seed-user",
+      stateTags: ["search", "mobile", "posts-results"]
     });
   },
 
@@ -611,6 +688,48 @@ const scenarioGroups = {
       authState: "seed-user",
       stateTags: ["posts", "desktop", "details", "populated"]
     });
+
+    const seededDetailsUrl = page.url();
+    await openViewerFromDetails(page);
+    await expect(page.getByTestId("rich-image-viewer")).toHaveClass(/is-single-image/);
+    await expect(page.getByTestId("viewer-thumbnail-rail")).toHaveCount(0);
+    await expect(page.getByTestId("viewer-stage-prev")).toHaveCount(0);
+    await expect(page.getByTestId("viewer-stage-next")).toHaveCount(0);
+    await capture(page, manifest, {
+      name: "posts-detail-single-image-viewer-desktop",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "desktop", "viewer-open", "single-image"]
+    });
+
+    await setViewport(page, VIEWPORTS.desktopCompact);
+    await capture(page, manifest, {
+      name: "posts-detail-single-image-viewer-compact-desktop",
+      group: "posts",
+      viewport: VIEWPORTS.desktopCompact,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "desktop", "compact-width", "viewer-open", "single-image"]
+    });
+    await clickReliably(page.getByTestId("viewer-close"));
+
+    await setViewport(page, VIEWPORTS.mobile);
+    await page.goto(seededDetailsUrl);
+    await openViewerFromDetails(page);
+    await expect(page.getByTestId("rich-image-viewer")).toHaveClass(/is-single-image/);
+    await expect(page.getByTestId("viewer-thumbnail-rail")).toHaveCount(0);
+    await capture(page, manifest, {
+      name: "posts-detail-single-image-viewer-mobile",
+      group: "posts",
+      viewport: VIEWPORTS.mobile,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "mobile", "viewer-open", "single-image"]
+    });
+    await clickReliably(page.getByTestId("viewer-close"));
+    await setViewport(page, VIEWPORTS.desktop);
 
     const richViewerPost = await createRichViewerPost(page, request, "ui-review");
     await capture(page, manifest, {

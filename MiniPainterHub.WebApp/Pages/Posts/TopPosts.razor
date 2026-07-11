@@ -7,6 +7,7 @@
     <PageHero Eyebrow="Ranked showcase"
               Title="Top posts"
               Description="Browse the highest-rated recent miniatures in a compact ranked gallery."
+              ClassName="page-hero--compact"
               FrameName="Top Posts Header">
         <Actions>
             <NavLink class="btn btn-primary" href="/posts/all">
@@ -29,54 +30,19 @@
                     <strong class="metric-chip__value">Top 5 posts</strong>
                 </div>
                 <div class="metric-chip">
-                    <span class="metric-chip__label">Open</span>
-                    <strong class="metric-chip__value">Post detail</strong>
+                    <span class="metric-chip__label">Made for</span>
+                    <strong class="metric-chip__value">Close looking</strong>
                 </div>
             </div>
         </Metrics>
     </PageHero>
 
-    <div class="split-grid">
-        <section class="surface-card">
-            <SectionHeader Eyebrow="Showcase"
-                           Title="Ranked community work"
-                           Description="Use the carousel for a quick visual pass, then open the original post for comments, tags, and reactions."
-                           SectionName="Top Posts Showcase" />
+    <section class="surface-card">
+        <SectionHeader Eyebrow="Showcase"
+                       Title="Ranked community work"
+                       Description="Look through the favourites, then open a piece for its paint notes and conversation."
+                       SectionName="Top Posts Showcase" />
 
-            <TopPostsShowcase HeightPx="480" />
-        </section>
-
-        <section class="surface-card">
-            <SectionHeader Eyebrow="Browse"
-                           Title="Ways to keep exploring"
-                           Description="Jump from the ranked set into broader discovery when you want more depth."
-                           SectionName="Top Posts Route Coverage" />
-
-            <div class="entity-list">
-                <div class="entity-row">
-                    <div class="entity-row__content">
-                        <div class="entity-row__title">Post details</div>
-                        <div class="entity-row__meta">Open comments, likes, tags, and report controls from the original post.</div>
-                    </div>
-                </div>
-                <div class="entity-row">
-                    <div class="entity-row__content">
-                        <div class="entity-row__title">Public profiles</div>
-                        <div class="entity-row__meta">Follow the creator context from each ranked post.</div>
-                    </div>
-                </div>
-                <div class="entity-row">
-                    <div class="entity-row__content">
-                        <div class="entity-row__title">Explore and search</div>
-                        <div class="entity-row__meta">Move back into archive browsing or search when the ranked set is too narrow.</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="page-toolbar mt-4">
-                <NavLink class="btn btn-outline-secondary" href="/">Back to latest</NavLink>
-                <NavLink class="btn btn-outline-secondary" href="/home">View highlights</NavLink>
-            </div>
-        </section>
-    </div>
+        <TopPostsShowcase HeightPx="480" />
+    </section>
 </div>

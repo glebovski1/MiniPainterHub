@@ -121,7 +121,7 @@ public class DevelopmentContentSeederTests
     }
 
     [Fact]
-    public async Task ResetAndSeedAsync_WithPostImageSource_AttachesOneSeedImageToEachPost_ReusingFilesAsNeeded()
+    public async Task ResetAndSeedAsync_WithPostImageSource_AttachesOnlyExplicitlyMappedImages()
     {
         var testRoot = Path.Combine(Path.GetTempPath(), "MiniPainterHub.SeedTests", Guid.NewGuid().ToString("N"));
         var imageRoot = Path.Combine(testRoot, "storage");
@@ -132,7 +132,7 @@ public class DevelopmentContentSeederTests
         try
         {
             await CreateAvatarSourceAsync(avatarSource, ".png");
-            await CreatePostImageSourceAsync(postImageSource, 5, ".jpg");
+            await CreatePostImageSourceAsync(postImageSource);
 
             using var factory = new IntegrationTestApplicationFactory(new Dictionary<string, string?>
             {
@@ -148,21 +148,83 @@ public class DevelopmentContentSeederTests
             result.UsersCreated.Should().Be(10);
             result.PostsCreated.Should().Be(20);
             result.AvatarsImported.Should().Be(10);
-            result.PostImagesImported.Should().Be(20);
+            result.PostImagesImported.Should().Be(5);
 
-            db.Posts.Include(post => post.Images).Should().OnlyContain(post => post.Images.Count == 1);
-            db.Posts
+            var posts = db.Posts
                 .Include(post => post.Images)
                 .Include(post => post.PostTags)
-                .Should()
-                .OnlyContain(post => post.Images.Count == 1 && post.PostTags.Count > 0);
-            db.PostImages.Should().HaveCount(20);
+                .ToList();
+            var postsWithImages = posts.Where(post => post.Images.Count == 1).ToList();
+            var imageFreePosts = posts.Where(post => post.Images.Count == 0).ToList();
+
+            postsWithImages.Select(post => post.Title).Should().BeEquivalentTo(
+                "Snow basing experiment",
+                "Campaign dust on greatcoats",
+                "Studio kickoff: 2026 painting goals",
+                "Quick tip: smoother cloaks",
+                "WIP: rusted sentinel captain");
+            imageFreePosts.Should().HaveCount(15);
+            posts.Should().OnlyContain(post => post.PostTags.Count > 0);
+            db.PostImages.Should().HaveCount(5);
             db.PostImages.Select(image => image.ImageUrl).Should().OnlyContain(url => !string.IsNullOrWhiteSpace(url));
             db.PostImages.Select(image => image.ThumbnailUrl).Should().OnlyContain(url => !string.IsNullOrWhiteSpace(url) && url!.Contains("_thumb."));
             db.PostImages.Select(image => image.PreviewUrl).Should().OnlyContain(url => !string.IsNullOrWhiteSpace(url) && url!.Contains("_preview."));
             Directory.GetFiles(imageRoot).Should().HaveCount(10);
-            Directory.GetFiles(imageRoot, "*", SearchOption.AllDirectories).Should().HaveCount(70);
-            Directory.GetFiles(imageRoot, "*_thumb.*", SearchOption.AllDirectories).Should().HaveCount(20);
+            Directory.GetFiles(imageRoot, "*", SearchOption.AllDirectories).Should().HaveCount(25);
+            Directory.GetFiles(imageRoot, "*_thumb.*", SearchOption.AllDirectories).Should().HaveCount(5);
+        }
+        finally
+        {
+            if (Directory.Exists(testRoot))
+            {
+                Directory.Delete(testRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void SeedPostImageMappings_UseTheCuratedTitleToFilenamePairs()
+    {
+        DevelopmentContentSeeder.SeedPostImageMappings.Should().BeEquivalentTo(
+            new Dictionary<string, string>
+            {
+                ["Snow basing experiment"] = "01-snow-warband.png",
+                ["Campaign dust on greatcoats"] = "02-historical-squad.png",
+                ["Studio kickoff: 2026 painting goals"] = "03-overhead-hobby-desk.png",
+                ["Quick tip: smoother cloaks"] = "04-cloak-study.png",
+                ["WIP: rusted sentinel captain"] = "05-rusted-sentinel.png"
+            });
+    }
+
+    [Fact]
+    public async Task ResetAndSeedAsync_WhenDeclaredPostImageIsMissing_NamesThePostAndFile()
+    {
+        var testRoot = Path.Combine(Path.GetTempPath(), "MiniPainterHub.SeedTests", Guid.NewGuid().ToString("N"));
+        var imageRoot = Path.Combine(testRoot, "storage");
+        var avatarSource = Path.Combine(testRoot, "avatars");
+        var postImageSource = Path.Combine(testRoot, "post-images");
+        Directory.CreateDirectory(imageRoot);
+
+        try
+        {
+            await CreateAvatarSourceAsync(avatarSource, ".png");
+            await CreatePostImageSourceAsync(postImageSource);
+            File.Delete(Path.Combine(postImageSource, "04-cloak-study.png"));
+
+            using var factory = new IntegrationTestApplicationFactory(new Dictionary<string, string?>
+            {
+                ["ImageStorage:LocalPath"] = imageRoot,
+                ["ImageStorage:RequestPath"] = "/uploads/images"
+            });
+
+            using var scope = factory.Services.CreateScope();
+            var seeder = scope.ServiceProvider.GetRequiredService<DevelopmentContentSeeder>();
+
+            var act = async () => await seeder.ResetAndSeedAsync(avatarSource, postImageSource);
+
+            var exception = await act.Should().ThrowAsync<InvalidOperationException>();
+            exception.Which.Message.Should().Contain("Quick tip: smoother cloaks");
+            exception.Which.Message.Should().Contain("04-cloak-study.png");
         }
         finally
         {
@@ -427,13 +489,13 @@ public class DevelopmentContentSeederTests
         }
     }
 
-    private static async Task CreatePostImageSourceAsync(string postImageSource, int fileCount, string extension)
+    private static async Task CreatePostImageSourceAsync(string postImageSource)
     {
         Directory.CreateDirectory(postImageSource);
 
-        for (var i = 1; i <= fileCount; i++)
+        foreach (var fileName in DevelopmentContentSeeder.SeedPostImageMappings.Values)
         {
-            await WriteValidImageAsync(Path.Combine(postImageSource, $"post-image-{i:00}{extension}"));
+            await WriteValidImageAsync(Path.Combine(postImageSource, fileName));
         }
     }
 

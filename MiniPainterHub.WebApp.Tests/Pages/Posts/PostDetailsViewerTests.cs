@@ -37,6 +37,51 @@ public class PostDetailsViewerTests : TestContext
             cut.Find("[data-testid='post-details-tag-section']").TextContent.Should().Contain("Tags");
             cut.Find("[data-testid='comment-list-container']");
             cut.FindAll("[data-testid='rich-image-viewer-modal']").Should().BeEmpty();
+            cut.Find(".page-hero").ClassList.Should().Contain("page-hero--compact");
+            cut.Find("[data-testid='post-details-gallery']").TextContent.Should().Contain("Artwork");
+            cut.Find("[data-testid='post-details-gallery']").TextContent.Should().Contain("View close-up");
+            cut.Find(".page-shell").TextContent.Should().NotContain("Viewer state");
+            cut.FindAll("[data-testid='post-details-critique-focus']").Should().BeEmpty();
+        });
+    }
+
+    [Fact]
+    public void PostDetailsUsesContextualImageAndThumbnailLabels()
+    {
+        var cut = RenderWithAuth(CreateScenario());
+
+        cut.Find("[data-testid='post-details-image']")
+            .GetAttribute("alt")
+            .Should()
+            .Be("Moonlit skin experiment, image 1 of 2");
+
+        cut.FindAll("[data-testid='post-details-thumbnail']")
+            .Select(thumbnail => thumbnail.GetAttribute("aria-label"))
+            .Should()
+            .Equal(
+                "View Moonlit skin experiment, image 1 of 2",
+                "View Moonlit skin experiment, image 2 of 2");
+    }
+
+    [Fact]
+    public void SingleImagePostUsesTitleAltAndViewerOmitsFilmstrip()
+    {
+        var scenario = CreateScenario();
+        scenario.Viewer.Images.RemoveAt(1);
+        var cut = RenderWithAuth(scenario);
+
+        cut.Find("[data-testid='post-details-image']").GetAttribute("alt").Should().Be("Moonlit skin experiment");
+        cut.FindAll("[data-testid='post-details-thumbnails']").Should().BeEmpty();
+
+        cut.Find("[data-testid='post-details-open-viewer-hero']").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='rich-image-viewer']").ClassList.Should().Contain("is-single-image");
+            cut.Find("[data-testid='viewer-stage-image']").GetAttribute("alt").Should().Be("Moonlit skin experiment");
+            cut.FindAll("[data-testid='viewer-thumbnail-rail']").Should().BeEmpty();
+            cut.FindAll("[data-testid='viewer-stage-prev']").Should().BeEmpty();
+            cut.FindAll("[data-testid='viewer-stage-next']").Should().BeEmpty();
         });
     }
 
@@ -220,6 +265,7 @@ public class PostDetailsViewerTests : TestContext
             cut.Find("[data-testid='rich-image-viewer-modal']");
             cut.Find("[data-testid='viewer-side-tab-comments']").ClassList.Should().Contain("is-active");
             cut.Find("[data-testid='viewer-comment-state']").TextContent.Should().Contain("#12");
+            cut.Find("[data-testid='post-details-critique-focus']").TextContent.Should().Contain("Critique focus");
             cut.Find("[data-testid='viewer-stage-image']")
                 .GetAttribute("src")
                 .Should()

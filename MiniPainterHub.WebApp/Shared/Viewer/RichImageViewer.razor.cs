@@ -47,7 +47,7 @@ public partial class RichImageViewer
     private ViewerMarkDraftDto? _authorDraft;
 
     [Parameter] public bool IsOpen { get; set; }
-    [Parameter] public string Eyebrow { get; set; } = "Premium viewer";
+    [Parameter] public string Eyebrow { get; set; } = "Artwork close-up";
     [Parameter] public string Title { get; set; } = "Image viewer";
     [Parameter] public RenderFragment? SidePanelContent { get; set; }
     [Parameter, EditorRequired] public PostViewerDto Viewer { get; set; } = new();
@@ -105,6 +105,18 @@ public partial class RichImageViewer
 
     private int ZoomPercent => (int)Math.Round(_transform.GetDisplayScale(CurrentImage) * 100d, MidpointRounding.AwayFromZero);
 
+    private string ArtworkTitle =>
+        !string.IsNullOrWhiteSpace(Viewer.Title)
+            ? Viewer.Title
+            : !string.IsNullOrWhiteSpace(Title)
+                ? Title
+                : "Artwork";
+
+    private string CurrentImageAlt =>
+        Viewer.Images.Count <= 1
+            ? ArtworkTitle
+            : $"{ArtworkTitle}, image {CurrentImageNumber} of {Viewer.Images.Count}";
+
     private bool CurrentImageLoading => _imageLoadState.IsLoading(CurrentImage);
 
     private bool CurrentImageReady => _imageLoadState.IsReady(CurrentImage);
@@ -127,7 +139,7 @@ public partial class RichImageViewer
                 : $"Image {CurrentImageNumber} author mark";
 
     private string ViewerShellClass =>
-        $"viewer-shell {(ViewerInterop.IsFullscreen ? "is-fullscreen" : null)}";
+        $"viewer-shell {(Viewer.Images.Count == 1 ? "is-single-image" : null)} {(ViewerInterop.IsFullscreen ? "is-fullscreen" : null)}";
 
     private string? CurrentInteractionHint =>
         IsCommentPlacementMode

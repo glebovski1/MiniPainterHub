@@ -29,7 +29,7 @@ else if (Images.Count > 1)
                     data-testid="viewer-thumbnail"
                     role="tab"
                     aria-selected="@isActive"
-                    aria-label="@(isActive ? $"Current image {index + 1}" : $"Show image {index + 1}")"
+                    aria-label="@($"View {Title}, image {index + 1} of {Images.Count}")"
                     @onclick="@(() => OnSelect.InvokeAsync(image.Id))">
                 <img src="@GetThumbnailSource(image)"
                      alt=""
@@ -45,6 +45,7 @@ else if (Images.Count > 1)
 
 @code {
     [Parameter] public IReadOnlyList<PostViewerImageDto> Images { get; set; } = Array.Empty<PostViewerImageDto>();
+    [Parameter] public string Title { get; set; } = "Artwork";
     [Parameter] public int ActiveImageId { get; set; }
     [Parameter] public EventCallback<int> OnSelect { get; set; }
 

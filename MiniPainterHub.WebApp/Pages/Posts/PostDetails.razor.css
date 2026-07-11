@@ -799,3 +799,38 @@
     align-items: center;
     min-height: 2.25rem;
 }
+
+/* Atelier audit remediation - measured contrast for the artwork information panel */
+.viewer-shell__side-panel .viewer-panel__tab.is-active {
+    color: #1a120b;
+    background: linear-gradient(135deg, #d39a4a, #b27f43);
+}
+
+.viewer-shell__side-panel .viewer-panel__title,
+.viewer-shell__side-panel .empty-state__title {
+    color: #fff2dc;
+}
+
+.viewer-shell__side-panel .viewer-panel__eyebrow,
+.viewer-shell__side-panel .viewer-panel__meta,
+.viewer-shell__side-panel .viewer-panel__legend-item,
+.viewer-shell__side-panel .viewer-panel__copy,
+.viewer-shell__side-panel .empty-state__text,
+.viewer-shell__side-panel .paint-recipe-list--viewer dt,
+.viewer-shell__side-panel .paint-recipe-list--viewer dd {
+    color: #e5ceb0;
+}
+
+.viewer-shell__side-panel .viewer-panel__author {
+    color: #e2b968;
+}
+
+.viewer-panel__meta ::deep .viewer-panel__author {
+    color: #e2b968;
+}
+
+.viewer-shell__side-panel .post-details-aside__callout {
+    border-color: rgba(226, 185, 104, 0.3);
+    background: rgba(226, 185, 104, 0.09);
+    color: #e5ceb0;
+}

@@ -29,7 +29,10 @@ public class NavMenuTests : TestContext
             cut.Markup.Should().NotContain("Following");
             cut.Markup.Should().NotContain("Messages");
             cut.FindAll("[data-testid='nav-login']").Should().BeEmpty();
-            cut.Find("[data-testid='nav-search-input']").Should().NotBeNull();
+            cut.Find("[data-testid='nav-search-link']").GetAttribute("href").Should().Be("/search");
+            cut.Find("[data-testid='nav-more']").TextContent.Should().Contain("More");
+            cut.Find("[data-testid='nav-more-highlights']").Should().NotBeNull();
+            cut.Find("[data-testid='nav-more-about']").Should().NotBeNull();
             cut.Find("[data-testid='nav-logout']").Should().NotBeNull();
         });
     }
@@ -53,7 +56,8 @@ public class NavMenuTests : TestContext
             cut.Markup.Should().NotContain("Following");
             cut.Markup.Should().NotContain("Messages");
             cut.Find("[data-testid='nav-login']").Should().NotBeNull();
-            cut.Find("[data-testid='nav-search-submit']").Should().NotBeNull();
+            cut.Find("[data-testid='nav-search-link']").GetAttribute("href").Should().Be("/search");
+            cut.Find("[data-testid='nav-toggle']").Should().NotBeNull();
             cut.FindAll("[data-testid='nav-logout']").Should().BeEmpty();
         });
     }

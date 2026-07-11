@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -39,9 +40,9 @@ public class AuthenticationTests
         handler.EnqueueJson(HttpStatusCode.OK, $"{{\"isSuccess\":true,\"token\":\"{token}\"}}");
         var service = new AuthService(apiClient, tokenStore, provider);
 
-        var success = await service.LoginAsync(new LoginDto { UserName = "artist", Password = "User123!" });
+        var outcome = await service.LoginAsync(new LoginDto { UserName = "artist", Password = "User123!" });
 
-        success.Should().BeTrue();
+        outcome.Should().Be(LoginOutcome.Success);
         tokenStore.Token.Should().Be(token);
         tokenStore.SetCalls.Should().Be(1);
         handler.Requests.Should().ContainSingle();
@@ -53,7 +54,7 @@ public class AuthenticationTests
     }
 
     [Fact]
-    public async Task AuthService_LoginAsync_WhenTokenMissing_ReturnsFalseWithoutPersistingState()
+    public async Task AuthService_LoginAsync_WhenTokenMissing_ReturnsUnavailableWithoutPersistingState()
     {
         var handler = new RecordingHttpMessageHandler();
         var apiClient = CreateApiClient(handler, new NotificationRecorder());
@@ -62,11 +63,56 @@ public class AuthenticationTests
         handler.EnqueueJson(HttpStatusCode.OK, """{"isSuccess":false}""");
         var service = new AuthService(apiClient, tokenStore, provider);
 
-        var success = await service.LoginAsync(new LoginDto { UserName = "artist", Password = "bad-password" });
+        var outcome = await service.LoginAsync(new LoginDto { UserName = "artist", Password = "bad-password" });
 
-        success.Should().BeFalse();
+        outcome.Should().Be(LoginOutcome.Unavailable);
         tokenStore.Token.Should().BeNull();
         tokenStore.SetCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.BadRequest, LoginOutcome.ValidationFailure)]
+    [InlineData(HttpStatusCode.Unauthorized, LoginOutcome.InvalidCredentials)]
+    [InlineData(HttpStatusCode.Forbidden, LoginOutcome.Forbidden)]
+    [InlineData(HttpStatusCode.TooManyRequests, LoginOutcome.RateLimited)]
+    [InlineData(HttpStatusCode.InternalServerError, LoginOutcome.Unavailable)]
+    public async Task AuthService_LoginAsync_WhenRequestFails_MapsOutcomeAndSuppressesGlobalNotifications(
+        HttpStatusCode statusCode,
+        LoginOutcome expectedOutcome)
+    {
+        var handler = new RecordingHttpMessageHandler();
+        var notifications = new NotificationRecorder();
+        var apiClient = CreateApiClient(handler, notifications);
+        var tokenStore = new RecordingTokenStore();
+        var service = new AuthService(apiClient, tokenStore, new JwtAuthenticationStateProvider(tokenStore));
+        handler.EnqueueJson(
+            statusCode,
+            """{"title":"Sign-in failed","status":400,"errors":{"UserName":["Invalid"]}}""");
+
+        var outcome = await service.LoginAsync(new LoginDto { UserName = "artist", Password = "User123!" });
+
+        outcome.Should().Be(expectedOutcome);
+        tokenStore.SetCalls.Should().Be(0);
+        notifications.SuccessCalls.Should().BeEmpty();
+        notifications.InfoCalls.Should().BeEmpty();
+        notifications.WarningCalls.Should().BeEmpty();
+        notifications.ErrorCalls.Should().BeEmpty();
+        notifications.ValidationErrors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void LoginDto_DefaultValuesAreSafeAndRequired()
+    {
+        var dto = new LoginDto();
+        var validationResults = new List<ValidationResult>();
+
+        var isValid = Validator.TryValidateObject(dto, new ValidationContext(dto), validationResults, validateAllProperties: true);
+
+        dto.UserName.Should().BeEmpty();
+        dto.Password.Should().BeEmpty();
+        isValid.Should().BeFalse();
+        validationResults.SelectMany(result => result.MemberNames)
+            .Should().BeEquivalentTo(nameof(LoginDto.UserName), nameof(LoginDto.Password));
     }
 
     [Fact]

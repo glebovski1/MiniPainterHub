@@ -25,49 +25,21 @@
 }
 
 .atelier-brand__mark {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.7rem;
-    height: 2.7rem;
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-    background: var(--primary-700);
-    color: var(--surface-strong);
-    font-weight: 900;
-    letter-spacing: 0;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
-}
-
-.atelier-brand__mark::after {
-    content: "";
-    position: absolute;
-    inset: 0.36rem;
-    border: 1px solid rgba(255, 255, 255, 0.28);
-    border-radius: 5px;
-}
-
-.atelier-brand__copy {
-    display: grid;
-    gap: 0.08rem;
-    min-width: 0;
+    display: block;
+    width: 3.1rem;
+    height: 3.1rem;
+    object-fit: contain;
+    flex: 0 0 auto;
 }
 
 .atelier-brand__title {
     color: var(--ink-900);
-    font-family: var(--font-ui);
-    font-size: 1.12rem;
-    font-weight: 900;
-    letter-spacing: 0;
-    line-height: 1.1;
-}
-
-.atelier-brand__subtitle {
-    color: var(--ink-500);
-    font-size: 0.74rem;
-    font-weight: 700;
-    line-height: 1.2;
+    font-family: var(--font-display);
+    font-size: 1.48rem;
+    font-weight: 400;
+    letter-spacing: -0.025em;
+    line-height: 1;
+    white-space: nowrap;
 }
 
 .atelier-nav__actions {
@@ -100,51 +72,37 @@
     display: flex;
 }
 
-.atelier-nav__search {
-    display: flex;
+.atelier-nav ::deep .atelier-nav__search-link {
+    display: inline-flex;
     align-items: center;
-    gap: 0.42rem;
-    flex: 1 1 26rem;
-    min-width: 0;
-    max-width: 32rem;
-    min-height: 2.82rem;
+    justify-content: center;
+    gap: 0.48rem;
+    min-height: 2.56rem;
     margin: 0;
-    padding: 0.25rem;
+    padding: 0.55rem 0.82rem;
     border: 1px solid rgba(23, 33, 39, 0.12);
     border-radius: var(--radius-sm);
     background: rgba(255, 254, 250, 0.88);
+    color: var(--ink-700);
+    font-size: 0.88rem;
+    font-weight: 850;
+    line-height: 1;
+    text-decoration: none;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76);
     transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
-.atelier-nav__search:focus-within {
+.atelier-nav ::deep .atelier-nav__search-link:hover,
+.atelier-nav ::deep .atelier-nav__search-link:focus-visible,
+.atelier-nav ::deep .atelier-nav__search-link.active {
     border-color: rgba(31, 91, 82, 0.4);
     background: var(--surface-strong);
+    color: var(--primary-700);
     box-shadow: 0 0 0 4px rgba(31, 91, 82, 0.12);
 }
 
-.atelier-nav__search .form-control {
-    min-width: 0;
-    min-height: 2.24rem;
-    padding-left: 0.72rem;
-    border-color: transparent;
-    background: transparent;
-    box-shadow: none;
-}
-
-.atelier-nav__search .form-control:focus {
-    box-shadow: none;
-}
-
-.atelier-nav__search .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.36rem;
-    min-height: 2.28rem;
-    padding-inline: 0.86rem;
-    box-shadow: none;
-    white-space: nowrap;
+.atelier-nav ::deep .atelier-nav__search-link i {
+    color: var(--primary-700);
 }
 
 .atelier-nav__links,
@@ -219,6 +177,40 @@
     color: var(--accent-clay) !important;
 }
 
+.atelier-nav__more {
+    width: 100%;
+    cursor: pointer;
+    text-align: left;
+}
+
+.atelier-nav__dropdown {
+    min-width: 12rem;
+    padding: 0.42rem;
+    border: 1px solid rgba(31, 91, 82, 0.14);
+    border-radius: var(--radius-sm);
+    background: rgba(255, 254, 250, 0.98);
+    box-shadow: var(--shadow-raised);
+}
+
+.atelier-nav ::deep .atelier-nav__dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 2.5rem;
+    padding: 0.58rem 0.68rem;
+    border-radius: calc(var(--radius-sm) - 0.2rem);
+    color: var(--ink-700);
+    font-size: 0.88rem;
+    font-weight: 800;
+}
+
+.atelier-nav ::deep .atelier-nav__dropdown-item:hover,
+.atelier-nav ::deep .atelier-nav__dropdown-item:focus-visible,
+.atelier-nav ::deep .atelier-nav__dropdown-item.active {
+    background: rgba(31, 91, 82, 0.09);
+    color: var(--primary-700);
+}
+
 .navbar-toggler {
     display: inline-flex;
     align-items: center;
@@ -266,7 +258,7 @@
     }
 
     .atelier-nav {
-        grid-template-columns: auto minmax(16rem, 24rem) minmax(0, auto) auto;
+        grid-template-columns: auto auto minmax(0, 1fr) auto;
         align-items: center;
         justify-content: space-between;
         gap: 0.75rem 1rem;
@@ -285,12 +277,11 @@
         padding-top: 0 !important;
     }
 
-    .atelier-nav__search {
+    .atelier-nav ::deep .atelier-nav__search-link {
         grid-column: 2;
         grid-row: 1;
         align-self: center;
-        width: 100%;
-        max-width: none;
+        justify-self: start;
     }
 
     .atelier-nav__links {
@@ -319,6 +310,7 @@
     }
 
     .atelier-nav ::deep .atelier-nav__link i,
+    .atelier-nav__more i,
     .atelier-nav__logout i {
         display: none;
     }
@@ -353,11 +345,10 @@
         padding-top: 0 !important;
     }
 
-    .atelier-nav__search {
+    .atelier-nav ::deep .atelier-nav__search-link {
         grid-column: 2;
         grid-row: 1;
-        width: 100%;
-        max-width: none;
+        justify-self: start;
     }
 
     .atelier-nav__session {
@@ -382,6 +373,7 @@
     }
 
     .atelier-nav ::deep .atelier-nav__link i,
+    .atelier-nav__more i,
     .atelier-nav__logout i {
         display: none;
     }
@@ -398,17 +390,14 @@
         padding: 0.68rem 0;
     }
 
-    .atelier-brand__subtitle {
-        display: none;
-    }
-
     .atelier-nav__collapse {
         align-items: stretch;
         padding-top: 0.85rem;
     }
 
-    .atelier-nav__search {
-        max-width: none;
+    .atelier-nav ::deep .atelier-nav__search-link {
+        justify-content: flex-start;
+        width: 100%;
     }
 
     .atelier-nav__links,
@@ -423,6 +412,14 @@
         justify-content: flex-start;
         width: 100%;
     }
+
+    .atelier-nav__dropdown {
+        position: static !important;
+        width: 100%;
+        margin-top: 0.2rem !important;
+        transform: none !important;
+        box-shadow: none;
+    }
 }
 
 @media (max-width: 575.98px) {
@@ -435,12 +432,12 @@
     }
 
     .atelier-brand__title {
-        font-size: 1.04rem;
+        font-size: 1.24rem;
     }
 
     .atelier-brand__mark {
-        width: 2.35rem;
-        height: 2.35rem;
+        width: 2.55rem;
+        height: 2.55rem;
     }
 
     .atelier-nav__utility span {
@@ -452,19 +449,6 @@
         width: 2.6rem;
         height: 2.6rem;
         justify-content: center;
-    }
-
-    .atelier-nav__search {
-        padding: 0.22rem;
-    }
-
-    .atelier-nav__search .btn span {
-        display: none;
-    }
-
-    .atelier-nav__search .btn {
-        width: 2.44rem;
-        padding-inline: 0;
     }
 
     .atelier-nav__links,

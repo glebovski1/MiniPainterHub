@@ -4,6 +4,8 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="A shared workbench for miniature painters to show their process, exchange useful critique, and discover paint recipes and techniques." />
+    <meta name="theme-color" content="#1F5B52" />
     <title>MiniPainterHub</title>
     <base href="/" />
     <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
@@ -17,7 +19,9 @@
     <link rel="stylesheet" href="css/bootstrap-icons-subset.css" />
     <link rel="stylesheet" href="css/app.css" />
     <link rel="stylesheet" href="css/app-polish.css" />
+    <link rel="icon" type="image/svg+xml" href="brand/minipainterhub-favicon.svg" />
     <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="brand/minipainterhub-icon-192.png" />
     <link href="MiniPainterHub.WebApp.styles.css" rel="stylesheet" />
 </head>
 
@@ -62,11 +66,13 @@
     <div id="blazor-error-ui">
         An unhandled error has occurred.
         <a href="" class="reload">Reload</a>
-        <a class="dismiss">x</a>
+        <button type="button" class="dismiss" aria-label="Dismiss error">x</button>
     </div>
     <script>
         window.miniPainterHubPerf = window.miniPainterHubPerf || { bootStart: performance.now() };
     </script>
+    <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="JSHelpers/navigationInterop.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
     <script src="JSHelpers/domHelpers.js" defer></script>
     <script>
@@ -79,9 +85,10 @@
 
                 const toastElement = document.createElement('div');
                 const variant = type || 'primary';
+                const isAssertive = variant === 'danger' || variant === 'warning';
                 toastElement.className = `toast align-items-center text-bg-${variant} border-0 shadow`;
-                toastElement.setAttribute('role', 'alert');
-                toastElement.setAttribute('aria-live', 'assertive');
+                toastElement.setAttribute('role', isAssertive ? 'alert' : 'status');
+                toastElement.setAttribute('aria-live', isAssertive ? 'assertive' : 'polite');
                 toastElement.setAttribute('aria-atomic', 'true');
 
                 toastElement.innerHTML = `

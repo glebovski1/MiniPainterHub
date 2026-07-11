@@ -3,28 +3,20 @@
 @inject NavigationManager Navigation
 @inject MiniPainterHub.WebApp.Services.Interfaces.IModerationService ModerationService
 
-<article class="post-card h-100">
-    @if (!string.IsNullOrEmpty(Post.ImageUrl))
+<article class="@CardCssClass">
+    @if (HasImage)
     {
         <NavLink class="text-decoration-none post-card__media-link" href="@($"/posts/{Post.Id}")">
             <img src="@DisplayImageUrl"
                  class="card-img-top post-card__image"
                  data-testid="post-card-image"
-                 alt="Post image"
+                 alt="@ImageAltText"
                  @onerror="HandleImageError"
                  loading="@ImageLoading"
                  fetchpriority="@ImageFetchPriority"
                  decoding="async" />
         </NavLink>
     }
-    else
-    {
-        <div class="post-card__placeholder">
-            <i class="bi bi-image" aria-hidden="true"></i>
-            <span>No preview image</span>
-        </div>
-    }
-
     <div class="post-card__body">
         <div class="post-card__meta-row">
             <NavLink class="post-card__author-link" href="@($"/users/{Post.AuthorId}")">@Post.AuthorName</NavLink>
@@ -133,6 +125,9 @@
     private bool _moderationBusy;
     private string? _moderationError;
     private string? _moderationResult;
+    private bool HasImage => !string.IsNullOrWhiteSpace(Post.ImageUrl);
+    private string CardCssClass => HasImage ? "post-card h-100" : "post-card post-card--text-only";
+    private string ImageAltText => $"{Post.Title} by {Post.AuthorName}";
     private bool HasRecipeSummary =>
         !string.IsNullOrWhiteSpace(Post.MiniatureName)
         || !string.IsNullOrWhiteSpace(Post.Difficulty)

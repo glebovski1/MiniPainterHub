@@ -10,6 +10,11 @@ namespace MiniPainterHub.WebApp.Services
 {
     public sealed class SearchService : ISearchService
     {
+        private static readonly ApiRequestOptions InlineErrorOptions = new()
+        {
+            SuppressErrorNotifications = true
+        };
+
         private readonly ApiClient _api;
 
         public SearchService(ApiClient api)
@@ -18,7 +23,9 @@ namespace MiniPainterHub.WebApp.Services
         }
 
         public Task<ApiResult<SearchOverviewDto?>> GetOverviewAsync(string? query) =>
-            _api.SendForResultAsync<SearchOverviewDto?>(new HttpRequestMessage(HttpMethod.Get, $"api/search/overview{BuildQuery(new Dictionary<string, string?> { ["q"] = query })}"));
+            _api.SendForResultAsync<SearchOverviewDto?>(
+                new HttpRequestMessage(HttpMethod.Get, $"api/search/overview{BuildQuery(new Dictionary<string, string?> { ["q"] = query })}"),
+                InlineErrorOptions);
 
         public Task<ApiResult<PagedResult<PostSummaryDto>?>> SearchPostsAsync(string? query, string? tag, int page, int pageSize) =>
             _api.SendForResultAsync<PagedResult<PostSummaryDto>?>(new HttpRequestMessage(HttpMethod.Get, $"api/search/posts{BuildQuery(new Dictionary<string, string?>
@@ -27,7 +34,7 @@ namespace MiniPainterHub.WebApp.Services
                 ["tag"] = tag,
                 ["page"] = page.ToString(),
                 ["pageSize"] = pageSize.ToString()
-            })}"));
+            })}"), InlineErrorOptions);
 
         public Task<ApiResult<PagedResult<UserListItemDto>?>> SearchUsersAsync(string? query, int page, int pageSize) =>
             _api.SendForResultAsync<PagedResult<UserListItemDto>?>(new HttpRequestMessage(HttpMethod.Get, $"api/search/users{BuildQuery(new Dictionary<string, string?>
@@ -35,7 +42,7 @@ namespace MiniPainterHub.WebApp.Services
                 ["q"] = query,
                 ["page"] = page.ToString(),
                 ["pageSize"] = pageSize.ToString()
-            })}"));
+            })}"), InlineErrorOptions);
 
         public Task<ApiResult<PagedResult<SearchTagResultDto>?>> SearchTagsAsync(string? query, int page, int pageSize) =>
             _api.SendForResultAsync<PagedResult<SearchTagResultDto>?>(new HttpRequestMessage(HttpMethod.Get, $"api/search/tags{BuildQuery(new Dictionary<string, string?>
@@ -43,7 +50,7 @@ namespace MiniPainterHub.WebApp.Services
                 ["q"] = query,
                 ["page"] = page.ToString(),
                 ["pageSize"] = pageSize.ToString()
-            })}"));
+            })}"), InlineErrorOptions);
 
         private static string BuildQuery(IReadOnlyDictionary<string, string?> values)
         {

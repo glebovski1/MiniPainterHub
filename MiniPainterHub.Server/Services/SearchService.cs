@@ -105,6 +105,9 @@ namespace MiniPainterHub.Server.Services
                     Id = p.Id,
                     Title = p.Title,
                     Snippet = p.Content.Length > 100 ? p.Content.Substring(0, 100) + "..." : p.Content,
+                    MiniatureName = p.MiniatureName,
+                    Techniques = p.Techniques,
+                    Difficulty = p.Difficulty,
                     ImageUrl = p.Images.OrderBy(i => i.Id).Select(i => i.ImageUrl).FirstOrDefault(),
                     ThumbnailUrl = p.Images
                         .OrderBy(i => i.Id)

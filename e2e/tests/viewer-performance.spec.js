@@ -258,6 +258,7 @@ async function measureViewerDragPan(page) {
   await page.getByTestId("viewer-view-actual").evaluate((button) => button.click());
   await expect(page.getByTestId("viewer-view-actual")).toHaveClass(/is-active/);
   await waitForViewerActualSizePan(page);
+  await waitForDecodedViewerImage(page);
 
   const transform = page.getByTestId("viewer-stage-transform");
   const transformBeforePan = await transform.getAttribute("style");

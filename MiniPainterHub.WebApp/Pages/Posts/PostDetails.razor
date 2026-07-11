@@ -51,6 +51,7 @@
                   Title="@post.Title"
                   TitleTestId="post-title"
                   Description="@($"Shared on {post.CreatedAt.ToLocalTime():MMM dd, yyyy}")"
+                  ClassName="page-hero--compact"
                   FrameName="Post Details Header">
             <Actions>
                 <div class="mini-stat-bar">
@@ -79,15 +80,15 @@
                 <section class="surface-card post-details-gallery" data-testid="post-details-gallery">
                     <div class="post-details-gallery__header">
                         <div>
-                            <p class="section-label mb-2">Gallery preview</p>
-                            <h2 class="post-details-gallery__title">Open the rich viewer from the artwork.</h2>
+                            <p class="section-label mb-2">Artwork</p>
+                            <h2 class="post-details-gallery__title">Study the piece up close.</h2>
                         </div>
                         <button type="button"
                                 class="btn btn-dark post-details-gallery__launch"
                                 data-testid="post-details-open-viewer"
                                 @onclick="OpenViewerAsync">
                             <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
-                            Launch viewer
+                            View close-up
                         </button>
                     </div>
 
@@ -100,15 +101,15 @@
                             <img src="@GetPreviewSource(CurrentPreviewImage)"
                                  class="post-details-gallery__image"
                                  data-testid="post-details-image"
-                                 alt="@post.Title"
+                                 alt="@GetDetailImageAlt(CurrentPreviewImage)"
                                  loading="eager"
                                  fetchpriority="high"
                                  decoding="async"
                                  width="@(CurrentPreviewImage.Width ?? 1200)"
                                  height="@(CurrentPreviewImage.Height ?? 900)" />
                             <span class="post-details-gallery__hint">
-                                <span class="post-details-gallery__hint-title">Open the premium viewer</span>
-                                <span class="post-details-gallery__hint-copy">Zoom, pan, fullscreen, marks, and discussion anchors live in the overlay.</span>
+                                <span class="post-details-gallery__hint-title">Open close-up view</span>
+                                <span class="post-details-gallery__hint-copy">Zoom, pan, or place a note on the details that matter.</span>
                             </span>
                         </button>
                     }
@@ -131,6 +132,7 @@
                                 <button type="button"
                                         class="post-details-gallery__thumb @(isActive ? "is-active" : null)"
                                         data-testid="post-details-thumbnail"
+                                        aria-label="@GetThumbnailAccessibleName(index)"
                                         @onclick="@(() => OpenViewerAtImageAsync(image.Id))">
                                     <img src="@GetThumbnailSource(image)" alt="" loading="lazy" />
                                     <span class="post-details-gallery__thumb-index">@((index + 1).ToString("00"))</span>
@@ -181,29 +183,26 @@
                     </section>
                 }
 
-                <section class="post-details-aside__panel">
-                    <p class="section-label">Viewer state</p>
-                    <div class="post-details-aside__meta">
-                        <span><strong>@viewer.Images.Count</strong> image(s)</span>
-                        <span><strong>@viewer.AuthorMarks.Count</strong> author note(s)</span>
-                        <span><strong>@(viewer.CanAttachCommentMark ? "Comment marks enabled" : "Sign in to attach comment marks")</strong></span>
-                    </div>
-
-                    @if (_activeCommentId.HasValue)
-                    {
-                        <div class="post-details-aside__callout">
-                            <i class="bi bi-chat-square-text" aria-hidden="true"></i>
-                            <span>Comment #@_activeCommentId.Value is currently pinned in the viewer.</span>
-                        </div>
-                    }
-                    else if (_draftCommentMark is not null)
-                    {
-                        <div class="post-details-aside__callout">
-                            <i class="bi bi-crosshair2" aria-hidden="true"></i>
-                            <span>Comment draft linked to image @GetImageNumber(_draftCommentMark.PostImageId).</span>
-                        </div>
-                    }
-                </section>
+                @if (_activeCommentId.HasValue || _draftCommentMark is not null)
+                {
+                    <section class="post-details-aside__panel" data-testid="post-details-critique-focus">
+                        <p class="section-label">Critique focus</p>
+                        @if (_activeCommentId.HasValue)
+                        {
+                            <div class="post-details-aside__callout">
+                                <i class="bi bi-chat-square-text" aria-hidden="true"></i>
+                                <span>Comment #@_activeCommentId.Value is currently pinned in the viewer.</span>
+                            </div>
+                        }
+                        else if (_draftCommentMark is not null)
+                        {
+                            <div class="post-details-aside__callout">
+                                <i class="bi bi-crosshair2" aria-hidden="true"></i>
+                                <span>Comment draft linked to image @GetImageNumber(_draftCommentMark.PostImageId).</span>
+                            </div>
+                        }
+                    </section>
+                }
 
                 <ReportAction TargetType="@ReportTargetTypes.Post"
                               TargetId="@PostId.ToString()"
@@ -294,12 +293,12 @@
                          ViewerMarkErrorCommentId="@_markErrorCommentId"
                          ViewerMarkError="@_markError"
                          OnToggleViewerMark="ToggleCommentMarkAsync"
-                         ViewerActionLabel="Open in viewer"
+                         ViewerActionLabel="Open close-up"
                          ViewerActionActiveLabel="Hide marker" />
         </section>
 
         <RichImageViewer IsOpen="@_isViewerOpen"
-                         Eyebrow="Rich viewer"
+                         Eyebrow="Artwork close-up"
                          Title="@post.Title"
                          Viewer="@viewer"
                          ActiveImageId="@_activeImageId"
@@ -314,7 +313,7 @@
                          OnClose="CloseViewerAsync">
             <SidePanelContent>
                 <div class="viewer-panel">
-                    <div class="viewer-panel__tabs" role="tablist" aria-label="Viewer details" data-testid="viewer-side-tabs">
+                    <div class="viewer-panel__tabs" role="tablist" aria-label="Artwork details" data-testid="viewer-side-tabs">
                         <button type="button"
                                 id="@ViewerInfoTabId"
                                 class="viewer-panel__tab @(_viewerSideTab == ViewerSideTab.Info ? "is-active" : null)"

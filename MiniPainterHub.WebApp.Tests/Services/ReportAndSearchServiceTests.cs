@@ -106,13 +106,35 @@ public class ReportAndSearchServiceTests
         tagsQuery["pageSize"].Should().Be("7");
     }
 
-    private static ApiClient CreateApiClient(HttpMessageHandler handler)
+    [Fact]
+    public async Task SearchService_FailuresDoNotRaiseGlobalNotifications()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        var notifications = new NotificationRecorder();
+        var service = new SearchService(CreateApiClient(handler, notifications));
+        handler.Enqueue(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        handler.Enqueue(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        handler.Enqueue(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        handler.Enqueue(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+
+        await service.GetOverviewAsync("glaze");
+        await service.SearchPostsAsync("glaze", null, 1, 10);
+        await service.SearchUsersAsync("glaze", 1, 10);
+        await service.SearchTagsAsync("glaze", 1, 10);
+
+        notifications.ErrorCalls.Should().BeEmpty();
+        notifications.InfoCalls.Should().BeEmpty();
+        notifications.WarningCalls.Should().BeEmpty();
+        notifications.ValidationErrors.Should().BeEmpty();
+    }
+
+    private static ApiClient CreateApiClient(HttpMessageHandler handler, NotificationRecorder? notifications = null)
     {
         var httpClient = new HttpClient(handler)
         {
             BaseAddress = new Uri("https://example.test/")
         };
 
-        return new ApiClient(httpClient, new NotificationRecorder());
+        return new ApiClient(httpClient, notifications ?? new NotificationRecorder());
     }
 }

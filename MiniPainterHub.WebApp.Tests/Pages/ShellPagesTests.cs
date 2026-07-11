@@ -21,9 +21,14 @@ public class ShellPagesTests : TestContext
     {
         var cut = RenderComponent<About>();
 
-        cut.Markup.Should().Contain("MiniPainterHub");
-        cut.Markup.Should().Contain("Portfolio Update");
-        cut.Markup.Should().Contain("Recent screens and workflows");
+        cut.Markup.Should().Contain("A shared workbench.");
+        cut.Markup.Should().Contain("Miniature painting is better when the process is shared.");
+        cut.Markup.Should().Contain("Built around the craft");
+        cut.Markup.Should().Contain("What belongs here");
+        cut.Markup.Should().Contain("Our community promise");
+        cut.Markup.Should().Contain("Curiosity over gatekeeping");
+        cut.Markup.Should().NotContain("Portfolio Update");
+        cut.Markup.Should().NotContain("Build:");
         cut.FindAll("a").Select(link => link.GetAttribute("href")).Should().Contain("/posts/all");
         cut.FindAll("a").Select(link => link.GetAttribute("href")).Should().Contain("/posts/new");
     }
@@ -55,6 +60,8 @@ public class ShellPagesTests : TestContext
             cut.Markup.Should().Contain("30 days");
             cut.Markup.Should().Contain("Featured dragon");
             cut.Markup.Should().Contain("Open ranked showcase");
+            cut.Find(".page-hero").ClassList.Should().Contain("page-hero--compact");
+            cut.Markup.Should().NotContain("same routes and data");
         });
     }
 
@@ -83,6 +90,8 @@ public class ShellPagesTests : TestContext
             cut.Markup.Should().Contain("Top posts");
             cut.Markup.Should().Contain("Ranked community work");
             cut.Markup.Should().Contain("Golden knight");
+            cut.Markup.Should().NotContain("Ways to keep exploring");
+            cut.Markup.Should().NotContain("Top Posts Route Coverage");
         });
     }
 
@@ -122,6 +131,7 @@ public class ShellPagesTests : TestContext
         {
             cut.Markup.Should().Contain("Latest Posts");
             cut.Markup.Should().Contain("Latest post");
+            cut.Find(".page-hero").ClassList.Should().Contain("page-hero--compact");
         });
     }
 

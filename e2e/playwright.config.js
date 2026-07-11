@@ -4,6 +4,7 @@ const PORT = Number.parseInt(process.env.E2E_PORT || "5176", 10);
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 const PERF_MODE = process.env.E2E_PERF_MODE === "true";
 const RESET_TOKEN = process.env.E2E_RESET_TOKEN || "local-e2e-reset-token";
+const AUTH_PERMIT_LIMIT = process.env.E2E_AUTH_PERMIT_LIMIT || "100";
 const LOCALDB_INSTANCE = process.env.E2E_LOCALDB_INSTANCE || (process.env.CI ? "MSSQLLocalDB" : "MiniPainterHubE2E");
 const LOCALDB_INSTANCE_PS = LOCALDB_INSTANCE.replace(/'/g, "''");
 const DEFAULT_E2E_DB = process.env.CI
@@ -45,6 +46,7 @@ module.exports = defineConfig({
       ConnectionStrings__DefaultConnection: E2E_CONNECTION_STRING,
       TestSupport__ResetEnabled: "true",
       TestSupport__ResetToken: RESET_TOKEN,
+      TrafficShaping__Auth__PermitLimit: AUTH_PERMIT_LIMIT,
     },
   },
 });

@@ -39,6 +39,32 @@ function expectWithinTolerance(actual, expected, tolerance = 4) {
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(tolerance);
 }
 
+function cssRgb(value) {
+  const match = value.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i);
+  if (!match) {
+    throw new Error(`Unable to parse CSS color '${value}'.`);
+  }
+
+  return match.slice(1, 4).map(Number);
+}
+
+function contrastRatio(foreground, background) {
+  const luminance = (color) => {
+    const channels = cssRgb(color).map((channel) => {
+      const normalized = channel / 255;
+      return normalized <= 0.04045
+        ? normalized / 12.92
+        : ((normalized + 0.055) / 1.055) ** 2.4;
+    });
+
+    return (0.2126 * channels[0]) + (0.7152 * channels[1]) + (0.0722 * channels[2]);
+  };
+
+  const lighter = Math.max(luminance(foreground), luminance(background));
+  const darker = Math.min(luminance(foreground), luminance(background));
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 async function getViewerBoxes(page) {
   const [stageSurfaceBox, stageBox, fitBox, imageBox] = await Promise.all([
     page.locator(".viewer-shell__stage-surface").boundingBox(),
@@ -227,6 +253,103 @@ test("invalid login shows user-facing error", async ({ page }) => {
   await page.getByTestId("login-submit").click();
 
   await expect(page.getByTestId("login-error")).toContainText("Invalid username or password.");
+  await expect(page.locator("#toast-container .toast")).toHaveCount(0);
+  await expect(page.getByTestId("login-error")).toBeFocused();
+});
+
+test("empty login is validated locally with one announcement", async ({ page }) => {
+  await page.goto("/login");
+  let loginRequests = 0;
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.url().endsWith("/api/auth/login")) {
+      loginRequests += 1;
+    }
+  });
+
+  await page.getByTestId("login-submit").click();
+
+  await expect(page.getByTestId("login-error")).toContainText("Enter your username and password.");
+  await expect(page.locator("#toast-container .toast")).toHaveCount(0);
+  expect(loginRequests).toBe(0);
+});
+
+test("login reports rate limiting and service outages inline", async ({ page }) => {
+  for (const scenario of [
+    { status: 429, message: "Too many sign-in attempts" },
+    { status: 503, message: "Sign-in is unavailable" },
+  ]) {
+    await page.route("**/api/auth/login", async (route) => {
+      await route.fulfill({
+        status: scenario.status,
+        contentType: "application/problem+json",
+        body: JSON.stringify({ title: "Sign-in failed", status: scenario.status }),
+      });
+    });
+
+    await page.goto("/login");
+    await page.getByTestId("login-username").fill("user");
+    await page.getByTestId("login-password").fill(USER_PASSWORD);
+    await page.getByTestId("login-submit").click();
+    await expect(page.getByTestId("login-error")).toContainText(scenario.message);
+    await expect(page.locator("#toast-container .toast")).toHaveCount(0);
+    await page.unroute("**/api/auth/login");
+  }
+});
+
+test("mobile navigation, More menu, and personal panel work", async ({ page }) => {
+  await loginAsSeedUser(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const toggle = page.getByTestId("nav-toggle");
+  const collapse = page.locator("#navbarNav");
+  await toggle.focus();
+  await toggle.press("Enter");
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await expect(collapse).toHaveClass(/show/);
+
+  await page.getByTestId("nav-more").click();
+  await expect(page.getByTestId("nav-more-highlights")).toBeVisible();
+  await expect(page.getByTestId("nav-more-about")).toBeVisible();
+
+  await page.getByTestId("nav-search-link").click();
+  await expect(page).toHaveURL(/\/search$/);
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(collapse).not.toHaveClass(/show/);
+  await expect(toggle).toBeFocused();
+
+  await page.goto("/");
+  const panelToggle = page.getByRole("button", { name: "Toggle personal panel" });
+  await panelToggle.click();
+  await expect(page.locator("#userPanelOffcanvas")).toHaveClass(/show/);
+  await expect(page.locator("#userPanelOffcanvas")).toBeVisible();
+});
+
+test("anonymous header stays collision-free at desktop widths", async ({ page }) => {
+  for (const width of [1280, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto("/");
+    await expect(page.locator(".atelier-brand")).toBeVisible();
+    const layout = await page.evaluate(() => {
+      const rect = (selector) => document.querySelector(selector)?.getBoundingClientRect().toJSON();
+      return {
+        bodyScrollWidth: document.body.scrollWidth,
+        viewportWidth: window.innerWidth,
+        brand: rect(".atelier-brand"),
+        search: rect(".atelier-nav__search-link"),
+        links: rect(".atelier-nav__links"),
+        session: rect(".atelier-nav__session"),
+      };
+    });
+
+    expect(layout.bodyScrollWidth).toBeLessThanOrEqual(layout.viewportWidth);
+    expect(layout.brand).toBeTruthy();
+    expect(layout.search).toBeTruthy();
+    expect(layout.links).toBeTruthy();
+    expect(layout.session).toBeTruthy();
+    expect(layout.brand.right).toBeLessThanOrEqual(layout.search.left + 1);
+    expect(layout.search.right).toBeLessThanOrEqual(layout.links.left + 1);
+    expect(layout.links.right).toBeLessThanOrEqual(layout.session.left + 1);
+  }
 });
 
 test("create post flow redirects to details and renders content", async ({ page }) => {
@@ -235,6 +358,7 @@ test("create post flow redirects to details and renders content", async ({ page 
 });
 
 test("seeded post with image and tags renders on feed and details", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
 
   const seededCard = page.locator(".post-card", { hasText: "Seeded: glazing check" }).first();
@@ -242,19 +366,79 @@ test("seeded post with image and tags renders on feed and details", async ({ pag
   await expect(seededCard).toBeVisible();
   await expect(weatheringCard).toBeVisible();
   await expect(seededCard.getByTestId("post-card-image")).toBeVisible();
+  await expect(seededCard.getByTestId("post-card-image")).toHaveAttribute("alt", /Seeded: glazing check by /);
   await expect(seededCard.getByTestId("post-card-tags")).toContainText("#glazing");
   await expect(seededCard.getByTestId("post-card-tags")).toContainText("#nmm");
   await expect(weatheringCard.getByTestId("post-card-image")).toBeVisible();
+  await expect(weatheringCard.getByTestId("post-card-image")).toHaveAttribute("alt", /Seeded: weathering notes by /);
+  const seededImageSource = await seededCard.getByTestId("post-card-image").getAttribute("src");
+  const weatheringImageSource = await weatheringCard.getByTestId("post-card-image").getAttribute("src");
+  expect(seededImageSource).not.toBe(weatheringImageSource);
+  const firstCardBox = await page.locator(".post-card").first().boundingBox();
+  expect(firstCardBox).toBeTruthy();
+  expect(firstCardBox.y).toBeLessThanOrEqual(430);
   await expect(weatheringCard.getByTestId("post-card-tags")).toContainText("#weathering");
   await expect(weatheringCard.getByTestId("post-card-tags")).toContainText("#battle-damage");
 
-  await seededCard.getByRole("link", { name: "Seeded: glazing check" }).click();
+  await seededCard.getByRole("link", { name: "Seeded: glazing check", exact: true }).click();
 
   await expect(page).toHaveURL(/\/posts\/\d+$/);
   await expect(page.getByTestId("post-title")).toHaveText("Seeded: glazing check");
   await expect(page.getByTestId("post-details-image")).toBeVisible();
+  await expect(page.getByTestId("post-details-image")).toHaveAttribute("alt", "Seeded: glazing check");
   await expect(page.getByTestId("post-details-tags")).toContainText("#glazing");
   await expect(page.getByTestId("post-details-tags")).toContainText("#nmm");
+  const galleryBox = await page.getByTestId("post-details-gallery").boundingBox();
+  expect(galleryBox).toBeTruthy();
+  expect(galleryBox.y).toBeLessThanOrEqual(650);
+
+  await openViewerFromDetails(page);
+  await expect(page.getByTestId("rich-image-viewer")).toHaveClass(/is-single-image/);
+  await expect(page.getByTestId("viewer-thumbnail-rail")).toHaveCount(0);
+  await expect(page.getByTestId("viewer-stage-prev")).toHaveCount(0);
+  await expect(page.getByTestId("viewer-stage-next")).toHaveCount(0);
+  await expect(page.getByTestId("viewer-stage-image")).toHaveAttribute("alt", "Seeded: glazing check");
+
+  const [stageColumnBox, stageSurfaceBox] = await Promise.all([
+    page.locator(".viewer-shell__stage-column").boundingBox(),
+    page.locator(".viewer-shell__stage-surface").boundingBox(),
+  ]);
+  expect(stageColumnBox).toBeTruthy();
+  expect(stageSurfaceBox).toBeTruthy();
+  expectWithinTolerance(stageSurfaceBox.height, stageColumnBox.height, 4);
+
+  const panelColors = await page.evaluate(() => {
+    const panel = document.querySelector(".viewer-shell__side-panel");
+    const title = document.querySelector(".viewer-panel__title");
+    const body = document.querySelector(".viewer-panel__copy");
+    const author = document.querySelector(".viewer-panel__author");
+    const activeTab = document.querySelector(".viewer-panel__tab.is-active");
+    const gradient = getComputedStyle(activeTab).backgroundImage;
+    const gradientColors = [...gradient.matchAll(/rgba?\([^)]*\)/g)].map((match) => match[0]);
+    return {
+      background: getComputedStyle(panel).backgroundColor,
+      title: getComputedStyle(title).color,
+      body: getComputedStyle(body).color,
+      author: getComputedStyle(author).color,
+      activeText: getComputedStyle(activeTab).color,
+      gradientColors,
+    };
+  });
+  expect(contrastRatio(panelColors.title, panelColors.background)).toBeGreaterThanOrEqual(4.5);
+  expect(contrastRatio(panelColors.body, panelColors.background)).toBeGreaterThanOrEqual(4.5);
+  expect(contrastRatio(panelColors.author, panelColors.background)).toBeGreaterThanOrEqual(4.5);
+  expect(panelColors.gradientColors).toHaveLength(2);
+  for (const color of panelColors.gradientColors) {
+    expect(contrastRatio(panelColors.activeText, color)).toBeGreaterThanOrEqual(4.5);
+  }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(250);
+  const mobileStageBox = await page.getByTestId("viewer-stage").boundingBox();
+  expect(mobileStageBox).toBeTruthy();
+  expect(mobileStageBox.height).toBeGreaterThanOrEqual(384);
+  expect(mobileStageBox.height).toBeLessThanOrEqual(496);
+  await expect(page.getByTestId("viewer-side-panel")).toBeVisible();
 });
 
 test("create post with image and tags renders on details and latest feed", async ({ page }) => {
@@ -655,8 +839,10 @@ test("search by title and tag works, and public profiles open from search", asyn
   await loginAsSeedUser(page);
   const { title } = await createPost(page, "search", { tags: "glazing" });
 
-  await page.getByTestId("nav-search-input").fill(title);
-  await page.getByTestId("nav-search-submit").click();
+  await page.getByTestId("nav-search-link").click();
+  await expect(page).toHaveURL(/\/search$/);
+  await page.getByTestId("search-query-input").fill(title);
+  await page.getByTestId("search-query-submit").click();
 
   await expect(page).toHaveURL(/\/search\?q=/);
   await expect(page.getByTestId("search-post-result").first()).toContainText(title);
@@ -670,6 +856,25 @@ test("search by title and tag works, and public profiles open from search", asyn
       .filter({ hasText: title })
       .first(),
   ).toBeVisible();
+
+  await page.goto("/search?q=weathering&tab=posts");
+  const weatheringResult = page
+    .getByTestId("search-post-result")
+    .filter({ hasText: "Seeded: weathering notes" })
+    .first();
+  const weatheringImage = weatheringResult.getByTestId("post-card-image");
+  await expect(weatheringResult).toBeVisible();
+  await expect(weatheringImage).toHaveAttribute("alt", /Seeded: weathering notes by /);
+  const weatheringSource = await weatheringImage.getAttribute("src");
+
+  await page.goto("/search?q=Seeded%3A%20glazing%20check&tab=posts");
+  const glazingImage = page
+    .getByTestId("search-post-result")
+    .filter({ hasText: "Seeded: glazing check" })
+    .first()
+    .getByTestId("post-card-image");
+  await expect(glazingImage).toHaveAttribute("alt", /Seeded: glazing check by /);
+  expect(await glazingImage.getAttribute("src")).not.toBe(weatheringSource);
 
   await page.getByTestId("search-query-input").fill("user");
   await page.getByTestId("search-query-submit").click();

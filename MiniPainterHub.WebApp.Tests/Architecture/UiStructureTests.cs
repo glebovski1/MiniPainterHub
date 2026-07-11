@@ -1,6 +1,8 @@
 using FluentAssertions;
 using System;
 using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Architecture;
@@ -49,6 +51,29 @@ public class UiStructureTests
         source.Should().NotContain("--ink-900:");
         source.Should().NotContain("--primary-700:");
         source.Should().NotContain("--radius-lg:");
+    }
+
+    [Fact]
+    public void BootstrapIconSubset_CoversEveryRazorIconUsage()
+    {
+        var root = FindRepositoryRoot();
+        var webAppRoot = Path.Combine(root, "MiniPainterHub.WebApp");
+        var css = File.ReadAllText(Path.Combine(webAppRoot, "wwwroot/css/bootstrap-icons-subset.css"));
+        var iconPattern = new Regex(@"\bbi-([a-z0-9][a-z0-9-]*)\b", RegexOptions.IgnoreCase);
+
+        var usedIcons = Directory
+            .EnumerateFiles(webAppRoot, "*.razor", SearchOption.AllDirectories)
+            .SelectMany(file => iconPattern.Matches(File.ReadAllText(file)).Cast<Match>())
+            .Select(match => match.Groups[1].Value.ToLowerInvariant())
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(icon => icon, StringComparer.Ordinal)
+            .ToList();
+
+        usedIcons.Should().NotBeEmpty();
+        foreach (var icon in usedIcons)
+        {
+            css.Should().Contain($".bi-{icon}::before", $"the local icon subset must include bi-{icon}");
+        }
     }
 
     private static string FindRepositoryRoot()

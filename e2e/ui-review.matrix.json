@@ -65,7 +65,15 @@
     "search": {
       "description": "Search results and route tabs.",
       "patterns": [
-        "MiniPainterHub.WebApp/Pages/Search.razor"
+        "MiniPainterHub.WebApp/Pages/Search.razor",
+        "MiniPainterHub.WebApp/Pages/Search.razor.css"
+      ]
+    },
+    "about": {
+      "description": "Painter-centered About manifesto.",
+      "patterns": [
+        "MiniPainterHub.WebApp/Pages/About.razor",
+        "MiniPainterHub.WebApp/Pages/About.razor.css"
       ]
     },
     "posts": {

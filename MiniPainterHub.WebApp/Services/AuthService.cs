@@ -20,22 +20,37 @@ namespace MiniPainterHub.WebApp.Services
             _authStateProvider = authStateProvider;
         }
 
-        public async Task<bool> LoginAsync(LoginDto dto)
+        public async Task<LoginOutcome> LoginAsync(LoginDto dto)
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/login")
             {
                 Content = ApiClient.CreateJsonContent(dto)
             };
 
-            var response = await _api.SendAsync<AuthResponseDto>(request);
-            if (string.IsNullOrWhiteSpace(response?.Token))
+            var result = await _api.SendForResultAsync<AuthResponseDto>(
+                request,
+                new ApiRequestOptions { SuppressErrorNotifications = true });
+
+            if (!result.Success)
             {
-                return false;
+                return result.StatusCode switch
+                {
+                    HttpStatusCode.BadRequest => LoginOutcome.ValidationFailure,
+                    HttpStatusCode.Unauthorized => LoginOutcome.InvalidCredentials,
+                    HttpStatusCode.Forbidden => LoginOutcome.Forbidden,
+                    HttpStatusCode.TooManyRequests => LoginOutcome.RateLimited,
+                    _ => LoginOutcome.Unavailable
+                };
             }
 
-            await _tokenStore.SetTokenAsync(response.Token);
-            _authStateProvider.NotifyUserAuthentication(response.Token);
-            return true;
+            if (result.Value?.IsSuccess != true || string.IsNullOrWhiteSpace(result.Value.Token))
+            {
+                return LoginOutcome.Unavailable;
+            }
+
+            await _tokenStore.SetTokenAsync(result.Value.Token);
+            _authStateProvider.NotifyUserAuthentication(result.Value.Token);
+            return LoginOutcome.Success;
         }
 
         public async Task<bool> RegisterAsync(RegisterDto dto)

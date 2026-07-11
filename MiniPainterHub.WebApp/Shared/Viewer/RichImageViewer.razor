@@ -117,7 +117,7 @@ else if (IsOpen)
                                                         <img class="viewer-stage__image"
                                                              src="@CurrentImageSource"
                                                              data-testid="viewer-stage-image"
-                                                             alt="@($"Artwork image {CurrentImageNumber}")"
+                                                             alt="@CurrentImageAlt"
                                                              decoding="async"
                                                              fetchpriority="high"
                                                              draggable="false"
@@ -174,25 +174,23 @@ else if (IsOpen)
                             </ViewerStage>
                         </div>
 
-                        @if (Viewer.Images.Count > 0)
+                        @if (Viewer.Images.Count > 1)
                         {
                             <section class="viewer-shell__filmstrip viewer-rail-section viewer-rail-section--thumbnails" data-testid="viewer-thumbnail-rail">
                                 <div class="viewer-rail-section__head">
-                                    <span class="viewer-rail-section__eyebrow">@(Viewer.Images.Count > 1 ? "Frames" : "Preview")</span>
+                                    <span class="viewer-rail-section__eyebrow">Frames</span>
                                 </div>
 
                                 <ThumbnailRail Images="@Viewer.Images"
+                                               Title="@ArtworkTitle"
                                                ActiveImageId="@ResolvedImageId"
                                                OnSelect="SelectImageAsync" />
 
-                                @if (Viewer.Images.Count > 1)
-                                {
-                                    <p class="viewer-rail-shortcuts" data-testid="viewer-shortcuts" aria-label="Viewer shortcuts">
-                                        <span><kbd>Left</kbd><kbd>Right</kbd> navigate</span>
-                                        <span><kbd>+</kbd><kbd>-</kbd> zoom</span>
-                                        <span><kbd>Esc</kbd> close</span>
-                                    </p>
-                                }
+                                <p class="viewer-rail-shortcuts" data-testid="viewer-shortcuts" aria-label="Viewer shortcuts">
+                                    <span><kbd>Left</kbd><kbd>Right</kbd> navigate</span>
+                                    <span><kbd>+</kbd><kbd>-</kbd> zoom</span>
+                                    <span><kbd>Esc</kbd> close</span>
+                                </p>
                             </section>
                         }
                     </div>

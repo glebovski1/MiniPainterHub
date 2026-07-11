@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components.Forms;
 using MiniPainterHub.Common.Auth;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.WebApp.Services.Auth;
 using MiniPainterHub.WebApp.Services.Http;
 using MiniPainterHub.WebApp.Services.Interfaces;
 
@@ -14,11 +15,11 @@ namespace MiniPainterHub.WebApp.Tests.Infrastructure;
 
 internal sealed class StubAuthService : IAuthService
 {
-    public Func<LoginDto, Task<bool>> LoginHandler { get; set; } = _ => Task.FromResult(true);
+    public Func<LoginDto, Task<LoginOutcome>> LoginHandler { get; set; } = _ => Task.FromResult(LoginOutcome.Success);
     public Func<RegisterDto, Task<bool>> RegisterHandler { get; set; } = _ => Task.FromResult(true);
     public Func<Task> LogoutHandler { get; set; } = () => Task.CompletedTask;
 
-    public Task<bool> LoginAsync(LoginDto dto) => LoginHandler(dto);
+    public Task<LoginOutcome> LoginAsync(LoginDto dto) => LoginHandler(dto);
     public Task<bool> RegisterAsync(RegisterDto dto) => RegisterHandler(dto);
     public Task LogoutAsync() => LogoutHandler();
 }

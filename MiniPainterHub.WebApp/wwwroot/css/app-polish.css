@@ -103,8 +103,10 @@ body {
     width: 1.75rem;
     height: 0.55rem;
     border-radius: 2px;
-    background: linear-gradient(90deg, var(--primary-700) 0 34%, var(--accent-clay) 34% 66%, var(--accent-brass) 66%);
-    transform: rotate(-2deg);
+    background: linear-gradient(90deg,
+        var(--primary-700) 0 31%, transparent 31% 35%,
+        var(--accent-clay) 35% 65%, transparent 65% 69%,
+        var(--accent-brass) 69% 100%);
     flex: 0 0 auto;
 }
 

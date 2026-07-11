@@ -31,8 +31,8 @@ public sealed class DevelopmentContentSeeder
             new[] { "Admin", "User" },
             "Display painter and studio founder documenting grimdark armies and bright skirmish bands.",
             [
-                new("Studio kickoff: 2026 painting goals", "Resetting the hobby desk this week with a focus on cleaner blends, faster basing, and finally finishing the swamp warband.", ["goals", "basing", "grimdark"]),
-                new("WIP: rusted sentinel captain", "Tried a warmer copper undercoat before the turquoise weathering pass. The contrast is much stronger than my last attempt.", ["weathering", "verdigris", "grimdark"])
+                new("Studio kickoff: 2026 painting goals", "Resetting the hobby desk this week with a focus on cleaner blends, faster basing, and finally finishing the swamp warband.", ["goals", "basing", "grimdark"], "03-overhead-hobby-desk.png"),
+                new("WIP: rusted sentinel captain", "Tried a warmer copper undercoat before the turquoise weathering pass. The contrast is much stronger than my last attempt.", ["weathering", "verdigris", "grimdark"], "05-rusted-sentinel.png")
             ]),
         new(
             "user",
@@ -42,7 +42,7 @@ public sealed class DevelopmentContentSeeder
             "Weekend hobbyist painting historical infantry, terrain scatter, and anything with a weathered coat.",
             [
                 new("First squad done this month", "Batch painting is finally clicking. I limited the palette to three greens and it kept the whole unit cohesive.", ["batch-painting", "tabletop", "greens"]),
-                new("Snow basing experiment", "Used crushed glass, matte medium, and a tiny bit of blue wash. It reads colder in person than in the reference photos.", ["basing", "snow", "winter"])
+                new("Snow basing experiment", "Used crushed glass, matte medium, and a tiny bit of blue wash. It reads colder in person than in the reference photos.", ["basing", "snow", "winter"], "01-snow-warband.png")
             ]),
         new(
             "studiomod",
@@ -51,7 +51,7 @@ public sealed class DevelopmentContentSeeder
             new[] { "Moderator", "User" },
             "Community moderator focused on clean tutorials, readable color recipes, and approachable feedback.",
             [
-                new("Quick tip: smoother cloaks", "Thin the midtone one step more than you think you need, then glaze shadows back in instead of trying to nail the blend in one pass.", ["glazing", "tutorial", "cloth"]),
+                new("Quick tip: smoother cloaks", "Thin the midtone one step more than you think you need, then glaze shadows back in instead of trying to nail the blend in one pass.", ["glazing", "tutorial", "cloth"], "04-cloak-study.png"),
                 new("Palette challenge thread idea", "Thinking about a weekly prompt built around one accent color and one texture goal. Could be a good way to keep posts focused.", ["challenge", "community", "palette"])
             ]),
         new(
@@ -111,7 +111,7 @@ public sealed class DevelopmentContentSeeder
             new[] { "User" },
             "Historical painter obsessed with worn canvas, dusty boots, and believable campaign grime.",
             [
-                new("Campaign dust on greatcoats", "Used a soft tan pigment around hems and elbows, then fixed it lightly so the folds stayed visible.", ["historical", "pigments", "weathering"]),
+                new("Campaign dust on greatcoats", "Used a soft tan pigment around hems and elbows, then fixed it lightly so the folds stayed visible.", ["historical", "pigments", "weathering"], "02-historical-squad.png"),
                 new("Command stand complete", "Kept the officer cleaner than the rank-and-file so the eye lands there first without needing a brighter uniform.", ["historical", "composition", "display"])
             ]),
         new(
@@ -125,6 +125,11 @@ public sealed class DevelopmentContentSeeder
                 new("Runes with less chalkiness", "Stopped drybrushing the glow. Thin glazes over a tight white base are cleaner and easier to control.", ["runes", "osl", "glazing"])
             ])
     ];
+
+    internal static IReadOnlyDictionary<string, string> SeedPostImageMappings { get; } = SeedUsers
+        .SelectMany(user => user.Posts)
+        .Where(post => !string.IsNullOrWhiteSpace(post.ImageAssetName))
+        .ToDictionary(post => post.Title, post => post.ImageAssetName!, StringComparer.Ordinal);
 
     private static readonly IReadOnlyList<DevelopmentSeedFollow> SeedFollows =
     [
@@ -475,19 +480,34 @@ public sealed class DevelopmentContentSeeder
         return avatars;
     }
 
-    private async Task<int> ImportPostImagesAsync(IReadOnlyList<Post> posts, IReadOnlyList<string> postImageFiles, CancellationToken ct)
+    private async Task<int> ImportPostImagesAsync(
+        IReadOnlyList<Post> posts,
+        IReadOnlyDictionary<string, string> postImageFiles,
+        CancellationToken ct)
     {
         if (postImageFiles.Count == 0)
         {
             return 0;
         }
 
-        for (var i = 0; i < posts.Count; i++)
+        var postsByTitle = posts
+            .Where(post => SeedPostImageMappings.ContainsKey(post.Title))
+            .ToDictionary(post => post.Title, StringComparer.Ordinal);
+        var imported = 0;
+
+        foreach (var mapping in SeedPostImageMappings)
         {
             ct.ThrowIfCancellationRequested();
 
-            var post = posts[i];
-            var postImageFile = postImageFiles[i % postImageFiles.Count];
+            if (!postsByTitle.TryGetValue(mapping.Key, out var post))
+            {
+                throw new InvalidOperationException($"Seed post '{mapping.Key}' was not created for image asset '{mapping.Value}'.");
+            }
+
+            if (!postImageFiles.TryGetValue(mapping.Value, out var postImageFile))
+            {
+                throw CreateMissingPostImageException(mapping.Key, mapping.Value);
+            }
 
             await using var stream = File.OpenRead(postImageFile);
             var variants = await _imageProcessor.ProcessAsync(stream, contentType: null, ct);
@@ -501,9 +521,10 @@ public sealed class DevelopmentContentSeeder
                 Width = variants.Max.Width,
                 Height = variants.Max.Height
             });
+            imported++;
         }
 
-        return posts.Count;
+        return imported;
     }
 
     private static Guid ConvertToStorageGuid(int postId) =>
@@ -578,11 +599,11 @@ public sealed class DevelopmentContentSeeder
         return files.Take(SeedUsers.Count).ToList();
     }
 
-    private static IReadOnlyList<string> GetPostImageFiles(string? postImagesDirectory)
+    private static IReadOnlyDictionary<string, string> GetPostImageFiles(string? postImagesDirectory)
     {
         if (string.IsNullOrWhiteSpace(postImagesDirectory))
         {
-            return Array.Empty<string>();
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
 
         var fullPath = Path.GetFullPath(postImagesDirectory);
@@ -594,15 +615,31 @@ public sealed class DevelopmentContentSeeder
         var files = Directory.EnumerateFiles(fullPath)
             .Where(file => AllowedSeedImageExtensions.Contains(Path.GetExtension(file)))
             .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            .GroupBy(file => Path.GetFileName(file)!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
 
-        if (files.Count == 0)
+        foreach (var mapping in SeedPostImageMappings)
         {
-            throw new InvalidOperationException(
-                $"Post image source directory '{fullPath}' must contain at least one PNG/JPG/WEBP file.");
+            if (!files.ContainsKey(mapping.Value))
+            {
+                throw CreateMissingPostImageException(mapping.Key, mapping.Value, fullPath);
+            }
         }
 
         return files;
+    }
+
+    private static InvalidOperationException CreateMissingPostImageException(
+        string postTitle,
+        string imageAssetName,
+        string? sourceDirectory = null)
+    {
+        var location = string.IsNullOrWhiteSpace(sourceDirectory)
+            ? string.Empty
+            : $" in '{sourceDirectory}'";
+
+        return new InvalidOperationException(
+            $"Development seed post '{postTitle}' declares image asset '{imageAssetName}', but that file was not found{location}.");
     }
 
     private static List<Post> CreatePosts(
@@ -889,7 +926,11 @@ internal sealed record DevelopmentSeedUser(
     string Bio,
     IReadOnlyList<DevelopmentSeedPost> Posts);
 
-internal sealed record DevelopmentSeedPost(string Title, string Content, IReadOnlyList<string> Tags);
+internal sealed record DevelopmentSeedPost(
+    string Title,
+    string Content,
+    IReadOnlyList<string> Tags,
+    string? ImageAssetName = null);
 
 internal sealed record DevelopmentSeedFollow(string FollowerUserName, string FollowedUserName);
 

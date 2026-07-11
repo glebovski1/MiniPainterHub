@@ -9,8 +9,8 @@
 <div class="page-shell content-stack">
     <PageHero Eyebrow="Discovery"
               Title="Search"
-              Description="Find painters, posts, and technique tags with better scanability and clearer result grouping."
-              ClassName="search-page-hero"
+              Description="Find painters, paint recipes, techniques, and finished miniatures."
+              ClassName="search-page-hero page-hero--compact"
               FrameName="Search Header">
         <Actions>
             <form class="atelier-nav__search search-hero-form" @onsubmit="SubmitAsync">
@@ -43,7 +43,6 @@
         <section class="surface-card search-results-card">
             <SectionHeader Eyebrow="Results"
                            Title="@($"Search results for \"{NormalizedQuery}\"")"
-                           Description="Switch between a broad overview and focused result types without leaving the page."
                            SectionName="Search Results" />
 
             <ul class="nav nav-pills segmented-tabs mb-4" data-testid="search-tabs">
@@ -63,7 +62,10 @@
 
             @if (_loading)
             {
-                <div class="status-panel status-panel--info" data-testid="search-loading">
+                <div class="status-panel status-panel--info"
+                     role="status"
+                     aria-live="polite"
+                     data-testid="search-loading">
                     <div class="status-panel__icon"><i class="bi bi-search" aria-hidden="true"></i></div>
                     <div>
                         <div class="status-panel__title">Searching...</div>
@@ -73,7 +75,11 @@
             }
             else if (!string.IsNullOrWhiteSpace(_error))
             {
-                <div class="status-panel status-panel--error" data-testid="search-error">
+                <div class="status-panel status-panel--error"
+                     role="alert"
+                     tabindex="-1"
+                     @ref="_errorPanel"
+                     data-testid="search-error">
                     <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
                     <div>
                         <div class="status-panel__title">Search unavailable</div>
@@ -296,6 +302,8 @@
     private string _draftQuery = string.Empty;
     private bool _loading;
     private string? _error;
+    private ElementReference _errorPanel;
+    private bool _focusError;
     private SearchOverviewDto _overview = new();
     private PagedResult<PostSummaryDto> _postResults = EmptyPage<PostSummaryDto>();
     private PagedResult<UserListItemDto> _userResults = EmptyPage<UserListItemDto>();
@@ -317,6 +325,17 @@
     {
         _draftQuery = Query ?? string.Empty;
         await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusError)
+        {
+            return;
+        }
+
+        _focusError = false;
+        await _errorPanel.FocusAsync();
     }
 
     private async Task LoadAsync()
@@ -341,7 +360,7 @@
                 var result = await SearchService.GetOverviewAsync(NormalizedQuery);
                 if (!result.Success || result.Value is null)
                 {
-                    _error = "Search failed. Please try again.";
+                    SetError("Search failed. Please try again.");
                     return;
                 }
 
@@ -354,7 +373,7 @@
                 var result = await SearchService.SearchPostsAsync(NormalizedQuery, ActiveTag, CurrentPage, SearchPageSize);
                 if (!result.Success || result.Value is null)
                 {
-                    _error = "Post search failed. Please try again.";
+                    SetError("Post search failed. Please try again.");
                     return;
                 }
 
@@ -367,7 +386,7 @@
                 var result = await SearchService.SearchUsersAsync(NormalizedQuery, CurrentPage, SearchPageSize);
                 if (!result.Success || result.Value is null)
                 {
-                    _error = "User search failed. Please try again.";
+                    SetError("User search failed. Please try again.");
                     return;
                 }
 
@@ -378,7 +397,7 @@
             var tagResult = await SearchService.SearchTagsAsync(NormalizedQuery, CurrentPage, SearchPageSize);
             if (!tagResult.Success || tagResult.Value is null)
             {
-                _error = "Tag search failed. Please try again.";
+                SetError("Tag search failed. Please try again.");
                 return;
             }
 
@@ -388,6 +407,12 @@
         {
             _loading = false;
         }
+    }
+
+    private void SetError(string message)
+    {
+        _error = message;
+        _focusError = true;
     }
 
     private Task SubmitAsync()

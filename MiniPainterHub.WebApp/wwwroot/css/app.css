@@ -281,6 +281,27 @@ a:hover,
     align-self: end;
 }
 
+.page-hero.page-hero--compact {
+    gap: 0.7rem;
+    padding-block: 0.9rem 0.75rem;
+}
+
+.page-hero.page-hero--compact .page-hero__title {
+    max-width: 18ch;
+    font-size: clamp(2.25rem, 3.8vw, 3.5rem);
+    line-height: 0.98;
+}
+
+.page-hero.page-hero--compact .page-hero__description {
+    max-width: 40rem;
+    margin-top: 0.55rem;
+    line-height: 1.55;
+}
+
+.page-hero.page-hero--compact .page-hero__support {
+    gap: 0.65rem;
+}
+
 .metric-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
@@ -763,7 +784,12 @@ input[type="file"].form-control::file-selector-button {
 }
 
 #blazor-error-ui .dismiss {
+    background: transparent;
+    border: 0;
+    color: inherit;
     cursor: pointer;
+    font: inherit;
+    padding: 0;
     position: absolute;
     right: 0.9rem;
     top: 0.7rem;

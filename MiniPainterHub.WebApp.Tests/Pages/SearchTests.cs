@@ -65,6 +65,8 @@ public class SearchTests : TestContext
 
         cut.WaitForAssertion(() =>
         {
+            cut.Markup.Should().Contain("Find painters, paint recipes, techniques, and finished miniatures.");
+            cut.Find(".page-hero").ClassList.Should().Contain("page-hero--compact");
             cut.Find("[data-testid='search-overview-results']").TextContent.Should().Contain("Non-metallic metal");
             cut.Find("[data-testid='search-overview-users']").TextContent.Should().Contain("Painter Prime");
             cut.Find("[data-testid='search-overview-tags']").TextContent.Should().Contain("#nmm");
@@ -107,5 +109,32 @@ public class SearchTests : TestContext
         nav.Uri.Should().Contain("tab=posts");
         nav.Uri.Should().Contain("tag=glazing");
         nav.Uri.Should().Contain("q=glazing");
+    }
+
+    [Fact]
+    public void FailedSearch_RendersOneFocusTargetAlert()
+    {
+        this.AddTestAuthorization();
+        this.AddModerationStub();
+        this.AddSearchStub(new StubSearchService
+        {
+            GetOverviewHandler = _ => Task.FromResult(
+                new MiniPainterHub.WebApp.Services.Http.ApiResult<SearchOverviewDto?>(false, System.Net.HttpStatusCode.ServiceUnavailable, null))
+        });
+        JSInterop.Mode = JSRuntimeMode.Loose;
+
+        var nav = Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo("/search?q=weathering");
+
+        var cut = RenderComponent<Search>();
+
+        cut.WaitForAssertion(() =>
+        {
+            var alerts = cut.FindAll("[role='alert']");
+            alerts.Should().ContainSingle();
+            alerts[0].GetAttribute("tabindex").Should().Be("-1");
+            alerts[0].TextContent.Should().Contain("Search failed. Please try again.");
+            JSInterop.Invocations.Should().NotBeEmpty();
+        });
     }
 }

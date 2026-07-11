@@ -58,7 +58,7 @@ Development-only:
 - `DataSeeder.SeedAsync(...)`
 - Explicit maintenance commands in `Program.cs`:
   - `--seed-dev-content --avatars-dir <path>` resets the development DB/local image storage and recreates seeded users, profiles, posts, comments, and avatars through `DevelopmentContentSeeder`.
-  - `--seed-dev-content --avatars-dir <path> --post-images-dir <path>` also attaches one seeded image per post; if fewer source files are provided than seeded posts, files are reused in sorted order.
+- `--seed-dev-content --avatars-dir <path> --post-images-dir <path>` attaches images only to seed posts that declare an explicit source filename. The current five title-to-file mappings are deterministic, unmatched posts remain image-free, and startup fails before the reset when a declared file is missing.
   - `--generate-dev-avatars --avatars-dir <path>` refreshes only the seed avatar assets and existing seed-user avatar URLs without reseeding the rest of the database.
   - `DevelopmentContentSeeder` also seeds deterministic cross-user comments, follow relationships, and direct-message conversations so social features have usable development fixtures immediately after reset.
 

@@ -57,7 +57,33 @@ public class PostCardTests : TestContext
 
         var cut = RenderWithAuth(post);
 
-        cut.Find("img").GetAttribute("src").Should().Be("http://localhost/uploads/images/thumb.webp");
+        var image = cut.Find("img");
+        image.GetAttribute("src").Should().Be("http://localhost/uploads/images/thumb.webp");
+        image.GetAttribute("alt").Should().Be("Title by author");
+    }
+
+    [Fact]
+    public void WithoutImage_RendersCompactTextLedCard()
+    {
+        this.AddTestAuthorization();
+        this.AddModerationStub();
+
+        var post = new PostSummaryDto
+        {
+            Id = 45,
+            Title = "Paint recipe without a photo",
+            Snippet = "A useful note can stand on its own.",
+            AuthorName = "Painter",
+            AuthorId = "painter-1",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var cut = RenderWithAuth(post);
+
+        cut.Find(".post-card").ClassList.Should().Contain("post-card--text-only");
+        cut.FindAll(".post-card__placeholder").Should().BeEmpty();
+        cut.Markup.Should().NotContain("No preview image");
+        cut.Find(".post-card__title").TextContent.Should().Be(post.Title);
     }
 
     [Fact]

@@ -22,6 +22,9 @@ public class SearchServiceTests
         var accentTag = CreateTag(2, "Accent", "accent");
 
         var exactTagPost = CreatePost(1, author, "Dragon notes", "Working through sharp reflections.", createdUtc: new DateTime(2026, 3, 1, 12, 0, 0, DateTimeKind.Utc));
+        exactTagPost.MiniatureName = "Sun Dragon";
+        exactTagPost.Techniques = "Glazing, edge highlights";
+        exactTagPost.Difficulty = "Intermediate";
         var titleMatchPost = CreatePost(2, author, "Glazing workflow", "Layer blends for armor plates.", createdUtc: new DateTime(2026, 3, 2, 12, 0, 0, DateTimeKind.Utc));
         var deletedPost = CreatePost(3, author, "Deleted glazing log", "Should not appear.", createdUtc: new DateTime(2026, 3, 3, 12, 0, 0, DateTimeKind.Utc), isDeleted: true);
 
@@ -43,6 +46,9 @@ public class SearchServiceTests
         items.Select(post => post.Id).Should().Equal(exactTagPost.Id, titleMatchPost.Id);
         items.Should().OnlyContain(post => !post.IsDeleted);
         items[0].Tags.Should().ContainSingle(tag => tag.Slug == "glazing");
+        items[0].MiniatureName.Should().Be("Sun Dragon");
+        items[0].Techniques.Should().Be("Glazing, edge highlights");
+        items[0].Difficulty.Should().Be("Intermediate");
     }
 
     [Fact]
