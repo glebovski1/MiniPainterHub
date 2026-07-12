@@ -7,10 +7,10 @@
 <div class="comment-list @(IsViewerPanel ? "comment-list--viewer-panel" : null)" data-testid="comment-list-container">
     <AuthorizeView Roles="Moderator,Admin">
         <Authorized>
-            <div class="mini-stat-bar mb-3" data-testid="comment-visibility-filter">
-                <label class="form-label mb-0" for="comment-visibility-select">Visibility</label>
-                <select id="comment-visibility-select"
-                        class="form-select w-auto"
+            <div class="@(IsViewerPanel ? "comment-list__visibility-filter comment-list__visibility-filter--viewer" : "mini-stat-bar mb-3")" data-testid="comment-visibility-filter">
+                <label class="@(IsViewerPanel ? "comment-list__visibility-label" : "form-label mb-0")" for="@VisibilitySelectId">Visibility</label>
+                <select id="@VisibilitySelectId"
+                        class="@(IsViewerPanel ? "form-select comment-list__visibility-select comment-list__visibility-select--viewer" : "form-select w-auto")"
                         data-testid="comment-visibility-select"
                         value="@_visibilityFilter"
                         @onchange="OnVisibilityFilterChanged"
@@ -113,6 +113,7 @@
     private string _visibilityFilter = "active";
     private bool isLoading => _comments == null && string.IsNullOrWhiteSpace(_loadError);
     private int? _loadedPostId;
+    private string VisibilitySelectId => IsViewerPanel ? "viewer-comment-visibility-select" : "comment-visibility-select";
 
     protected override async Task OnParametersSetAsync()
     {

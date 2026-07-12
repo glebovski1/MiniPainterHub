@@ -35,42 +35,84 @@
               data-testid="comment-input"
               rows="@(IsViewerCompact ? 2 : 3)"></textarea>
 
-    @if (CanAttachViewerMark)
+    @if (IsViewerCompact)
     {
-        <div class="d-flex flex-wrap align-items-center gap-2 mt-2" data-testid="comment-mark-controls">
-            <button type="button"
-                    class="btn @(IsViewerCompact ? "btn-outline-light btn-sm" : "btn-outline-secondary")"
-                    data-testid="comment-attach-mark"
-                    disabled="@(_isSubmitting || ViewerPlacementActive)"
-                    @onclick="RequestAttachMarkAsync">
-                @(ViewerPlacementActive ? "Place mark" : DraftMark is null ? (IsViewerCompact ? "Attach mark" : "Attach point") : (IsViewerCompact ? "Move mark" : "Reposition point"))
-            </button>
-
-            @if (DraftMark is not null)
+        <div class="comment-form__actions comment-form__actions--viewer" data-testid="comment-actions">
+            @if (CanAttachViewerMark)
             {
-                <span class="badge text-bg-light border" data-testid="comment-mark-chip">
-                    Image @AttachedImageNumber point
-                </span>
+                <div class="comment-form__mark-controls d-flex flex-wrap align-items-center gap-2" data-testid="comment-mark-controls">
+                    <button type="button"
+                            class="btn btn-outline-light btn-sm"
+                            data-testid="comment-attach-mark"
+                            disabled="@(_isSubmitting || ViewerPlacementActive)"
+                            @onclick="RequestAttachMarkAsync">
+                        @(ViewerPlacementActive ? "Place mark" : DraftMark is null ? "Attach mark" : "Move mark")
+                    </button>
 
-                <button type="button"
-                        class="btn btn-link btn-sm p-0"
-                        data-testid="comment-remove-mark"
-                        disabled="@_isSubmitting"
-                        @onclick="RemoveAttachedMarkAsync">
-                    Remove
-                </button>
+                    @if (DraftMark is not null)
+                    {
+                        <span class="badge text-bg-light border" data-testid="comment-mark-chip">
+                            Image @AttachedImageNumber point
+                        </span>
+
+                        <button type="button"
+                                class="btn btn-link btn-sm p-0"
+                                data-testid="comment-remove-mark"
+                                disabled="@_isSubmitting"
+                                @onclick="RemoveAttachedMarkAsync">
+                            Remove
+                        </button>
+                    }
+                </div>
             }
+
+            <button type="submit"
+                    class="btn btn-primary btn-sm"
+                    data-testid="comment-submit"
+                    disabled="@_isSubmitting">
+                @(_isSubmitting ? "Posting..." : "Post")
+            </button>
         </div>
     }
+    else
+    {
+        <div class="comment-form__actions comment-form__actions--page" data-testid="comment-actions">
+            @if (CanAttachViewerMark)
+            {
+                <div class="comment-form__mark-controls d-flex flex-wrap align-items-center gap-2" data-testid="comment-mark-controls">
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            data-testid="comment-attach-mark"
+                            disabled="@(_isSubmitting || ViewerPlacementActive)"
+                            @onclick="RequestAttachMarkAsync">
+                        @(ViewerPlacementActive ? "Place mark" : DraftMark is null ? "Attach point" : "Reposition point")
+                    </button>
 
-    <div class="d-flex flex-wrap gap-2 mt-2">
-        <button type="submit"
-                class="btn @(IsViewerCompact ? "btn-primary btn-sm" : "btn-primary")"
-                data-testid="comment-submit"
-                disabled="@_isSubmitting">
-            @(_isSubmitting ? "Posting..." : IsViewerCompact ? "Post" : "Post Comment")
-        </button>
-    </div>
+                    @if (DraftMark is not null)
+                    {
+                        <span class="badge text-bg-light border" data-testid="comment-mark-chip">
+                            Image @AttachedImageNumber point
+                        </span>
+
+                        <button type="button"
+                                class="btn btn-link btn-sm p-0"
+                                data-testid="comment-remove-mark"
+                                disabled="@_isSubmitting"
+                                @onclick="RemoveAttachedMarkAsync">
+                            Remove
+                        </button>
+                    }
+                </div>
+            }
+
+            <button type="submit"
+                    class="btn btn-primary"
+                    data-testid="comment-submit"
+                    disabled="@_isSubmitting">
+                @(_isSubmitting ? "Posting..." : "Post Comment")
+            </button>
+        </div>
+    }
 </form>
 
 @code {

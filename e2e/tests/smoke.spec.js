@@ -39,6 +39,137 @@ function expectWithinTolerance(actual, expected, tolerance = 4) {
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(tolerance);
 }
 
+function expectBoxContainedWithin(childBox, containerBox, label, tolerance = 2) {
+  expect(childBox, `Expected ${label} to have a layout box.`).toBeTruthy();
+  expect(containerBox, `Expected the ${label} container to have a layout box.`).toBeTruthy();
+  expect(childBox.x, `Expected ${label} to stay inside its container horizontally.`).toBeGreaterThanOrEqual(containerBox.x - tolerance);
+  expect(childBox.y, `Expected ${label} to stay inside its container vertically.`).toBeGreaterThanOrEqual(containerBox.y - tolerance);
+  expect(childBox.x + childBox.width, `Expected ${label} to stay inside its container horizontally.`).toBeLessThanOrEqual(containerBox.x + containerBox.width + tolerance);
+  expect(childBox.y + childBox.height, `Expected ${label} to stay inside its container vertically.`).toBeLessThanOrEqual(containerBox.y + containerBox.height + tolerance);
+}
+
+function expectBoxesNotOverlapping(firstBox, secondBox, firstLabel, secondLabel, tolerance = 2) {
+  const overlaps = firstBox.x < (secondBox.x + secondBox.width - tolerance)
+    && secondBox.x < (firstBox.x + firstBox.width - tolerance)
+    && firstBox.y < (secondBox.y + secondBox.height - tolerance)
+    && secondBox.y < (firstBox.y + firstBox.height - tolerance);
+
+  expect(overlaps, `Expected ${firstLabel} and ${secondLabel} not to overlap.`).toBeFalsy();
+}
+
+async function expectViewerComposerLayout(page) {
+  const sidePanel = page.getByTestId("viewer-side-panel");
+  const composer = sidePanel.getByTestId("viewer-comment-composer");
+  const input = composer.getByTestId("comment-input");
+  const actions = composer.getByTestId("comment-actions");
+  const attachMark = actions.getByTestId("comment-attach-mark");
+  const submit = actions.getByTestId("comment-submit");
+
+  await expect(composer).toBeVisible();
+  await expect(input).toBeVisible();
+  await expect(actions).toBeVisible();
+  await expect(attachMark).toBeVisible();
+  await expect(submit).toBeVisible();
+
+  const [sidePanelBox, composerBox, inputBox, actionsBox, attachMarkBox, submitBox] = await Promise.all([
+    sidePanel.boundingBox(),
+    composer.boundingBox(),
+    input.boundingBox(),
+    actions.boundingBox(),
+    attachMark.boundingBox(),
+    submit.boundingBox(),
+  ]);
+
+  expectBoxContainedWithin(composerBox, sidePanelBox, "viewer comment composer");
+  expectBoxContainedWithin(inputBox, composerBox, "viewer comment input");
+  expectBoxContainedWithin(actionsBox, composerBox, "viewer comment actions");
+  expectBoxContainedWithin(attachMarkBox, actionsBox, "attach mark control");
+  expectBoxContainedWithin(submitBox, actionsBox, "post control");
+  expectBoxesNotOverlapping(inputBox, actionsBox, "viewer comment input", "viewer comment actions");
+  expectBoxesNotOverlapping(attachMarkBox, submitBox, "attach mark control", "post control");
+  expect(actionsBox.y).toBeGreaterThanOrEqual(inputBox.y + inputBox.height - 2);
+  expect(actionsBox.y - (inputBox.y + inputBox.height)).toBeLessThanOrEqual(24);
+  const actionLayout = await actions.evaluate((element) => {
+    const style = window.getComputedStyle(element);
+    return {
+      display: style.display,
+      gridTemplateColumns: style.gridTemplateColumns,
+      width: style.width,
+    };
+  });
+  expect(Math.abs(attachMarkBox.y - submitBox.y), `Expected compact actions to share one row. Layout: ${JSON.stringify(actionLayout)}`).toBeLessThanOrEqual(2);
+}
+
+async function expectPageCommentComposerLayout(page) {
+  const section = page.getByTestId("post-details-comments");
+  const composer = page.getByTestId("post-details-comment-composer");
+  const input = composer.getByTestId("comment-input");
+  const actions = composer.getByTestId("comment-actions");
+  const attachMark = actions.getByTestId("comment-attach-mark");
+  const submit = actions.getByTestId("comment-submit");
+
+  await expect(section).toBeVisible();
+  await expect(composer).toBeVisible();
+  await expect(input).toBeVisible();
+  await expect(actions).toBeVisible();
+  await expect(attachMark).toBeVisible();
+  await expect(submit).toBeVisible();
+
+  const [sectionBox, composerBox, inputBox, actionsBox, attachMarkBox, submitBox] = await Promise.all([
+    section.boundingBox(),
+    composer.boundingBox(),
+    input.boundingBox(),
+    actions.boundingBox(),
+    attachMark.boundingBox(),
+    submit.boundingBox(),
+  ]);
+
+  expectBoxContainedWithin(composerBox, sectionBox, "page comment composer");
+  expectBoxContainedWithin(inputBox, composerBox, "page comment input");
+  expectBoxContainedWithin(actionsBox, composerBox, "page comment actions");
+  expectBoxContainedWithin(attachMarkBox, actionsBox, "page attach point control");
+  expectBoxContainedWithin(submitBox, actionsBox, "page post comment control");
+  expectBoxesNotOverlapping(inputBox, actionsBox, "page comment input", "page comment actions");
+  expectBoxesNotOverlapping(attachMarkBox, submitBox, "page attach point control", "page post comment control");
+}
+
+async function expectViewerControlsHidden(page) {
+  const stageSurface = page.locator(".viewer-shell__stage-surface");
+  await expect(stageSurface).not.toHaveClass(/is-controls-visible/, { timeout: 2_400 });
+  await expect(page.locator(".viewer-shell__stage-page-count")).toHaveCSS("opacity", "0");
+  await expect(page.locator(".viewer-shell__stage-chrome .viewer-toolbar__top")).toHaveCSS("opacity", "0");
+  await expect(page.getByTestId("viewer-rail-zoom")).toHaveCSS("opacity", "0");
+  await expect(page.getByTestId("viewer-rail-utility")).toHaveCSS("opacity", "0");
+}
+
+async function expectAdminViewerFilterLayout(page) {
+  const sidePanel = page.getByTestId("viewer-side-panel");
+  const commentsScroll = sidePanel.getByTestId("viewer-comments-scroll");
+  const composerSticky = sidePanel.getByTestId("viewer-composer-sticky");
+  const visibilityFilter = sidePanel.getByTestId("comment-visibility-filter");
+  const visibilitySelect = visibilityFilter.getByTestId("comment-visibility-select");
+
+  await expect(commentsScroll).toBeVisible();
+  await expect(visibilityFilter).toBeVisible();
+  await expect(visibilitySelect).toBeVisible();
+  await expect(visibilitySelect).toHaveValue("active");
+  await commentsScroll.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+
+  const [sidePanelBox, composerStickyBox, filterBox, selectBox] = await Promise.all([
+    sidePanel.boundingBox(),
+    composerSticky.boundingBox(),
+    visibilityFilter.boundingBox(),
+    visibilitySelect.boundingBox(),
+  ]);
+
+  expectBoxContainedWithin(filterBox, sidePanelBox, "viewer visibility filter");
+  expectBoxContainedWithin(selectBox, filterBox, "viewer visibility selector");
+  expectBoxContainedWithin(composerStickyBox, sidePanelBox, "viewer comment composer footer");
+  expectBoxesNotOverlapping(filterBox, composerStickyBox, "viewer visibility filter", "viewer comment composer footer");
+}
+
 function cssRgb(value) {
   const match = value.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i);
   if (!match) {
@@ -100,6 +231,48 @@ async function expectStageNavControlsFit(page, stageSurfaceBox) {
     expect(box.x + box.width).toBeLessThanOrEqual(stageSurfaceBox.x + stageSurfaceBox.width + 1);
     expect(box.y + box.height).toBeLessThanOrEqual(stageSurfaceBox.y + stageSurfaceBox.height + 1);
   }
+}
+
+async function expectRightStageControlRailAligned(page) {
+  const close = page.getByTestId("viewer-close");
+  const fullscreen = page.getByTestId("viewer-fullscreen");
+  const closeBox = await close.boundingBox();
+
+  expect(closeBox).toBeTruthy();
+
+  if (await fullscreen.isVisible()) {
+    const fullscreenBox = await fullscreen.boundingBox();
+    expect(fullscreenBox).toBeTruthy();
+    expectWithinTolerance(closeBox.x + (closeBox.width / 2), fullscreenBox.x + (fullscreenBox.width / 2), 2);
+    expectWithinTolerance(closeBox.width, fullscreenBox.width, 2);
+    expect(closeBox.y + closeBox.height).toBeLessThan(fullscreenBox.y);
+  }
+}
+
+async function expectStagePaginationPlaced(page, stageSurfaceBox) {
+  const pager = page.getByTestId("viewer-stage-pager");
+  const [pagerBox, previousBox, countBox, nextBox] = await Promise.all([
+    pager.boundingBox(),
+    page.getByTestId("viewer-stage-prev").boundingBox(),
+    page.getByTestId("viewer-stage-page-count").boundingBox(),
+    page.getByTestId("viewer-stage-next").boundingBox(),
+  ]);
+
+  expect(pagerBox).toBeTruthy();
+  expect(previousBox).toBeTruthy();
+  expect(countBox).toBeTruthy();
+  expect(nextBox).toBeTruthy();
+  expectWithinTolerance(pagerBox.x, stageSurfaceBox.x, 2);
+  expectWithinTolerance(pagerBox.width, stageSurfaceBox.width, 2);
+  expect(previousBox.x).toBeGreaterThanOrEqual(stageSurfaceBox.x + 6);
+  expect(nextBox.x + nextBox.width).toBeLessThanOrEqual(stageSurfaceBox.x + stageSurfaceBox.width - 6);
+  expect(countBox.y).toBeGreaterThanOrEqual(stageSurfaceBox.y + 6);
+  expectWithinTolerance(
+    countBox.x + (countBox.width / 2),
+    stageSurfaceBox.x + (stageSurfaceBox.width / 2),
+    3,
+  );
+  expectWithinTolerance(previousBox.y + (previousBox.height / 2), nextBox.y + (nextBox.height / 2), 2);
 }
 
 async function getScrollLockState(page) {
@@ -462,8 +635,11 @@ test("create post with image and tags renders on details and latest feed", async
 });
 
 test("comment and like flow works on post details", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await loginAsSeedUser(page);
-  await createPost(page, "engagement");
+  await createPost(page, "engagement", { imagePath: SAMPLE_IMAGE_PATH });
+
+  await expectPageCommentComposerLayout(page);
 
   const commentText = "This is a smoke comment.";
   await page.getByTestId("comment-input").fill(commentText);
@@ -480,14 +656,21 @@ test("comment and like flow works on post details", async ({ page }) => {
 
   await likeButton.click();
   await expect(likeCount).toHaveText(String(initial));
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(180);
+  await expectPageCommentComposerLayout(page);
 });
 
 test("rich viewer overlay keeps post details intact and supports refined layout modes", async ({ page, request }) => {
   await loginAsSeedUser(page);
   const viewerPost = await createRichViewerPost(page, request, "desktop-flow", { extraPlainCommentsCount: 16 });
+  const primaryImagePath = getPathSegment(new URL(viewerPost.primaryImage.previewUrl, page.url()).toString(), "/uploads/images/");
   const squareImagePath = getPathSegment(new URL(viewerPost.squareImage.previewUrl, page.url()).toString(), "/uploads/images/");
   const secondaryImagePath = getPathSegment(new URL(viewerPost.secondaryImage.previewUrl, page.url()).toString(), "/uploads/images/");
   const panoramaImagePath = getPathSegment(new URL(viewerPost.panoramaImage.previewUrl, page.url()).toString(), "/uploads/images/");
+  const primaryIndex = viewerPost.viewer.images.findIndex((image) => image.id === viewerPost.primaryImage.id);
+  const secondaryIndex = viewerPost.viewer.images.findIndex((image) => image.id === viewerPost.secondaryImage.id);
   const panoramaIndex = viewerPost.viewer.images.findIndex((image) => image.id === viewerPost.panoramaImage.id);
 
   const commentMarkRequests = [];
@@ -501,7 +684,18 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
   await expect(page.getByTestId("post-details-image")).toBeVisible();
   await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
 
+  const detailThumbnails = page.getByTestId("post-details-thumbnail");
+  await expect(detailThumbnails).toHaveCount(VIEWER_RATIO_EXPECTATIONS.length);
+  await detailThumbnails.nth(secondaryIndex).click();
+  await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
+  await expect(page.getByTestId("post-details-image")).toHaveAttribute("src", new RegExp(secondaryImagePath));
+  await expect(detailThumbnails.nth(secondaryIndex)).toHaveAttribute("aria-current", "true");
+
   await openViewerFromDetails(page);
+  await expect(page.getByTestId("viewer-stage-image")).toHaveAttribute("src", new RegExp(secondaryImagePath));
+  await expect(page.getByTestId("viewer-author-mark")).toHaveCount(0);
+  await page.getByTestId("viewer-thumbnail").nth(primaryIndex).click({ force: true });
+  await expect(page.getByTestId("viewer-stage-image")).toHaveAttribute("src", new RegExp(primaryImagePath));
   await expect(page.getByTestId("viewer-author-mark")).toHaveCount(1);
   await expect(page.getByTestId("viewer-comment-mark")).toHaveCount(0);
   await expect(page.getByTestId("viewer-side-tab-info")).toHaveClass(/is-active/);
@@ -535,12 +729,16 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
   expect(closeButtonBox.x + closeButtonBox.width).toBeLessThanOrEqual(stageSurfaceBox.x + stageSurfaceBox.width + 1);
   expect(closeButtonBox.y).toBeGreaterThanOrEqual(stageSurfaceBox.y - 1);
   await expectStageNavControlsFit(page, stageSurfaceBox);
+  await expectStagePaginationPlaced(page, stageSurfaceBox);
+  await expectRightStageControlRailAligned(page);
   expectWithinTolerance(fitBox.x - stageBox.x, (stageBox.width - fitBox.width) / 2, 4);
   expectWithinTolerance(fitBox.y - stageBox.y, (stageBox.height - fitBox.height) / 2, 4);
   expectWithinTolerance(imageBox.x - stageBox.x, (stageBox.width - imageBox.width) / 2, 4);
   expectWithinTolerance(imageBox.y - stageBox.y, (stageBox.height - imageBox.height) / 2, 4);
   expectWithinTolerance(fitBox.height, stageBox.height, 4);
   const fitArea = fitBox.width * fitBox.height;
+
+  await expectViewerControlsHidden(page);
 
   await stage.hover();
   await page.getByTestId("viewer-view-fill").click();
@@ -588,21 +786,42 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
   await expect(page.getByTestId("viewer-side-tab-comments")).toHaveClass(/is-active/);
   await expect(page.getByTestId("viewer-comments-scroll")).toBeVisible();
   await expect(page.locator("[data-testid='viewer-comments-thread'] [data-testid='comment-item']").first()).toBeVisible();
+  await expectViewerComposerLayout(page);
   const commentsScroll = page.getByTestId("viewer-comments-scroll");
   const composerSticky = page.getByTestId("viewer-composer-sticky");
   const composerBoxBeforeScroll = await composerSticky.boundingBox();
-  const scrollMetrics = await commentsScroll.evaluate((element) => ({
-    clientHeight: element.clientHeight,
-    scrollHeight: element.scrollHeight,
-  }));
+  const scrollMetrics = await commentsScroll.evaluate((element) => {
+    const styles = window.getComputedStyle(element);
+    return {
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      clientWidth: element.clientWidth,
+      offsetWidth: element.offsetWidth,
+      overflowY: styles.overflowY,
+      scrollbarGutter: styles.scrollbarGutter,
+      supportsStableScrollbarGutter: typeof CSS !== "undefined"
+        && typeof CSS.supports === "function"
+        && CSS.supports("scrollbar-gutter: stable"),
+    };
+  });
+  expect(scrollMetrics.overflowY).toBe("scroll");
   expect(scrollMetrics.scrollHeight).toBeGreaterThan(scrollMetrics.clientHeight);
+  if (scrollMetrics.supportsStableScrollbarGutter) {
+    expect(scrollMetrics.scrollbarGutter).toMatch(/\bstable\b/);
+  }
   await commentsScroll.evaluate((element) => {
     element.scrollTop = element.scrollHeight;
   });
   await page.waitForTimeout(160);
-  const scrollTop = await commentsScroll.evaluate((element) => element.scrollTop);
+  const scrollMetricsAfterScroll = await commentsScroll.evaluate((element) => ({
+    scrollTop: element.scrollTop,
+    clientWidth: element.clientWidth,
+    offsetWidth: element.offsetWidth,
+  }));
   const composerBoxAfterScroll = await composerSticky.boundingBox();
-  expect(scrollTop).toBeGreaterThan(0);
+  expect(scrollMetricsAfterScroll.scrollTop).toBeGreaterThan(0);
+  expect(scrollMetricsAfterScroll.clientWidth).toBe(scrollMetrics.clientWidth);
+  expect(scrollMetricsAfterScroll.offsetWidth).toBe(scrollMetrics.offsetWidth);
   expect(composerBoxBeforeScroll).toBeTruthy();
   expect(composerBoxAfterScroll).toBeTruthy();
   expectWithinTolerance(composerBoxAfterScroll.y, composerBoxBeforeScroll.y, 2);
@@ -610,6 +829,7 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
   await expect(page.getByTestId("viewer-side-tab-info")).toHaveClass(/is-active/);
   await expect(page.getByTestId("viewer-panel-info")).toBeVisible();
 
+  await stage.hover();
   await page.getByTestId("viewer-close").click();
   await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
   await expectViewerScrollReleased(page);
@@ -620,6 +840,24 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
     .getByTestId("comment-item")
     .filter({ hasText: "Portrait follow-up anchor sits on the second portrait image and should switch the viewer there cleanly." })
     .first();
+  const pageCommentMarkActions = pageComment.getByTestId("comment-mark-actions");
+  const pageCommentMarkBadge = pageComment.getByTestId("comment-mark-badge");
+  const pageCommentShowMark = pageComment.getByTestId("comment-show-mark");
+  await expect(pageCommentMarkActions).toBeVisible();
+  await expect(pageCommentMarkBadge).toBeVisible();
+  await expect(pageCommentShowMark).toBeVisible();
+  const [markActionsBox, markBadgeBox, showMarkBox] = await Promise.all([
+    pageCommentMarkActions.boundingBox(),
+    pageCommentMarkBadge.boundingBox(),
+    pageCommentShowMark.boundingBox(),
+  ]);
+  expect(markActionsBox).toBeTruthy();
+  expect(markBadgeBox).toBeTruthy();
+  expect(showMarkBox).toBeTruthy();
+  expect(markBadgeBox.y).toBeGreaterThanOrEqual(markActionsBox.y - 1);
+  expect(showMarkBox.y).toBeGreaterThanOrEqual(markActionsBox.y - 1);
+  expect(markBadgeBox.y + markBadgeBox.height).toBeLessThanOrEqual(markActionsBox.y + markActionsBox.height + 1);
+  expect(showMarkBox.y + showMarkBox.height).toBeLessThanOrEqual(markActionsBox.y + markActionsBox.height + 1);
   await pageComment.getByTestId("comment-show-mark").click();
   await expect(page.getByTestId("viewer-side-tab-comments")).toHaveClass(/is-active/);
   await expect.poll(() => commentMarkRequests.length).toBe(1);
@@ -662,6 +900,9 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
     expect(fullscreenShellBox).toBeTruthy();
     expectWithinTolerance(fullscreenShellBox.width, windowSize.width, 3);
     expectWithinTolerance(fullscreenShellBox.height, windowSize.height, 3);
+    await expectViewerControlsHidden(page);
+    await stage.hover();
+    await expect(page.locator(".viewer-shell__stage-surface")).toHaveClass(/is-controls-visible/);
     await page.getByTestId("viewer-close").click();
     await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBeFalsy();
@@ -674,6 +915,34 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
   await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
   await expectViewerScrollReleased(page);
   await expect(page.getByTestId("post-details-image")).toBeVisible();
+});
+
+test("admin viewer comment controls stay contained across compact layouts", async ({ page, request }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await loginAsAdmin(page);
+  await createRichViewerPost(page, request, "admin-comment-layout", { extraPlainCommentsCount: 6 });
+
+  await openViewerFromDetails(page);
+  await page.getByTestId("viewer-side-tab-comments").click();
+  await expect(page.getByTestId("viewer-side-tab-comments")).toHaveClass(/is-active/);
+  await expect(page.getByTestId("viewer-side-panel").getByTestId("comment-item").first()).toBeVisible();
+  await expectViewerComposerLayout(page);
+  await expectAdminViewerFilterLayout(page);
+
+  const visibilitySelect = page
+    .getByTestId("viewer-side-panel")
+    .getByTestId("comment-visibility-filter")
+    .getByTestId("comment-visibility-select");
+  await visibilitySelect.selectOption("all");
+  await expect(visibilitySelect).toHaveValue("all");
+  await expect(page.getByTestId("viewer-side-panel").getByTestId("comment-item").first()).toBeVisible();
+  await visibilitySelect.selectOption("active");
+  await expect(visibilitySelect).toHaveValue("active");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(250);
+  await expectViewerComposerLayout(page);
+  await expectAdminViewerFilterLayout(page);
 });
 
 test("rich viewer preserves image fit across the aspect-ratio matrix", async ({ page, request }) => {
@@ -710,6 +979,7 @@ test("rich viewer preserves image fit across the aspect-ratio matrix", async ({ 
     expect(fitBox).toBeTruthy();
     expect(imageBox).toBeTruthy();
     await expectStageNavControlsFit(page, stageSurfaceBox);
+    await expectStagePaginationPlaced(page, stageSurfaceBox);
     expect(fitBox.x).toBeGreaterThanOrEqual(stageBox.x - 1);
     expect(fitBox.y).toBeGreaterThanOrEqual(stageBox.y - 1);
     expect(fitBox.x + fitBox.width).toBeLessThanOrEqual(stageBox.x + stageBox.width + 1);
@@ -1006,6 +1276,20 @@ test("admin can hide and restore comment using comment visibility filter", async
   await page.getByTestId("comment-input").fill(commentText);
   await page.getByTestId("comment-submit").click();
   await expect(page.getByTestId("comment-item").first()).toContainText(commentText);
+
+  const adminComment = page.getByTestId("comment-item").first();
+  const adminActions = adminComment.getByTestId("comment-admin-actions");
+  const moderationControls = adminComment.getByTestId("comment-inline-moderation-controls");
+  await expect(adminActions).toBeVisible();
+  await expect(moderationControls).toBeVisible();
+  const [adminActionsBox, moderationControlsBox] = await Promise.all([
+    adminActions.boundingBox(),
+    moderationControls.boundingBox(),
+  ]);
+  expect(adminActionsBox).toBeTruthy();
+  expect(moderationControlsBox).toBeTruthy();
+  expect(moderationControlsBox.y).toBeGreaterThanOrEqual(adminActionsBox.y - 1);
+  expect(moderationControlsBox.y + moderationControlsBox.height).toBeLessThanOrEqual(adminActionsBox.y + adminActionsBox.height + 1);
 
   await page.getByTestId("comment-inline-hide").first().click();
   await page.getByTestId("comment-visibility-select").selectOption("hidden");

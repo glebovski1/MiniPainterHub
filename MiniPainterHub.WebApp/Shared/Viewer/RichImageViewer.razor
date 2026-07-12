@@ -50,21 +50,31 @@ else if (IsOpen)
                             <div class="viewer-shell__stage-chrome" style="@StageChromeStyle" data-testid="viewer-stage-chrome">
                                 @if (Viewer.Images.Count > 1)
                                 {
-                                    <button type="button"
-                                            class="viewer-shell__stage-nav-button viewer-shell__stage-nav-button--previous"
-                                            aria-label="Previous image"
-                                            data-testid="viewer-stage-prev"
-                                            @onclick="PreviousImageAsync">
-                                        <i class="bi bi-arrow-left" aria-hidden="true"></i>
-                                    </button>
+                                    <nav class="viewer-shell__stage-pager"
+                                         data-testid="viewer-stage-pager"
+                                         aria-label="Image pagination">
+                                        <button type="button"
+                                                class="viewer-shell__stage-nav-button viewer-shell__stage-nav-button--previous"
+                                                aria-label="Previous image"
+                                                data-testid="viewer-stage-prev"
+                                                @onclick="PreviousImageAsync">
+                                            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                                        </button>
 
-                                    <button type="button"
-                                            class="viewer-shell__stage-nav-button viewer-shell__stage-nav-button--next"
-                                            aria-label="Next image"
-                                            data-testid="viewer-stage-next"
-                                            @onclick="NextImageAsync">
-                                        <i class="bi bi-arrow-right" aria-hidden="true"></i>
-                                    </button>
+                                        <span class="viewer-shell__stage-page-count"
+                                              data-testid="viewer-stage-page-count"
+                                              aria-live="polite">
+                                            @CurrentImageNumber <span aria-hidden="true">/</span> @Viewer.Images.Count
+                                        </span>
+
+                                        <button type="button"
+                                                class="viewer-shell__stage-nav-button viewer-shell__stage-nav-button--next"
+                                                aria-label="Next image"
+                                                data-testid="viewer-stage-next"
+                                                @onclick="NextImageAsync">
+                                            <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                                        </button>
+                                    </nav>
                                 }
 
                                 <ViewerToolbar Eyebrow="@Eyebrow"

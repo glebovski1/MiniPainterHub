@@ -700,8 +700,8 @@
     position: absolute;
     z-index: 44;
     pointer-events: auto;
-    top: clamp(0.72rem, 1vw, 1rem);
-    right: clamp(0.72rem, 1vw, 1rem);
+    top: var(--viewer-stage-control-inset, clamp(0.72rem, 1vw, 1rem));
+    right: var(--viewer-stage-control-inset, clamp(0.72rem, 1vw, 1rem));
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -733,8 +733,8 @@
 .viewer-shell__stage-chrome .viewer-toolbar__close,
 .viewer-shell__stage-chrome .viewer-toolbar__icon-action {
     pointer-events: auto;
-    width: 3rem;
-    min-height: 3rem;
+    width: var(--viewer-stage-control-size, 3rem);
+    min-height: var(--viewer-stage-control-size, 3rem);
     border-radius: 0.72rem;
     border-color: rgba(185, 132, 70, 0.26);
     color: #f5dfb8;
@@ -850,8 +850,8 @@
 }
 
 .viewer-shell__stage-chrome .viewer-toolbar__section--utility-compact {
-    right: clamp(0.8rem, 1.1vw, 1.05rem);
-    bottom: clamp(0.8rem, 1.1vw, 1.05rem);
+    right: var(--viewer-stage-control-inset, clamp(0.72rem, 1vw, 1rem));
+    bottom: var(--viewer-stage-control-inset, clamp(0.72rem, 1vw, 1rem));
     width: auto;
     padding: 0;
     border: 0;
@@ -875,7 +875,9 @@
     }
 
     .viewer-shell__stage-chrome .viewer-toolbar__section--utility-compact {
-        --viewer-action-size: 3rem;
+        --viewer-action-size: var(--viewer-stage-control-size, 3rem);
+        right: var(--viewer-stage-control-inset, clamp(0.72rem, 1vw, 1rem));
+        bottom: var(--viewer-stage-control-inset, clamp(0.72rem, 1vw, 1rem));
     }
 }
 
@@ -887,9 +889,9 @@
 }
 
 .viewer-shell__stage-chrome .viewer-toolbar__section--utility-compact .viewer-toolbar__wide-action {
-    width: 3rem;
-    min-width: 3rem;
-    min-height: 3rem;
+    width: var(--viewer-stage-control-size, 3rem);
+    min-width: var(--viewer-stage-control-size, 3rem);
+    min-height: var(--viewer-stage-control-size, 3rem);
     justify-content: center;
     padding: 0;
     border-radius: 0.72rem;
@@ -913,13 +915,8 @@
     }
 
     .viewer-shell__stage-chrome .viewer-toolbar__top {
-        top: 0.52rem;
-        right: 0.52rem;
-    }
-
-    .viewer-shell__stage-chrome .viewer-toolbar__close {
-        width: 2.45rem;
-        min-height: 2.45rem;
+        top: var(--viewer-stage-control-inset, 0.52rem);
+        right: var(--viewer-stage-control-inset, 0.52rem);
     }
 
     .viewer-shell__stage-chrome .viewer-toolbar__section--zoom {
@@ -988,14 +985,44 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
+    .viewer-shell__stage-chrome .viewer-toolbar__top,
+    .viewer-shell__stage-chrome .viewer-toolbar__section--utility-compact {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .viewer-shell__stage-chrome .viewer-toolbar__top {
+        transform: translateY(-0.38rem);
+    }
+
+    .viewer-shell__stage-chrome .viewer-toolbar__section--utility-compact {
+        transform: translateY(0.38rem);
+    }
+
+    .viewer-shell__stage-chrome .viewer-toolbar__top button,
+    .viewer-shell__stage-chrome .viewer-toolbar__section--utility-compact button {
+        pointer-events: none;
+    }
+
     .viewer-shell__stage-chrome .viewer-toolbar__section--zoom {
         opacity: 0;
         pointer-events: none;
         transform: translate(-50%, 0.48rem);
     }
 
-    .viewer-shell__stage-surface.is-controls-visible .viewer-toolbar__section--zoom,
-    .viewer-shell__stage-chrome .viewer-toolbar__section--zoom:focus-within {
+    .viewer-shell__stage-surface.is-controls-visible .viewer-toolbar__top,
+    .viewer-shell__stage-surface.is-controls-visible .viewer-toolbar__section--utility-compact {
+        opacity: 1;
+        transform: none;
+    }
+
+    .viewer-shell__stage-surface.is-controls-visible .viewer-toolbar__top button,
+    .viewer-shell__stage-surface.is-controls-visible .viewer-toolbar__section--utility-compact button {
+        pointer-events: auto;
+    }
+
+    .viewer-shell__stage-surface.is-controls-visible .viewer-toolbar__section--zoom {
         opacity: 1;
         pointer-events: auto;
         transform: translateX(-50%);

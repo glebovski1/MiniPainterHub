@@ -5,7 +5,7 @@
 
 @if (_canReport)
 {
-    <div class="mt-3" data-testid="@($"{TestIdPrefix}-container")">
+    <div class="@ContainerClass" data-testid="@($"{TestIdPrefix}-container")">
         <button class="@ButtonClass"
                 type="button"
                 data-testid="@($"{TestIdPrefix}-toggle")"
@@ -91,6 +91,7 @@
     [Parameter] public string? OwnerUserId { get; set; }
     [Parameter] public string TestIdPrefix { get; set; } = "report";
     [Parameter] public string ButtonClass { get; set; } = "btn btn-outline-danger btn-sm";
+    [Parameter] public string ContainerClass { get; set; } = "mt-3";
 
     private bool _canReport;
     private bool _open;

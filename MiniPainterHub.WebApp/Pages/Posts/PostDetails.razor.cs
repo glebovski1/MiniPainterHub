@@ -76,8 +76,10 @@ public partial class PostDetails
     {
         var title = post?.Title ?? viewer?.Title ?? "Artwork";
         var count = viewer?.Images.Count ?? 0;
-        return $"View {title}, image {index + 1} of {count}";
+        return $"Select {title}, image {index + 1} of {count}";
     }
+
+    private int CurrentPreviewImageNumber => GetImageNumber(ResolvedActiveImageId) ?? 1;
 
     private int ResolvedActiveImageId =>
         viewer?.Images.Any(image => image.Id == _activeImageId) == true
@@ -291,11 +293,9 @@ public partial class PostDetails
         return Task.CompletedTask;
     }
 
-    private async Task OpenViewerAtImageAsync(int imageId)
+    private Task SelectPreviewImageAsync(int imageId)
     {
-        _viewerSideTab = PreferredViewerSideTab;
-        _isViewerOpen = true;
-        await HandleActiveImageChangedAsync(imageId);
+        return HandleActiveImageChangedAsync(imageId);
     }
 
     private async Task CloseViewerAsync()

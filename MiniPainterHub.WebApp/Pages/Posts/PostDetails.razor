@@ -123,6 +123,12 @@
 
                     @if (viewer.Images.Count > 1)
                     {
+                        <div class="post-details-gallery__thumbs-header">
+                            <span>Choose image</span>
+                            <span class="post-details-gallery__selection" aria-live="polite">
+                                Image @CurrentPreviewImageNumber of @viewer.Images.Count selected
+                            </span>
+                        </div>
                         <div class="post-details-gallery__thumbs" data-testid="post-details-thumbnails">
                             @for (var index = 0; index < viewer.Images.Count; index++)
                             {
@@ -132,8 +138,9 @@
                                 <button type="button"
                                         class="post-details-gallery__thumb @(isActive ? "is-active" : null)"
                                         data-testid="post-details-thumbnail"
+                                        aria-current="@(isActive ? "true" : null)"
                                         aria-label="@GetThumbnailAccessibleName(index)"
-                                        @onclick="@(() => OpenViewerAtImageAsync(image.Id))">
+                                        @onclick="@(() => SelectPreviewImageAsync(image.Id))">
                                     <img src="@GetThumbnailSource(image)" alt="" loading="lazy" />
                                     <span class="post-details-gallery__thumb-index">@((index + 1).ToString("00"))</span>
                                 </button>
@@ -253,7 +260,7 @@
             </section>
         </div>
 
-        <section class="surface-card">
+        <section class="surface-card post-details-comments" data-testid="post-details-comments">
             <SectionHeader Eyebrow="Conversation"
                            Title="Comments"
                            Description="Feedback, encouragement, and technique discussion."
@@ -261,40 +268,57 @@
                            TitleClass="section-heading__title h3 mb-0"
                            SectionName="Comments" />
 
-            <AuthorizeView>
-                <Authorized>
-                    <CommentForm PostId="@PostId"
-                                 CanAttachViewerMark="@(viewer.CanAttachCommentMark && viewer.Images.Count > 0)"
-                                 ViewerPlacementActive="@_isCommentPlacementMode"
-                                 DraftMark="@_draftCommentMark"
-                                 AttachedImageNumber="@GetImageNumber(_draftCommentMark?.PostImageId)"
-                                 OnRequestAttachMark="BeginCommentPlacementAsync"
-                                 OnRemoveAttachedMark="RemoveDraftCommentMarkAsync"
-                                 OnCommentAdded="HandleCommentAddedAsync" />
-                </Authorized>
-                <NotAuthorized>
-                    <div class="status-panel status-panel--info" role="alert">
-                        <div class="status-panel__icon"><i class="bi bi-info-circle" aria-hidden="true"></i></div>
-                        <div>
-                            <div class="status-panel__title">Join the conversation</div>
-                            <p class="status-panel__text mb-0">
-                                Sign in to join the conversation.
-                                <button class="btn btn-link p-0 align-baseline" @onclick="GoToLogin">Login</button>
-                            </p>
-                        </div>
+            <div class="post-details-comments__composer" data-testid="post-details-comment-composer">
+                <div class="post-details-comments__composer-heading">
+                    <div>
+                        <p class="section-label mb-1">Add feedback</p>
+                        <h3>Leave a thoughtful note</h3>
                     </div>
-                </NotAuthorized>
-            </AuthorizeView>
+                    <span>Keep it specific, useful, and kind.</span>
+                </div>
 
-            <CommentList @ref="_commentList"
-                         PostId="@PostId"
-                         ActiveCommentId="@_activeCommentId"
-                         LoadingViewerMarkCommentId="@_markLoadingCommentId"
-                         ViewerMarkErrorCommentId="@_markErrorCommentId"
-                         ViewerMarkError="@_markError"
-                         OnToggleViewerMark="ToggleCommentMarkAsync"
-                         ViewerActionLabel="Open close-up"
-                         ViewerActionActiveLabel="Hide marker" />
+                <AuthorizeView>
+                    <Authorized>
+                        <CommentForm PostId="@PostId"
+                                     CanAttachViewerMark="@(viewer.CanAttachCommentMark && viewer.Images.Count > 0)"
+                                     ViewerPlacementActive="@_isCommentPlacementMode"
+                                     DraftMark="@_draftCommentMark"
+                                     AttachedImageNumber="@GetImageNumber(_draftCommentMark?.PostImageId)"
+                                     OnRequestAttachMark="BeginCommentPlacementAsync"
+                                     OnRemoveAttachedMark="RemoveDraftCommentMarkAsync"
+                                     OnCommentAdded="HandleCommentAddedAsync" />
+                    </Authorized>
+                    <NotAuthorized>
+                        <div class="status-panel status-panel--info mb-0" role="alert">
+                            <div class="status-panel__icon"><i class="bi bi-info-circle" aria-hidden="true"></i></div>
+                            <div>
+                                <div class="status-panel__title">Join the conversation</div>
+                                <p class="status-panel__text mb-0">
+                                    Sign in to join the conversation.
+                                    <button class="btn btn-link p-0 align-baseline" @onclick="GoToLogin">Login</button>
+                                </p>
+                            </div>
+                        </div>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+
+            <div class="post-details-comments__thread" data-testid="post-details-comment-thread">
+                <div class="post-details-comments__thread-heading">
+                    <p class="section-label mb-0">Discussion</p>
+                    <span>Newest first</span>
+                </div>
+
+                <CommentList @ref="_commentList"
+                             PostId="@PostId"
+                             ActiveCommentId="@_activeCommentId"
+                             LoadingViewerMarkCommentId="@_markLoadingCommentId"
+                             ViewerMarkErrorCommentId="@_markErrorCommentId"
+                             ViewerMarkError="@_markError"
+                             OnToggleViewerMark="ToggleCommentMarkAsync"
+                             ViewerActionLabel="Open close-up"
+                             ViewerActionActiveLabel="Hide marker" />
+            </div>
         </section>
 
         <RichImageViewer IsOpen="@_isViewerOpen"

@@ -113,6 +113,25 @@
     padding-bottom: 0.15rem;
 }
 
+.post-details-gallery__thumbs-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    color: var(--ink-600);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.post-details-gallery__selection {
+    color: var(--ink-500);
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
 .post-details-gallery__thumb {
     position: relative;
     width: 5.9rem;
@@ -122,16 +141,23 @@
     border-radius: var(--radius-sm);
     overflow: hidden;
     background: rgba(18, 36, 42, 0.06);
-    cursor: zoom-in;
+    cursor: pointer;
     transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .post-details-gallery__thumb:hover,
-.post-details-gallery__thumb:focus-visible,
-.post-details-gallery__thumb.is-active {
+.post-details-gallery__thumb:focus-visible {
     transform: translateY(-1px);
     border-color: rgba(75, 138, 143, 0.42);
     box-shadow: 0 0.65rem 1.25rem rgba(12, 24, 28, 0.1);
+}
+
+.post-details-gallery__thumb.is-active {
+    transform: translateY(-1px);
+    border-color: rgba(38, 111, 104, 0.82);
+    box-shadow:
+        0 0 0 2px rgba(38, 111, 104, 0.16),
+        0 0.65rem 1.25rem rgba(12, 24, 28, 0.1);
 }
 
 .post-details-gallery__thumb img {
@@ -499,6 +525,73 @@
     min-height: 100%;
 }
 
+.post-details-comments {
+    display: grid;
+    gap: 1.05rem;
+}
+
+.post-details-comments__composer {
+    display: grid;
+    gap: 0.85rem;
+    padding: clamp(0.9rem, 1.5vw, 1.15rem);
+    border: 1px solid rgba(38, 111, 104, 0.15);
+    border-radius: calc(var(--radius-md) + 0.12rem);
+    background:
+        linear-gradient(135deg, rgba(38, 111, 104, 0.075), transparent 58%),
+        rgba(255, 255, 255, 0.48);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.66);
+}
+
+.post-details-comments__composer-heading,
+.post-details-comments__thread-heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 0.8rem;
+}
+
+.post-details-comments__composer-heading h3 {
+    margin: 0;
+    color: var(--ink-900);
+    font-family: var(--font-display);
+    font-size: clamp(1.05rem, 1.55vw, 1.28rem);
+    line-height: 1.1;
+}
+
+.post-details-comments__composer-heading > span,
+.post-details-comments__thread-heading > span {
+    color: var(--ink-500);
+    font-size: 0.82rem;
+}
+
+.post-details-comments__thread {
+    display: grid;
+    gap: 0.8rem;
+    padding-top: 0.95rem;
+    border-top: 1px solid rgba(18, 36, 42, 0.1);
+}
+
+::deep(.post-details-comments__thread .comment-list:not(.comment-list--viewer-panel)) {
+    display: grid;
+    gap: 0.72rem;
+}
+
+::deep(.post-details-comments__thread .comment-item:not(.comment-item--viewer-panel)) {
+    margin-bottom: 0 !important;
+    border-color: rgba(18, 36, 42, 0.1);
+    border-radius: calc(var(--radius-md) + 0.08rem);
+    background: rgba(255, 255, 255, 0.56);
+    box-shadow: 0 0.55rem 1.2rem rgba(12, 24, 28, 0.045) !important;
+}
+
+::deep(.post-details-comments__thread .comment-item:not(.comment-item--viewer-panel) .card-body) {
+    padding: 0.95rem 1rem;
+}
+
+::deep(.post-details-comments__thread .pagination) {
+    margin-top: 0.18rem;
+}
+
 .viewer-panel__auth-callout {
     margin: 0;
     padding: 0.8rem 0.9rem;
@@ -551,14 +644,6 @@
 
 ::deep(.viewer-panel__content--comments .form-control::placeholder) {
     color: rgba(248, 244, 236, 0.48);
-}
-
-::deep(.viewer-panel__content--comments .form-grid--compact) {
-    gap: 0.55rem;
-}
-
-::deep(.viewer-panel__content--comments .form-grid--compact [data-testid="comment-mark-controls"]) {
-    margin-top: 0.1rem;
 }
 
 ::deep(.viewer-panel__content--comments .form-grid--compact [data-testid="comment-submit"]) {
@@ -620,6 +705,14 @@
     .post-details-gallery__thumb {
         width: 5.4rem;
         flex-basis: 5.4rem;
+    }
+
+    .post-details-gallery__thumbs-header,
+    .post-details-comments__composer-heading,
+    .post-details-comments__thread-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.3rem;
     }
 
     .viewer-panel__comments-header {
@@ -749,7 +842,61 @@
 }
 
 .viewer-shell__side-panel .viewer-panel__composer-sticky {
-    background: linear-gradient(180deg, rgba(9, 8, 7, 0), rgba(9, 8, 7, 0.86) 28%, rgba(9, 8, 7, 0.98));
+    flex: 0 0 auto;
+    min-height: 0;
+    background: linear-gradient(180deg, rgba(45, 36, 28, 0), rgba(45, 36, 28, 0.9) 28%, #2d241c 68%);
+    padding-top: 0.5rem;
+}
+
+.viewer-shell__side-panel .viewer-panel,
+.viewer-shell__side-panel .viewer-panel__content--comments,
+.viewer-shell__side-panel .viewer-panel-section--comments,
+.viewer-shell__side-panel .viewer-panel__comments-thread,
+.viewer-shell__side-panel .viewer-panel__comments-scroll {
+    min-height: 0;
+}
+
+.viewer-shell__side-panel .viewer-panel__content--comments,
+.viewer-shell__side-panel .viewer-panel-section--comments,
+.viewer-shell__side-panel .viewer-panel__comments-thread {
+    overflow: hidden;
+}
+
+.viewer-shell__side-panel .viewer-panel-section--comments,
+.viewer-shell__side-panel .viewer-panel__comments-thread,
+.viewer-shell__side-panel .viewer-panel__comments-scroll {
+    flex: 1 1 0;
+}
+
+.viewer-shell__side-panel .viewer-panel__comments-thread {
+    gap: 0.55rem;
+}
+
+.viewer-shell__side-panel .viewer-panel__comments-scroll {
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(218, 181, 115, 0.58) transparent;
+}
+
+.viewer-shell__side-panel .viewer-panel__comments-scroll::-webkit-scrollbar {
+    width: 0.42rem;
+}
+
+.viewer-shell__side-panel .viewer-panel__comments-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.viewer-shell__side-panel .viewer-panel__comments-scroll::-webkit-scrollbar-thumb {
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: rgba(218, 181, 115, 0.58);
+    background-clip: padding-box;
+}
+
+.viewer-shell__side-panel .viewer-panel__comments-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(235, 200, 137, 0.78);
+    background-clip: padding-box;
 }
 
 .viewer-shell__side-panel .viewer-panel__eyebrow,

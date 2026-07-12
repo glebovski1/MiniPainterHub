@@ -642,7 +642,9 @@ export function activateStageControls(element) {
         hideTimer: 0,
         hideDeadline: 0,
         isFocusHeld: false,
+        isKeyboardModality: false,
         isVisible: false,
+        keyboardHandler: null,
         listeners: []
     };
 
@@ -688,7 +690,37 @@ export function activateStageControls(element) {
         }
     };
 
-    const keepControlsVisible = () => {
+    const updateFocusVisibility = event => {
+        const focusedElement = event?.target;
+        const isKeyboardFocusVisible = state.isKeyboardModality
+            && focusedElement instanceof Element
+            && focusedElement.matches(":focus-visible");
+
+        state.isFocusHeld = isKeyboardFocusVisible;
+        showNow();
+
+        if (isKeyboardFocusVisible) {
+            window.clearTimeout(state.hideTimer);
+            state.hideTimer = 0;
+            state.hideDeadline = 0;
+            return;
+        }
+
+        scheduleHide(stageControlsHideDelayMs);
+    };
+
+    const releasePointerFocus = () => {
+        state.isKeyboardModality = false;
+        state.isFocusHeld = false;
+        showControls();
+    };
+
+    const handleKeyboardActivity = event => {
+        if (event.key !== "Tab" && !element.contains(document.activeElement)) {
+            return;
+        }
+
+        state.isKeyboardModality = true;
         state.isFocusHeld = true;
         showNow();
         window.clearTimeout(state.hideTimer);
@@ -707,14 +739,18 @@ export function activateStageControls(element) {
 
     state.listeners = [
         ["pointermove", showControls, { passive: true }],
+        ["pointerdown", releasePointerFocus, { passive: true }],
         ["pointerleave", hideControlsSoon, { passive: true }],
-        ["focusin", keepControlsVisible, false],
+        ["focusin", updateFocusVisibility, false],
         ["focusout", hideControlsSoon, false]
     ];
 
     for (const [eventName, handler, options] of state.listeners) {
         element.addEventListener(eventName, handler, options);
     }
+
+    state.keyboardHandler = handleKeyboardActivity;
+    document.addEventListener("keydown", handleKeyboardActivity, true);
 
     stageControlStates.set(element, state);
 }
@@ -727,6 +763,10 @@ export function deactivateStageControls(element) {
 
     for (const [eventName, handler, options] of state.listeners) {
         element.removeEventListener(eventName, handler, options);
+    }
+
+    if (state.keyboardHandler) {
+        document.removeEventListener("keydown", state.keyboardHandler, true);
     }
 
     window.clearTimeout(state.hideTimer);

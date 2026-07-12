@@ -706,18 +706,6 @@
         0 1.8rem 3.4rem rgba(10, 7, 5, 0.36);
 }
 
-.viewer-shell__stage-surface::before {
-    content: "";
-    position: absolute;
-    inset: 0 14% auto;
-    height: 0.42rem;
-    border-radius: 0 0 999px 999px;
-    background: linear-gradient(90deg, transparent, rgba(242, 207, 138, 0.72), transparent);
-    box-shadow: 0 0.9rem 2.2rem rgba(242, 207, 138, 0.28);
-    pointer-events: none;
-    z-index: 2;
-}
-
 .viewer-shell__stage-surface > * {
     position: relative;
     z-index: 1;
@@ -1023,14 +1011,6 @@
         linear-gradient(180deg, #12100d, #080706 76%);
 }
 
-.viewer-shell__stage-surface::before {
-    inset: 0 18% auto;
-    height: 0.28rem;
-    background: linear-gradient(90deg, transparent, rgba(225, 163, 85, 0.8), transparent);
-    box-shadow: 0 0.9rem 2.6rem rgba(225, 163, 85, 0.3);
-    z-index: 8;
-}
-
 .viewer-shell__stage-surface::after {
     content: "";
     position: absolute;
@@ -1043,6 +1023,8 @@
 }
 
 .viewer-shell__stage-chrome {
+    --viewer-stage-control-inset: clamp(0.72rem, 1vw, 1rem);
+    --viewer-stage-control-size: 3rem;
     position: absolute;
     inset: 0;
     z-index: 40;
@@ -1059,14 +1041,20 @@
     pointer-events: none;
 }
 
+.viewer-shell__stage-pager {
+    position: absolute;
+    inset: 0;
+    z-index: 47;
+    pointer-events: none;
+}
+
 .viewer-shell__stage-nav-button {
     position: absolute;
     top: 50%;
-    z-index: 47;
     display: inline-grid;
     place-items: center;
-    width: clamp(2.45rem, 3vw, 3rem);
-    height: clamp(2.45rem, 3vw, 3rem);
+    width: var(--viewer-stage-control-size);
+    height: var(--viewer-stage-control-size);
     padding: 0;
     border: 1px solid transparent;
     border-radius: 0.72rem;
@@ -1086,22 +1074,39 @@
     pointer-events: auto;
 }
 
+.viewer-shell__stage-nav-button--previous {
+    left: var(--viewer-stage-control-inset);
+}
+
+.viewer-shell__stage-nav-button--next {
+    right: var(--viewer-stage-control-inset);
+}
+
 .viewer-shell__stage-nav-button::before {
     content: none;
 }
 
-.viewer-shell__stage-nav-button--previous {
-    left: max(
-        clamp(0.4rem, 0.8vw, 0.74rem),
-        calc(var(--viewer-action-image-left, 0px) + clamp(0.28rem, 0.5vw, 0.46rem))
-    );
-}
-
-.viewer-shell__stage-nav-button--next {
-    right: max(
-        clamp(0.4rem, 0.8vw, 0.74rem),
-        calc(100% - var(--viewer-action-image-right, 100%) + clamp(0.28rem, 0.5vw, 0.46rem))
-    );
+.viewer-shell__stage-page-count {
+    position: absolute;
+    top: var(--viewer-stage-control-inset);
+    left: 50%;
+    min-width: 3.4rem;
+    padding: 0.52rem 0.72rem;
+    border: 1px solid rgba(242, 207, 138, 0.22);
+    border-radius: 999px;
+    color: rgba(255, 241, 214, 0.82);
+    background: rgba(13, 11, 9, 0.76);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 244, 220, 0.06),
+        0 0.7rem 1.5rem rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(10px);
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-align: center;
+    white-space: nowrap;
+    transform: translateX(-50%);
 }
 
 .viewer-shell__stage-nav-button i {
@@ -1136,24 +1141,54 @@
 }
 
 @media (max-width: 991.98px) {
+    .viewer-shell__stage-chrome {
+        --viewer-stage-control-inset: 0.52rem;
+        --viewer-stage-control-size: 2.45rem;
+    }
+
     .viewer-shell__stage-nav-button {
-        width: clamp(2.35rem, 11vw, 2.85rem);
-        height: clamp(2.35rem, 11vw, 2.85rem);
         border-radius: 0.64rem;
     }
 
-    .viewer-shell__stage-nav-button--previous {
-        left: max(0.42rem, calc(var(--viewer-action-image-left, 0px) + 0.22rem));
-    }
-
-    .viewer-shell__stage-nav-button--next {
-        right: max(0.42rem, calc(100% - var(--viewer-action-image-right, 100%) + 0.22rem));
+    .viewer-shell__stage-page-count {
+        min-width: 3rem;
+        padding: 0.44rem 0.62rem;
+        font-size: 0.72rem;
     }
 }
 
 @media (hover: none), (pointer: coarse) {
     .viewer-shell__stage-nav-button {
         color: rgba(242, 207, 138, 0.88);
+    }
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .viewer-shell__stage-nav-button,
+    .viewer-shell__stage-page-count {
+        opacity: 0;
+        pointer-events: none;
+        transition:
+            opacity 180ms ease,
+            transform 180ms ease,
+            background 160ms ease,
+            border-color 160ms ease,
+            color 160ms ease;
+    }
+
+    .viewer-shell__stage-page-count {
+        transform: translate(-50%, -0.38rem);
+    }
+
+    .viewer-shell__stage-surface.is-controls-visible .viewer-shell__stage-nav-button {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(-50%);
+    }
+
+    .viewer-shell__stage-surface.is-controls-visible .viewer-shell__stage-page-count {
+        opacity: 1;
+        transform: translateX(-50%);
     }
 }
 
@@ -1304,7 +1339,7 @@
     }
 
     .viewer-shell__side-panel {
-        min-height: 16rem;
+        min-height: 22rem;
     }
 }
 

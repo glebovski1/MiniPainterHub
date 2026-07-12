@@ -59,8 +59,8 @@ public class PostDetailsViewerTests : TestContext
             .Select(thumbnail => thumbnail.GetAttribute("aria-label"))
             .Should()
             .Equal(
-                "View Moonlit skin experiment, image 1 of 2",
-                "View Moonlit skin experiment, image 2 of 2");
+                "Select Moonlit skin experiment, image 1 of 2",
+                "Select Moonlit skin experiment, image 2 of 2");
     }
 
     [Fact]
@@ -212,7 +212,7 @@ public class PostDetailsViewerTests : TestContext
     }
 
     [Fact]
-    public void ClickingPageThumbnailOpensViewerAtThatImage()
+    public void ClickingPageThumbnailSelectsImageWithoutOpeningViewer()
     {
         var scenario = CreateScenario();
         var cut = RenderWithAuth(scenario);
@@ -221,11 +221,15 @@ public class PostDetailsViewerTests : TestContext
 
         cut.WaitForAssertion(() =>
         {
-            cut.Find("[data-testid='rich-image-viewer-modal']");
-            cut.Find("[data-testid='viewer-stage-image']")
+            cut.FindAll("[data-testid='rich-image-viewer-modal']").Should().BeEmpty();
+            cut.Find("[data-testid='post-details-image']")
                 .GetAttribute("src")
                 .Should()
                 .Contain("moonlit-skin-2-preview");
+            cut.FindAll("[data-testid='post-details-thumbnail']")[1]
+                .GetAttribute("aria-current")
+                .Should()
+                .Be("true");
         });
     }
 

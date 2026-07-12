@@ -296,7 +296,9 @@ async function capture(page, manifest, options) {
   const fileName = `${sequence}-${sanitizeFileToken(options.name)}-${options.viewport.name}.png`;
   const filePath = path.join(OUTPUT_DIR, fileName);
 
-  await page.evaluate(() => window.scrollTo(0, 0));
+  if (!options.preserveScroll) {
+    await page.evaluate(() => window.scrollTo(0, 0));
+  }
   await settle(page);
   if (options.elementTestId) {
     const target = page.getByTestId(options.elementTestId);
@@ -731,7 +733,7 @@ const scenarioGroups = {
     await clickReliably(page.getByTestId("viewer-close"));
     await setViewport(page, VIEWPORTS.desktop);
 
-    const richViewerPost = await createRichViewerPost(page, request, "ui-review");
+    const richViewerPost = await createRichViewerPost(page, request, "ui-review", { extraPlainCommentsCount: 12 });
     await capture(page, manifest, {
       name: "posts-detail-rich-viewer-closed",
       group: "posts",
@@ -739,6 +741,21 @@ const scenarioGroups = {
       authState: "seed-user",
       stateTags: ["posts", "desktop", "details", "viewer-closed", "populated"]
     });
+
+    const inlineThumbnails = page.getByTestId("post-details-thumbnail");
+    await expect(inlineThumbnails).toHaveCount(6);
+    await clickReliably(inlineThumbnails.nth(1));
+    await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
+    await expect(inlineThumbnails.nth(1)).toHaveAttribute("aria-current", "true");
+    await settle(page, 250);
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-inline-image-selected",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      stateTags: ["posts", "desktop", "details", "viewer-closed", "inline-image-selected"]
+    });
+    await clickReliably(inlineThumbnails.nth(0));
 
     await openViewerFromDetails(page);
     await waitForViewerLayout(page);
@@ -773,6 +790,22 @@ const scenarioGroups = {
       authState: "seed-user",
       fullPage: false,
       stateTags: ["posts", "desktop", "viewer-open", "comments-tab"]
+    });
+
+    const viewerCommentsScroll = page.getByTestId("viewer-comments-scroll");
+    await viewerCommentsScroll.hover({ position: { x: 8, y: 120 } });
+    await page.mouse.wheel(0, 220);
+    await viewerCommentsScroll.evaluate((element) => {
+      element.scrollTop = Math.round((element.scrollHeight - element.clientHeight) * 0.45);
+    });
+    await settle(page, 180);
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-comments-tab-scrolled",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      fullPage: false,
+      stateTags: ["posts", "desktop", "viewer-open", "comments-tab", "scrolled"]
     });
 
     await page.getByTestId("viewer-stage").hover();
@@ -810,6 +843,17 @@ const scenarioGroups = {
       .getByTestId("comment-item")
       .filter({ hasText: "Square image anchor should stay centered while the comment panel highlights this thread" })
       .first();
+    await pageComment.scrollIntoViewIfNeeded();
+    await settle(page, 250);
+    await capture(page, manifest, {
+      name: "posts-detail-comment-mark-action-row",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      fullPage: false,
+      preserveScroll: true,
+      stateTags: ["posts", "desktop", "comments", "populated", "marked-comment"]
+    });
     await clickReliably(pageComment.getByTestId("comment-show-mark"));
     await expect(page.getByTestId("viewer-comment-mark")).toBeVisible();
     await expect(page.getByTestId("viewer-comment-state")).toContainText(`#${richViewerPost.markedCommentTwo.id}`);
@@ -981,6 +1025,41 @@ const scenarioGroups = {
       authState: "seed-user",
       stateTags: ["posts", "desktop", "mine", "populated"]
     });
+
+    await startFreshState(page, request);
+    await loginAsAdmin(page, request);
+    await setViewport(page, VIEWPORTS.desktop);
+    await createRichViewerPost(page, request, "ui-review-admin-comments", { extraPlainCommentsCount: 6 });
+    await openViewerFromDetails(page);
+    await waitForViewerLayout(page);
+    await clickReliably(page.getByTestId("viewer-side-tab-comments"));
+    const adminViewerPanel = page.getByTestId("viewer-side-panel");
+    await expect(adminViewerPanel.getByTestId("comment-visibility-filter")).toBeVisible();
+    await expect(adminViewerPanel.getByTestId("comment-visibility-select")).toHaveValue("active");
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-comments-admin-desktop",
+      group: "posts",
+      viewport: VIEWPORTS.desktop,
+      authState: "admin",
+      fullPage: false,
+      stateTags: ["posts", "desktop", "viewer-open", "comments-tab", "admin", "visibility-filter"]
+    });
+
+    await setViewport(page, VIEWPORTS.mobile);
+    await adminViewerPanel.getByTestId("viewer-comments-scroll").evaluate((element) => {
+      element.scrollTop = 0;
+    });
+    await settle(page, 150);
+    await expect(adminViewerPanel.getByTestId("comment-visibility-filter")).toBeVisible();
+    await capture(page, manifest, {
+      name: "posts-detail-rich-viewer-comments-admin-mobile",
+      group: "posts",
+      viewport: VIEWPORTS.mobile,
+      authState: "admin",
+      fullPage: false,
+      stateTags: ["posts", "mobile", "viewer-open", "comments-tab", "admin", "visibility-filter"]
+    });
+    await clickReliably(page.getByTestId("viewer-close"));
   },
 
   async following({ page, request, manifest }) {
