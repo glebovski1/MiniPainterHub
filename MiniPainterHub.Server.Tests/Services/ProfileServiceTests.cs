@@ -245,8 +245,32 @@ public class ProfileServiceTests
         var updated = await service.UploadAvatarAsync(user.Id, file);
 
         imageService.UploadedFileName.Should().Be($"avatar_{user.Id}.jpg");
-        updated.AvatarUrl.Should().Be("https://images.test/avatar_user-1.jpg");
-        (await context.Profiles.SingleAsync()).AvatarUrl.Should().Be("https://images.test/avatar_user-1.jpg");
+        updated.AvatarUrl.Should().MatchRegex(@"^https://images\.test/avatar_user-1\.jpg\?v=[a-f0-9]{32}$");
+        (await context.Profiles.SingleAsync()).AvatarUrl.Should().Be(updated.AvatarUrl);
+    }
+
+    [Fact]
+    public async Task UploadAvatarAsync_WhenReplacingAvatar_ReturnsNewCacheBustedUrl()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = CreateUser("user-1", "avatar-user");
+        await context.Users.AddAsync(user);
+        await context.Profiles.AddAsync(new MiniPainterHub.Server.Entities.Profile
+        {
+            UserId = user.Id,
+            DisplayName = "Display",
+            Bio = "Bio"
+        });
+        await context.SaveChangesAsync();
+
+        var imageService = new StubImageService();
+        var service = new ProfileService(context, imageService);
+        var first = await service.UploadAvatarAsync(user.Id, CreateFormFile(GetTinyPng(), "first.png", "image/png"));
+        var second = await service.UploadAvatarAsync(user.Id, CreateFormFile(GetTinyPng(), "second.png", "image/png"));
+
+        first.AvatarUrl.Should().NotBe(second.AvatarUrl);
+        second.AvatarUrl.Should().MatchRegex(@"^https://images\.test/avatar_user-1\.jpg\?v=[a-f0-9]{32}$");
+        imageService.UploadedFileName.Should().Be($"avatar_{user.Id}.jpg");
     }
 
     [Fact]

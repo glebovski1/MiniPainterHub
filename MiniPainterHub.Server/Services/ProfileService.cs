@@ -177,8 +177,15 @@ public class ProfileService : IProfileService
 
         var fileName = $"avatar_{userId}.jpg";
         var publicUrl = await _imageService.UploadAsync(output, fileName);
+        publicUrl = AddCacheBuster(publicUrl);
 
         return await SetAvatarUrlAsync(userId, publicUrl);
+    }
+
+    private static string AddCacheBuster(string url)
+    {
+        var separator = url.Contains('?', StringComparison.Ordinal) ? '&' : '?';
+        return $"{url}{separator}v={Guid.NewGuid():N}";
     }
 
     public async Task<UserProfileDto> GetUserProfileById(string userId, string? viewerUserId = null)
