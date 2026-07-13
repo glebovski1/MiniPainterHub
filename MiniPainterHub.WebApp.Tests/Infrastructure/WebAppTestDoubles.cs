@@ -137,6 +137,92 @@ internal sealed class StubConversationService : IConversationService, IConversat
     public void RaiseConversationRead(ConversationReadDto dto) => ConversationRead?.Invoke(dto);
 }
 
+internal sealed class StubSupportTicketService : ISupportTicketService
+{
+    public event Action? UnreadCountChanged;
+
+    public int UnreadCount { get; set; }
+
+    public Func<SupportTicketQueryDto, Task<ApiResult<PagedResult<SupportTicketSummaryDto>?>>> GetMineHandler { get; set; } = query =>
+        Task.FromResult(new ApiResult<PagedResult<SupportTicketSummaryDto>?>(true, HttpStatusCode.OK, EmptyPage(query)));
+    public Func<int, Task<ApiResult<SupportTicketDto?>>> GetHandler { get; set; } = _ =>
+        Task.FromResult(new ApiResult<SupportTicketDto?>(true, HttpStatusCode.OK, null));
+    public Func<CreateSupportTicketDto, Task<ApiResult<SupportTicketDto?>>> CreateHandler { get; set; } = request =>
+        Task.FromResult(new ApiResult<SupportTicketDto?>(true, HttpStatusCode.Created, Ticket(1, request.Subject, request.Category, request.Message)));
+    public Func<int, CreateSupportTicketMessageDto, Task<ApiResult<SupportTicketDto?>>> ReplyHandler { get; set; } = (ticketId, request) =>
+        Task.FromResult(new ApiResult<SupportTicketDto?>(true, HttpStatusCode.OK, Ticket(ticketId, "Support request", SupportTicketCategories.Other, request.Body)));
+    public Func<int, DateTime?, Task<bool>> MarkReadHandler { get; set; } = (_, _) => Task.FromResult(true);
+    public Func<Task<int>> RefreshUnreadCountHandler { get; set; } = () => Task.FromResult(0);
+    public Func<SupportTicketQueryDto, Task<ApiResult<PagedResult<SupportTicketSummaryDto>?>>> GetAdminQueueHandler { get; set; } = query =>
+        Task.FromResult(new ApiResult<PagedResult<SupportTicketSummaryDto>?>(true, HttpStatusCode.OK, EmptyPage(query)));
+    public Func<int, Task<ApiResult<SupportTicketDto?>>> GetAdminTicketHandler { get; set; } = _ =>
+        Task.FromResult(new ApiResult<SupportTicketDto?>(true, HttpStatusCode.OK, null));
+    public Func<int, CreateSupportTicketMessageDto, Task<ApiResult<SupportTicketDto?>>> ReplyAsAdminHandler { get; set; } = (ticketId, request) =>
+        Task.FromResult(new ApiResult<SupportTicketDto?>(true, HttpStatusCode.OK, Ticket(ticketId, "Support request", SupportTicketCategories.Other, request.Body)));
+    public Func<int, UpdateSupportTicketStatusDto, Task<ApiResult<SupportTicketDto?>>> UpdateStatusHandler { get; set; } = (ticketId, request) =>
+    {
+        var ticket = Ticket(ticketId, "Support request", SupportTicketCategories.Other, "Details");
+        ticket.Status = request.Status;
+        return Task.FromResult(new ApiResult<SupportTicketDto?>(true, HttpStatusCode.OK, ticket));
+    };
+
+    public Task<ApiResult<PagedResult<SupportTicketSummaryDto>?>> GetMineAsync(SupportTicketQueryDto query) => GetMineHandler(query);
+    public Task<ApiResult<SupportTicketDto?>> GetAsync(int ticketId) => GetHandler(ticketId);
+    public Task<ApiResult<SupportTicketDto?>> CreateAsync(CreateSupportTicketDto request) => CreateHandler(request);
+    public Task<ApiResult<SupportTicketDto?>> ReplyAsync(int ticketId, CreateSupportTicketMessageDto request) => ReplyHandler(ticketId, request);
+    public Task<bool> MarkReadAsync(int ticketId, DateTime? lastStaffReplyUtc) => MarkReadHandler(ticketId, lastStaffReplyUtc);
+
+    public async Task<int> RefreshUnreadCountAsync()
+    {
+        UnreadCount = await RefreshUnreadCountHandler();
+        UnreadCountChanged?.Invoke();
+        return UnreadCount;
+    }
+
+    public Task<ApiResult<PagedResult<SupportTicketSummaryDto>?>> GetAdminQueueAsync(SupportTicketQueryDto query) => GetAdminQueueHandler(query);
+    public Task<ApiResult<SupportTicketDto?>> GetAdminTicketAsync(int ticketId) => GetAdminTicketHandler(ticketId);
+    public Task<ApiResult<SupportTicketDto?>> ReplyAsAdminAsync(int ticketId, CreateSupportTicketMessageDto request) => ReplyAsAdminHandler(ticketId, request);
+    public Task<ApiResult<SupportTicketDto?>> UpdateStatusAsync(int ticketId, UpdateSupportTicketStatusDto request) => UpdateStatusHandler(ticketId, request);
+
+    public void RaiseUnreadCountChanged() => UnreadCountChanged?.Invoke();
+
+    private static PagedResult<SupportTicketSummaryDto> EmptyPage(SupportTicketQueryDto query) => new()
+    {
+        Items = Array.Empty<SupportTicketSummaryDto>(),
+        PageNumber = query.PageNumber,
+        PageSize = query.PageSize,
+        TotalCount = 0
+    };
+
+    public static SupportTicketDto Ticket(int id, string subject, string category, string body) => new()
+    {
+        Id = id,
+        Category = category,
+        Subject = subject,
+        Status = SupportTicketStatuses.New,
+        CreatedUtc = DateTime.UtcNow.AddHours(-1),
+        UpdatedUtc = DateTime.UtcNow,
+        LatestMessagePreview = body,
+        RequesterUserId = "viewer-user",
+        RequesterUserName = "viewer",
+        RequesterDisplayName = "Viewer Painter",
+        Messages = new[]
+        {
+            new SupportTicketMessageDto
+            {
+                Id = 1,
+                TicketId = id,
+                AuthorUserId = "viewer-user",
+                AuthorUserName = "viewer",
+                AuthorDisplayName = "Viewer Painter",
+                Body = body,
+                SentUtc = DateTime.UtcNow,
+                IsMine = true
+            }
+        }
+    };
+}
+
 internal sealed class StubPostService : IPostService
 {
     public Func<int, int, Task<ApiResult<PagedResult<PostSummaryDto>>>> GetAllHandler { get; set; } = (_, _) =>

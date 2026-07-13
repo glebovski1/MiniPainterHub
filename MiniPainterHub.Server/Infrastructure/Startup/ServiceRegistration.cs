@@ -348,6 +348,7 @@ public partial class Program
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IFollowService, FollowService>();
         services.AddScoped<IConversationService, ConversationService>();
+        services.AddScoped<ISupportTicketService, SupportTicketService>();
         services.AddSingleton<IUploadConcurrencyLimiter, UploadConcurrencyLimiter>();
         services.AddSingleton<ISiteActivityTracker, SiteActivityTracker>();
         services.AddSingleton<IMaintenanceBypassService, MaintenanceBypassService>();

@@ -116,6 +116,17 @@
         "MiniPainterHub.WebApp/Pages/Messages.razor"
       ]
     },
+    "support": {
+      "description": "Authenticated support request list, composer, thread, unread, and admin queue states.",
+      "patterns": [
+        "MiniPainterHub.WebApp/Pages/Support*.razor",
+        "MiniPainterHub.WebApp/Pages/Support*.razor.css",
+        "MiniPainterHub.WebApp/Pages/Admin/Support.razor",
+        "MiniPainterHub.WebApp/Pages/Admin/Support.razor.css",
+        "MiniPainterHub.WebApp/Shared/SupportTicketThread.razor",
+        "MiniPainterHub.WebApp/Shared/SupportTicketThread.razor.css"
+      ]
+    },
     "connections": {
       "description": "Followers and following lists.",
       "patterns": [

@@ -15,6 +15,10 @@ public class UserPanelContentTests : TestContext
     public void RendersSocialLinksAndUnreadBadge()
     {
         this.SetAuthenticatedUser("viewer-user", "viewer");
+        this.AddSupportStub(new StubSupportTicketService
+        {
+            RefreshUnreadCountHandler = () => Task.FromResult(3)
+        });
         this.AddConversationStub(new StubConversationService
         {
             GetConversationsHandler = _ => Task.FromResult<IReadOnlyList<ConversationSummaryDto>>(new[]
@@ -35,7 +39,9 @@ public class UserPanelContentTests : TestContext
             cut.Markup.Should().Contain("Following feed");
             cut.Markup.Should().Contain("Connections");
             cut.Markup.Should().Contain("Messages");
+            cut.Markup.Should().Contain("Support");
             cut.Markup.Should().Contain(">1<");
+            cut.Find("[data-testid='support-nav-link']").TextContent.Should().Contain("3");
             cut.Find(".dashboard-sidebar-content").Should().NotBeNull();
             cut.FindAll(".nav-pills").Should().BeEmpty();
         });

@@ -1,0 +1,122 @@
+.support-details-page {
+    max-width: 68rem;
+}
+
+.support-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+    color: var(--primary-700);
+    font-size: 0.86rem;
+    font-weight: 850;
+    text-decoration: none;
+}
+
+.support-ticket-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: clamp(1rem, 3vw, 1.45rem);
+    border: 1px solid rgba(23, 33, 39, 0.11);
+    border-radius: var(--radius-lg);
+    background:
+        linear-gradient(135deg, rgba(31, 91, 82, 0.08), rgba(184, 106, 67, 0.05)),
+        rgba(255, 254, 250, 0.9);
+}
+
+.support-ticket-heading h1 {
+    margin: 0.38rem 0 0.25rem;
+    color: var(--ink-900);
+    font-family: var(--font-display);
+    font-size: clamp(1.7rem, 4vw, 2.55rem);
+}
+
+.support-ticket-heading p {
+    margin: 0;
+    color: var(--ink-500);
+}
+
+.support-ticket-heading__meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    color: var(--ink-500);
+    font-size: 0.76rem;
+    font-weight: 800;
+}
+
+.support-ticket-heading__category {
+    color: var(--accent-clay);
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.support-ticket-heading__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 4rem;
+    height: 4rem;
+    flex: 0 0 auto;
+    border-radius: var(--radius-lg);
+    background: rgba(31, 91, 82, 0.1);
+    color: var(--primary-700);
+    font-size: 1.65rem;
+}
+
+.support-conversation-card,
+.support-reply-card {
+    display: grid;
+    gap: 1.2rem;
+    padding: clamp(1rem, 3vw, 1.4rem);
+}
+
+.support-reply-card h2 {
+    margin: 0.28rem 0;
+    color: var(--ink-900);
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+}
+
+.support-reply-card p {
+    margin: 0;
+    color: var(--ink-500);
+}
+
+.support-reply-card textarea {
+    min-height: 8rem;
+    resize: vertical;
+}
+
+.support-reply-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.72rem;
+}
+
+.support-reply-actions > span {
+    color: var(--ink-500);
+    font-size: 0.74rem;
+    font-weight: 750;
+}
+
+@media (max-width: 575.98px) {
+    .support-ticket-heading__icon {
+        display: none;
+    }
+
+    .support-reply-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .support-reply-actions .btn {
+        justify-content: center;
+        width: 100%;
+    }
+}

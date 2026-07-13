@@ -1,0 +1,125 @@
+@page "/support/new"
+@attribute [Authorize]
+@inject ISupportTicketService SupportTickets
+@inject NavigationManager Nav
+
+<PageTitle>New support request</PageTitle>
+
+<div class="page-shell content-stack support-create-page">
+    <nav aria-label="Breadcrumb">
+        <NavLink class="support-back-link" href="/support">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+            <span>Back to support</span>
+        </NavLink>
+    </nav>
+
+    <PageHero Eyebrow="Support center"
+              Title="Start a private request"
+              Description="Tell the admin team what happened and what you need. You can continue the conversation after sending."
+              FrameName="New Support Request" />
+
+    <section class="surface-card support-form-card" data-testid="support-create-form">
+        <div class="support-form-card__intro">
+            <span class="support-form-card__icon"><i class="bi bi-life-preserver" aria-hidden="true"></i></span>
+            <div>
+                <h2>Request details</h2>
+                <p>Only MiniPainterHub admins can read and reply to this conversation.</p>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <div class="status-panel status-panel--error" role="alert" data-testid="support-create-error">
+                <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Request not sent</div>
+                    <p class="status-panel__text mb-0">@_error</p>
+                </div>
+            </div>
+        }
+
+        <EditForm Model="_request" OnValidSubmit="SubmitAsync">
+            <DataAnnotationsValidator />
+            <div class="support-form-grid">
+                <div>
+                    <label class="form-label" for="support-category">What is this about?</label>
+                    <InputSelect id="support-category" class="form-select" data-testid="support-category" @bind-Value="_request.Category">
+                        <option value="">Choose a category</option>
+                        <option value="@SupportTicketCategories.Bug">Bug or technical problem</option>
+                        <option value="@SupportTicketCategories.Account">Account help</option>
+                        <option value="@SupportTicketCategories.Safety">Safety concern</option>
+                        <option value="@SupportTicketCategories.Suggestion">Suggestion</option>
+                        <option value="@SupportTicketCategories.Other">Something else</option>
+                    </InputSelect>
+                    <ValidationMessage For="@(() => _request.Category)" />
+                </div>
+
+                <div>
+                    <div class="support-field-heading">
+                        <label class="form-label" for="support-subject">Subject</label>
+                        <span>@(_request.Subject?.Length ?? 0)/@SupportTicketRules.MaxSubjectLength</span>
+                    </div>
+                    <InputText id="support-subject" class="form-control" data-testid="support-subject" maxlength="@SupportTicketRules.MaxSubjectLength" @bind-Value="_request.Subject" />
+                    <ValidationMessage For="@(() => _request.Subject)" />
+                </div>
+
+                <div>
+                    <div class="support-field-heading">
+                        <label class="form-label" for="support-message">Message</label>
+                        <span>@(_request.Message?.Length ?? 0)/@SupportTicketRules.MaxMessageLength</span>
+                    </div>
+                    <InputTextArea id="support-message" class="form-control support-message-input" data-testid="support-message-input" maxlength="@SupportTicketRules.MaxMessageLength" @bind-Value="_request.Message" />
+                    <ValidationMessage For="@(() => _request.Message)" />
+                    <div class="form-text">Include the steps you took, what you expected, and what happened instead.</div>
+                </div>
+            </div>
+
+            <div class="support-form-actions">
+                <NavLink class="btn btn-outline-secondary" href="/support">Cancel</NavLink>
+                <button class="btn btn-primary" type="submit" data-testid="support-create-submit" disabled="@_submitting">
+                    @if (_submitting)
+                    {
+                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                        <span>Sending...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-send" aria-hidden="true"></i>
+                        <span>Send request</span>
+                    }
+                </button>
+            </div>
+        </EditForm>
+    </section>
+</div>
+
+@code {
+    private readonly CreateSupportTicketDto _request = new();
+    private bool _submitting;
+    private string? _error;
+
+    private async Task SubmitAsync()
+    {
+        _submitting = true;
+        _error = null;
+        try
+        {
+            var result = await SupportTickets.CreateAsync(_request);
+            if (!result.Success || result.Value is null)
+            {
+                _error = "We couldn't send your request. Your draft is still here, so you can try again.";
+                return;
+            }
+
+            Nav.NavigateTo($"/support/{result.Value.Id}");
+        }
+        catch
+        {
+            _error = "We couldn't send your request. Your draft is still here, so you can try again.";
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+}

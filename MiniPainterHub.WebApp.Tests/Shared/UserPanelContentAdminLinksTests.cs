@@ -24,6 +24,7 @@ public class UserPanelContentAdminLinksTests : TestContext
         cut.FindAll("[data-testid='admin-nav-controls']").Should().BeEmpty();
         cut.FindAll("[data-testid='admin-nav-dashboard']").Should().BeEmpty();
         cut.FindAll("[data-testid='admin-nav-audit']").Should().BeEmpty();
+        cut.FindAll("[data-testid='admin-nav-support']").Should().BeEmpty();
     }
 
     [Fact]
@@ -39,6 +40,7 @@ public class UserPanelContentAdminLinksTests : TestContext
         cut.FindAll("[data-testid='admin-nav-dashboard']").Should().HaveCount(1);
         cut.FindAll("[data-testid='admin-nav-audit']").Should().HaveCount(1);
         cut.FindAll("[data-testid='admin-nav-controls']").Should().BeEmpty();
+        cut.FindAll("[data-testid='admin-nav-support']").Should().BeEmpty();
     }
 
     [Fact]
@@ -54,6 +56,7 @@ public class UserPanelContentAdminLinksTests : TestContext
         cut.FindAll("[data-testid='admin-nav-controls']").Should().HaveCount(1);
         cut.FindAll("[data-testid='admin-nav-dashboard']").Should().HaveCount(1);
         cut.FindAll("[data-testid='admin-nav-audit']").Should().HaveCount(1);
+        cut.FindAll("[data-testid='admin-nav-support']").Should().HaveCount(1);
     }
 
     private IRenderedFragment RenderPanel()

@@ -30,6 +30,8 @@ namespace MiniPainterHub.Server.Data
         public DbSet<Conversation> Conversations { get; set; } = default!;
         public DbSet<ConversationParticipant> ConversationParticipants { get; set; } = default!;
         public DbSet<DirectMessage> DirectMessages { get; set; } = default!;
+        public DbSet<SupportTicket> SupportTickets { get; set; } = default!;
+        public DbSet<SupportTicketMessage> SupportTicketMessages { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -337,6 +339,41 @@ namespace MiniPainterHub.Server.Data
                     .WithMany(u => u.SentMessages)
                     .HasForeignKey(m => m.SenderUserId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            builder.Entity<SupportTicket>(b =>
+            {
+                b.Property(t => t.RequesterUserId).HasMaxLength(450).IsRequired();
+                b.Property(t => t.Category).HasMaxLength(32).IsRequired();
+                b.Property(t => t.Subject).HasMaxLength(MiniPainterHub.Common.DTOs.SupportTicketRules.MaxSubjectLength).IsRequired();
+                b.Property(t => t.Status).HasMaxLength(32).IsRequired();
+
+                b.HasOne(t => t.RequesterUser)
+                    .WithMany(u => u.SupportTickets)
+                    .HasForeignKey(t => t.RequesterUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasIndex(t => new { t.RequesterUserId, t.UpdatedUtc });
+                b.HasIndex(t => new { t.Status, t.UpdatedUtc });
+                b.HasIndex(t => new { t.Category, t.Status, t.UpdatedUtc });
+            });
+
+            builder.Entity<SupportTicketMessage>(b =>
+            {
+                b.Property(m => m.AuthorUserId).HasMaxLength(450).IsRequired();
+                b.Property(m => m.Body).HasMaxLength(MiniPainterHub.Common.DTOs.SupportTicketRules.MaxMessageLength).IsRequired();
+
+                b.HasOne(m => m.Ticket)
+                    .WithMany(t => t.Messages)
+                    .HasForeignKey(m => m.TicketId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasOne(m => m.AuthorUser)
+                    .WithMany(u => u.SupportTicketMessages)
+                    .HasForeignKey(m => m.AuthorUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasIndex(m => new { m.TicketId, m.SentUtc, m.Id });
             });
         }
     }

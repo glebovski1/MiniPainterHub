@@ -35,6 +35,7 @@ Start here for durable MiniPainterHub project knowledge.
 ## Design And Visuals
 
 - [Design index](<../40 Design/README.md>)
+- [Product roadmap](<../40 Design/Product Roadmap.md>)
 - [Workshop gallery mockup](<../40 Design/Workshop Gallery/>)
 - [Visual assets index](<../50 Visual Assets/README.md>)
 - [Portfolio screenshots](<../50 Visual Assets/Portfolio Screenshots/>)

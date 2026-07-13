@@ -1,0 +1,43 @@
+@using MiniPainterHub.Common.DTOs
+
+<div class="support-thread" data-testid="support-thread">
+    @if (Ticket.Messages.Count == 0)
+    {
+        <EmptyState IconClass="bi bi-chat-square-text"
+                    Title="No messages yet"
+                    Description="The conversation will appear here."
+                    TitleTag="h3"
+                    TitleClass="empty-state__title h5"
+                    ClassName="empty-state empty-state--compact" />
+    }
+    else
+    {
+        @foreach (var message in Ticket.Messages.OrderBy(message => message.SentUtc))
+        {
+            <article class="support-message @(message.IsStaffReply ? "support-message--staff" : "support-message--requester") @(message.IsMine ? "support-message--mine" : string.Empty)"
+                     data-testid="support-message">
+                <div class="support-message__avatar" aria-hidden="true">
+                    <i class="bi @(message.IsStaffReply ? "bi-headset" : "bi-person")"></i>
+                </div>
+                <div class="support-message__content">
+                    <header class="support-message__header">
+                        <div>
+                            <strong>@message.AuthorDisplayName</strong>
+                            @if (message.IsStaffReply)
+                            {
+                                <span class="support-message__staff-label">Admin</span>
+                            }
+                        </div>
+                        <time datetime="@message.SentUtc.ToString("O")">@message.SentUtc.ToLocalTime().ToString("MMM d, yyyy - h:mm tt")</time>
+                    </header>
+                    <p class="support-message__body">@message.Body</p>
+                </div>
+            </article>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public SupportTicketDto Ticket { get; set; } = default!;
+}

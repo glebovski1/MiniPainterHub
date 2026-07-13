@@ -8,6 +8,7 @@ Update triggers: new active design artifacts, a design plan becomes superseded, 
 
 ## Active Design References
 
+- [Product roadmap](<Product Roadmap.md>)
 - [Workshop Gallery export spec](<Workshop Gallery/export-spec.md>)
 - [Workshop Gallery mockup package](<Workshop Gallery/>)
 

@@ -1,0 +1,207 @@
+@page "/support/{Id:int}"
+@attribute [Authorize]
+@inject ISupportTicketService SupportTickets
+
+<PageTitle>@(_ticket is null ? "Support request" : _ticket.Subject)</PageTitle>
+
+<div class="page-shell content-stack support-details-page">
+    <nav aria-label="Breadcrumb">
+        <NavLink class="support-back-link" href="/support">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+            <span>All support requests</span>
+        </NavLink>
+    </nav>
+
+    @if (_loading)
+    {
+        <div class="status-panel status-panel--info" data-testid="support-detail-loading">
+            <div class="status-panel__icon"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Loading conversation</div>
+                <p class="status-panel__text mb-0">Getting the latest messages from the admin team.</p>
+            </div>
+        </div>
+    }
+    else if (_ticket is null)
+    {
+        <div class="status-panel status-panel--error" role="alert" data-testid="support-detail-error">
+            <div class="status-panel__icon"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Request unavailable</div>
+                <p class="status-panel__text mb-0">@_loadError</p>
+            </div>
+            <button class="btn btn-link btn-sm ms-auto" type="button" @onclick="LoadAsync">Retry</button>
+        </div>
+    }
+    else
+    {
+        <section class="support-ticket-heading" data-testid="support-ticket-detail">
+            <div class="support-ticket-heading__copy">
+                <div class="support-ticket-heading__meta">
+                    <span class="support-ticket-heading__category">@FormatCategory(_ticket.Category)</span>
+                    <span class="@GetStatusClass(_ticket.Status)">@FormatStatus(_ticket.Status)</span>
+                    <span>Request #@_ticket.Id</span>
+                </div>
+                <h1>@_ticket.Subject</h1>
+                <p>Opened @_ticket.CreatedUtc.ToLocalTime().ToString("MMMM d, yyyy") - Updated @_ticket.UpdatedUtc.ToLocalTime().ToString("MMM d, h:mm tt")</p>
+            </div>
+            <span class="support-ticket-heading__icon"><i class="bi bi-life-preserver" aria-hidden="true"></i></span>
+        </section>
+
+        @if (_ticket.Status == SupportTicketStatuses.Resolved)
+        {
+            <div class="status-panel status-panel--success" data-testid="support-resolved-state">
+                <div class="status-panel__icon"><i class="bi bi-check-circle" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">This request is resolved</div>
+                    <p class="status-panel__text mb-0">If you still need help, reply below and the request will reopen automatically.</p>
+                </div>
+            </div>
+        }
+
+        <section class="surface-card support-conversation-card">
+            <SectionHeader Eyebrow="Private conversation"
+                           Title="Messages"
+                           Description="Visible only to you and MiniPainterHub admins."
+                           TitleTag="h2"
+                           TitleClass="section-heading__title h3 mb-0"
+                           SectionName="Support Messages" />
+            <SupportTicketThread Ticket="_ticket" />
+        </section>
+
+        <section class="surface-card support-reply-card">
+            <div>
+                <span class="section-label">Your reply</span>
+                <h2>@(_ticket.Status == SupportTicketStatuses.Resolved ? "Reopen this request" : "Continue the conversation")</h2>
+                <p>@(_ticket.Status == SupportTicketStatuses.Resolved ? "Sending a reply will move this request back to the admin queue." : "Add any details that will help the admins respond.")</p>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_replyError))
+            {
+                <div class="status-panel status-panel--error" role="alert" data-testid="support-reply-error">
+                    <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                    <div>
+                        <div class="status-panel__title">Reply not sent</div>
+                        <p class="status-panel__text mb-0">@_replyError</p>
+                    </div>
+                </div>
+            }
+
+            <EditForm Model="_reply" OnValidSubmit="ReplyAsync">
+                <DataAnnotationsValidator />
+                <label class="form-label" for="support-reply">Message</label>
+                <InputTextArea id="support-reply" class="form-control" data-testid="support-reply-input" maxlength="@SupportTicketRules.MaxMessageLength" @bind-Value="_reply.Body" />
+                <ValidationMessage For="@(() => _reply.Body)" />
+                <div class="support-reply-actions">
+                    <span>@(_reply.Body?.Length ?? 0)/@SupportTicketRules.MaxMessageLength</span>
+                    <button class="btn btn-primary" type="submit" data-testid="support-reply-submit" disabled="@_replying">
+                        <i class="bi bi-send" aria-hidden="true"></i>
+                        <span>@(_replying ? "Sending..." : _ticket.Status == SupportTicketStatuses.Resolved ? "Reply & reopen" : "Send reply")</span>
+                    </button>
+                </div>
+            </EditForm>
+        </section>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private SupportTicketDto? _ticket;
+    private CreateSupportTicketMessageDto _reply = new();
+    private bool _loading = true;
+    private bool _replying;
+    private string? _loadError;
+    private string? _replyError;
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _loadError = null;
+        try
+        {
+            var result = await SupportTickets.GetAsync(Id);
+            if (!result.Success || result.Value is null)
+            {
+                _ticket = null;
+                _loadError = "We couldn't find this support request or you don't have access to it.";
+                return;
+            }
+
+            _ticket = result.Value;
+            if (_ticket.HasUnreadStaffReply)
+            {
+                await SupportTickets.MarkReadAsync(Id, _ticket.LastStaffReplyUtc);
+            }
+        }
+        catch
+        {
+            _ticket = null;
+            _loadError = "We couldn't load this support request. Please try again.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ReplyAsync()
+    {
+        if (_ticket is null)
+        {
+            return;
+        }
+
+        _replying = true;
+        _replyError = null;
+        try
+        {
+            var result = await SupportTickets.ReplyAsync(Id, _reply);
+            if (!result.Success || result.Value is null)
+            {
+                _replyError = "We couldn't send your reply. Your message is still here so you can retry.";
+                return;
+            }
+
+            _ticket = result.Value;
+            _reply = new CreateSupportTicketMessageDto();
+            await SupportTickets.RefreshUnreadCountAsync();
+        }
+        catch
+        {
+            _replyError = "We couldn't send your reply. Your message is still here so you can retry.";
+        }
+        finally
+        {
+            _replying = false;
+        }
+    }
+
+    private static string FormatCategory(string category) => category switch
+    {
+        SupportTicketCategories.Bug => "Bug",
+        SupportTicketCategories.Account => "Account",
+        SupportTicketCategories.Safety => "Safety",
+        SupportTicketCategories.Suggestion => "Suggestion",
+        _ => "Other"
+    };
+
+    private static string FormatStatus(string status) => status switch
+    {
+        SupportTicketStatuses.WaitingForAdmin => "Waiting for admin",
+        SupportTicketStatuses.WaitingForUser => "Waiting for you",
+        SupportTicketStatuses.Resolved => "Resolved",
+        _ => "New"
+    };
+
+    private static string GetStatusClass(string status) => status switch
+    {
+        SupportTicketStatuses.WaitingForUser => "badge text-bg-warning",
+        SupportTicketStatuses.Resolved => "badge text-bg-success",
+        SupportTicketStatuses.WaitingForAdmin => "badge text-bg-light",
+        _ => "badge text-bg-primary"
+    };
+}

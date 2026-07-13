@@ -1165,6 +1165,69 @@ const scenarioGroups = {
     });
   },
 
+  async support({ page, request, manifest }) {
+    await startFreshState(page, request);
+    await loginAsSeedUser(page, request);
+    await setViewport(page, VIEWPORTS.desktop);
+
+    await page.goto("/support");
+    await expect(page.getByTestId("support-empty")).toBeVisible();
+    await capture(page, manifest, {
+      name: "support-empty-desktop",
+      group: "support",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      stateTags: ["support", "desktop", "empty"]
+    });
+
+    await page.goto("/support/new");
+    await page.getByTestId("support-create-submit").click();
+    await capture(page, manifest, {
+      name: "support-create-validation-desktop",
+      group: "support",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      stateTags: ["support", "desktop", "composer", "validation"]
+    });
+
+    await page.getByTestId("support-category").selectOption("Bug");
+    await page.getByTestId("support-subject").fill("UI review upload issue");
+    await page.getByTestId("support-message-input").fill("The upload stops before the preview appears. This seeded request verifies the complete support thread layout.");
+    await page.getByTestId("support-create-submit").click();
+    await expect(page).toHaveURL(/\/support\/\d+$/);
+    await expect(page.getByTestId("support-ticket-detail")).toBeVisible();
+    await capture(page, manifest, {
+      name: "support-thread-populated-desktop",
+      group: "support",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      stateTags: ["support", "desktop", "thread", "populated"]
+    });
+
+    await setViewport(page, VIEWPORTS.mobile);
+    await capture(page, manifest, {
+      name: "support-thread-populated-mobile",
+      group: "support",
+      viewport: VIEWPORTS.mobile,
+      authState: "seed-user",
+      stateTags: ["support", "mobile", "thread", "populated"]
+    });
+
+    await clearClientState(page);
+    await loginAsAdmin(page, request);
+    await setViewport(page, VIEWPORTS.desktop);
+    await page.goto("/admin/support");
+    await expect(page.getByTestId("admin-support-row").first()).toBeVisible();
+    await expect(page.getByTestId("admin-support-inspector")).toContainText("UI review upload issue");
+    await capture(page, manifest, {
+      name: "admin-support-queue-populated-desktop",
+      group: "support",
+      viewport: VIEWPORTS.desktop,
+      authState: "admin",
+      stateTags: ["support", "admin", "desktop", "queue", "populated"]
+    });
+  },
+
   async connections({ page, request, manifest }) {
     await ensureFollowedSeededAdmin(page, request);
     await setViewport(page, VIEWPORTS.desktop);

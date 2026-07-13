@@ -90,9 +90,21 @@ internal static class BunitTestContextExtensions
 
     public static StubConversationService AddConversationStub(this TestContext context, StubConversationService? stub = null)
     {
+        if (!context.Services.Any(service => service.ServiceType == typeof(ISupportTicketService)))
+        {
+            context.AddSupportStub();
+        }
+
         stub ??= new StubConversationService();
         context.Services.AddSingleton<IConversationService>(stub);
         context.Services.AddSingleton<IConversationSummaryService>(stub);
+        return stub;
+    }
+
+    public static StubSupportTicketService AddSupportStub(this TestContext context, StubSupportTicketService? stub = null)
+    {
+        stub ??= new StubSupportTicketService();
+        context.Services.AddSingleton<ISupportTicketService>(stub);
         return stub;
     }
 

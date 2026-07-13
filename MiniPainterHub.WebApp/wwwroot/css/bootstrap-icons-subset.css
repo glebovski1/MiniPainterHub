@@ -32,6 +32,7 @@
 .bi-box-arrow-in-right::before { content: "\f1be"; }
 .bi-box-arrow-right::before { content: "\f1c3"; }
 .bi-brush::before { content: "\f1d8"; }
+.bi-bug::before { content: "\f1dc"; }
 .bi-chat::before { content: "\f268"; }
 .bi-chat-dots::before { content: "\f24a"; }
 .bi-chat-left-dots::before { content: "\f24d"; }
@@ -42,6 +43,7 @@
 .bi-check-circle::before { content: "\f26b"; }
 .bi-check2::before { content: "\f272"; }
 .bi-check2-circle::before { content: "\f270"; }
+.bi-chevron-right::before { content: "\f285"; }
 .bi-circle::before { content: "\f28a"; }
 .bi-clock-history::before { content: "\f292"; }
 .bi-cloud-arrow-up::before { content: "\f297"; }
@@ -62,6 +64,7 @@
 .bi-graph-up::before { content: "\f3f2"; }
 .bi-grid::before { content: "\f3fc"; }
 .bi-grid-1x2::before { content: "\f3f4"; }
+.bi-headset::before { content: "\f414"; }
 .bi-heart::before { content: "\f417"; }
 .bi-heart-fill::before { content: "\f415"; }
 .bi-hourglass-split::before { content: "\f41f"; }
@@ -76,6 +79,8 @@
 .bi-journal-x::before { content: "\f445"; }
 .bi-layout-sidebar-inset::before { content: "\f45d"; }
 .bi-layout-sidebar-inset-reverse::before { content: "\f45c"; }
+.bi-life-preserver::before { content: "\f467"; }
+.bi-lightbulb::before { content: "\f46b"; }
 .bi-megaphone::before { content: "\f484"; }
 .bi-palette2::before { content: "\f4b2"; }
 .bi-pencil::before { content: "\f4cb"; }
@@ -85,12 +90,15 @@
 .bi-person-badge::before { content: "\f4d3"; }
 .bi-person-circle::before { content: "\f4d7"; }
 .bi-person-exclamation::before { content: "\f89c"; }
+.bi-person-lock::before { content: "\f8a8"; }
 .bi-person-plus::before { content: "\f4dd"; }
 .bi-person-x::before { content: "\f4e0"; }
 .bi-pin-angle::before { content: "\f4eb"; }
 .bi-plus-circle::before { content: "\f4fa"; }
 .bi-plus-lg::before { content: "\f64d"; }
 .bi-search::before { content: "\f52a"; }
+.bi-send::before { content: "\f6c0"; }
+.bi-shield-check::before { content: "\f52f"; }
 .bi-shield-exclamation::before { content: "\f530"; }
 .bi-shield-lock::before { content: "\f538"; }
 .bi-speedometer2::before { content: "\f580"; }

@@ -70,6 +70,7 @@ public class Program
         builder.Services.AddScoped<IFollowService, FollowService>();
         builder.Services.AddScoped<IConversationSummaryService, ConversationSummaryService>();
         builder.Services.AddScoped<IConversationService, ConversationService>();
+        builder.Services.AddScoped<ISupportTicketService, SupportTicketService>();
         builder.Services.AddScoped<IClientPerformanceMetrics, ClientPerformanceMetricsService>();
 
         //------------------------------------------------------------

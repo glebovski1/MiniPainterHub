@@ -862,6 +862,96 @@ namespace MiniPainterHub.Server.Migrations
                     b.ToTable("Profiles");
                 });
 
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.SupportTicket", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastStaffReplyUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("RequesterReadUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RequesterUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("ResolvedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(140)
+                        .HasColumnType("nvarchar(140)");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Category", "Status", "UpdatedUtc");
+
+                    b.HasIndex("RequesterUserId", "UpdatedUtc");
+
+                    b.HasIndex("Status", "UpdatedUtc");
+
+                    b.ToTable("SupportTickets");
+                });
+
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.SupportTicketMessage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AuthorUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<bool>("IsStaffReply")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("SentUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("TicketId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorUserId");
+
+                    b.HasIndex("TicketId", "SentUtc", "Id");
+
+                    b.ToTable("SupportTicketMessages");
+                });
+
             modelBuilder.Entity("MiniPainterHub.Server.Entities.Tag", b =>
                 {
                     b.Property<int>("Id")
@@ -1269,6 +1359,36 @@ namespace MiniPainterHub.Server.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.SupportTicket", b =>
+                {
+                    b.HasOne("MiniPainterHub.Server.Identity.ApplicationUser", "RequesterUser")
+                        .WithMany("SupportTickets")
+                        .HasForeignKey("RequesterUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("RequesterUser");
+                });
+
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.SupportTicketMessage", b =>
+                {
+                    b.HasOne("MiniPainterHub.Server.Identity.ApplicationUser", "AuthorUser")
+                        .WithMany("SupportTicketMessages")
+                        .HasForeignKey("AuthorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MiniPainterHub.Server.Entities.SupportTicket", "Ticket")
+                        .WithMany("Messages")
+                        .HasForeignKey("TicketId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AuthorUser");
+
+                    b.Navigation("Ticket");
+                });
+
             modelBuilder.Entity("MiniPainterHub.Server.Entities.Comment", b =>
                 {
                     b.Navigation("ViewerMark");
@@ -1304,6 +1424,11 @@ namespace MiniPainterHub.Server.Migrations
                     b.Navigation("CommentMarks");
                 });
 
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.SupportTicket", b =>
+                {
+                    b.Navigation("Messages");
+                });
+
             modelBuilder.Entity("MiniPainterHub.Server.Entities.Tag", b =>
                 {
                     b.Navigation("PostTags");
@@ -1320,6 +1445,10 @@ namespace MiniPainterHub.Server.Migrations
                     b.Navigation("Profile");
 
                     b.Navigation("SentMessages");
+
+                    b.Navigation("SupportTicketMessages");
+
+                    b.Navigation("SupportTickets");
                 });
 #pragma warning restore 612, 618
         }

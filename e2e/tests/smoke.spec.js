@@ -1252,6 +1252,49 @@ test("messages thread loads and sending works", async ({ page, request }) => {
   await expect(page.locator(".message-thread .message-bubble").filter({ hasText: messageBody }).last()).toBeVisible();
 });
 
+test("support request flows from user to admin and can be reopened", async ({ page }) => {
+  const subject = `Smoke support ${Date.now()}`;
+  const initialMessage = "The image upload stops before the preview appears.";
+  const adminReply = "Please retry with an image smaller than the upload limit.";
+  const reopenReply = "I retried with a smaller image and still need help.";
+
+  await loginAsSeedUser(page);
+  await page.goto("/support/new");
+  await page.getByTestId("support-category").selectOption("Bug");
+  await page.getByTestId("support-subject").fill(subject);
+  await page.getByTestId("support-message-input").fill(initialMessage);
+  await page.getByTestId("support-create-submit").click();
+  await expect(page).toHaveURL(/\/support\/\d+$/);
+  await expect(page.getByTestId("support-ticket-detail")).toContainText(subject);
+
+  await clearAuth(page);
+  await loginAsAdmin(page);
+  await page.goto("/admin/support");
+  await page.getByTestId("admin-support-search").fill(subject);
+  await page.getByTestId("admin-support-apply").click();
+  await expect(page.getByTestId("admin-support-row").first()).toContainText(subject);
+  await page.getByTestId("admin-support-select").first().click();
+  await expect(page.getByTestId("admin-support-inspector")).toContainText(initialMessage);
+  await page.getByTestId("admin-support-reply-input").fill(adminReply);
+  await page.getByTestId("admin-support-reply-submit").click();
+  await expect(page.getByTestId("admin-support-inspector")).toContainText(adminReply);
+  await page.getByTestId("admin-support-resolve").click();
+  await expect(page.getByTestId("admin-support-inspector")).toContainText("Resolved");
+
+  await clearAuth(page);
+  await loginAsSeedUser(page);
+  await page.goto("/support");
+  const ticketCard = page.getByTestId("support-ticket-card").filter({ hasText: subject }).first();
+  await expect(ticketCard).toContainText("New reply");
+  await ticketCard.click();
+  await expect(page.getByTestId("support-resolved-state")).toBeVisible();
+  await expect(page.getByTestId("support-thread")).toContainText(adminReply);
+  await page.getByTestId("support-reply-input").fill(reopenReply);
+  await page.getByTestId("support-reply-submit").click();
+  await expect(page.getByTestId("support-ticket-detail")).toContainText("Waiting for admin");
+  await expect(page.getByTestId("support-resolved-state")).toHaveCount(0);
+});
+
 test("admin can hide and restore post from the admin inbox", async ({ page }) => {
   await loginAsAdmin(page);
   const { title } = await createPost(page, "admin-post-moderation");

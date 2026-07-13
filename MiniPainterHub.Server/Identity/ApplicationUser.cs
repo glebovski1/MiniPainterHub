@@ -28,5 +28,9 @@ namespace MiniPainterHub.Server.Identity
         public ICollection<ConversationParticipant> ConversationParticipants { get; set; } = new List<ConversationParticipant>();
 
         public ICollection<DirectMessage> SentMessages { get; set; } = new List<DirectMessage>();
+
+        public ICollection<SupportTicket> SupportTickets { get; set; } = new List<SupportTicket>();
+
+        public ICollection<SupportTicketMessage> SupportTicketMessages { get; set; } = new List<SupportTicketMessage>();
     }
 }

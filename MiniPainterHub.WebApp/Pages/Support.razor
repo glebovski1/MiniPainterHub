@@ -1,0 +1,217 @@
+@page "/support"
+@attribute [Authorize]
+@inject ISupportTicketService SupportTickets
+@inject NavigationManager Nav
+
+<PageTitle>Support</PageTitle>
+
+<div class="page-shell content-stack support-page">
+    <PageHero Eyebrow="Support center"
+              Title="How can we help?"
+              Description="Send a private request to the MiniPainterHub admins and keep every reply together in one thread."
+              FrameName="Support Header">
+        <Actions>
+            <NavLink class="btn btn-primary" href="/support/new" data-testid="support-new-link">
+                <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                <span>New request</span>
+            </NavLink>
+        </Actions>
+    </PageHero>
+
+    <section class="support-overview" aria-label="Support overview">
+        <div class="support-overview__copy">
+            <span class="section-label">Your requests</span>
+            <h2>Conversations with the admin team</h2>
+            <p>Replies stay private between you and MiniPainterHub admins.</p>
+        </div>
+        <div class="support-overview__metrics">
+            <div class="metric-chip">
+                <span class="metric-chip__label">Open</span>
+                <span class="metric-chip__value">@_tickets.Count(ticket => ticket.Status != SupportTicketStatuses.Resolved)</span>
+            </div>
+            <div class="metric-chip">
+                <span class="metric-chip__label">Unread</span>
+                <span class="metric-chip__value">@_tickets.Count(ticket => ticket.HasUnreadStaffReply)</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="support-filter-bar" aria-label="Ticket filters">
+        <div>
+            <label class="form-label" for="support-status-filter">Status</label>
+            <select id="support-status-filter" class="form-select" data-testid="support-status-filter" @bind="_query.Status">
+                <option value="">All statuses</option>
+                <option value="@SupportTicketStatuses.New">New</option>
+                <option value="@SupportTicketStatuses.WaitingForAdmin">Waiting for admin</option>
+                <option value="@SupportTicketStatuses.WaitingForUser">Waiting for you</option>
+                <option value="@SupportTicketStatuses.Resolved">Resolved</option>
+            </select>
+        </div>
+        <button class="btn btn-outline-secondary" type="button" data-testid="support-filter-apply" @onclick="ApplyFilterAsync" disabled="@_loading">
+            @(_loading ? "Loading..." : "Apply filter")
+        </button>
+    </section>
+
+    @if (_loading)
+    {
+        <div class="status-panel status-panel--info" data-testid="support-loading">
+            <div class="status-panel__icon"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Loading your requests</div>
+                <p class="status-panel__text mb-0">Checking for the latest admin replies.</p>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="status-panel status-panel--error" role="alert" data-testid="support-error">
+            <div class="status-panel__icon"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Support requests unavailable</div>
+                <p class="status-panel__text mb-0">@_error</p>
+            </div>
+            <button class="btn btn-link btn-sm ms-auto" type="button" @onclick="LoadAsync">Retry</button>
+        </div>
+    }
+    else if (_tickets.Count == 0)
+    {
+        <EmptyState IconClass="bi bi-life-preserver"
+                    Title="No support requests yet"
+                    Description="Need a hand with your account, a bug, or a safety concern? Start a private request."
+                    TitleClass="empty-state__title h4"
+                    TestId="support-empty">
+            <NavLink class="btn btn-primary mt-2" href="/support/new">Create your first request</NavLink>
+        </EmptyState>
+    }
+    else
+    {
+        <div class="support-ticket-list" data-testid="support-ticket-list">
+            @foreach (var ticket in _tickets)
+            {
+                <button type="button" class="support-ticket-card @(ticket.HasUnreadStaffReply ? "support-ticket-card--unread" : string.Empty)"
+                        data-testid="support-ticket-card"
+                        @onclick="() => OpenTicket(ticket.Id)">
+                    <span class="support-ticket-card__marker" aria-hidden="true"><i class="bi @GetCategoryIcon(ticket.Category)"></i></span>
+                    <span class="support-ticket-card__content">
+                        <span class="support-ticket-card__topline">
+                            <span class="support-ticket-card__category">@FormatCategory(ticket.Category)</span>
+                            <span class="@GetStatusClass(ticket.Status)">@FormatStatus(ticket.Status)</span>
+                        </span>
+                        <strong>@ticket.Subject</strong>
+                        <span class="support-ticket-card__preview">@ticket.LatestMessagePreview</span>
+                        <span class="support-ticket-card__meta">Updated @ticket.UpdatedUtc.ToLocalTime().ToString("MMM d - h:mm tt")</span>
+                    </span>
+                    @if (ticket.HasUnreadStaffReply)
+                    {
+                        <span class="support-ticket-card__unread">New reply</span>
+                    }
+                    <i class="bi bi-chevron-right support-ticket-card__chevron" aria-hidden="true"></i>
+                </button>
+            }
+        </div>
+
+        <div class="paginator-bar">
+            <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="PreviousPageAsync" disabled="@(_query.PageNumber <= 1 || _loading)">Previous</button>
+            <span class="text-muted">Page @_query.PageNumber of @_totalPages</span>
+            <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="NextPageAsync" disabled="@(_query.PageNumber >= _totalPages || _loading)">Next</button>
+        </div>
+    }
+</div>
+
+@code {
+    private readonly SupportTicketQueryDto _query = new()
+    {
+        Status = null,
+        PageNumber = 1,
+        PageSize = 20
+    };
+    private IReadOnlyList<SupportTicketSummaryDto> _tickets = Array.Empty<SupportTicketSummaryDto>();
+    private int _totalPages = 1;
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var result = await SupportTickets.GetMineAsync(_query);
+            if (!result.Success || result.Value is null)
+            {
+                _tickets = Array.Empty<SupportTicketSummaryDto>();
+                _error = "We couldn't load your support history. Please try again.";
+                return;
+            }
+
+            _tickets = result.Value.Items.ToList();
+            _totalPages = Math.Max(1, (int)Math.Ceiling(result.Value.TotalCount / (double)Math.Max(1, result.Value.PageSize)));
+            await SupportTickets.RefreshUnreadCountAsync();
+        }
+        catch
+        {
+            _tickets = Array.Empty<SupportTicketSummaryDto>();
+            _error = "We couldn't load your support history. Please try again.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ApplyFilterAsync()
+    {
+        _query.PageNumber = 1;
+        await LoadAsync();
+    }
+
+    private async Task PreviousPageAsync()
+    {
+        _query.PageNumber--;
+        await LoadAsync();
+    }
+
+    private async Task NextPageAsync()
+    {
+        _query.PageNumber++;
+        await LoadAsync();
+    }
+
+    private void OpenTicket(int ticketId) => Nav.NavigateTo($"/support/{ticketId}");
+
+    private static string GetCategoryIcon(string category) => category switch
+    {
+        SupportTicketCategories.Bug => "bi-bug",
+        SupportTicketCategories.Account => "bi-person-lock",
+        SupportTicketCategories.Safety => "bi-shield-check",
+        SupportTicketCategories.Suggestion => "bi-lightbulb",
+        _ => "bi-chat-square-text"
+    };
+
+    private static string FormatCategory(string category) => category switch
+    {
+        SupportTicketCategories.Bug => "Bug",
+        SupportTicketCategories.Account => "Account",
+        SupportTicketCategories.Safety => "Safety",
+        SupportTicketCategories.Suggestion => "Suggestion",
+        _ => "Other"
+    };
+
+    private static string FormatStatus(string status) => status switch
+    {
+        SupportTicketStatuses.WaitingForAdmin => "Waiting for admin",
+        SupportTicketStatuses.WaitingForUser => "Waiting for you",
+        SupportTicketStatuses.Resolved => "Resolved",
+        _ => "New"
+    };
+
+    private static string GetStatusClass(string status) => status switch
+    {
+        SupportTicketStatuses.WaitingForUser => "badge text-bg-warning",
+        SupportTicketStatuses.Resolved => "badge text-bg-success",
+        SupportTicketStatuses.WaitingForAdmin => "badge text-bg-light",
+        _ => "badge text-bg-primary"
+    };
+}

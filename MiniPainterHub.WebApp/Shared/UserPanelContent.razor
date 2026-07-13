@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Components.Routing
 @using Microsoft.Extensions.DependencyInjection
 @inject IConversationSummaryService ConversationSummaries
+@inject ISupportTicketService SupportTickets
 @inject IServiceProvider Services
 
 <div class="dashboard-sidebar-content">
@@ -92,6 +93,15 @@
                             Split="true"
                             Match="NavLinkMatch.Prefix" />
 
+            <SidebarNavItem Href="/support"
+                            IconClass="bi bi-life-preserver"
+                            Title="Support"
+                            Description=""
+                            BadgeText="@(SupportTickets.UnreadCount > 0 ? SupportTickets.UnreadCount.ToString() : null)"
+                            Split="true"
+                            TestId="support-nav-link"
+                            Match="NavLinkMatch.Prefix" />
+
             <SidebarNavItem Href="/posts/mine"
                             IconClass="bi bi-brush"
                             Title="My posts"
@@ -128,6 +138,12 @@
 
                     <AuthorizeView Roles="Admin">
                         <Authorized Context="adminAuth">
+                            <SidebarNavItem Href="/admin/support"
+                                            IconClass="bi bi-headset"
+                                            Title="Support"
+                                            Description=""
+                                            TestId="admin-nav-support" />
+
                             <SidebarNavItem Href="/admin/controls"
                                             IconClass="bi bi-shield-lock"
                                             Title="Controls"
@@ -172,7 +188,9 @@
     protected override async Task OnInitializedAsync()
     {
         ConversationSummaries.OnChange += HandleConversationChange;
+        SupportTickets.UnreadCountChanged += HandleSupportUnreadCountChanged;
         await ConversationSummaries.GetConversationsAsync(forceRefresh: true);
+        await SupportTickets.RefreshUnreadCountAsync();
 
         var profiles = Services.GetService<IProfileService>();
         if (profiles is null)
@@ -195,9 +213,15 @@
         _ = InvokeAsync(StateHasChanged);
     }
 
+    private void HandleSupportUnreadCountChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
     public void Dispose()
     {
         ConversationSummaries.OnChange -= HandleConversationChange;
+        SupportTickets.UnreadCountChanged -= HandleSupportUnreadCountChanged;
     }
 
     private string GetDisplayName(AuthenticationState auth)

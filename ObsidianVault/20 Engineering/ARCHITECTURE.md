@@ -140,6 +140,8 @@ Domain DbSets:
 - `Conversations`
 - `ConversationParticipants`
 - `DirectMessages`
+- `SupportTickets`
+- `SupportTicketMessages`
 
 Entity relationships (configured in `OnModelCreating`):
 - `Profile` one-to-one with `ApplicationUser` (shared PK/FK `UserId`).
@@ -154,6 +156,8 @@ Entity relationships (configured in `OnModelCreating`):
 - `ContentReport` stores moderation queue state for post/comment/user reports.
 - `Follow` models the social graph between `ApplicationUser` rows.
 - `Conversation`/`ConversationParticipant`/`DirectMessage` model direct messaging.
+- `SupportTicket` -> `ApplicationUser` (requester) with restrict delete; `SupportTicketMessage` -> `SupportTicket` with cascade delete and -> `ApplicationUser` (author) with restrict delete.
+- Support tickets store category, workflow status, activity/resolution timestamps, last staff reply, and requester read time. Messages preserve whether the author was acting as support staff so historical presentation does not depend on current roles.
 - `Like` has a database-level unique index on `(PostId, UserId)`; service code treats duplicate insert races as an already-liked outcome.
 - Direct one-to-one conversations store a deterministic `DirectConversationKey` with a filtered unique index. The key is generated from the sorted participant IDs so reverse-order conversation creation resolves to the same thread.
 
@@ -229,6 +233,14 @@ Main controllers under `MiniPainterHub.Server/Controllers`:
   - `GET /`
   - `GET /{id}`
   - `POST /` (admin-only JSON create)
+- `SupportTicketsController` (`/api/support/tickets`) for authenticated requester-owned support threads
+  - `GET /` and `GET /{id}`
+  - `POST /` and `POST /{id}/messages`
+  - `GET /unread-count` and `POST /{id}/read`
+- `AdminSupportTicketsController` (`/api/admin/support/tickets`) for Admin-only support operations
+  - `GET /` and `GET /{id}`
+  - `POST /{id}/messages`
+  - `PUT /{id}/status`
 
 ## 5) Image Processing and Storage
 
@@ -280,7 +292,7 @@ The WebApp is a Blazor WebAssembly SPA:
   - standardized error parsing
   - notification handling
 
-Service clients in `MiniPainterHub.WebApp/Services` mirror server domains (`AuthService`, `PostService`, `PaintingGuideService`, `NewsAnnouncementService`, `CommentService`, `LikeService`, `ProfileService`, `SearchService`, `ReportService`, `FollowService`, `ConversationService`).
+Service clients in `MiniPainterHub.WebApp/Services` mirror server domains (`AuthService`, `PostService`, `PaintingGuideService`, `NewsAnnouncementService`, `CommentService`, `LikeService`, `ProfileService`, `SearchService`, `ReportService`, `FollowService`, `ConversationService`, `SupportTicketService`).
 Service clients also include moderation flows (`ModerationService`) and keep query DTO/filter parity with the server API.
 
 Guide UX composition:
@@ -291,6 +303,10 @@ Guide UX composition:
 News UX composition:
 - `Pages/News/NewsList.razor` and `Pages/News/NewsDetails.razor` expose public announcements.
 - `Pages/Admin/CreateNewsAnnouncement.razor` is the admin-authored announcement composer.
+
+Support UX composition:
+- `Pages/Support.razor`, `Pages/SupportCreate.razor`, and `Pages/SupportDetails.razor` provide authenticated ticket history, creation, unread acknowledgement, threaded replies, and requester-driven reopening.
+- `Pages/Admin/Support.razor` provides the Admin-only support queue, filtering, inspection, replies, and resolution. Moderators do not receive this route or navigation entry.
 
 Admin UX composition:
 - Left collapsible user panel (`Layout/MainLayout.razor` + `Shared/UserPanelContent.razor`) is the primary entry for admin actions.
