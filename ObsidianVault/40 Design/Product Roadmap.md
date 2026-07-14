@@ -13,8 +13,8 @@ Related notes: [Design index](<README.md>), [Architecture](<../20 Engineering/AR
 | Priority | Feature | Status |
 | --- | --- | --- |
 | 1 | Support Center | Implemented |
-| 2 | Google authentication | Planned |
-| 3 | Hobby Projects | Planned |
+| 2 | Google authentication | Implemented |
+| 3 | Hobby Projects | Implemented |
 | 4 | AI Newsletter | Planned |
 
 ## 1. Support Center
@@ -31,7 +31,9 @@ Related notes: [Design index](<README.md>), [Architecture](<../20 Engineering/AR
 
 **Rationale:** easier account creation can improve activation before investing in features that require a larger active community.
 
-**Initial boundaries:** Google is the first external provider; external identity linking must avoid accidental account merges and issue the same application session used by password accounts. Discord authentication remains a later extension through the same provider model.
+**Status:** implemented and deploy-ready. Google remains disabled by default until the owner supplies Google credentials, configures the documented pilot callbacks and test users, and enables the production setting.
+
+**V1 delivered boundaries:** Google is the first external provider and issues the same role-bearing application session used by password accounts. New users complete username onboarding; matching email never auto-merges; linking is explicit and same-email only. Account security supports local-password setup and safe Google disconnection. The delivery includes short-lived single-use exchanges, persistent production data-protection configuration, legal pages, a Development/Test fake provider, Azure-pilot activation and rollback guidance, and complete automated/visual coverage. Discord, One Tap, avatars, live activation, general-public custom-domain verification, account deletion UI, email verification delivery, and password recovery remain outside this version.
 
 ## 3. Hobby Projects
 
@@ -39,7 +41,9 @@ Related notes: [Design index](<README.md>), [Architecture](<../20 Engineering/AR
 
 **Rationale:** the feature is useful to a single painter, encourages repeat posting, and creates a distinctive reason to return without splitting activity across separate diary and showcase content types.
 
-**Initial boundaries:** project metadata, progress status, milestones, and links to existing posts; diary and showcase are views of the same project. Painting guides remain separate instructional content.
+**Status:** implemented and verified.
+
+**V1 delivered boundaries:** single-owner projects reuse existing posts as the source of truth for images, tags, reactions, comments, recipes, and rich viewing. Each linked post belongs to at most one project; milestone labels turn diary posts into checkpoints; showcase entries are an owner-curated, manually ordered subset of image-bearing diary posts. Delivery includes metadata and lifecycle management, archive/restore, covers and fallbacks, project-aware publishing and atomic moves, public discovery/profile/post/search integration, reporting and moderation, responsive owner/public pages, deterministic fixtures, and complete relational, service, component, smoke, and visual coverage. Painting guides remain separate. Collaboration, communities, project-level social features, private/unlisted visibility, direct project uploads, duplicated media, per-image showcase selection, standalone task milestones, rosters/costs/points, AI recaps, and hard deletion remain outside this version.
 
 ## 4. AI Newsletter
 

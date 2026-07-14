@@ -99,4 +99,31 @@ public class ReportActionTests : TestContext
         cut.WaitForAssertion(() =>
             cut.Find("[data-testid='report-error']").TextContent.ToLowerInvariant().Should().Contain("couldn't submit the report"));
     }
+
+    [Fact]
+    public void Submit_ProjectReport_UsesProjectEndpoint()
+    {
+        this.SetAuthenticatedUser("viewer-user", "viewer");
+
+        int? capturedProjectId = null;
+        this.AddReportStub(new StubReportService
+        {
+            ReportProjectHandler = (projectId, _) =>
+            {
+                capturedProjectId = projectId;
+                return Task.FromResult(true);
+            }
+        });
+
+        var cut = RenderComponent<ReportAction>(parameters => parameters
+            .Add(p => p.TargetType, ReportTargetTypes.HobbyProject)
+            .Add(p => p.TargetId, "73")
+            .Add(p => p.OwnerUserId, "author-user")
+            .Add(p => p.TestIdPrefix, "project-report"));
+
+        cut.Find("[data-testid='project-report-toggle']").Click();
+        cut.Find("[data-testid='project-report-submit']").Click();
+
+        cut.WaitForAssertion(() => capturedProjectId.Should().Be(73));
+    }
 }

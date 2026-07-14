@@ -53,6 +53,8 @@
                                ClassName="section-heading section-heading--auth"
                                SectionName="Login Card" />
 
+                <GoogleSignInAction ReturnUrl="@ReturnUrl" />
+
                 <div class="form-grid mt-4">
                     <div>
                         <label for="login-username" class="form-label">Username</label>
@@ -113,6 +115,10 @@
 </div>
 
 @code {
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
     private readonly LoginDto _credentials = new();
     private ElementReference _errorElement;
     private string? _error;
@@ -135,7 +141,9 @@
             var outcome = await AuthService.LoginAsync(_credentials);
             if (outcome == LoginOutcome.Success)
             {
-                Nav.NavigateTo("/");
+                var suppliedReturnUrl = LocalReturnUrl.GetQueryParameter(Nav.Uri, "returnUrl") ?? ReturnUrl;
+                var destination = LocalReturnUrl.Normalize(suppliedReturnUrl, new Uri(Nav.BaseUri));
+                Nav.NavigateTo(destination, replace: true);
                 return;
             }
 

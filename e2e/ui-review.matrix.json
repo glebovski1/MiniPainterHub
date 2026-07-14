@@ -46,7 +46,18 @@
       "description": "Authentication entry screens.",
       "patterns": [
         "MiniPainterHub.WebApp/Pages/Login.razor",
-        "MiniPainterHub.WebApp/Pages/Registration.razor"
+        "MiniPainterHub.WebApp/Pages/Registration.razor",
+        "MiniPainterHub.WebApp/Pages/ExternalAuth*.razor",
+        "MiniPainterHub.WebApp/Pages/SignInMethods.razor",
+        "MiniPainterHub.WebApp/Shared/GoogleSignInAction.razor"
+      ]
+    },
+    "legal": {
+      "description": "Public privacy and terms information.",
+      "patterns": [
+        "MiniPainterHub.WebApp/Pages/Privacy.razor",
+        "MiniPainterHub.WebApp/Pages/Terms.razor",
+        "MiniPainterHub.WebApp/Shared/LegalDocument.razor"
       ]
     },
     "community": {
@@ -60,6 +71,16 @@
         "MiniPainterHub.WebApp/Shared/PostCard.razor.css",
         "MiniPainterHub.WebApp/Shared/CardList.razor",
         "MiniPainterHub.WebApp/Shared/TagBadgeList.razor"
+      ]
+    },
+    "projects": {
+      "description": "Public hobby-project discovery, owner management, diary, showcase, and project-aware publishing.",
+      "patterns": [
+        "MiniPainterHub.WebApp/Pages/Projects/**",
+        "MiniPainterHub.WebApp/Shared/HobbyProjectCard.razor",
+        "MiniPainterHub.WebApp/Shared/HobbyProjectCard.razor.css",
+        "MiniPainterHub.WebApp/Services/HobbyProjectService.cs",
+        "MiniPainterHub.WebApp/Services/Interfaces/IHobbyProjectService.cs"
       ]
     },
     "search": {

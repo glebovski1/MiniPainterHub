@@ -21,15 +21,18 @@ namespace MiniPainterHub.Server.Services
         private readonly AppDbContext _appDbContext;
         private readonly IPostImageAttachmentService _postImageAttachmentService;
         private readonly IAccountRestrictionService? _accountRestrictionService;
+        private readonly IHobbyProjectPostLinker? _hobbyProjectPostLinker;
 
         public PostService(
             AppDbContext appDbContext,
             IPostImageAttachmentService postImageAttachmentService,
-            IAccountRestrictionService? accountRestrictionService = null)
+            IAccountRestrictionService? accountRestrictionService = null,
+            IHobbyProjectPostLinker? hobbyProjectPostLinker = null)
         {
             _appDbContext = appDbContext ?? throw new ArgumentNullException(nameof(appDbContext));
             _postImageAttachmentService = postImageAttachmentService ?? throw new ArgumentNullException(nameof(postImageAttachmentService));
             _accountRestrictionService = accountRestrictionService;
+            _hobbyProjectPostLinker = hobbyProjectPostLinker;
         }
 
         public async Task<PostDto> CreateAsync(string userId, CreatePostDto dto)
@@ -89,8 +92,32 @@ namespace MiniPainterHub.Server.Services
             }
 
             _appDbContext.Posts.Add(newPost);
+            if (dto.ProjectId.HasValue)
+            {
+                if (_hobbyProjectPostLinker is null)
+                {
+                    throw new InvalidOperationException("Hobby project post linking is unavailable.");
+                }
+
+                await _hobbyProjectPostLinker.LinkNewPostAsync(userId, newPost, dto.ProjectId.Value, dto.MilestoneLabel);
+            }
+            else if (!string.IsNullOrWhiteSpace(dto.MilestoneLabel))
+            {
+                throw new DomainValidationException("Invalid project link.", new Dictionary<string, string[]>
+                {
+                    ["milestoneLabel"] = new[] { "A milestone label requires a hobby project." }
+                });
+            }
+
             await SyncTagsAsync(newPost, dto.Tags);
-            await _appDbContext.SaveChangesAsync();
+            try
+            {
+                await _appDbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (dto.ProjectId.HasValue && IsLikelyUniqueConstraint(ex))
+            {
+                throw new ConflictException("That post is already linked to a hobby project.", ex);
+            }
 
             return PostDtoMapper.ToPostDto(newPost);
         }
@@ -228,7 +255,9 @@ namespace MiniPainterHub.Server.Services
                 Techniques = dto.Techniques,
                 Difficulty = dto.Difficulty,
                 TimeSpent = dto.TimeSpent,
-                Tags = dto.Tags
+                Tags = dto.Tags,
+                ProjectId = dto.ProjectId,
+                MilestoneLabel = dto.MilestoneLabel
             });
 
             if (dto.Images is null || dto.Images.Count == 0)
@@ -470,7 +499,16 @@ namespace MiniPainterHub.Server.Services
                 .ThenInclude(u => u.Profile)
                 .Include(p => p.Images)
                 .Include(p => p.PostTags)
-                .ThenInclude(pt => pt.Tag);
+                .ThenInclude(pt => pt.Tag)
+                .Include(p => p.HobbyProjectEntry!)
+                .ThenInclude(entry => entry.Project);
+
+        private static bool IsLikelyUniqueConstraint(DbUpdateException exception)
+        {
+            var message = exception.InnerException?.Message ?? exception.Message;
+            return message.Contains("unique", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("duplicate", StringComparison.OrdinalIgnoreCase);
+        }
 
         private sealed record PostSummaryPageItem(int Id, int CommentCount, int LikeCount);
 

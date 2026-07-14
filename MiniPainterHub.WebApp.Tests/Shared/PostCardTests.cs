@@ -244,6 +244,57 @@ public class PostCardTests : TestContext
     }
 
     [Fact]
+    public void WhenPostBelongsToPublicProject_RendersProjectLink()
+    {
+        this.AddTestAuthorization();
+        this.AddModerationStub();
+
+        var post = new PostSummaryDto
+        {
+            Id = 12,
+            Title = "First squad complete",
+            Snippet = "A diary update.",
+            AuthorName = "Painter",
+            AuthorId = "painter-1",
+            CreatedAt = DateTime.UtcNow,
+            Project = new HobbyProjectReferenceDto
+            {
+                Id = 5,
+                Title = "Swamp warband",
+                IsPublic = true
+            }
+        };
+
+        var cut = RenderWithAuth(post);
+
+        var link = cut.Find("[data-testid='post-card-project-link']");
+        link.TextContent.Should().Contain("Part of Swamp warband");
+        link.GetAttribute("href").Should().Be("/projects/5");
+    }
+
+    [Fact]
+    public void WhenProjectIsNotPublic_DoesNotRenderProjectLink()
+    {
+        this.AddTestAuthorization();
+        this.AddModerationStub();
+
+        var post = new PostSummaryDto
+        {
+            Id = 13,
+            Title = "Private setup",
+            Snippet = "Not public yet.",
+            AuthorName = "Painter",
+            AuthorId = "painter-1",
+            CreatedAt = DateTime.UtcNow,
+            Project = new HobbyProjectReferenceDto { Id = 6, Title = "Setup", IsPublic = false }
+        };
+
+        var cut = RenderWithAuth(post);
+
+        cut.FindAll("[data-testid='post-card-project-link']").Should().BeEmpty();
+    }
+
+    [Fact]
     public void WhenHiddenPost_RendersHiddenBadge()
     {
         var auth = this.AddTestAuthorization();

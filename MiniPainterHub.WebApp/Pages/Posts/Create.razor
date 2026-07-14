@@ -6,6 +6,7 @@
 @using Microsoft.JSInterop
 @using MiniPainterHub.Common.DTOs
 @inject IPostService PostService
+@inject IHobbyProjectService HobbyProjectService
 @inject ISearchService SearchService
 @inject IJSRuntime JS
 @inject NavigationManager Nav
@@ -130,6 +131,68 @@
                                        placeholder="Citadel Mephiston Red, Vallejo Ice Yellow..." />
                     </div>
                 </div>
+
+                <div class="project-fieldset" data-testid="create-post-project-fields">
+                    <div>
+                        <label for="post-project" class="form-label">Hobby project</label>
+                        <InputSelect TValue="int?"
+                                     id="post-project"
+                                     class="form-select"
+                                     data-testid="create-post-project"
+                                     @bind-Value="newPost.ProjectId"
+                                     @bind-Value:after="ProjectSelectionChangedAsync"
+                                     disabled="@(_isSubmitting || _projectsLoading)">
+                            <option value="">No project</option>
+                            @foreach (var project in _availableProjects)
+                            {
+                                <option value="@project.Id">@project.Title (@FormatProjectStatus(project.Status))</option>
+                            }
+                        </InputSelect>
+                        <div class="form-text">Posts are ordinary updates; selecting a project also adds this one to its diary.</div>
+                    </div>
+
+                    @if (newPost.ProjectId.HasValue)
+                    {
+                        <div>
+                            <label for="post-milestone" class="form-label">Milestone label <span class="text-muted">(optional)</span></label>
+                            <InputText id="post-milestone"
+                                       class="form-control"
+                                       data-testid="create-post-milestone"
+                                       @bind-Value="newPost.MilestoneLabel"
+                                       @bind-Value:after="PersistDraftAsync"
+                                       maxlength="@HobbyProjectRules.MaxMilestoneLabelLength"
+                                       disabled="@_isSubmitting"
+                                       placeholder="e.g. First squad complete" />
+                            <div class="form-text">Use this only when the update marks a meaningful checkpoint.</div>
+                        </div>
+                    }
+                </div>
+
+                @if (_projectsLoading)
+                {
+                    <p class="inline-note mb-0" role="status" data-testid="create-post-projects-loading">Loading your projects...</p>
+                }
+                else if (!string.IsNullOrWhiteSpace(_projectSelectionMessage))
+                {
+                    <div class="status-panel @(_requestedProjectUnavailable ? "status-panel--warning" : "status-panel--info")"
+                         role="@(_requestedProjectUnavailable ? "alert" : "status")"
+                         data-testid="create-post-project-message">
+                        <div class="status-panel__icon"><i class="bi bi-images" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Project selection</div>
+                            <p class="status-panel__text mb-2">@_projectSelectionMessage</p>
+                            @if (_requestedProjectUnavailable)
+                            {
+                                <button type="button"
+                                        class="btn btn-outline-secondary btn-sm"
+                                        data-testid="create-post-without-project"
+                                        @onclick="ContinueWithoutRequestedProjectAsync">
+                                    Continue without a project
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
 
                 <div class="tag-composer">
                     <label for="post-tags" class="form-label">Tags</label>
@@ -431,6 +494,7 @@
     private static readonly JsonSerializerOptions DraftJsonOptions = new(JsonSerializerDefaults.Web);
 
     private CreatePostDto newPost = new();
+    private IReadOnlyList<HobbyProjectSummaryDto> _availableProjects = Array.Empty<HobbyProjectSummaryDto>();
     private readonly List<ComposerImageFile> selectedImages = new();
     private IReadOnlyList<SearchTagResultDto> _tagSuggestions = Array.Empty<SearchTagResultDto>();
     private string tagInput = string.Empty;
@@ -441,11 +505,17 @@
     private bool _draftWasRestored;
     private bool _isRestoringDraft;
     private bool _tagSuggestionsLoading;
+    private bool _projectsLoading;
+    private bool _requestedProjectUnavailable;
+    private string? _projectSelectionMessage;
     private int _tagSearchVersion;
+
+    [SupplyParameterFromQuery(Name = "projectId")]
+    public int? RequestedProjectId { get; set; }
 
     private static long MaxUploadMegabytes => PostImageUploadRules.MaxUploadBytes / 1024 / 1024;
     private bool HasUploadIssues => selectedImages.Any(image => !image.IsValid);
-    private bool PublishDisabled => _isSubmitting || HasUploadIssues;
+    private bool PublishDisabled => _isSubmitting || HasUploadIssues || _requestedProjectUnavailable;
     private bool HasDraftContent =>
         !string.IsNullOrWhiteSpace(newPost.Title)
         || !string.IsNullOrWhiteSpace(newPost.Content)
@@ -454,7 +524,9 @@
         || !string.IsNullOrWhiteSpace(newPost.Techniques)
         || !string.IsNullOrWhiteSpace(newPost.Difficulty)
         || !string.IsNullOrWhiteSpace(newPost.TimeSpent)
-        || !string.IsNullOrWhiteSpace(tagInput);
+        || !string.IsNullOrWhiteSpace(tagInput)
+        || newPost.ProjectId.HasValue
+        || !string.IsNullOrWhiteSpace(newPost.MilestoneLabel);
     private bool HasRecipePreview =>
         !string.IsNullOrWhiteSpace(newPost.MiniatureName)
         || !string.IsNullOrWhiteSpace(newPost.Difficulty)
@@ -490,7 +562,98 @@
         if (firstRender)
         {
             await RestoreDraftAsync();
+            await LoadProjectsAsync();
         }
+    }
+
+    private async Task LoadProjectsAsync()
+    {
+        _projectsLoading = true;
+        _projectSelectionMessage = null;
+        try
+        {
+            var result = await HobbyProjectService.GetMineAsync(new HobbyProjectQueryDto
+            {
+                IncludeArchived = true,
+                PageNumber = 1,
+                PageSize = HobbyProjectRules.MaxProjectsPerOwner
+            });
+
+            _availableProjects = result.Success && result.Value is not null
+                ? result.Value.Items.Where(project => !project.IsArchived && !project.IsHidden).ToList()
+                : Array.Empty<HobbyProjectSummaryDto>();
+
+            if (RequestedProjectId.HasValue)
+            {
+                var requested = _availableProjects.FirstOrDefault(project => project.Id == RequestedProjectId.Value);
+                if (requested is null)
+                {
+                    newPost.ProjectId = null;
+                    newPost.MilestoneLabel = null;
+                    _requestedProjectUnavailable = true;
+                    _projectSelectionMessage = "The requested project is unavailable. Choose another project or explicitly continue without one.";
+                }
+                else
+                {
+                    newPost.ProjectId = requested.Id;
+                    _requestedProjectUnavailable = false;
+                    _projectSelectionMessage = $"This update will be added to {requested.Title}.";
+                    await PersistDraftAsync();
+                }
+            }
+            else if (newPost.ProjectId.HasValue && _availableProjects.All(project => project.Id != newPost.ProjectId.Value))
+            {
+                newPost.ProjectId = null;
+                newPost.MilestoneLabel = null;
+                _projectSelectionMessage = "A project saved in this draft is no longer available, so the selection was cleared.";
+            }
+            else if (!result.Success)
+            {
+                _projectSelectionMessage = "Projects are unavailable right now. You can still publish a standalone post.";
+            }
+        }
+        catch
+        {
+            _availableProjects = Array.Empty<HobbyProjectSummaryDto>();
+            if (RequestedProjectId.HasValue)
+            {
+                _requestedProjectUnavailable = true;
+                _projectSelectionMessage = "The requested project could not be verified. Choose another project or explicitly continue without one.";
+            }
+            else
+            {
+                _projectSelectionMessage = "Projects are unavailable right now. You can still publish a standalone post.";
+            }
+        }
+        finally
+        {
+            _projectsLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task ProjectSelectionChangedAsync()
+    {
+        _requestedProjectUnavailable = false;
+        _projectSelectionMessage = newPost.ProjectId.HasValue
+            ? $"This update will be added to {_availableProjects.FirstOrDefault(project => project.Id == newPost.ProjectId.Value)?.Title ?? "the selected project"}."
+            : null;
+        if (!newPost.ProjectId.HasValue)
+        {
+            newPost.MilestoneLabel = null;
+        }
+
+        await PersistDraftAsync();
+    }
+
+    private async Task ContinueWithoutRequestedProjectAsync()
+    {
+        RequestedProjectId = null;
+        newPost.ProjectId = null;
+        newPost.MilestoneLabel = null;
+        _requestedProjectUnavailable = false;
+        _projectSelectionMessage = null;
+        await PersistDraftAsync();
     }
 
     private async Task OnTagsInputAsync(ChangeEventArgs args)
@@ -602,6 +765,7 @@
         _publishState = selectedImages.Count > 0 ? "Preparing selected images..." : "Publishing text and recipe details...";
         try
         {
+            var selectedProjectId = newPost.ProjectId;
             newPost.Tags = ParsedTags.ToList();
             if (selectedImages.Count > 0)
             {
@@ -609,13 +773,13 @@
                 using var content = BuildMultipartContent(selectedImages);
                 var created = await PostService.CreateWithImageAsync(content);
                 await ClearDraftAsync();
-                Nav.NavigateTo($"/posts/{created.Id}");
+                NavigateAfterPublish(created.Id, selectedProjectId);
             }
             else
             {
                 var created = await PostService.CreateAsync(newPost);
                 await ClearDraftAsync();
-                Nav.NavigateTo($"/posts/{created.Id}");
+                NavigateAfterPublish(created.Id, selectedProjectId);
             }
         }
         catch (Exception ex)
@@ -641,6 +805,11 @@
         AddStringContentIfNotBlank(content, nameof(newPost.Techniques), newPost.Techniques);
         AddStringContentIfNotBlank(content, nameof(newPost.Difficulty), newPost.Difficulty);
         AddStringContentIfNotBlank(content, nameof(newPost.TimeSpent), newPost.TimeSpent);
+        if (newPost.ProjectId.HasValue)
+        {
+            content.Add(new StringContent(newPost.ProjectId.Value.ToString(CultureInfo.InvariantCulture)), "projectId");
+        }
+        AddStringContentIfNotBlank(content, "milestoneLabel", newPost.MilestoneLabel);
 
         foreach (var image in images)
         {
@@ -751,7 +920,9 @@
                 PaintsUsed = draft.PaintsUsed,
                 Techniques = draft.Techniques,
                 Difficulty = draft.Difficulty,
-                TimeSpent = draft.TimeSpent
+                TimeSpent = draft.TimeSpent,
+                ProjectId = draft.ProjectId,
+                MilestoneLabel = draft.MilestoneLabel
             };
             tagInput = draft.Tags ?? string.Empty;
             _draftWasRestored = true;
@@ -788,7 +959,9 @@
                 Techniques = newPost.Techniques,
                 Difficulty = newPost.Difficulty,
                 TimeSpent = newPost.TimeSpent,
-                Tags = tagInput
+                Tags = tagInput,
+                ProjectId = newPost.ProjectId,
+                MilestoneLabel = newPost.MilestoneLabel
             };
             await JS.InvokeVoidAsync("localStorage.setItem", DraftStorageKey, JsonSerializer.Serialize(draft, DraftJsonOptions));
         }
@@ -821,6 +994,20 @@
     }
 
     private void Cancel() => Nav.NavigateTo("/");
+
+    private void NavigateAfterPublish(int postId, int? projectId)
+    {
+        Nav.NavigateTo(projectId.HasValue
+            ? $"/projects/{projectId.Value}?view=diary#post-{postId}"
+            : $"/posts/{postId}");
+    }
+
+    private static string FormatProjectStatus(string status) => status switch
+    {
+        HobbyProjectStatuses.InProgress => "In progress",
+        HobbyProjectStatuses.OnHold => "On hold",
+        _ => status
+    };
 
     private static void AddStringContentIfNotBlank(MultipartFormDataContent content, string name, string? value)
     {
@@ -881,6 +1068,8 @@
         public string? Difficulty { get; set; }
         public string? TimeSpent { get; set; }
         public string? Tags { get; set; }
+        public int? ProjectId { get; set; }
+        public string? MilestoneLabel { get; set; }
 
         public bool HasContent =>
             !string.IsNullOrWhiteSpace(Title)
@@ -890,6 +1079,8 @@
             || !string.IsNullOrWhiteSpace(Techniques)
             || !string.IsNullOrWhiteSpace(Difficulty)
             || !string.IsNullOrWhiteSpace(TimeSpent)
-            || !string.IsNullOrWhiteSpace(Tags);
+            || !string.IsNullOrWhiteSpace(Tags)
+            || ProjectId.HasValue
+            || !string.IsNullOrWhiteSpace(MilestoneLabel);
     }
 }

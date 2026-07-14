@@ -33,5 +33,10 @@ namespace MiniPainterHub.Common.DTOs
 
         [MaxLength(PostImageUploadRules.MaxImagesPerPost)]
         public List<PostImageDto>? Images { get; set; }
+
+        public int? ProjectId { get; set; }
+
+        [StringLength(HobbyProjectRules.MaxMilestoneLabelLength)]
+        public string? MilestoneLabel { get; set; }
     }
 }

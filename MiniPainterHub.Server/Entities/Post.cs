@@ -30,5 +30,6 @@ namespace MiniPainterHub.Server.Entities
         public List<Comment> Comments { get; set; } = new();
         public List<Like> Likes { get; set; } = new();
         public List<PostTag> PostTags { get; set; } = new();
+        public HobbyProjectEntry? HobbyProjectEntry { get; set; }
     }
 }

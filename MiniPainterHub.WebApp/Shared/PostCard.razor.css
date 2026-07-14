@@ -196,6 +196,23 @@
     gap: 0.42rem;
 }
 
+.post-card__project-link {
+    align-items: center;
+    color: var(--ink-700);
+    display: inline-flex;
+    font-size: 0.82rem;
+    font-weight: 700;
+    gap: 0.4rem;
+    margin-bottom: 0.7rem;
+    text-decoration: none;
+}
+
+.post-card__project-link:hover,
+.post-card__project-link:focus-visible {
+    color: var(--accent-clay);
+    text-decoration: underline;
+}
+
 .post-card__recipe span {
     display: inline-flex;
     align-items: center;

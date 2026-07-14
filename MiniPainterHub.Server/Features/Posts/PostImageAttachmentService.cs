@@ -28,6 +28,7 @@ public sealed class PostImageAttachmentService : IPostImageAttachmentService
     private readonly IUploadConcurrencyLimiter _uploadConcurrencyLimiter;
     private readonly ImagesOptions _imageOptions;
     private readonly ILogger<PostImageAttachmentService> _logger;
+    private readonly IHobbyProjectPostLinker? _hobbyProjectPostLinker;
 
     public PostImageAttachmentService(
         AppDbContext appDbContext,
@@ -35,7 +36,8 @@ public sealed class PostImageAttachmentService : IPostImageAttachmentService
         IImageProcessor imageProcessor,
         IImageStore imageStore,
         IOptions<ImagesOptions> imageOptions,
-        ILogger<PostImageAttachmentService> logger)
+        ILogger<PostImageAttachmentService> logger,
+        IHobbyProjectPostLinker? hobbyProjectPostLinker = null)
         : this(
             appDbContext,
             imageService,
@@ -43,7 +45,8 @@ public sealed class PostImageAttachmentService : IPostImageAttachmentService
             imageStore,
             NoopUploadConcurrencyLimiter.Instance,
             imageOptions,
-            logger)
+            logger,
+            hobbyProjectPostLinker)
     {
     }
 
@@ -54,7 +57,8 @@ public sealed class PostImageAttachmentService : IPostImageAttachmentService
         IImageStore imageStore,
         IUploadConcurrencyLimiter uploadConcurrencyLimiter,
         IOptions<ImagesOptions> imageOptions,
-        ILogger<PostImageAttachmentService> logger)
+        ILogger<PostImageAttachmentService> logger,
+        IHobbyProjectPostLinker? hobbyProjectPostLinker = null)
     {
         _appDbContext = appDbContext ?? throw new ArgumentNullException(nameof(appDbContext));
         _imageService = imageService ?? throw new ArgumentNullException(nameof(imageService));
@@ -63,6 +67,7 @@ public sealed class PostImageAttachmentService : IPostImageAttachmentService
         _uploadConcurrencyLimiter = uploadConcurrencyLimiter ?? throw new ArgumentNullException(nameof(uploadConcurrencyLimiter));
         _imageOptions = imageOptions?.Value ?? throw new ArgumentNullException(nameof(imageOptions));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _hobbyProjectPostLinker = hobbyProjectPostLinker;
     }
 
     public void ValidateCreateWithImages(CreateImagePostDto dto, CancellationToken cancellationToken)
@@ -392,6 +397,8 @@ public sealed class PostImageAttachmentService : IPostImageAttachmentService
             var post = await _appDbContext.Posts
                 .Include(p => p.Images)
                 .Include(p => p.PostTags)
+                .Include(p => p.HobbyProjectEntry)
+                .ThenInclude(entry => entry!.Project)
                 .FirstOrDefaultAsync(p => p.Id == postId);
 
             if (post is null)
@@ -407,6 +414,16 @@ public sealed class PostImageAttachmentService : IPostImageAttachmentService
             if (post.PostTags.Count > 0)
             {
                 _appDbContext.PostTags.RemoveRange(post.PostTags);
+            }
+
+            if (post.HobbyProjectEntry is not null)
+            {
+                if (_hobbyProjectPostLinker is not null)
+                {
+                    await _hobbyProjectPostLinker.RollbackNewPostAsync(post);
+                }
+
+                _appDbContext.HobbyProjectEntries.Remove(post.HobbyProjectEntry);
             }
 
             _appDbContext.Posts.Remove(post);

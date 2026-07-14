@@ -54,6 +54,56 @@ When `PRODUCTION_SQL_CONNECTION_STRING` is configured, it should target the same
 
 When the SQL secret is omitted, the deploy job uses the publish profile's SCM credentials to read `DefaultConnection` from the existing App Service environment. The value is masked immediately and exists only in the deployment job environment. This fallback keeps the existing App Service configuration as the source of truth without committing or printing the connection string.
 
+## Google authentication pilot activation
+
+Google authentication ships disabled. Code deployment, database migration, and ordinary password authentication do not require Google credentials.
+
+Before enabling the provider, create a Google OAuth web application in Testing mode and register these exact callback URIs:
+
+```text
+https://localhost:7295/signin-google
+https://minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net/signin-google
+```
+
+Configure these Azure App Service application settings directly (the deploy workflow does not create or rotate App Service settings):
+
+```text
+Authentication__Google__Enabled=true
+Authentication__Google__ClientId=<Google web client id>
+Authentication__Google__ClientSecret=<Google web client secret or Key Vault reference>
+Authentication__Google__CallbackPath=/signin-google
+Authentication__Google__PublicOrigin=https://minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net
+Authentication__Google__UseFakeProvider=false
+Site__SupportEmail=<monitored public support address>
+```
+
+Production also uses:
+
+```text
+ForwardedHeaders__Enabled=true
+ForwardedHeaders__TrustAllProxies=true
+DataProtection__KeysPath=D:\home\data-protection-keys
+```
+
+The forwarding configuration is limited to one hop in code, and production `AllowedHosts` is restricted to the App Service hostname. `TrustAllProxies` is an Azure App Service deployment choice because inbound traffic terminates at the platform proxy; do not copy it to a deployment that accepts direct untrusted traffic. Persistent Data Protection keys keep OAuth correlation and link-intent cookies valid across application restarts.
+
+`Authentication__Google__UseFakeProvider=true` is reserved for Development/Test automation. Startup rejects it in other environments. Real provider tokens, exchange handles, application JWTs, and client secrets must never be written to logs or committed settings.
+
+Pilot activation sequence:
+
+1. Deploy with Google disabled and apply `AddGoogleAuthentication`.
+2. Confirm the migration did not report duplicate normalized emails. It intentionally fails rather than merging duplicate accounts.
+3. Configure the Google Testing audience, consent-screen support information, callback URIs, App Service settings, and named test users.
+4. Restart the App Service and confirm `/api/auth/providers` reports Google enabled and the configured support address.
+5. Test new-user onboarding, returning Google login, same-email conflict, authenticated linking, local-password setup, guarded disconnect, cancellation, and suspended/registration-disabled behavior.
+6. Keep password login available throughout the pilot.
+
+To roll back provider access without reverting code or schema, set `Authentication__Google__Enabled=false` and restart. Existing users and password login remain available; stored Google login links are inert while disabled. Google availability is intentionally not part of `/healthz/ready`.
+
+To rotate the Google client secret, create a second secret for the existing OAuth client, update `Authentication__Google__ClientSecret` (or its Key Vault reference), restart the App Service, and complete the returning-user smoke check. Revoke the old Google secret only after the new value is confirmed. If the smoke check fails, restore the prior App Service value while it is still valid; client ID and callback registrations do not change during ordinary secret rotation.
+
+The current Azure hostname is acceptable for a test-user pilot. General availability and branded consent require a verified custom domain plus owner-reviewed public Privacy and Terms content.
+
 ## First deployment
 
 1. Confirm the GitHub `production` environment has the variables and `AZURE_WEBAPP_PUBLISH_PROFILE` secret above. Add `PRODUCTION_SQL_CONNECTION_STRING` only when an explicit migration credential override is required.
@@ -109,9 +159,10 @@ After deployment:
 2. Confirm `/healthz` returns `200 OK`.
 3. Confirm `/healthz/ready` returns `200 OK`.
 4. Confirm registration or login works.
-5. Confirm image upload works.
-6. Confirm the database migrated successfully from GitHub Actions logs.
-7. Confirm SignalR chat endpoints connect if chat is enabled.
+5. When Google is enabled, complete one returning-user Google login and confirm the callback returns to HTTPS without exposing an application token in the URL.
+6. Confirm image upload works.
+7. Confirm the database migrated successfully from GitHub Actions logs.
+8. Confirm SignalR chat endpoints connect if chat is enabled.
 
 Production startup does not run EF migrations by default. If the deployment migration step is unavailable during a single-instance emergency rollout, temporarily set `Database__AutoMigrateOnStartup=true`, deploy once, then remove it after the app starts cleanly.
 

@@ -11,6 +11,21 @@ namespace MiniPainterHub.WebApp.Tests.Layout;
 public class MainLayoutTests : TestContext
 {
     [Fact]
+    public void RendersSharedLegalFooter()
+    {
+        var auth = this.AddTestAuthorization();
+        auth.SetNotAuthorized();
+        this.AddAuthStub();
+        Services.AddSingleton(new UserPanelState());
+        JSInterop.Mode = JSRuntimeMode.Loose;
+
+        var cut = RenderComponent<MainLayout>(parameters => parameters
+            .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<p>Body</p>")));
+
+        cut.Find("[data-testid='site-footer']").TextContent.Should().Contain("Privacy").And.Contain("Terms");
+    }
+
+    [Fact]
     public void WhenDesktopPanelIsCollapsed_KeepsSidebarInLayoutAndMarksItInert()
     {
         this.SetAuthenticatedUser("viewer-user", "viewer");

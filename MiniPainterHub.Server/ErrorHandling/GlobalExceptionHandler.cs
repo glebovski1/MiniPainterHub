@@ -26,7 +26,9 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         var (status, title) = exception switch
         {
             NotFoundException => (StatusCodes.Status404NotFound, "Not found"),
+            HobbyProjectLinkConflictException => (StatusCodes.Status409Conflict, "Conflict"),
             ConflictException => (StatusCodes.Status409Conflict, "Conflict"),
+            GoneException => (StatusCodes.Status410Gone, "Gone"),
             DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "Conflict"),
             ForbiddenException => (StatusCodes.Status403Forbidden, "Forbidden"),
             UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "Unauthorized"),
@@ -46,6 +48,11 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             Status = status,
             Instance = httpContext.Request.Path
         };
+
+        if (exception is HobbyProjectLinkConflictException projectConflict)
+        {
+            problem.Extensions["currentProject"] = projectConflict.CurrentProject;
+        }
 
         httpContext.Response.StatusCode = status;
 

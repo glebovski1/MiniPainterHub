@@ -62,9 +62,9 @@
                         <i class="bi bi-journal-plus" aria-hidden="true"></i>
                         <span>New guide</span>
                     </NavLink>
-                    <NavLink class="btn btn-outline-secondary" href="/posts/mine">
-                        <i class="bi bi-brush" aria-hidden="true"></i>
-                        <span>My posts</span>
+                    <NavLink class="btn btn-outline-secondary" href="/projects/new" data-testid="new-project-quick-action">
+                        <i class="bi bi-images" aria-hidden="true"></i>
+                        <span>New project</span>
                     </NavLink>
                 </div>
             </section>
@@ -107,6 +107,13 @@
                             Title="My posts"
                             Description="" />
 
+            <SidebarNavItem Href="/projects/mine"
+                            IconClass="bi bi-images"
+                            Title="My projects"
+                            Description=""
+                            TestId="my-projects-nav-link"
+                            Match="NavLinkMatch.Prefix" />
+
             <SidebarNavItem Href="/guides"
                             IconClass="bi bi-journal-text"
                             Title="Guides"
@@ -122,6 +129,13 @@
                             Title="My profile"
                             Description=""
                             Match="NavLinkMatch.All" />
+
+            <SidebarNavItem Href="/account/sign-in-methods"
+                            IconClass="bi bi-key"
+                            Title="Sign-in methods"
+                            Description=""
+                            TestId="sign-in-methods-nav-link"
+                            Match="NavLinkMatch.Prefix" />
         </nav>
     </section>
 

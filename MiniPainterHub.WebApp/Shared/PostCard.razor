@@ -56,6 +56,16 @@
             </div>
         }
 
+        @if (Post.Project is { IsPublic: true } project)
+        {
+            <NavLink class="post-card__project-link"
+                     href="@($"/projects/{project.Id}")"
+                     data-testid="post-card-project-link">
+                <i class="bi bi-images" aria-hidden="true"></i>
+                <span>Part of @project.Title</span>
+            </NavLink>
+        }
+
         <TagBadgeList Tags="Post.Tags" TestId="post-card-tags" />
 
         @if (Post.IsDeleted)

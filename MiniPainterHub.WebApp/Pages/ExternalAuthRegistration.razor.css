@@ -1,0 +1,11 @@
+.external-registration-page {
+    display: grid;
+    place-items: center;
+    min-height: min(70vh, 42rem);
+    padding-block: clamp(1.5rem, 5vw, 4rem);
+}
+
+.external-registration-card {
+    width: min(100%, 38rem);
+    padding: clamp(1.4rem, 4vw, 2.5rem);
+}

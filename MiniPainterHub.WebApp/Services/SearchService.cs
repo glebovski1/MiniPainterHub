@@ -36,6 +36,14 @@ namespace MiniPainterHub.WebApp.Services
                 ["pageSize"] = pageSize.ToString()
             })}"), InlineErrorOptions);
 
+        public Task<ApiResult<PagedResult<HobbyProjectSummaryDto>?>> SearchProjectsAsync(string? query, int page, int pageSize) =>
+            _api.SendForResultAsync<PagedResult<HobbyProjectSummaryDto>?>(new HttpRequestMessage(HttpMethod.Get, $"api/search/projects{BuildQuery(new Dictionary<string, string?>
+            {
+                ["q"] = query,
+                ["page"] = page.ToString(),
+                ["pageSize"] = pageSize.ToString()
+            })}"), InlineErrorOptions);
+
         public Task<ApiResult<PagedResult<UserListItemDto>?>> SearchUsersAsync(string? query, int page, int pageSize) =>
             _api.SendForResultAsync<PagedResult<UserListItemDto>?>(new HttpRequestMessage(HttpMethod.Get, $"api/search/users{BuildQuery(new Dictionary<string, string?>
             {

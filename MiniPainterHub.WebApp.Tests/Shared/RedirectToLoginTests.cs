@@ -23,7 +23,7 @@ public class RedirectToLoginTests : TestContext
         nav.Uri.Should().Be("http://localhost/posts/new");
         cut.Find("[data-testid='access-login-required']").TextContent.Should().Contain("sign in");
         cut.Find("[data-testid='redirect-login-link']").GetAttribute("href")
-            .Should().Be("/login?returnUrl=http%3A%2F%2Flocalhost%2Fposts%2Fnew");
+            .Should().Be("/login?returnUrl=%2Fposts%2Fnew");
     }
 
     [Fact]

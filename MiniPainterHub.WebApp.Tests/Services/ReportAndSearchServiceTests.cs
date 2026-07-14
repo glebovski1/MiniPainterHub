@@ -64,24 +64,41 @@ public class ReportAndSearchServiceTests
     }
 
     [Fact]
+    public async Task ReportService_ReportProjectAsync_UsesProjectRoute()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        var service = new ReportService(CreateApiClient(handler));
+        handler.Enqueue(new HttpResponseMessage(HttpStatusCode.NoContent));
+
+        var success = await service.ReportProjectAsync(17, new CreateReportRequestDto { ReasonCode = ReportReasonCodes.Spam });
+
+        success.Should().BeTrue();
+        handler.Requests.Should().ContainSingle();
+        handler.Requests[0].Uri.Should().Be(new Uri("https://example.test/api/reports/projects/17"));
+    }
+
+    [Fact]
     public async Task SearchService_MethodsBuildExpectedQueries()
     {
         var handler = new RecordingHttpMessageHandler();
         var service = new SearchService(CreateApiClient(handler));
         handler.EnqueueJson(HttpStatusCode.OK, """{"posts":[],"users":[],"tags":[]}""");
         handler.EnqueueJson(HttpStatusCode.OK, """{"items":[],"totalCount":0,"pageNumber":1,"pageSize":10}""");
+        handler.EnqueueJson(HttpStatusCode.OK, """{"items":[],"totalCount":0,"pageNumber":4,"pageSize":6}""");
         handler.EnqueueJson(HttpStatusCode.OK, """{"items":[],"totalCount":0,"pageNumber":2,"pageSize":5}""");
         handler.EnqueueJson(HttpStatusCode.OK, """{"items":[],"totalCount":0,"pageNumber":3,"pageSize":7}""");
 
         await service.GetOverviewAsync("glaze blend");
         await service.SearchPostsAsync("glaze blend", "nmm-highlights", 1, 10);
+        await service.SearchProjectsAsync("winter force", 4, 6);
         await service.SearchUsersAsync("artist one", 2, 5);
         await service.SearchTagsAsync("weathering", 3, 7);
 
         var overviewUri = handler.Requests[0].Uri ?? throw new InvalidOperationException("Overview request URI was not captured.");
         var postsUri = handler.Requests[1].Uri ?? throw new InvalidOperationException("Posts request URI was not captured.");
-        var usersUri = handler.Requests[2].Uri ?? throw new InvalidOperationException("Users request URI was not captured.");
-        var tagsUri = handler.Requests[3].Uri ?? throw new InvalidOperationException("Tags request URI was not captured.");
+        var projectsUri = handler.Requests[2].Uri ?? throw new InvalidOperationException("Projects request URI was not captured.");
+        var usersUri = handler.Requests[3].Uri ?? throw new InvalidOperationException("Users request URI was not captured.");
+        var tagsUri = handler.Requests[4].Uri ?? throw new InvalidOperationException("Tags request URI was not captured.");
 
         overviewUri.AbsolutePath.Should().Be("/api/search/overview");
         HttpUtility.ParseQueryString(overviewUri.Query)["q"].Should().Be("glaze blend");
@@ -92,6 +109,12 @@ public class ReportAndSearchServiceTests
         postsQuery["tag"].Should().Be("nmm-highlights");
         postsQuery["page"].Should().Be("1");
         postsQuery["pageSize"].Should().Be("10");
+
+        projectsUri.AbsolutePath.Should().Be("/api/search/projects");
+        var projectsQuery = HttpUtility.ParseQueryString(projectsUri.Query);
+        projectsQuery["q"].Should().Be("winter force");
+        projectsQuery["page"].Should().Be("4");
+        projectsQuery["pageSize"].Should().Be("6");
 
         usersUri.AbsolutePath.Should().Be("/api/search/users");
         var usersQuery = HttpUtility.ParseQueryString(usersUri.Query);
@@ -116,9 +139,11 @@ public class ReportAndSearchServiceTests
         handler.Enqueue(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
         handler.Enqueue(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
         handler.Enqueue(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        handler.Enqueue(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
 
         await service.GetOverviewAsync("glaze");
         await service.SearchPostsAsync("glaze", null, 1, 10);
+        await service.SearchProjectsAsync("glaze", 1, 10);
         await service.SearchUsersAsync("glaze", 1, 10);
         await service.SearchTagsAsync("glaze", 1, 10);
 

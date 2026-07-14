@@ -3,7 +3,13 @@
 This document is the architecture source of truth for the current `MiniPainterHub` codebase.
 If implementation and this file diverge, update this file as part of the same change.
 
-Related docs:
+Purpose: own the implemented solution structure, runtime boundaries, persistence model, API surface, and client composition.
+
+When to read: architecture changes, cross-cutting feature work, persistence or API design, deployment-impact review, and test planning.
+
+Update triggers: entities or relationships change, APIs or services are added or removed, startup/runtime composition changes, or a major client workflow is introduced.
+
+Related notes:
 - [CODE_STYLE.md](CODE_STYLE.md)
 - [BEST_PRACTICES.md](<../30 Process/BEST_PRACTICES.md>)
 - [ANTI_PATTERNS.md](<../30 Process/ANTI_PATTERNS.md>)
@@ -58,9 +64,9 @@ Development-only:
 - `DataSeeder.SeedAsync(...)`
 - Explicit maintenance commands in `Program.cs`:
   - `--seed-dev-content --avatars-dir <path>` resets the development DB/local image storage and recreates seeded users, profiles, posts, comments, and avatars through `DevelopmentContentSeeder`.
-- `--seed-dev-content --avatars-dir <path> --post-images-dir <path>` attaches images only to seed posts that declare an explicit source filename. The current five title-to-file mappings are deterministic, unmatched posts remain image-free, and startup fails before the reset when a declared file is missing.
+  - `--seed-dev-content --avatars-dir <path> --post-images-dir <path>` attaches images only to seed posts that declare an explicit source filename. The current five title-to-file mappings are deterministic, unmatched posts remain image-free, and startup fails before the reset when a declared file is missing.
   - `--generate-dev-avatars --avatars-dir <path>` refreshes only the seed avatar assets and existing seed-user avatar URLs without reseeding the rest of the database.
-  - `DevelopmentContentSeeder` also seeds deterministic cross-user comments, follow relationships, and direct-message conversations so social features have usable development fixtures immediately after reset.
+- `DevelopmentContentSeeder` also seeds deterministic cross-user comments, follow relationships, direct-message conversations, and three projects built from existing seeded posts: active army and terrain diaries plus a completed army showcase. Project fixtures do not duplicate post content or image rows.
 
 Production-only:
 - HSTS
@@ -82,6 +88,7 @@ Current extracted backend feature modules:
 Registered scoped domain services:
 - `IProfileService -> ProfileService`
 - `IPostService -> PostService`
+- `IHobbyProjectService -> HobbyProjectService` with the same scoped implementation exposed as `IHobbyProjectPostLinker` for atomic post/project creation without circular service dependencies
 - `ICommentService -> CommentService`
 - `ILikeService -> LikeService`
 - `IAccountRestrictionService -> AccountRestrictionService`
@@ -93,6 +100,10 @@ Registered scoped domain services:
 - `IPaintingGuideService -> PaintingGuideService`
 - `IMaintenanceBypassService -> MaintenanceBypassService` (singleton, cookie issuance/validation)
 - `DevelopmentContentSeeder` for explicit development-only sample content/avatar maintenance commands
+
+Hobby Project responsibilities stay behind two interfaces:
+- `IHobbyProjectService` owns public and owner projections, metadata and status changes, archive/restore, existing-post linking and confirmed moves, milestone changes, showcase ordering, cover selection, and project limits.
+- `IHobbyProjectPostLinker` is the narrow integration boundary used by `PostService` to validate a selected project before image processing and stage the post plus project entry in the same EF unit of work. Its rollback hook restores completed-project lifecycle state when later image storage fails.
 
 Image infrastructure:
 - `IImageProcessor -> ImageProcessor`
@@ -111,7 +122,12 @@ Traffic shaping:
 Authentication model:
 - ASP.NET Core Identity (`ApplicationUser`) backed by `AppDbContext`.
 - JWT bearer authentication (`AddAuthentication().AddJwtBearer(...)`).
-- JWT issued by `AuthController` on successful login.
+- `IJwtTokenIssuer` issues the same role-bearing application JWT after password or external authentication.
+- Google uses an explicit ASP.NET Core external-provider challenge while JWT bearer remains the default API authentication and challenge scheme.
+- Provider identities are stored through Identity's `AspNetUserLogins`; Google `sub` is the durable key and email is used only for collision detection and explicit same-account linking.
+- The OAuth callback creates a short-lived, hashed, single-use `ExternalAuthExchange`. Its raw handle is held only in an HttpOnly cookie and is exchanged by the SPA for the ordinary application JWT.
+- New Google users choose a MiniPainterHub username before atomic user/profile/login creation. Matching email never auto-merges accounts; an authenticated user must explicitly connect Google.
+- Authenticated account security supports adding a password and disconnecting Google only when another sign-in method remains.
 
 Authorization model:
 - Controllers are typically `[Authorize]` with `[AllowAnonymous]` on selected read endpoints.
@@ -142,6 +158,9 @@ Domain DbSets:
 - `DirectMessages`
 - `SupportTickets`
 - `SupportTicketMessages`
+- `ExternalAuthExchanges`
+- `HobbyProjects`
+- `HobbyProjectEntries`
 
 Entity relationships (configured in `OnModelCreating`):
 - `Profile` one-to-one with `ApplicationUser` (shared PK/FK `UserId`).
@@ -158,8 +177,29 @@ Entity relationships (configured in `OnModelCreating`):
 - `Conversation`/`ConversationParticipant`/`DirectMessage` model direct messaging.
 - `SupportTicket` -> `ApplicationUser` (requester) with restrict delete; `SupportTicketMessage` -> `SupportTicket` with cascade delete and -> `ApplicationUser` (author) with restrict delete.
 - Support tickets store category, workflow status, activity/resolution timestamps, last staff reply, and requester read time. Messages preserve whether the author was acting as support staff so historical presentation does not depend on current roles.
+- `ExternalAuthExchange` stores only the hashed handoff handle plus provider identity metadata, purpose, safe return path, expiry, and consumption state. Exchanges expire after ten minutes and are consumed atomically to prevent replay.
+- `HobbyProject` -> `ApplicationUser` (owner), optional moderation actor, and optional cover `Post`, all with restricted deletion. Project metadata stores kind, status, optional game/faction/goal/start date, activity/completion/archive timestamps, and moderation visibility.
+- `HobbyProjectEntry` links one existing `Post` to one project with an optional milestone label and nullable showcase order. Project maintenance deletion may cascade entries, while post deletion is restricted; ordinary post removal remains soft deletion and disappears from project projections.
+- Unique indexes enforce one project membership per post and one non-null showcase order per project. Owner/activity, public visibility/status/kind, diary, and reverse-post indexes support project dashboards and discovery.
+- Normalized non-null user email is uniquely indexed. Migration fails on existing duplicates rather than merging or deleting accounts.
 - `Like` has a database-level unique index on `(PostId, UserId)`; service code treats duplicate insert races as an already-liked outcome.
 - Direct one-to-one conversations store a deterministic `DirectConversationKey` with a filtered unique index. The key is generated from the sorted participant IDs so reverse-order conversation creation resolves to the same thread.
+
+### 3.1 Hobby Project Invariants
+
+- Project text is trimmed plain text. Titles are limited to 140 characters, descriptions to 4,000, game system and faction/theme to 120 each, goals to 240, and milestone labels to 140. The client renders these values as text rather than trusted markup.
+- Project kinds are `Miniature`, `Unit`, `Army`, `Warband`, `Terrain`, `Diorama`, and `Other`; lifecycle statuses are `Planning`, `InProgress`, `OnHold`, and `Completed`.
+- An owner may have at most 50 projects. A project may link at most 250 posts and curate at most 24 showcase entries. One post may belong to only one project.
+- A project is publicly eligible only while it is not archived, not moderation-hidden, and has at least one non-hidden linked post. Empty projects remain owner-only setup records. Owner reads include empty, archived, and moderation-hidden records.
+- Diary order is post creation time descending and then post ID descending. Showcase order is the owner's explicit ascending order. Showcase entries must be visible linked posts with at least one image; the leading existing post image is used without copying media.
+- A cover must be an image-bearing linked post. Read projections fall back from the selected cover to the first visible showcase entry, then the newest visible diary image; the WebApp supplies the standard placeholder when no image remains.
+- Completion requires a visible image-bearing showcase entry and records `CompletedUtc`. Linking or moving a diary post into a completed project reopens it as `InProgress`; milestone, showcase-order, and cover changes do not reopen it. Removing the final showcase entry from a completed project is rejected until the owner changes status.
+- Confirmed moves are atomic between projects owned by the same user. They clear an old cover and showcase placement when applicable, update both projects' activity times, and never copy or delete the post.
+- Archiving is reversible and never changes linked posts. Archived projects must be restored before metadata, status, milestone, showcase, cover, or link changes, while unlink remains available for cleanup. Hiding a project does not hide its posts; hiding a post excludes it from diary/showcase/cover projections without silently changing project status. Owners see a curation warning when moderation removes the final visible showcase item from a completed project.
+- Suspended users cannot create, edit, restore, link, move, curate, change cover/status, or publish a project-aware post; archive and unlink remain available for cleanup. The `new-posts` site control pauses project creation, restore, linking, moves, and project-aware publishing while leaving metadata, milestone, status, showcase, and cover maintenance available. Every project mutation uses the existing write rate-limit policy.
+- Anonymous users can read only publicly eligible projects. Owner mutations use ownership-isolated lookups so another user receives `404`; malformed data returns `400`, while duplicate membership, limits, and invalid lifecycle changes return `409`.
+- Authenticated non-owners can report a public project through the existing report queue, with self-report and duplicate-open-report protection. Project preview/hide/restore endpoints remain limited to Moderator/Admin roles and write the same audit trail as other moderation targets.
+- Projects reuse post comments, likes, images, tags, recipes, and rich viewing. They do not emit separate following-feed events, and there is no project-level engagement or duplicated publishing stack.
 
 Soft-delete behavior:
 - `Post.IsDeleted` and `Comment.IsDeleted` are used by services to hide deleted records.
@@ -176,17 +216,24 @@ Main controllers under `MiniPainterHub.Server/Controllers`:
   - `POST /login`
   - `POST /maintenance-bypass`
   - `DELETE /maintenance-bypass`
+- `ExternalAuthenticationController` (`/api/auth`)
+  - `GET /providers` and `GET /google/start`
+  - Google middleware callback `/signin-google` and internal completion `/google/complete`
+  - `POST /external/exchange` and `POST /external/register`
+  - `POST /google/link-intent`
+  - `GET /sign-in-methods`, `POST /password/set`, and `DELETE /google`
 - `PostsController` (`/api/posts`)
   - `GET /`
     - Supports visibility query options for moderation roles: `includeDeleted` and `deletedOnly`.
   - `GET /{id}`
-  - `POST /` (JSON post create)
-  - `POST /with-image` (multipart upload)
+  - `POST /` (JSON post create; accepts optional `ProjectId` and `MilestoneLabel`)
+  - `POST /with-image` (multipart upload; accepts the same optional project fields)
   - `PUT /{id}`
   - `DELETE /{id}`
 - `SearchController` (`/api/search`)
   - `GET /overview`
   - `GET /posts`
+  - `GET /projects` searches public project title, description, game system, faction/theme, goal, and owner display name. Title matches rank first, followed by metadata relevance and recent activity.
   - `GET /users`
   - `GET /tags`
 - `CommentsController`
@@ -216,10 +263,14 @@ Main controllers under `MiniPainterHub.Server/Controllers`:
   - `GET /users/lookup`
   - `GET /posts/{postId}/preview`
   - `GET /comments/{commentId}/preview`
+  - `POST /projects/{projectId}/hide`
+  - `POST /projects/{projectId}/restore`
+  - `GET /projects/{projectId}/preview`
 - `ReportsController` (`/api/reports`)
   - `POST /posts/{postId}`
   - `POST /comments/{commentId}`
   - `POST /users/{userId}`
+  - `POST /projects/{projectId}`
   - `GET /`
   - `POST /{reportId}/resolve`
 - `FollowsController` and `FeedController` for social graph and following feed
@@ -241,6 +292,14 @@ Main controllers under `MiniPainterHub.Server/Controllers`:
   - `GET /` and `GET /{id}`
   - `POST /{id}/messages`
   - `PUT /{id}/status`
+- `HobbyProjectsController` (`/api/projects`) combines anonymous discovery/detail/diary/showcase reads with authenticated owner management:
+  - `GET /`, `GET /{id}`, `GET /{id}/diary`, and `GET /{id}/showcase`
+  - `GET /mine` and `GET /{id}/available-posts`
+  - `POST /`, `PUT /{id}`, and `PUT /{id}/status`
+  - `POST /{id}/archive` and `POST /{id}/restore`
+  - `POST /{id}/posts`, `PUT /{id}/posts/{postId}`, and `DELETE /{id}/posts/{postId}`
+  - `PUT /{id}/showcase` replaces the complete ordered post-ID list; `PUT /{id}/cover` selects or clears the cover
+- `ModerationController` adds Moderator/Admin project preview, hide, and restore operations. Hiding a project does not hide its posts; hiding a post removes it from project projections.
 
 ## 5) Image Processing and Storage
 
@@ -292,8 +351,16 @@ The WebApp is a Blazor WebAssembly SPA:
   - standardized error parsing
   - notification handling
 
-Service clients in `MiniPainterHub.WebApp/Services` mirror server domains (`AuthService`, `PostService`, `PaintingGuideService`, `NewsAnnouncementService`, `CommentService`, `LikeService`, `ProfileService`, `SearchService`, `ReportService`, `FollowService`, `ConversationService`, `SupportTicketService`).
+Service clients in `MiniPainterHub.WebApp/Services` mirror server domains (`AuthService`, `PostService`, `HobbyProjectService`, `PaintingGuideService`, `NewsAnnouncementService`, `CommentService`, `LikeService`, `ProfileService`, `SearchService`, `ReportService`, `FollowService`, `ConversationService`, `SupportTicketService`).
 Service clients also include moderation flows (`ModerationService`) and keep query DTO/filter parity with the server API.
+
+Authentication UX composition:
+- `Pages/Login.razor` and `Pages/Registration.razor` retain password forms and conditionally expose Google when the server reports it enabled.
+- `Pages/ExternalAuthCallback.razor` exchanges the HttpOnly handoff and renders cancellation, expiry, conflict, restriction, and provider-failure states.
+- `Pages/ExternalAuthRegistration.razor` holds onboarding state only in scoped WASM memory and collects the permanent username.
+- `Pages/SignInMethods.razor` manages Google linking, local-password setup, and guarded disconnection.
+- `Pages/Privacy.razor` and `Pages/Terms.razor` are public pilot legal surfaces; their support address comes from server configuration.
+- All password and external success paths use the same token-acceptance logic and validated local return paths.
 
 Guide UX composition:
 - `Pages/Guides/GuideList.razor` lists public painting guides.
@@ -307,6 +374,14 @@ News UX composition:
 Support UX composition:
 - `Pages/Support.razor`, `Pages/SupportCreate.razor`, and `Pages/SupportDetails.razor` provide authenticated ticket history, creation, unread acknowledgement, threaded replies, and requester-driven reopening.
 - `Pages/Admin/Support.razor` provides the Admin-only support queue, filtering, inspection, replies, and resolution. Moderators do not receive this route or navigation entry.
+
+Hobby Project UX composition:
+- `/projects` (`ProjectList.razor`) provides public search/filter discovery, while `/projects/mine` (`MyProjects.razor`) separates the owner's setup, active, completed, on-hold, archived, and moderation-hidden records.
+- `/projects/new` (`CreateProject.razor`) persists its draft locally until successful creation or explicit discard. `/projects/{id}?view=diary|showcase` (`ProjectDetails.razor`) keeps the accessible view selection in the URL; non-completed projects default to Diary, while completed projects default to Showcase when a visible showcase remains.
+- `/projects/{id}/edit` (`EditProject.razor`) covers metadata/status lifecycle, existing-post linking and confirmed moves, milestone editing, cover selection, explicit move-up/move-down showcase ordering, completion requirements, and archive/restore.
+- Existing post cards/details expose a compact public project reference, while the post composer can publish directly into an owned project and persist project/milestone draft state.
+- `/posts/new?projectId={id}` overrides an older draft project selection, requires an explicit replacement or `No project` choice if the requested project is unavailable, and returns a successful project-aware publish to the new diary entry.
+- Public profiles show up to three recent projects, global search includes overview and dedicated project results, and project reports/moderation reuse the existing safety workflows.
 
 Admin UX composition:
 - Left collapsible user panel (`Layout/MainLayout.razor` + `Shared/UserPanelContent.razor`) is the primary entry for admin actions.
@@ -322,7 +397,7 @@ Admin UX composition:
 Search and reporting UX composition:
 - Global nav search routes into `Pages/Search.razor`.
 - Post cards/details render technique tags through `Shared/TagBadgeList.razor`.
-- Posts, comments, and public profiles expose inline reporting through `Shared/ReportAction.razor`.
+- Posts, comments, public profiles, and hobby projects expose inline reporting through `Shared/ReportAction.razor`.
 
 ## 8) Testing Strategy
 

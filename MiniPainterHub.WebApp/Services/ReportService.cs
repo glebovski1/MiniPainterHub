@@ -26,6 +26,9 @@ namespace MiniPainterHub.WebApp.Services
         public Task<bool> ReportUserAsync(string userId, CreateReportRequestDto request) =>
             _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/reports/users/{Uri.EscapeDataString(userId)}") { Content = ApiClient.CreateJsonContent(request) });
 
+        public Task<bool> ReportProjectAsync(int projectId, CreateReportRequestDto request) =>
+            _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/reports/projects/{projectId}") { Content = ApiClient.CreateJsonContent(request) });
+
         public Task<ApiResult<PagedResult<ReportQueueItemDto>?>> GetQueueAsync(ReportQueueQueryDto query) =>
             _api.SendForResultAsync<PagedResult<ReportQueueItemDto>?>(new HttpRequestMessage(HttpMethod.Get, $"api/reports{BuildQuery(new Dictionary<string, string?>
             {

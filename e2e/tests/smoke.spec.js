@@ -409,6 +409,36 @@ async function setAdminControl(request, token, key, enabled) {
   return response.json();
 }
 
+async function createHobbyProjectViaApi(request, token, suffix) {
+  const response = await sendAuthedRequest(request, token, "POST", "/api/projects", {
+    title: `Smoke project ${suffix}`,
+    description: `A complete hobby project lifecycle created by the ${suffix} smoke scenario.`,
+    kind: "Army",
+    gameSystem: "Smokehammer",
+    factionTheme: "Integration guard",
+    goal: "Verify every v1 lifecycle transition",
+  });
+  return response.json();
+}
+
+async function createImagePostViaApi(request, token, suffix, options = {}) {
+  const response = await sendAuthedRequest(request, token, "POST", "/api/posts", {
+    title: `Project image ${suffix}`,
+    content: `Image-backed progress update for ${suffix}.`,
+    tags: ["project-smoke"],
+    images: [{
+      imageUrl: "/uploads/images/9_minis1.jpg",
+      previewUrl: "/uploads/images/9_minis1.jpg",
+      thumbnailUrl: "/uploads/images/9_minis1.jpg",
+      width: 1600,
+      height: 1200,
+    }],
+    projectId: options.projectId ?? null,
+    milestoneLabel: options.milestoneLabel ?? null,
+  });
+  return response.json();
+}
+
 test.beforeEach(async ({ page, request }) => {
   await resetAppState(request);
   await clearAuth(page);
@@ -417,6 +447,158 @@ test.beforeEach(async ({ page, request }) => {
 test("login with seeded user succeeds", async ({ page }) => {
   await loginAsSeedUser(page);
   await expect(page).toHaveURL(/\/$/);
+});
+
+test("new and returning Google user completes the full fake-provider flow", async ({ page }) => {
+  await page.goto("/register?returnUrl=%2Fprofile");
+  await expect(page.getByTestId("google-signin-link")).toBeVisible();
+  await page.getByTestId("google-signin-link").click();
+  await expect(page).toHaveURL(/\/auth\/external\/complete-registration$/);
+  await expect(page.getByText("google-user@example.test")).toBeVisible();
+
+  await page.getByTestId("external-registration-username").fill("googlepainter");
+  const registrationResponsePromise = page.waitForResponse((response) =>
+    response.request().method() === "POST" && response.url().endsWith("/api/auth/external/register"));
+  await page.getByTestId("external-registration-submit").click();
+  const registrationResponse = await registrationResponsePromise;
+  expect(
+    registrationResponse.ok(),
+    `External registration failed with HTTP ${registrationResponse.status()}: ${await registrationResponse.text()}`,
+  ).toBeTruthy();
+  await expect(page).toHaveURL(/\/profile$/);
+  await expect(page.getByTestId("nav-logout")).toBeVisible();
+
+  await page.getByTestId("nav-logout").click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto("/api/auth/google/start?returnUrl=https%3A%2F%2Fevil.example%2Fphish");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByTestId("nav-logout")).toBeVisible();
+});
+
+test("Google email conflict never merges and can be linked after password sign-in", async ({ page }) => {
+  await page.goto("/api/auth/google/start?fake=conflict");
+  await expect(page.getByTestId("external-auth-result-title")).toContainText("Sign in before connecting Google");
+  await expect(page.getByTestId("external-auth-result-message")).toContainText("never merged automatically");
+
+  await loginAsSeedUser(page);
+  await page.goto("/account/sign-in-methods");
+  await expect(page.getByTestId("connect-google")).toBeVisible();
+  const token = await page.evaluate(() => localStorage.getItem("authToken"));
+  const intent = await page.context().request.post("/api/auth/google/link-intent", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(intent.ok(), `Link intent failed with HTTP ${intent.status()}`).toBeTruthy();
+  const intentBody = await intent.json();
+  await page.goto(`${intentBody.startUrl}&fake=conflict`);
+  await expect(page).toHaveURL(/\/account\/sign-in-methods\?linked=true$/);
+  await expect(page.getByTestId("google-link-success")).toContainText("Google is connected");
+
+  await page.getByTestId("nav-logout").click();
+  await page.goto("/api/auth/google/start?fake=conflict");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByTestId("nav-logout")).toBeVisible();
+});
+
+test("Google-only user can set a password, disconnect Google, and retain local access", async ({ page }) => {
+  await page.goto("/api/auth/google/start");
+  await expect(page).toHaveURL(/\/auth\/external\/complete-registration$/);
+  await page.getByTestId("external-registration-username").fill("googleonly");
+  await page.getByTestId("external-registration-submit").click();
+  await expect(page.getByTestId("nav-logout")).toBeVisible();
+
+  await page.goto("/account/sign-in-methods");
+  await expect(page.getByTestId("google-disconnect-blocked")).toBeVisible();
+  await page.getByTestId("set-password-new").fill("GoogleLocal123!");
+  await page.getByTestId("set-password-confirm").fill("GoogleLocal123!");
+  await page.getByTestId("set-password-submit").click();
+  await expect(page.getByTestId("sign-in-methods-status")).toContainText("local password is ready");
+
+  await page.getByTestId("disconnect-google").click();
+  await page.getByTestId("disconnect-google-confirm").click();
+  await expect(page.getByTestId("sign-in-methods-status")).toContainText("Google was disconnected");
+
+  await page.getByTestId("nav-logout").click();
+  await page.goto("/api/auth/google/start");
+  await expect(page.getByTestId("external-auth-result-title")).toContainText("Sign in before connecting Google");
+
+  await page.goto("/login");
+  await page.getByTestId("login-username").fill("googleonly");
+  await page.getByTestId("login-password").fill("GoogleLocal123!");
+  await page.getByTestId("login-submit").click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByTestId("nav-logout")).toBeVisible();
+});
+
+test("Google callback exposes cancellation and expiry without changing authentication", async ({ page }) => {
+  await page.goto("/api/auth/google/start?fake=cancel");
+  await expect(page.getByTestId("external-auth-result-title")).toContainText("No changes were made");
+  await expect(page.getByTestId("nav-login")).toBeVisible();
+
+  await page.goto("/api/auth/google/start?fake=expired");
+  await expect(page.getByTestId("external-auth-result-title")).toContainText("Start Google sign-in again");
+  await expect(page.getByTestId("nav-login")).toBeVisible();
+});
+
+test("Google controls stay hidden when the provider is disabled", async ({ page }) => {
+  await page.route("**/api/auth/providers", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        google: { name: "Google", displayName: "Google", enabled: false },
+        supportEmail: null,
+      }),
+    });
+  });
+
+  await page.goto("/login");
+  await expect(page.getByTestId("google-signin-link")).toHaveCount(0);
+  await expect(page.getByTestId("login-form")).toBeVisible();
+
+  await page.goto("/register");
+  await expect(page.getByTestId("google-signin-link")).toHaveCount(0);
+  await expect(page.getByTestId("register-form")).toBeVisible();
+});
+
+test("Google registration respects the registration control", async ({ page, request }) => {
+  const adminToken = await loginViaApi(request, "admin", ADMIN_PASSWORD);
+  await setAdminControl(request, adminToken, "new-registrations", false);
+
+  await page.goto("/api/auth/google/start");
+  await expect(page).toHaveURL(/\/auth\/external\/complete-registration$/);
+  await page.getByTestId("external-registration-username").fill("blockedgoogle");
+  await page.getByTestId("external-registration-submit").click();
+
+  await expect(page.getByTestId("external-registration-error")).toContainText("registrations are not available");
+  await expect(page.getByTestId("nav-login")).toBeVisible();
+});
+
+test("a suspended Google account cannot create a new application session", async ({ page, request }) => {
+  const fakeIdentity = "fakeSubject=suspended-google-subject&fakeEmail=suspended-google%40example.test&fakeName=Suspended%20Painter";
+  await page.goto(`/api/auth/google/start?${fakeIdentity}`);
+  await expect(page).toHaveURL(/\/auth\/external\/complete-registration$/);
+  await page.getByTestId("external-registration-username").fill("suspendedgoogle");
+  await page.getByTestId("external-registration-submit").click();
+  await expect(page.getByTestId("nav-logout")).toBeVisible();
+
+  const googleToken = await page.evaluate(() => localStorage.getItem("authToken"));
+  const googleClaims = JSON.parse(Buffer.from(googleToken.split(".")[1], "base64url").toString("utf8"));
+  const adminToken = await loginViaApi(request, "admin", ADMIN_PASSWORD);
+  await sendAuthedRequest(
+    request,
+    adminToken,
+    "POST",
+    `/api/moderation/users/${encodeURIComponent(googleClaims.sub)}/suspend`,
+    {
+      suspendedUntilUtc: new Date(Date.now() + (60 * 60 * 1000)).toISOString(),
+      reason: "Google authentication suspension smoke test",
+    },
+  );
+
+  await page.getByTestId("nav-logout").click();
+  await page.goto(`/api/auth/google/start?${fakeIdentity}`);
+  await expect(page.getByTestId("external-auth-result-title")).toContainText("cannot sign in right now");
+  await expect(page.getByTestId("nav-login")).toBeVisible();
 });
 
 test("invalid login shows user-facing error", async ({ page }) => {
@@ -1401,4 +1583,154 @@ test("admin can pause comments and creation is blocked until re-enabled", async 
     },
   });
   expect(allowed.ok(), `Comment should be allowed after re-enable, got HTTP ${allowed.status()}`).toBeTruthy();
+});
+
+test("hobby project lifecycle stays connected across diary, showcase, discovery, moves, and moderation", async ({ page, request }) => {
+  test.setTimeout(120_000);
+
+  await loginAsSeedUser(page);
+  const userToken = await page.evaluate(() => localStorage.getItem("authToken"));
+  expect(userToken, "Expected the seeded user session to expose its JWT.").toBeTruthy();
+  const userProfile = await ensureProfileForToken(request, userToken, {
+    displayName: "Project Smoke Painter",
+    bio: "Builds projects for lifecycle verification.",
+  });
+
+  const projectTitle = "Smoke Alpine Expedition";
+  await page.goto("/projects/new");
+  await page.getByTestId("project-create-title").fill(projectTitle);
+  await page.getByTestId("project-create-description").fill("A winter army diary moving from first basecoat to a curated finished showcase.");
+  await page.getByTestId("project-create-kind").selectOption("Army");
+  await page.getByTestId("project-create-game-system").fill("Smokehammer");
+  await page.getByTestId("project-create-faction-theme").fill("Alpine expedition");
+  await page.getByTestId("project-create-goal").fill("Finish and document two image-backed checkpoints");
+  await page.getByTestId("project-create-submit").click();
+  await expect(page).toHaveURL(/\/projects\/\d+$/);
+  await expect(page.getByTestId("project-details-hero")).toContainText(projectTitle);
+  await expect(page.getByTestId("project-entries-empty")).toBeVisible();
+
+  const projectId = Number(new URL(page.url()).pathname.split("/").pop());
+  expect(projectId).toBeGreaterThan(0);
+  const emptyPublicRead = await request.get(`/api/projects/${projectId}`);
+  expect(emptyPublicRead.status(), "Empty projects must remain owner-only.").toBe(404);
+
+  const attachedPost = await createImagePostViaApi(request, userToken, "existing-post");
+  await sendAuthedRequest(request, userToken, "POST", `/api/projects/${projectId}/posts`, {
+    postId: attachedPost.id,
+    milestoneLabel: "Existing post attached",
+  });
+
+  await page.goto(`/projects/${projectId}?view=diary`);
+  await expect(page.getByTestId("project-diary")).toContainText(attachedPost.title);
+  await expect(page.getByTestId("project-diary")).toContainText("Existing post attached");
+  expect((await request.get(`/api/projects/${projectId}`)).ok(), "The first visible entry should make the project public.").toBeTruthy();
+
+  await page.goto(`/posts/new?projectId=${projectId}`);
+  await expect(page.getByTestId("create-post-project")).toHaveValue(String(projectId));
+  await page.getByTestId("create-post-title").fill("Alpine command checkpoint");
+  await page.getByTestId("create-post-content").fill("The command group now has its final winter palette and snow texture.");
+  await page.getByTestId("create-post-milestone").fill("Command group complete");
+  await page.getByTestId("create-post-images").setInputFiles(SAMPLE_IMAGE_PATH);
+  const publishResponsePromise = page.waitForResponse((response) =>
+    response.request().method() === "POST" && response.url().endsWith("/api/posts/with-image"));
+  await page.getByTestId("create-post-submit").click();
+  const publishResponse = await publishResponsePromise;
+  expect(publishResponse.ok(), `Project-aware image publish failed with HTTP ${publishResponse.status()}.`).toBeTruthy();
+  const milestonePost = await publishResponse.json();
+  await expect(page).toHaveURL(new RegExp(`/projects/${projectId}\\?view=diary#post-${milestonePost.id}$`));
+  await expect(page.getByTestId("project-diary")).toContainText("Command group complete");
+
+  await sendAuthedRequest(request, userToken, "PUT", `/api/projects/${projectId}/showcase`, {
+    postIds: [attachedPost.id, milestonePost.id],
+  });
+  let showcaseResponse = await request.get(`/api/projects/${projectId}/showcase`);
+  let showcase = await showcaseResponse.json();
+  expect(showcase.items.map((entry) => entry.postId)).toEqual([attachedPost.id, milestonePost.id]);
+
+  await sendAuthedRequest(request, userToken, "PUT", `/api/projects/${projectId}/showcase`, {
+    postIds: [milestonePost.id, attachedPost.id],
+  });
+  showcaseResponse = await request.get(`/api/projects/${projectId}/showcase`);
+  showcase = await showcaseResponse.json();
+  expect(showcase.items.map((entry) => entry.postId)).toEqual([milestonePost.id, attachedPost.id]);
+
+  await sendAuthedRequest(request, userToken, "PUT", `/api/projects/${projectId}/cover`, {
+    postId: attachedPost.id,
+  });
+  const completedResponse = await sendAuthedRequest(request, userToken, "PUT", `/api/projects/${projectId}/status`, {
+    status: "Completed",
+  });
+  const completed = await completedResponse.json();
+  expect(completed.status).toBe("Completed");
+  expect(completed.coverPostId).toBe(attachedPost.id);
+
+  await clearAuth(page);
+  await page.goto("/projects");
+  await expect(page.getByTestId("project-list")).toContainText(projectTitle);
+  await page.goto(`/projects/${projectId}`);
+  await expect(page.getByTestId("project-showcase")).toBeVisible();
+  await expect(page.getByTestId("project-showcase")).toContainText("Alpine command checkpoint");
+  await page.goto(`/projects/${projectId}?view=diary`);
+  await expect(page.getByTestId("project-diary")).toContainText("Command group complete");
+  await page.goto(`/users/${encodeURIComponent(userProfile.userId)}`);
+  await expect(page.getByTestId("profile-projects")).toContainText(projectTitle);
+  await page.goto(`/search?q=${encodeURIComponent("Smoke Alpine")}&tab=projects`);
+  await expect(page.getByTestId("search-projects-results")).toContainText(projectTitle);
+
+  const reopeningPost = await createImagePostViaApi(request, userToken, "reopen", {
+    projectId,
+    milestoneLabel: "Reinforcements arrive",
+  });
+  let ownerRead = await request.get(`/api/projects/${projectId}`, {
+    headers: { Authorization: `Bearer ${userToken}` },
+  });
+  let project = await ownerRead.json();
+  expect(project.status).toBe("InProgress");
+  expect(project.completedUtc).toBeNull();
+
+  const destination = await createHobbyProjectViaApi(request, userToken, "move-target");
+  await sendAuthedRequest(request, userToken, "POST", `/api/projects/${destination.id}/posts`, {
+    postId: attachedPost.id,
+    sourceProjectId: projectId,
+    milestoneLabel: "Transferred detachment",
+  });
+  ownerRead = await request.get(`/api/projects/${projectId}`, {
+    headers: { Authorization: `Bearer ${userToken}` },
+  });
+  project = await ownerRead.json();
+  expect(project.selectedCoverPostId, "Moving the selected cover must clear the explicit source selection.").toBeNull();
+  expect(project.coverPostId, "Moving the selected cover must remove the moved post from the effective cover.").not.toBe(attachedPost.id);
+  expect(project.coverPostId, "The source project should fall back to its remaining showcase image.").toBe(milestonePost.id);
+  expect(project.entryCount).toBe(2);
+
+  let lifecycleResponse = await sendAuthedRequest(request, userToken, "POST", `/api/projects/${projectId}/archive`);
+  project = await lifecycleResponse.json();
+  expect(project.isArchived).toBeTruthy();
+  expect((await request.get(`/api/projects/${projectId}`)).status()).toBe(404);
+  lifecycleResponse = await sendAuthedRequest(request, userToken, "POST", `/api/projects/${projectId}/restore`);
+  project = await lifecycleResponse.json();
+  expect(project.isArchived).toBeFalsy();
+  expect((await request.get(`/api/projects/${projectId}`)).ok()).toBeTruthy();
+
+  const adminToken = await loginViaApi(request, "admin", ADMIN_PASSWORD);
+  await sendAuthedRequest(request, adminToken, "POST", `/api/reports/projects/${projectId}`, {
+    reasonCode: "Other",
+    details: "Project lifecycle moderation smoke report.",
+  });
+  await sendAuthedRequest(request, adminToken, "POST", `/api/moderation/projects/${projectId}/hide`, {
+    reason: "Project lifecycle moderation smoke hide.",
+  });
+  expect((await request.get(`/api/projects/${projectId}`)).status()).toBe(404);
+  expect((await request.get(`/api/posts/${milestonePost.id}`)).ok(), "Project moderation must not hide linked posts.").toBeTruthy();
+  const hiddenOwnerRead = await request.get(`/api/projects/${projectId}`, {
+    headers: { Authorization: `Bearer ${userToken}` },
+  });
+  expect(hiddenOwnerRead.ok()).toBeTruthy();
+  expect((await hiddenOwnerRead.json()).isHidden).toBeTruthy();
+
+  await sendAuthedRequest(request, adminToken, "POST", `/api/moderation/projects/${projectId}/restore`, {
+    reason: "Project lifecycle moderation smoke restore.",
+  });
+  expect((await request.get(`/api/projects/${projectId}`)).ok()).toBeTruthy();
+  expect(reopeningPost.project?.id).toBe(projectId);
 });

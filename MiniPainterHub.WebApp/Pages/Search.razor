@@ -9,16 +9,16 @@
 <div class="page-shell content-stack">
     <PageHero Eyebrow="Discovery"
               Title="Search"
-              Description="Find painters, paint recipes, techniques, and finished miniatures."
+              Description="Find hobby projects, painters, paint recipes, techniques, and finished miniatures."
               ClassName="search-page-hero page-hero--compact"
               FrameName="Search Header">
         <Actions>
             <form class="atelier-nav__search search-hero-form" @onsubmit="SubmitAsync">
-                <label class="visually-hidden" for="search-query-input">Search posts, users, tags</label>
+                <label class="visually-hidden" for="search-query-input">Search projects, posts, users, and tags</label>
                 <input class="form-control"
                        id="search-query-input"
                        type="search"
-                       placeholder="Search posts, users, tags"
+                       placeholder="Search projects, posts, users, tags"
                        data-testid="search-query-input"
                        @bind="_draftQuery" />
                 <button class="btn btn-primary"
@@ -34,7 +34,7 @@
     {
         <EmptyState IconClass="bi bi-search"
                     Title="Start with at least two characters"
-                    Description="Search across posts, users, and tags from one place."
+                    Description="Search across projects, posts, users, and tags from one place."
                     TitleClass="empty-state__title h4"
                     TestId="search-empty-query" />
     }
@@ -53,6 +53,9 @@
                     <button class="@GetTabClass("posts")" type="button" data-testid="search-tab-posts" @onclick='() => NavigateToTab("posts")'>Posts</button>
                 </li>
                 <li class="nav-item">
+                    <button class="@GetTabClass("projects")" type="button" data-testid="search-tab-projects" @onclick='() => NavigateToTab("projects")'>Projects</button>
+                </li>
+                <li class="nav-item">
                     <button class="@GetTabClass("users")" type="button" data-testid="search-tab-users" @onclick='() => NavigateToTab("users")'>Users</button>
                 </li>
                 <li class="nav-item">
@@ -69,7 +72,7 @@
                     <div class="status-panel__icon"><i class="bi bi-search" aria-hidden="true"></i></div>
                     <div>
                         <div class="status-panel__title">Searching...</div>
-                        <p class="status-panel__text mb-0">Scanning painters, posts, and tags.</p>
+                        <p class="status-panel__text mb-0">Scanning projects, painters, posts, and tags.</p>
                     </div>
                 </div>
             }
@@ -90,6 +93,32 @@
             else if (CurrentTab == "all")
             {
                 <div class="search-overview-results" data-testid="search-overview-results">
+                    <section class="search-overview-section search-overview-section--projects">
+                        <SectionHeader Eyebrow="Projects"
+                                       Title="Hobby projects"
+                                       TitleTag="h3"
+                                       TitleClass="section-heading__title h3 mb-0"
+                                       SectionName="Search Overview Projects">
+                            <Actions>
+                                <button class="btn btn-link p-0" type="button" data-testid="search-overview-view-projects" @onclick='() => NavigateToTab("projects")'>View all</button>
+                            </Actions>
+                        </SectionHeader>
+
+                        @if (_overview.Projects.Count == 0)
+                        {
+                            <p class="text-muted mb-0" data-testid="search-overview-projects-empty">No projects matched.</p>
+                        }
+                        else
+                        {
+                            <div class="search-project-grid" data-testid="search-overview-projects">
+                                @foreach (var project in _overview.Projects)
+                                {
+                                    <HobbyProjectCard Project="project" />
+                                }
+                            </div>
+                        }
+                    </section>
+
                     <section class="search-overview-section search-overview-section--posts">
                         <SectionHeader Eyebrow="Posts"
                                        Title="Posts"
@@ -218,6 +247,26 @@
                     @RenderPager(_postResults.TotalCount, _postResults.HasPreviousPage, _postResults.HasNextPage)
                 </div>
             }
+            else if (CurrentTab == "projects")
+            {
+                <div data-testid="search-projects-results">
+                    @if (!_projectResults.Items.Any())
+                    {
+                        <p class="text-muted mb-0" data-testid="search-projects-empty">No projects matched.</p>
+                    }
+                    else
+                    {
+                        <div class="search-project-grid">
+                            @foreach (var project in _projectResults.Items)
+                            {
+                                <HobbyProjectCard Project="project" />
+                            }
+                        </div>
+                    }
+
+                    @RenderPager(_projectResults.TotalCount, _projectResults.HasPreviousPage, _projectResults.HasNextPage)
+                </div>
+            }
             else if (CurrentTab == "users")
             {
                 <div data-testid="search-users-results">
@@ -306,6 +355,7 @@
     private bool _focusError;
     private SearchOverviewDto _overview = new();
     private PagedResult<PostSummaryDto> _postResults = EmptyPage<PostSummaryDto>();
+    private PagedResult<HobbyProjectSummaryDto> _projectResults = EmptyPage<HobbyProjectSummaryDto>();
     private PagedResult<UserListItemDto> _userResults = EmptyPage<UserListItemDto>();
     private PagedResult<SearchTagResultDto> _tagResults = EmptyPage<SearchTagResultDto>();
 
@@ -313,6 +363,7 @@
     private string CurrentTab => Tab?.Trim().ToLowerInvariant() switch
     {
         "posts" => "posts",
+        "projects" => "projects",
         "users" => "users",
         "tags" => "tags",
         _ => "all"
@@ -344,6 +395,7 @@
         _error = null;
         _overview = new SearchOverviewDto();
         _postResults = EmptyPage<PostSummaryDto>();
+        _projectResults = EmptyPage<HobbyProjectSummaryDto>();
         _userResults = EmptyPage<UserListItemDto>();
         _tagResults = EmptyPage<SearchTagResultDto>();
 
@@ -378,6 +430,19 @@
                 }
 
                 _postResults = result.Value;
+                return;
+            }
+
+            if (CurrentTab == "projects")
+            {
+                var result = await SearchService.SearchProjectsAsync(NormalizedQuery, CurrentPage, SearchPageSize);
+                if (!result.Success || result.Value is null)
+                {
+                    SetError("Project search failed. Please try again.");
+                    return;
+                }
+
+                _projectResults = result.Value;
                 return;
             }
 

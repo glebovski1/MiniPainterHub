@@ -57,6 +57,7 @@
 .bi-exclamation-triangle::before { content: "\f33b"; }
 .bi-exclamation-triangle-fill::before { content: "\f33a"; }
 .bi-eye-slash::before { content: "\f340"; }
+.bi-file-earmark-text::before { content: "\f38b"; }
 .bi-file-image::before { content: "\f39b"; }
 .bi-flag::before { content: "\f3cc"; }
 .bi-fullscreen-exit::before { content: "\f3de"; }
@@ -77,6 +78,7 @@
 .bi-journal-plus::before { content: "\f442"; }
 .bi-journal-text::before { content: "\f444"; }
 .bi-journal-x::before { content: "\f445"; }
+.bi-key::before { content: "\f44f"; }
 .bi-layout-sidebar-inset::before { content: "\f45d"; }
 .bi-layout-sidebar-inset-reverse::before { content: "\f45c"; }
 .bi-life-preserver::before { content: "\f467"; }
@@ -106,4 +108,5 @@
 .bi-three-dots::before { content: "\f5d4"; }
 .bi-trophy::before { content: "\f5e7"; }
 .bi-wifi-off::before { content: "\f61b"; }
+.bi-x-circle::before { content: "\f623"; }
 .bi-x-lg::before { content: "\f659"; }

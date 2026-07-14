@@ -47,6 +47,8 @@
                                ClassName="section-heading section-heading--auth"
                                SectionName="Registration Card" />
 
+                <GoogleSignInAction ReturnUrl="@ReturnUrl" />
+
                 <ValidationSummary class="text-danger small mt-3 mb-0" />
 
                 <div class="form-grid mt-4">
@@ -105,6 +107,10 @@
 </div>
 
 @code {
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
     private RegisterDto registration = new();
     private string? error;
 
@@ -114,7 +120,9 @@
         var success = await AuthService.RegisterAsync(registration);
         if (success)
         {
-            Nav.NavigateTo("/login");
+            var suppliedReturnUrl = LocalReturnUrl.GetQueryParameter(Nav.Uri, "returnUrl") ?? ReturnUrl;
+            var destination = LocalReturnUrl.Normalize(suppliedReturnUrl, new Uri(Nav.BaseUri));
+            Nav.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(destination)}");
         }
         else
         {

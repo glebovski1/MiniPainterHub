@@ -61,7 +61,7 @@
         </div>
     </div>
 
-    <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3"></div>
+    <div id="toast-container" class="toast-container app-toast-container position-fixed end-0 p-3"></div>
 
     <div id="blazor-error-ui">
         An unhandled error has occurred.
@@ -76,12 +76,34 @@
     <script src="_framework/blazor.webassembly.js"></script>
     <script src="JSHelpers/domHelpers.js" defer></script>
     <script>
+        let observedToastHeader = null;
+        const toastHeaderObserver = window.ResizeObserver
+            ? new ResizeObserver(() => positionToastContainer())
+            : null;
+        const positionToastContainer = () => {
+            const appHeader = document.getElementById('appHeader');
+            const headerBottom = appHeader?.getBoundingClientRect().bottom || 0;
+            document.documentElement.style.setProperty(
+                '--app-header-bottom',
+                `${Math.max(0, Math.ceil(headerBottom))}px`);
+
+            if (toastHeaderObserver && appHeader && observedToastHeader !== appHeader) {
+                toastHeaderObserver.disconnect();
+                toastHeaderObserver.observe(appHeader);
+                observedToastHeader = appHeader;
+            }
+        };
+
+        window.addEventListener('resize', positionToastContainer, { passive: true });
+
         window.bootstrapToaster = {
             show(message, header, type) {
                 const container = document.getElementById('toast-container');
                 if (!container) {
                     return;
                 }
+
+                positionToastContainer();
 
                 const toastElement = document.createElement('div');
                 const variant = type || 'primary';

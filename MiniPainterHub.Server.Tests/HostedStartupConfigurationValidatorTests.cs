@@ -97,6 +97,48 @@ public class HostedStartupConfigurationValidatorTests
         result.SeedAdminPassword.Should().Be("P@ssw0rd!");
     }
 
+    [Fact]
+    public void Validate_WhenGoogleEnabledWithoutProviderSettings_ThrowsWithGoogleKeys()
+    {
+        var values = RequiredHostedValues();
+        values["Authentication:Google:Enabled"] = "true";
+        values["AllowedHosts"] = "example.test";
+        var configuration = CreateConfiguration(values);
+
+        Action act = () => HostedStartupConfigurationValidator.Validate(configuration, Environments.Production);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Authentication__Google__ClientId*Authentication__Google__ClientSecret*Authentication__Google__CallbackPath*Authentication__Google__PublicOrigin*Site__SupportEmail*");
+    }
+
+    [Fact]
+    public void Validate_WhenGoogleEnabledWithWildcardHost_RejectsUnsafeHostConfiguration()
+    {
+        var values = RequiredHostedValues();
+        values["Authentication:Google:Enabled"] = "true";
+        values["Authentication:Google:ClientId"] = "client";
+        values["Authentication:Google:ClientSecret"] = "secret";
+        values["Authentication:Google:CallbackPath"] = "/signin-google";
+        values["Authentication:Google:PublicOrigin"] = "https://example.test";
+        values["Site:SupportEmail"] = "support@example.test";
+        values["AllowedHosts"] = "*";
+
+        Action act = () => HostedStartupConfigurationValidator.Validate(CreateConfiguration(values), Environments.Production);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*AllowedHosts must restrict the public Google authentication host*");
+    }
+
+    private static Dictionary<string, string?> RequiredHostedValues() => new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ConnectionStrings:DefaultConnection"] = "Server=tcp:test.database.windows.net;Initial Catalog=MiniPainterHub;",
+        ["Jwt:Key"] = "12345678901234567890123456789012",
+        ["Jwt:Issuer"] = "MiniPainterHubApi",
+        ["Jwt:Audience"] = "MiniPainterHubClient",
+        ["ImageStorage:AzureConnectionString"] = "UseDevelopmentStorage=true",
+        ["ImageStorage:AzureContainer"] = "images"
+    };
+
     private static IConfiguration CreateConfiguration(IDictionary<string, string?>? values = null)
     {
         var configurationValues = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);

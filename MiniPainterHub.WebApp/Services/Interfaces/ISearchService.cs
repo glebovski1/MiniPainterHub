@@ -8,6 +8,7 @@ namespace MiniPainterHub.WebApp.Services.Interfaces
     {
         Task<ApiResult<SearchOverviewDto?>> GetOverviewAsync(string? query);
         Task<ApiResult<PagedResult<PostSummaryDto>?>> SearchPostsAsync(string? query, string? tag, int page, int pageSize);
+        Task<ApiResult<PagedResult<HobbyProjectSummaryDto>?>> SearchProjectsAsync(string? query, int page, int pageSize);
         Task<ApiResult<PagedResult<UserListItemDto>?>> SearchUsersAsync(string? query, int page, int pageSize);
         Task<ApiResult<PagedResult<SearchTagResultDto>?>> SearchTagsAsync(string? query, int page, int pageSize);
     }

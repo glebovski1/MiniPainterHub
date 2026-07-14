@@ -34,6 +34,13 @@ namespace MiniPainterHub.Server.Controllers
             [FromQuery] int pageSize = 10) =>
             SearchAsync(() => _searchService.SearchPostsAsync(q, tag, page, pageSize));
 
+        [HttpGet("projects")]
+        public Task<ActionResult<PagedResult<HobbyProjectSummaryDto>>> SearchProjects(
+            [FromQuery] string? q,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10) =>
+            SearchAsync(() => _searchService.SearchProjectsAsync(q, page, pageSize));
+
         [HttpGet("users")]
         public Task<ActionResult<PagedResult<UserListItemDto>>> SearchUsers(
             [FromQuery] string? q,

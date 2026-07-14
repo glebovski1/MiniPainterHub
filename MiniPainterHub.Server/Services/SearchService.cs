@@ -34,23 +34,104 @@ namespace MiniPainterHub.Server.Services
                 return new SearchOverviewDto();
             }
 
-            var cacheKey = CreateCacheKey("overview", query);
-            if (TryGetCached(cacheKey, out SearchOverviewDto? cachedOverview))
-            {
-                return cachedOverview!;
-            }
-
             var posts = await SearchPostsAsync(query, null, 1, OverviewTake);
+            var projects = await SearchProjectsAsync(query, 1, OverviewTake);
             var users = await SearchUsersAsync(query, 1, OverviewTake);
             var tags = await SearchTagsAsync(query, 1, OverviewTake);
 
             var result = new SearchOverviewDto
             {
                 Posts = posts.Items.ToList(),
+                Projects = projects.Items.ToList(),
                 Users = users.Items.ToList(),
                 Tags = tags.Items.ToList()
             };
-            SetCache(cacheKey, result);
+            return result;
+        }
+
+        public async Task<PagedResult<HobbyProjectSummaryDto>> SearchProjectsAsync(
+            string? query,
+            int page,
+            int pageSize)
+        {
+            ValidatePaging(page, pageSize);
+            if (!HasSearchTerm(query))
+            {
+                return EmptyPage<HobbyProjectSummaryDto>(page, pageSize);
+            }
+
+            var normalizedQuery = TagTextUtilities.NormalizeText(query!);
+            var containsPattern = CreateContainsPattern(normalizedQuery);
+            var startsPattern = CreateStartsPattern(normalizedQuery);
+            var candidates = _appDbContext.HobbyProjects
+                .AsNoTracking()
+                .Where(project =>
+                    !project.IsHidden
+                    && project.ArchivedUtc == null
+                    && project.Entries.Any(entry => !entry.Post.IsDeleted))
+                .Select(project => new SearchProjectCandidate
+                {
+                    Id = project.Id,
+                    TitleStartsMatch = EF.Functions.Like(project.Title.ToLower(), startsPattern, LikeEscape),
+                    TitleContainsMatch = EF.Functions.Like(project.Title.ToLower(), containsPattern, LikeEscape),
+                    DescriptionContainsMatch = EF.Functions.Like(project.Description.ToLower(), containsPattern, LikeEscape),
+                    MetadataContainsMatch = EF.Functions.Like((project.GameSystem ?? string.Empty).ToLower(), containsPattern, LikeEscape)
+                        || EF.Functions.Like((project.FactionTheme ?? string.Empty).ToLower(), containsPattern, LikeEscape)
+                        || EF.Functions.Like((project.Goal ?? string.Empty).ToLower(), containsPattern, LikeEscape),
+                    OwnerContainsMatch = EF.Functions.Like(
+                        ((project.OwnerUser.Profile != null ? project.OwnerUser.Profile.DisplayName : null)
+                            ?? project.OwnerUser.DisplayName
+                            ?? project.OwnerUser.UserName
+                            ?? string.Empty).ToLower(),
+                        containsPattern,
+                        LikeEscape),
+                    UpdatedUtc = project.UpdatedUtc
+                })
+                .Where(project =>
+                    project.TitleContainsMatch
+                    || project.DescriptionContainsMatch
+                    || project.MetadataContainsMatch
+                    || project.OwnerContainsMatch);
+
+            var totalCount = await candidates.CountAsync();
+            var pageIds = await candidates
+                .OrderByDescending(project => project.TitleStartsMatch)
+                .ThenByDescending(project => project.TitleContainsMatch)
+                .ThenByDescending(project => project.DescriptionContainsMatch)
+                .ThenByDescending(project => project.MetadataContainsMatch)
+                .ThenByDescending(project => project.OwnerContainsMatch)
+                .ThenByDescending(project => project.UpdatedUtc)
+                .ThenByDescending(project => project.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(project => project.Id)
+                .ToListAsync();
+
+            if (pageIds.Count == 0)
+            {
+                return CreatePage(Array.Empty<HobbyProjectSummaryDto>(), totalCount, page, pageSize);
+            }
+
+            var projects = await _appDbContext.HobbyProjects
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(project => project.OwnerUser)
+                    .ThenInclude(owner => owner.Profile)
+                .Include(project => project.Entries)
+                    .ThenInclude(entry => entry.Post)
+                    .ThenInclude(post => post.Images)
+                .Where(project =>
+                    pageIds.Contains(project.Id)
+                    && !project.IsHidden
+                    && project.ArchivedUtc == null
+                    && project.Entries.Any(entry => !entry.Post.IsDeleted))
+                .ToDictionaryAsync(project => project.Id);
+
+            var items = pageIds
+                .Where(projects.ContainsKey)
+                .Select(projectId => HobbyProjectService.MapSummary(projects[projectId], ownerView: false))
+                .ToList();
+            var result = CreatePage(items, totalCount, page, pageSize);
             return result;
         }
 
@@ -65,12 +146,6 @@ namespace MiniPainterHub.Server.Services
             if (!hasSearchTerm && string.IsNullOrWhiteSpace(normalizedTagSlug))
             {
                 return EmptyPage<PostSummaryDto>(page, pageSize);
-            }
-
-            var cacheKey = CreateCacheKey("posts", normalizedQuery, normalizedTagSlug ?? string.Empty, page, pageSize);
-            if (TryGetCached(cacheKey, out PagedResult<PostSummaryDto>? cachedPosts))
-            {
-                return cachedPosts!;
             }
 
             var containsPattern = CreateContainsPattern(normalizedQuery);
@@ -121,6 +196,18 @@ namespace MiniPainterHub.Server.Services
                     CommentCount = p.Comments.Count,
                     LikeCount = p.Likes.Count,
                     IsDeleted = p.IsDeleted,
+                    Project = p.HobbyProjectEntry != null
+                        && !p.HobbyProjectEntry.Project.IsHidden
+                        && p.HobbyProjectEntry.Project.ArchivedUtc == null
+                        && p.HobbyProjectEntry.Project.Entries.Any(entry => !entry.Post.IsDeleted)
+                            ? new HobbyProjectReferenceDto
+                            {
+                                Id = p.HobbyProjectEntry.Project.Id,
+                                Title = p.HobbyProjectEntry.Project.Title,
+                                Status = p.HobbyProjectEntry.Project.Status,
+                                IsPublic = true
+                            }
+                            : null,
                     Tags = p.PostTags
                         .OrderBy(pt => pt.Tag.DisplayName)
                         .Select(pt => new TagDto
@@ -151,7 +238,6 @@ namespace MiniPainterHub.Server.Services
             }
 
             var result = CreatePage(items, totalCount, page, pageSize);
-            SetCache(cacheKey, result);
             return result;
         }
 
@@ -351,6 +437,17 @@ namespace MiniPainterHub.Server.Services
             public bool TitleContainsMatch { get; init; }
             public bool ContentContainsMatch { get; init; }
             public bool TagContainsMatch { get; init; }
+        }
+
+        private sealed class SearchProjectCandidate
+        {
+            public int Id { get; init; }
+            public bool TitleStartsMatch { get; init; }
+            public bool TitleContainsMatch { get; init; }
+            public bool DescriptionContainsMatch { get; init; }
+            public bool MetadataContainsMatch { get; init; }
+            public bool OwnerContainsMatch { get; init; }
+            public DateTime UpdatedUtc { get; init; }
         }
 
         private sealed class SearchUserCandidate

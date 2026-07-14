@@ -33,6 +33,9 @@ namespace MiniPainterHub.Server.Services
         public Task SubmitUserReportAsync(string reporterUserId, string targetUserId, CreateReportRequestDto request) =>
             SubmitAsync(reporterUserId, ReportTargetTypes.User, targetUserId, request);
 
+        public Task SubmitProjectReportAsync(string reporterUserId, int projectId, CreateReportRequestDto request) =>
+            SubmitAsync(reporterUserId, ReportTargetTypes.HobbyProject, projectId.ToString(), request);
+
         public async Task<PagedResult<ReportQueueItemDto>> GetQueueAsync(ReportQueueQueryDto query)
         {
             ValidatePaging(query.Page, query.PageSize);
@@ -88,6 +91,11 @@ namespace MiniPainterHub.Server.Services
                 .Select(r => r.TargetId)
                 .Distinct()
                 .ToList();
+            var projectIds = pageItems
+                .Where(r => r.TargetType == ReportTargetTypes.HobbyProject && int.TryParse(r.TargetId, out _))
+                .Select(r => int.Parse(r.TargetId))
+                .Distinct()
+                .ToList();
 
             var posts = await _appDbContext.Posts
                 .AsNoTracking()
@@ -102,9 +110,13 @@ namespace MiniPainterHub.Server.Services
                 .Include(u => u.Profile)
                 .Where(u => targetUserIds.Contains(u.Id))
                 .ToDictionaryAsync(u => u.Id, ResolveDisplayName);
+            var projects = await _appDbContext.HobbyProjects
+                .AsNoTracking()
+                .Where(project => projectIds.Contains(project.Id))
+                .ToDictionaryAsync(project => project.Id);
 
             var items = pageItems
-                .Select(r => MapQueueItem(r, users, posts, comments, targetUsers))
+                .Select(r => MapQueueItem(r, users, posts, comments, targetUsers, projects))
                 .ToList();
 
             return new PagedResult<ReportQueueItemDto>
@@ -239,6 +251,32 @@ namespace MiniPainterHub.Server.Services
 
                         break;
                     }
+                case ReportTargetTypes.HobbyProject:
+                    {
+                        if (!int.TryParse(targetId, out var projectId))
+                        {
+                            throw new NotFoundException("Project not found.");
+                        }
+
+                        var project = await _appDbContext.HobbyProjects
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(candidate =>
+                                candidate.Id == projectId
+                                && !candidate.IsHidden
+                                && candidate.ArchivedUtc == null
+                                && candidate.Entries.Any(entry => !entry.Post.IsDeleted));
+                        if (project is null)
+                        {
+                            throw new NotFoundException("Project not found.");
+                        }
+
+                        if (string.Equals(project.OwnerUserId, reporterUserId, StringComparison.Ordinal))
+                        {
+                            throw new ForbiddenException("You cannot report your own project.");
+                        }
+
+                        break;
+                    }
                 default:
                     throw new DomainValidationException("Unsupported report target.", new Dictionary<string, string[]>
                     {
@@ -303,7 +341,8 @@ namespace MiniPainterHub.Server.Services
             IReadOnlyDictionary<string, string> users,
             IReadOnlyDictionary<int, Post> posts,
             IReadOnlyDictionary<int, Comment> comments,
-            IReadOnlyDictionary<string, string> targetUsers)
+            IReadOnlyDictionary<string, string> targetUsers,
+            IReadOnlyDictionary<int, HobbyProject> projects)
         {
             var targetSummary = report.TargetType switch
             {
@@ -313,6 +352,8 @@ namespace MiniPainterHub.Server.Services
                     => comment.Text.Length > 120 ? comment.Text[..120] + "..." : comment.Text,
                 ReportTargetTypes.User when targetUsers.TryGetValue(report.TargetId, out var userDisplay)
                     => userDisplay,
+                ReportTargetTypes.HobbyProject when int.TryParse(report.TargetId, out var projectId) && projects.TryGetValue(projectId, out var project)
+                    => project.Title,
                 _ => "Target unavailable"
             };
 
@@ -322,6 +363,7 @@ namespace MiniPainterHub.Server.Services
                 ReportTargetTypes.Comment when int.TryParse(report.TargetId, out var commentId) && comments.TryGetValue(commentId, out var comment)
                     => $"/posts/{comment.PostId}",
                 ReportTargetTypes.User => $"/users/{report.TargetId}",
+                ReportTargetTypes.HobbyProject => $"/projects/{report.TargetId}",
                 _ => "/"
             };
 

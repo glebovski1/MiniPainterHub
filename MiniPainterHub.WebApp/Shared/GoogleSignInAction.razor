@@ -1,0 +1,64 @@
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+@if (_loading)
+{
+    <div class="google-signin-placeholder" aria-hidden="true"></div>
+}
+else if (_providers.Google.Enabled)
+{
+    <div class="external-signin" data-testid="google-signin-section">
+        <a class="google-signin-button"
+           data-testid="google-signin-link"
+           href="@_startUrl"
+           aria-label="Continue with Google">
+            <span class="google-signin-button__mark" aria-hidden="true">
+                <img src="brand/google-g-logo.png"
+                     width="20"
+                     height="21"
+                     alt="" />
+            </span>
+            <span>Continue with Google</span>
+        </a>
+        <div class="external-signin__divider" aria-hidden="true">
+            <span>or use username and password</span>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string? ReturnUrl { get; set; }
+
+    private AuthProvidersDto _providers = new();
+    private bool _loading = true;
+    private string _startUrl = "/api/auth/google/start?returnUrl=%2F";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _providers = await AuthService.GetProvidersAsync();
+        _loading = false;
+    }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var currentStartUrl = BuildStartUrl();
+            if (!string.Equals(_startUrl, currentStartUrl, StringComparison.Ordinal))
+            {
+                _startUrl = currentStartUrl;
+                StateHasChanged();
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private string BuildStartUrl()
+    {
+        var suppliedReturnUrl = LocalReturnUrl.GetQueryParameter(Navigation.Uri, "returnUrl") ?? ReturnUrl;
+        var returnUrl = LocalReturnUrl.Normalize(suppliedReturnUrl, new Uri(Navigation.BaseUri));
+        return $"/api/auth/google/start?returnUrl={Uri.EscapeDataString(returnUrl)}";
+    }
+}

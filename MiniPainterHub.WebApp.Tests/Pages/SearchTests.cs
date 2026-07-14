@@ -37,6 +37,23 @@ public class SearchTests : TestContext
                         CreatedAt = DateTime.UtcNow
                     }
                 },
+                Projects =
+                {
+                    new HobbyProjectSummaryDto
+                    {
+                        Id = 44,
+                        OwnerUserId = "user-1",
+                        OwnerUserName = "painter",
+                        OwnerDisplayName = "Painter Prime",
+                        Title = "Stormcast army diary",
+                        Description = "A growing gold and blue force.",
+                        Kind = HobbyProjectKinds.Army,
+                        Status = HobbyProjectStatuses.InProgress,
+                        EntryCount = 4,
+                        IsPublic = true,
+                        UpdatedUtc = DateTime.UtcNow
+                    }
+                },
                 Users =
                 {
                     new UserListItemDto
@@ -65,11 +82,58 @@ public class SearchTests : TestContext
 
         cut.WaitForAssertion(() =>
         {
-            cut.Markup.Should().Contain("Find painters, paint recipes, techniques, and finished miniatures.");
+            cut.Markup.Should().Contain("Find hobby projects, painters, paint recipes, techniques, and finished miniatures.");
             cut.Find(".page-hero").ClassList.Should().Contain("page-hero--compact");
             cut.Find("[data-testid='search-overview-results']").TextContent.Should().Contain("Non-metallic metal");
+            cut.Find("[data-testid='search-overview-projects']").TextContent.Should().Contain("Stormcast army diary");
             cut.Find("[data-testid='search-overview-users']").TextContent.Should().Contain("Painter Prime");
             cut.Find("[data-testid='search-overview-tags']").TextContent.Should().Contain("#nmm");
+        });
+    }
+
+    [Fact]
+    public void ProjectsTab_RendersDedicatedProjectResults()
+    {
+        this.AddTestAuthorization();
+        this.AddModerationStub();
+        this.AddSearchStub(new StubSearchService
+        {
+            SearchProjectsHandler = (_, page, pageSize) => Task.FromResult(
+                new MiniPainterHub.WebApp.Services.Http.ApiResult<PagedResult<HobbyProjectSummaryDto>?>(true, System.Net.HttpStatusCode.OK, new PagedResult<HobbyProjectSummaryDto>
+                {
+                    Items = new[]
+                    {
+                        new HobbyProjectSummaryDto
+                        {
+                            Id = 91,
+                            OwnerUserId = "painter-1",
+                            OwnerUserName = "painter",
+                            OwnerDisplayName = "Painter",
+                            Title = "Desert warband",
+                            Description = "Weathered skirmish force.",
+                            Kind = HobbyProjectKinds.Warband,
+                            Status = HobbyProjectStatuses.Completed,
+                            EntryCount = 6,
+                            ShowcaseCount = 3,
+                            IsPublic = true,
+                            UpdatedUtc = DateTime.UtcNow
+                        }
+                    },
+                    PageNumber = page,
+                    PageSize = pageSize,
+                    TotalCount = 1
+                }))
+        });
+
+        var nav = Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo("/search?q=desert&tab=projects");
+
+        var cut = RenderComponent<Search>();
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='search-projects-results']").TextContent.Should().Contain("Desert warband");
+            cut.Find("[data-testid='search-tab-projects']").ClassList.Should().Contain("active");
         });
     }
 

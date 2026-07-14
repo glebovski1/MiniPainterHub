@@ -239,12 +239,12 @@ public partial class RichImageViewer
                     ? (SelectedAuthorMark.NormalizedX, SelectedAuthorMark.NormalizedY)
                     : ((decimal)0.5m, (decimal)0.5m);
 
-            const double safeInset = 20d;
             var dockToRight = (double)anchor.Item1 <= 0.5d;
+            const string desktopSafeInset = "clamp(4.5rem, 6vw, 6rem)";
 
             return dockToRight
-                ? FormattableString.Invariant($"right:{safeInset:F2}px;bottom:{safeInset:F2}px;")
-                : FormattableString.Invariant($"left:{safeInset:F2}px;bottom:{safeInset:F2}px;");
+                ? $"right:{desktopSafeInset};bottom:1.25rem;"
+                : $"left:{desktopSafeInset};bottom:1.25rem;";
         }
     }
 
@@ -996,12 +996,14 @@ public partial class RichImageViewer
         }
     }
 
-    private Task DismissComposerAsync()
+    private async Task DismissComposerAsync()
     {
+        _isAuthorPlacementMode = false;
         _authorDraft = null;
         _selectedAuthorMarkId = null;
+        _composerValue = new();
         _authorMarkError = null;
-        return Task.CompletedTask;
+        await InvokeAsync(StateHasChanged);
     }
 
     private Task RetryCurrentImageAsync()

@@ -1,9 +1,12 @@
 using Bunit;
+using Bunit.TestDoubles;
 using FluentAssertions;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.WebApp.Pages;
 using MiniPainterHub.WebApp.Tests.Infrastructure;
 using System.Collections.Generic;
+using System;
+using System.Net;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -11,6 +14,59 @@ namespace MiniPainterHub.WebApp.Tests.Pages;
 
 public class PublicProfileTests : TestContext
 {
+    [Fact]
+    public void PublicProfile_ShowsUpToThreeRecentProjectsBeforeGallery()
+    {
+        this.AddTestAuthorization().SetNotAuthorized();
+        this.AddProfileStub(new StubProfileService
+        {
+            GetPublicByIdHandler = id => Task.FromResult(new PublicUserProfileDto
+            {
+                UserId = id,
+                UserName = "painter",
+                DisplayName = "Project Painter"
+            })
+        });
+        this.AddHobbyProjectStub(new StubHobbyProjectService
+        {
+            GetByOwnerHandler = (ownerId, query) => Task.FromResult(
+                new MiniPainterHub.WebApp.Services.Http.ApiResult<PagedResult<HobbyProjectSummaryDto>?>(true, HttpStatusCode.OK, new PagedResult<HobbyProjectSummaryDto>
+                {
+                    Items = new[]
+                    {
+                        new HobbyProjectSummaryDto
+                        {
+                            Id = 7,
+                            OwnerUserId = ownerId,
+                            OwnerUserName = "painter",
+                            OwnerDisplayName = "Project Painter",
+                            Title = "Winter army",
+                            Description = "A cold-weather force.",
+                            Kind = HobbyProjectKinds.Army,
+                            Status = HobbyProjectStatuses.InProgress,
+                            EntryCount = 2,
+                            IsPublic = true,
+                            UpdatedUtc = DateTime.UtcNow
+                        }
+                    },
+                    PageNumber = query.PageNumber,
+                    PageSize = query.PageSize,
+                    TotalCount = 1
+                }))
+        });
+        this.AddFollowStub();
+        this.AddConversationStub();
+        this.AddPostStub();
+
+        var cut = RenderComponent<PublicProfile>(parameters => parameters.Add(p => p.UserId, "target-user"));
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='profile-projects']").TextContent.Should().Contain("Winter army");
+            cut.Find("[data-testid='profile-projects-all']").GetAttribute("href").Should().Contain("owner=target-user");
+        });
+    }
+
     [Fact]
     public void WhenViewingAnotherUser_RendersFollowAndMessageActions()
     {

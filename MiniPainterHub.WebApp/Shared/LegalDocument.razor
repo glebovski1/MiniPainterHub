@@ -1,0 +1,20 @@
+<div class="legal-document">
+    <header class="surface-card legal-document__hero">
+        <p class="section-label mb-2">@Eyebrow</p>
+        <h1>@Title</h1>
+        <p class="legal-document__summary mb-0">@Summary</p>
+        <p class="legal-document__effective mb-0">Effective @EffectiveDate</p>
+    </header>
+
+    <article class="surface-card legal-document__body">
+        @ChildContent
+    </article>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Eyebrow { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Summary { get; set; } = string.Empty;
+    [Parameter] public string EffectiveDate { get; set; } = "July 12, 2026";
+    [Parameter, EditorRequired] public RenderFragment ChildContent { get; set; } = default!;
+}

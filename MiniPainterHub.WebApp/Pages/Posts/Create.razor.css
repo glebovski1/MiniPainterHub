@@ -13,13 +13,18 @@
     align-items: flex-start;
 }
 
-.recipe-fieldset {
+.recipe-fieldset,
+.project-fieldset {
     display: grid;
     gap: 0.9rem;
     padding: 0.92rem;
     border: 1px solid rgba(80, 103, 92, 0.14);
     border-radius: 8px;
     background: rgba(250, 247, 240, 0.58);
+}
+
+.project-fieldset {
+    background: linear-gradient(135deg, rgba(31, 91, 82, 0.07), rgba(250, 247, 240, 0.7));
 }
 
 .tag-composer {

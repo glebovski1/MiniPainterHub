@@ -58,6 +58,24 @@ namespace MiniPainterHub.Server.Controllers
             return NoContent();
         }
 
+        [HttpPost("projects/{projectId:int}/hide")]
+        [Authorize(Roles = "Moderator,Admin")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
+        public async Task<IActionResult> HideProject(int projectId, [FromBody] ModerationActionRequestDto dto)
+        {
+            await _moderationService.ModerateHobbyProjectAsync(projectId, User.GetUserIdOrThrow(), true, dto.Reason);
+            return NoContent();
+        }
+
+        [HttpPost("projects/{projectId:int}/restore")]
+        [Authorize(Roles = "Moderator,Admin")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
+        public async Task<IActionResult> RestoreProject(int projectId, [FromBody] ModerationActionRequestDto dto)
+        {
+            await _moderationService.ModerateHobbyProjectAsync(projectId, User.GetUserIdOrThrow(), false, dto.Reason);
+            return NoContent();
+        }
+
         [HttpPost("users/{userId}/suspend")]
         [Authorize(Roles = "Admin")]
         [EnableRateLimiting(RateLimitingPolicies.Write)]
@@ -102,6 +120,13 @@ namespace MiniPainterHub.Server.Controllers
         public async Task<ActionResult<ModerationCommentPreviewDto>> GetCommentPreview(int commentId)
         {
             return Ok(await _moderationService.GetCommentPreviewAsync(commentId));
+        }
+
+        [HttpGet("projects/{projectId:int}/preview")]
+        [Authorize(Roles = "Moderator,Admin")]
+        public async Task<ActionResult<ModerationHobbyProjectPreviewDto>> GetProjectPreview(int projectId)
+        {
+            return Ok(await _moderationService.GetHobbyProjectPreviewAsync(projectId));
         }
     }
 }

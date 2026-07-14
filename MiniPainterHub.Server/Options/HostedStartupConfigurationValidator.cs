@@ -39,6 +39,25 @@ internal static class HostedStartupConfigurationValidator
             missingSettings,
             legacyKeys: ["ImageStorageAzureContainer"]);
 
+        if (configuration.GetValue<bool>("Authentication:Google:Enabled"))
+        {
+            GetRequiredConfigurationValue(configuration, "Authentication:Google:ClientId", "Authentication__Google__ClientId", missingSettings);
+            GetRequiredConfigurationValue(configuration, "Authentication:Google:ClientSecret", "Authentication__Google__ClientSecret", missingSettings);
+            GetRequiredConfigurationValue(configuration, "Authentication:Google:CallbackPath", "Authentication__Google__CallbackPath", missingSettings);
+            GetRequiredConfigurationValue(configuration, "Authentication:Google:PublicOrigin", "Authentication__Google__PublicOrigin", missingSettings);
+            GetRequiredConfigurationValue(configuration, "Site:SupportEmail", "Site__SupportEmail", missingSettings);
+
+            if (configuration.GetValue<bool>("Authentication:Google:UseFakeProvider"))
+            {
+                missingSettings.Add("Authentication__Google__UseFakeProvider must be false outside Development/Test");
+            }
+
+            if (string.Equals(configuration["AllowedHosts"], "*", StringComparison.Ordinal))
+            {
+                missingSettings.Add("AllowedHosts must restrict the public Google authentication host");
+            }
+        }
+
         var seedAdminEnabled =
             string.Equals(environmentName, Environments.Production, StringComparison.OrdinalIgnoreCase)
             && configuration.GetValue<bool>("SeedAdmin:Enabled");

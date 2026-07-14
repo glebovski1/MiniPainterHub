@@ -1,7 +1,12 @@
 using Azure.Storage.Blobs;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.OAuth.Claims;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -10,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MiniPainterHub.Server.Data;
@@ -25,7 +31,9 @@ using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IO.Compression;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
@@ -68,6 +76,7 @@ public partial class Program
         builder.Services.AddDefaultIdentity<ApplicationUser>(o =>
         {
             o.SignIn.RequireConfirmedAccount = false;
+            o.User.RequireUniqueEmail = true;
             o.Lockout.AllowedForNewUsers = true;
             o.Lockout.MaxFailedAccessAttempts = 5;
             o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
@@ -76,7 +85,7 @@ public partial class Program
         .AddEntityFrameworkStores<AppDbContext>()
         .AddSignInManager();
 
-        AddJwtAuthentication(builder, hostedStartupConfiguration?.Jwt);
+        AddAuthentication(builder, hostedStartupConfiguration?.Jwt);
         AddFrameworkServices(builder);
         AddOptions(builder);
         AddTrafficShaping(builder);
@@ -94,11 +103,11 @@ public partial class Program
             warnings.Log(RelationalEventId.PendingModelChangesWarning));
     }
 
-    private static void AddJwtAuthentication(WebApplicationBuilder builder, JwtStartupConfiguration? jwt)
+    private static void AddAuthentication(WebApplicationBuilder builder, JwtStartupConfiguration? jwt)
     {
         var key = Encoding.UTF8.GetBytes(jwt?.Key ?? builder.Configuration["Jwt:Key"]!);
 
-        builder.Services.AddAuthentication(options =>
+        var authentication = builder.Services.AddAuthentication(options =>
         {
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
             options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -129,12 +138,64 @@ public partial class Program
                     return System.Threading.Tasks.Task.CompletedTask;
                 }
             };
+        })
+        .AddCookie(ExternalAuthenticationSchemes.ExternalCookie, options =>
+        {
+            options.Cookie.Name = "mph.external-provider";
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SecurePolicy = IsLocalToolingEnvironment(builder.Environment)
+                ? CookieSecurePolicy.SameAsRequest
+                : CookieSecurePolicy.Always;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+            options.ExpireTimeSpan = TimeSpan.FromMinutes(10);
+            options.SlidingExpiration = false;
         });
+
+        var google = builder.Configuration.GetSection(GoogleAuthenticationOptions.SectionName).Get<GoogleAuthenticationOptions>()
+            ?? new GoogleAuthenticationOptions();
+        authentication.AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, FakeGoogleAuthenticationHandler>(
+            ExternalAuthenticationSchemes.FakeGoogle,
+            _ => { });
+
+        if (google.Enabled && !google.UseFakeProvider)
+        {
+            authentication.AddGoogle(GoogleDefaults.AuthenticationScheme, options =>
+            {
+                options.ClientId = google.ClientId!;
+                options.ClientSecret = google.ClientSecret!;
+                options.CallbackPath = google.CallbackPath;
+                options.SignInScheme = ExternalAuthenticationSchemes.ExternalCookie;
+                options.SaveTokens = false;
+                options.Scope.Clear();
+                options.Scope.Add("openid");
+                options.Scope.Add("profile");
+                options.Scope.Add("email");
+                options.ClaimActions.Add(new JsonKeyClaimAction(
+                    "urn:google:email_verified",
+                    ClaimValueTypes.Boolean,
+                    "verified_email"));
+                options.Events.OnRemoteFailure = context =>
+                {
+                    context.HandleResponse();
+                    context.Response.Redirect("/api/auth/google/complete?error=cancelled");
+                    return System.Threading.Tasks.Task.CompletedTask;
+                };
+            });
+        }
     }
 
     private static void AddFrameworkServices(WebApplicationBuilder builder)
     {
-        builder.Services.AddDataProtection();
+        var dataProtection = builder.Services.AddDataProtection()
+            .SetApplicationName("MiniPainterHub");
+        if (!IsLocalToolingEnvironment(builder.Environment))
+        {
+            var keyPath = builder.Configuration["DataProtection:KeysPath"]
+                ?? Path.Combine(Environment.GetEnvironmentVariable("HOME") ?? builder.Environment.ContentRootPath, "data-protection-keys");
+            dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyPath));
+        }
+
+        ConfigureForwardedHeaders(builder);
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddMemoryCache();
         builder.Services.AddControllers();
@@ -213,6 +274,41 @@ public partial class Program
             .Bind(builder.Configuration.GetSection("TrafficShaping"))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+        builder.Services.AddSingleton<IValidateOptions<GoogleAuthenticationOptions>, GoogleAuthenticationOptionsValidator>();
+        builder.Services.AddOptions<GoogleAuthenticationOptions>()
+            .Bind(builder.Configuration.GetSection(GoogleAuthenticationOptions.SectionName))
+            .ValidateOnStart();
+    }
+
+    private static void ConfigureForwardedHeaders(WebApplicationBuilder builder)
+    {
+        if (!builder.Configuration.GetValue<bool>("ForwardedHeaders:Enabled"))
+        {
+            return;
+        }
+
+        builder.Services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
+                | ForwardedHeaders.XForwardedProto
+                | ForwardedHeaders.XForwardedHost;
+            options.ForwardLimit = 1;
+
+            if (builder.Configuration.GetValue<bool>("ForwardedHeaders:TrustAllProxies"))
+            {
+                options.KnownIPNetworks.Clear();
+                options.KnownProxies.Clear();
+                return;
+            }
+
+            foreach (var value in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? Array.Empty<string>())
+            {
+                if (IPAddress.TryParse(value, out var address))
+                {
+                    options.KnownProxies.Add(address);
+                }
+            }
+        });
     }
 
     private static void AddTrafficShaping(WebApplicationBuilder builder)
@@ -329,6 +425,9 @@ public partial class Program
     {
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IPostImageAttachmentService, PostImageAttachmentService>();
+        services.AddScoped<HobbyProjectService>();
+        services.AddScoped<IHobbyProjectService>(sp => sp.GetRequiredService<HobbyProjectService>());
+        services.AddScoped<IHobbyProjectPostLinker>(sp => sp.GetRequiredService<HobbyProjectService>());
         services.AddScoped<IPostService, PostService>();
         services.AddScoped<IPostViewerService, PostViewerService>();
         services.AddScoped<IPaintingGuideService, PaintingGuideService>();
@@ -349,6 +448,8 @@ public partial class Program
         services.AddScoped<IFollowService, FollowService>();
         services.AddScoped<IConversationService, ConversationService>();
         services.AddScoped<ISupportTicketService, SupportTicketService>();
+        services.AddScoped<IJwtTokenIssuer, JwtTokenIssuer>();
+        services.AddScoped<IExternalAuthenticationService, ExternalAuthenticationService>();
         services.AddSingleton<IUploadConcurrencyLimiter, UploadConcurrencyLimiter>();
         services.AddSingleton<ISiteActivityTracker, SiteActivityTracker>();
         services.AddSingleton<IMaintenanceBypassService, MaintenanceBypassService>();

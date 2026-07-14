@@ -51,6 +51,18 @@
     background: rgba(255, 253, 249, 0.58);
 }
 
+.search-project-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+@media (max-width: 991.98px) {
+    .search-project-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 575.98px) {
     ::deep(.search-page-hero .page-hero__actions) {
         width: 100%;

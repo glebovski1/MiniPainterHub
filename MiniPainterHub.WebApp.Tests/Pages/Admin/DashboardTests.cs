@@ -126,7 +126,42 @@ public class DashboardTests : TestContext
         cut.WaitForAssertion(() =>
         {
             cut.Find("[data-testid='admin-dashboard-metrics']").TextContent.Should().Contain("Active sessions");
+            cut.Find("[data-testid='admin-activity-chart']").Should().NotBeNull();
+            cut.FindAll("[data-testid='admin-activity-empty']").Should().BeEmpty();
+            cut.FindAll(".admin-activity-bar").Should().HaveCount(2);
             cut.FindAll("button").Should().BeEmpty();
+        });
+    }
+
+    [Fact]
+    public void RendersInformativeEmptyStateWhenEveryActivityBucketIsZero()
+    {
+        this.AddAdminStub(new StubAdminService
+        {
+            GetDashboardHandler = windowHours => Task.FromResult(new ApiResult<AdminDashboardStatsDto?>(true, HttpStatusCode.OK, new AdminDashboardStatsDto
+            {
+                GeneratedUtc = DateTime.UtcNow,
+                WindowHours = windowHours,
+                Metrics = Array.Empty<AdminDashboardMetricDto>(),
+                Activity = new[]
+                {
+                    new AdminDashboardActivityPointDto { TimestampUtc = DateTime.UtcNow.AddMinutes(-10) },
+                    new AdminDashboardActivityPointDto { TimestampUtc = DateTime.UtcNow }
+                },
+                Health = Array.Empty<AdminDashboardHealthDto>()
+            }))
+        });
+
+        var cut = RenderComponent<Dashboard>();
+
+        cut.WaitForAssertion(() =>
+        {
+            var emptyState = cut.Find("[data-testid='admin-activity-empty']");
+            emptyState.GetAttribute("role").Should().Be("status");
+            emptyState.TextContent.Should().Contain("No activity recorded");
+            emptyState.TextContent.Should().Contain("no page views or API requests");
+            cut.FindAll("[data-testid='admin-activity-chart']").Should().BeEmpty();
+            cut.FindAll(".admin-activity-bar").Should().BeEmpty();
         });
     }
 

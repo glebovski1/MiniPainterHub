@@ -11,11 +11,14 @@ namespace MiniPainterHub.WebApp.Services.Interfaces
         Task<bool> RestorePostAsync(int postId, ModerationActionRequestDto request);
         Task<bool> HideCommentAsync(int commentId, ModerationActionRequestDto request);
         Task<bool> RestoreCommentAsync(int commentId, ModerationActionRequestDto request);
+        Task<bool> HideProjectAsync(int projectId, ModerationActionRequestDto request);
+        Task<bool> RestoreProjectAsync(int projectId, ModerationActionRequestDto request);
         Task<bool> SuspendUserAsync(string userId, SuspendUserRequestDto request);
         Task<bool> UnsuspendUserAsync(string userId, ModerationActionRequestDto request);
         Task<ApiResult<PagedResult<ModerationAuditDto>?>> GetAuditAsync(ModerationAuditQueryDto query);
         Task<ApiResult<IReadOnlyList<ModerationUserLookupDto>?>> SearchUsersAsync(string? query, int limit = 10);
         Task<ApiResult<ModerationPostPreviewDto?>> GetPostPreviewAsync(int postId);
         Task<ApiResult<ModerationCommentPreviewDto?>> GetCommentPreviewAsync(int commentId);
+        Task<ApiResult<ModerationHobbyProjectPreviewDto?>> GetProjectPreviewAsync(int projectId);
     }
 }

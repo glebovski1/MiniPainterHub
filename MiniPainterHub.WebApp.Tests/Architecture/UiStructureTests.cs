@@ -54,6 +54,26 @@ public class UiStructureTests
     }
 
     [Fact]
+    public void BootstrapCompatibilityStylesKeepButtonsBadgesAndToastsOnBrand()
+    {
+        var root = FindRepositoryRoot();
+        var appCss = File.ReadAllText(Path.Combine(root, "MiniPainterHub.WebApp/wwwroot/css/app.css"));
+        var indexHtml = File.ReadAllText(Path.Combine(root, "MiniPainterHub.WebApp/wwwroot/index.html"));
+
+        appCss.Should().MatchRegex(@"(?s)\.text-bg-light\s*\{[^}]*background-color:[^;}]+;[^}]*color:[^;}]+;");
+        appCss.Should().Contain(".app-toast-container");
+        appCss.Should().Contain(".btn-primary.active");
+        appCss.Should().Contain(".btn-primary:active");
+        appCss.Should().Contain(".btn-primary:focus");
+        appCss.Should().Contain("rgba(31, 91, 82, 0.3)");
+        appCss.Should().MatchRegex(@"(?s)\.btn-primary\.disabled,\s*\.btn-primary:disabled,\s*fieldset:disabled \.btn-primary\s*\{[^}]*background: rgba\(31, 91, 82, 0\.12\);[^}]*box-shadow: none;[^}]*opacity: 1;");
+        indexHtml.Should().Contain("toast-container app-toast-container position-fixed end-0");
+        indexHtml.Should().NotContain("toast-container position-fixed top-0");
+        indexHtml.Should().Contain("getElementById('appHeader')");
+        indexHtml.Should().Contain("getBoundingClientRect().bottom");
+    }
+
+    [Fact]
     public void BootstrapIconSubset_CoversEveryRazorIconUsage()
     {
         var root = FindRepositoryRoot();

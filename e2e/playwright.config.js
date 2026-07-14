@@ -47,6 +47,10 @@ module.exports = defineConfig({
       TestSupport__ResetEnabled: "true",
       TestSupport__ResetToken: RESET_TOKEN,
       TrafficShaping__Auth__PermitLimit: AUTH_PERMIT_LIMIT,
+      Authentication__Google__Enabled: "true",
+      Authentication__Google__UseFakeProvider: "true",
+      Authentication__Google__PublicOrigin: "https://localhost:7295",
+      Site__SupportEmail: "support@minipainterhub.example",
     },
   },
 });

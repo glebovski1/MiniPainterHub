@@ -1,3 +1,8 @@
+.app-layout {
+    display: flex;
+    flex-direction: column;
+}
+
 .app-header {
     position: relative;
     padding: 0;
@@ -15,7 +20,47 @@
 }
 
 .app-main {
+    flex: 1 0 auto;
     padding: clamp(0.9rem, 1.6vw, 1.4rem) 0 var(--space-5);
+}
+
+.app-footer {
+    margin-top: auto;
+    border-top: 1px solid rgba(217, 208, 194, 0.82);
+    background: rgba(243, 239, 230, 0.72);
+}
+
+.app-footer__content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-block: 1rem;
+}
+
+.app-footer__copy {
+    color: var(--ink-500);
+    font-size: 0.84rem;
+}
+
+.app-footer__links {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.app-footer__links ::deep a {
+    color: var(--ink-700);
+    font-size: 0.84rem;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.app-footer__links ::deep a:hover,
+.app-footer__links ::deep a:focus-visible {
+    color: var(--primary-700);
+    text-decoration: underline;
+    text-underline-offset: 0.18rem;
 }
 
 .dashboard-main {
@@ -75,6 +120,12 @@
 @media (max-width: 991.98px) {
     .app-main {
         padding-top: 0.65rem;
+    }
+
+    .app-footer__content {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.6rem;
     }
 }
 

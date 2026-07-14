@@ -30,6 +30,13 @@ namespace MiniPainterHub.Common.DTOs
         [StringLength(80)]
         public string? TimeSpent { get; set; }
 
+        [FromForm(Name = "projectId")]
+        public int? ProjectId { get; set; }
+
+        [FromForm(Name = "milestoneLabel")]
+        [StringLength(HobbyProjectRules.MaxMilestoneLabelLength)]
+        public string? MilestoneLabel { get; set; }
+
         [FromForm(Name = "tags")]
         public List<string> Tags { get; set; } = new();
 

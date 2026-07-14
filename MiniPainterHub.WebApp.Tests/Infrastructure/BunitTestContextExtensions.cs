@@ -20,6 +20,16 @@ internal static class BunitTestContextExtensions
         context.Services.AddSingleton<IReportService>(new StubReportService());
     }
 
+    private static void EnsureHobbyProjectStub(this TestContext context)
+    {
+        if (context.Services.Any(service => service.ServiceType == typeof(IHobbyProjectService)))
+        {
+            return;
+        }
+
+        context.Services.AddSingleton<IHobbyProjectService>(new StubHobbyProjectService());
+    }
+
     public static StubAuthService AddAuthStub(this TestContext context, StubAuthService? stub = null)
     {
         stub ??= new StubAuthService();
@@ -30,6 +40,7 @@ internal static class BunitTestContextExtensions
     public static StubProfileService AddProfileStub(this TestContext context, StubProfileService? stub = null)
     {
         context.EnsureReportStub();
+        context.EnsureHobbyProjectStub();
         stub ??= new StubProfileService();
         context.Services.AddSingleton<IProfileService>(stub);
         return stub;
@@ -38,6 +49,7 @@ internal static class BunitTestContextExtensions
     public static StubPostService AddPostStub(this TestContext context, StubPostService? stub = null)
     {
         context.EnsureReportStub();
+        context.EnsureHobbyProjectStub();
         context.AddPostViewerStub();
         context.AddAuthorMarkStub();
         context.AddCommentMarkStub();
@@ -137,6 +149,13 @@ internal static class BunitTestContextExtensions
     {
         stub ??= new StubSearchService();
         context.Services.AddSingleton<ISearchService>(stub);
+        return stub;
+    }
+
+    public static StubHobbyProjectService AddHobbyProjectStub(this TestContext context, StubHobbyProjectService? stub = null)
+    {
+        stub ??= new StubHobbyProjectService();
+        context.Services.AddSingleton<IHobbyProjectService>(stub);
         return stub;
     }
 

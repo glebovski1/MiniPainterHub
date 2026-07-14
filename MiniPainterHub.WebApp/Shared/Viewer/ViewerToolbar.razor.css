@@ -106,6 +106,10 @@
     min-height: 0;
 }
 
+.viewer-toolbar__body[hidden] {
+    display: none;
+}
+
 .viewer-toolbar__groups {
     display: flex;
     flex-direction: column;
@@ -742,10 +746,22 @@
     box-shadow: 0 1rem 1.9rem rgba(0, 0, 0, 0.24);
 }
 
+.viewer-shell__stage-chrome .viewer-toolbar__close--persistent {
+    position: absolute;
+    z-index: 48;
+    top: var(--viewer-stage-control-inset, clamp(0.72rem, 1vw, 1rem));
+    right: var(--viewer-stage-control-inset, clamp(0.72rem, 1vw, 1rem));
+    pointer-events: auto;
+}
+
 .viewer-shell__stage-chrome .viewer-toolbar__body,
 .viewer-shell__stage-chrome .viewer-toolbar__groups {
     display: block;
     min-height: 0;
+}
+
+.viewer-shell__stage-chrome .viewer-toolbar__body[hidden] {
+    display: none;
 }
 
 .viewer-shell__stage-chrome .viewer-toolbar__section {

@@ -1,0 +1,166 @@
+@page "/auth/external/callback"
+@inject IAuthService AuthService
+@inject ExternalAuthFlowState FlowState
+@inject NavigationManager Navigation
+
+<PageTitle>Completing sign-in</PageTitle>
+
+<div class="page-shell auth-completion-page">
+    <section class="surface-card auth-completion-card" aria-live="polite" data-testid="external-auth-callback">
+        @if (_loading)
+        {
+            <div class="auth-completion-card__icon auth-completion-card__icon--working">
+                <span class="spinner-border" aria-hidden="true"></span>
+            </div>
+            <p class="section-label mb-2">Secure handoff</p>
+            <h1 class="h3">Finishing your Google sign-in</h1>
+            <p class="text-muted mb-0">MiniPainterHub is verifying the completed sign-in and preparing your studio session.</p>
+        }
+        else
+        {
+            <div class="auth-completion-card__icon"><i class="bi @_icon" aria-hidden="true"></i></div>
+            <p class="section-label mb-2">@_eyebrow</p>
+            <h1 class="h3" data-testid="external-auth-result-title">@_title</h1>
+            <p class="text-muted mb-0" data-testid="external-auth-result-message">@_message</p>
+
+            <div class="auth-completion-card__actions">
+                <a class="btn btn-primary" href="@_primaryHref" data-testid="external-auth-primary-action">@_primaryLabel</a>
+                <a class="btn btn-outline-secondary" href="/login">Use username and password</a>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? Error { get; set; }
+
+    private bool _loading = true;
+    private string _eyebrow = "Google sign-in";
+    private string _title = "Sign-in could not be completed";
+    private string _message = "Please try Google again or use your username and password.";
+    private string _icon = "bi-exclamation-circle";
+    private string _primaryHref = "/login";
+    private string _primaryLabel = "Try again";
+
+    private bool _completionStarted;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _completionStarted)
+        {
+            return;
+        }
+
+        _completionStarted = true;
+        var callbackError = LocalReturnUrl.GetQueryParameter(Navigation.Uri, "error") ?? Error;
+        if (!string.IsNullOrWhiteSpace(callbackError))
+        {
+            if (string.Equals(callbackError, "cancelled", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowCancelled();
+            }
+            else if (string.Equals(callbackError, "expired", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowExpired();
+            }
+            else
+            {
+                ShowUnavailable();
+            }
+            StateHasChanged();
+            return;
+        }
+
+        var result = await AuthService.ExchangeExternalAsync();
+        switch (result.Outcome)
+        {
+            case ExternalAuthClientOutcome.Authenticated:
+                NavigateToReturnUrl(result.ReturnUrl);
+                return;
+            case ExternalAuthClientOutcome.RegistrationRequired:
+                FlowState.BeginRegistration(result);
+                Navigation.NavigateTo("/auth/external/complete-registration", replace: true);
+                return;
+            case ExternalAuthClientOutcome.LinkCompleted:
+                Navigation.NavigateTo("/account/sign-in-methods?linked=true", replace: true);
+                return;
+            case ExternalAuthClientOutcome.EmailConflict:
+                ShowEmailConflict();
+                break;
+            case ExternalAuthClientOutcome.Expired:
+                ShowExpired();
+                break;
+            case ExternalAuthClientOutcome.Forbidden:
+                ShowForbidden();
+                break;
+            default:
+                ShowUnavailable();
+                break;
+        }
+
+        StateHasChanged();
+    }
+
+    private void NavigateToReturnUrl(string returnUrl)
+    {
+        var destination = LocalReturnUrl.Normalize(returnUrl, new Uri(Navigation.BaseUri));
+        Navigation.NavigateTo(destination, replace: true);
+    }
+
+    private void ShowCancelled()
+    {
+        _loading = false;
+        _eyebrow = "Sign-in cancelled";
+        _title = "No changes were made";
+        _message = "Google sign-in was cancelled before MiniPainterHub received an account confirmation.";
+        _icon = "bi-x-circle";
+        _primaryHref = "/login";
+        _primaryLabel = "Return to sign in";
+    }
+
+    private void ShowEmailConflict()
+    {
+        _loading = false;
+        _eyebrow = "Account already exists";
+        _title = "Sign in before connecting Google";
+        _message = "That verified Google email matches an existing MiniPainterHub account. Sign in with its username and password, then connect Google from Sign-in methods. Accounts are never merged automatically.";
+        _icon = "bi-person-lock";
+        _primaryHref = "/login?returnUrl=%2Faccount%2Fsign-in-methods";
+        _primaryLabel = "Sign in to connect";
+    }
+
+    private void ShowExpired()
+    {
+        _loading = false;
+        _eyebrow = "Session expired";
+        _title = "Start Google sign-in again";
+        _message = "The secure sign-in handoff is no longer valid. Nothing was changed on your account.";
+        _icon = "bi-clock-history";
+        _primaryHref = "/login";
+        _primaryLabel = "Try Google again";
+    }
+
+    private void ShowForbidden()
+    {
+        _loading = false;
+        _eyebrow = "Sign-in unavailable";
+        _title = "This account cannot sign in right now";
+        _message = "The account or new registrations are currently restricted. Contact the site administrator if you need help.";
+        _icon = "bi-shield-lock";
+        _primaryHref = "/login";
+        _primaryLabel = "Return to sign in";
+    }
+
+    private void ShowUnavailable()
+    {
+        _loading = false;
+        _eyebrow = "Google sign-in";
+        _title = "Sign-in could not be completed";
+        _message = "The provider or MiniPainterHub is temporarily unavailable. Try again or use your username and password.";
+        _icon = "bi-exclamation-circle";
+        _primaryHref = "/login";
+        _primaryLabel = "Try again";
+    }
+}

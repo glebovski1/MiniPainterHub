@@ -29,6 +29,12 @@ namespace MiniPainterHub.WebApp.Services
         public Task<bool> RestoreCommentAsync(int commentId, ModerationActionRequestDto request) =>
             _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/moderation/comments/{commentId}/restore") { Content = ApiClient.CreateJsonContent(request) });
 
+        public Task<bool> HideProjectAsync(int projectId, ModerationActionRequestDto request) =>
+            _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/moderation/projects/{projectId}/hide") { Content = ApiClient.CreateJsonContent(request) });
+
+        public Task<bool> RestoreProjectAsync(int projectId, ModerationActionRequestDto request) =>
+            _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/moderation/projects/{projectId}/restore") { Content = ApiClient.CreateJsonContent(request) });
+
         public Task<bool> SuspendUserAsync(string userId, SuspendUserRequestDto request) =>
             _api.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"api/moderation/users/{Uri.EscapeDataString(userId)}/suspend") { Content = ApiClient.CreateJsonContent(request) });
 
@@ -62,6 +68,9 @@ namespace MiniPainterHub.WebApp.Services
 
         public Task<ApiResult<ModerationCommentPreviewDto?>> GetCommentPreviewAsync(int commentId) =>
             _api.SendForResultAsync<ModerationCommentPreviewDto?>(new HttpRequestMessage(HttpMethod.Get, $"api/moderation/comments/{commentId}/preview"));
+
+        public Task<ApiResult<ModerationHobbyProjectPreviewDto?>> GetProjectPreviewAsync(int projectId) =>
+            _api.SendForResultAsync<ModerationHobbyProjectPreviewDto?>(new HttpRequestMessage(HttpMethod.Get, $"api/moderation/projects/{projectId}/preview"));
 
         private static void AddFilter(ICollection<string> parameters, string key, string? value)
         {

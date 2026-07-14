@@ -5,5 +5,6 @@ namespace MiniPainterHub.Common.DTOs
         public const string Post = "Post";
         public const string Comment = "Comment";
         public const string User = "User";
+        public const string HobbyProject = "HobbyProject";
     }
 }

@@ -45,6 +45,14 @@ namespace MiniPainterHub.Server.Controllers
             return NoContent();
         }
 
+        [HttpPost("projects/{projectId:int}")]
+        [EnableRateLimiting(RateLimitingPolicies.Write)]
+        public async Task<IActionResult> ReportProject(int projectId, [FromBody] CreateReportRequestDto request)
+        {
+            await _reportService.SubmitProjectReportAsync(User.GetUserIdOrThrow(), projectId, request);
+            return NoContent();
+        }
+
         [HttpGet]
         [Authorize(Roles = "Moderator,Admin")]
         public async Task<ActionResult<PagedResult<ReportQueueItemDto>>> GetQueue([FromQuery] ReportQueueQueryDto query)

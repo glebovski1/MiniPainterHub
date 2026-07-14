@@ -1,0 +1,1277 @@
+@page "/projects/{Id:int}/edit"
+@attribute [Authorize]
+@using System.Security.Claims
+@inject IHobbyProjectService Projects
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Nav
+
+<PageTitle>Manage hobby project</PageTitle>
+
+<div class="page-shell content-stack project-edit-page">
+    @if (_loading)
+    {
+        <div class="status-panel status-panel--info" aria-live="polite" data-testid="project-edit-loading">
+            <div class="status-panel__icon"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Preparing project settings</div>
+                <p class="status-panel__text mb-0">Loading metadata, diary posts, and showcase choices.</p>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <div class="status-panel status-panel--error" role="alert" data-testid="project-edit-error">
+            <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Project settings unavailable</div>
+                <p class="status-panel__text mb-0">@_loadError</p>
+            </div>
+            <button class="btn btn-link btn-sm ms-auto" type="button" @onclick="LoadAsync">Retry</button>
+        </div>
+    }
+    else if (_project is not null)
+    {
+        <nav aria-label="Breadcrumb">
+            <NavLink class="project-edit-back" href="@($"/projects/{Id}")">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                <span>Back to project</span>
+            </NavLink>
+        </nav>
+
+        <PageHero Eyebrow="Project workbench"
+                  Title="@($"Manage {_project.Title}")"
+                  Description="Edit the project, attach progress posts, label milestones, and arrange the finished showcase."
+                  FrameName="Manage Hobby Project">
+            <Actions>
+                <NavLink class="btn btn-outline-secondary" href="@($"/projects/{Id}?view=diary")">View diary</NavLink>
+                <NavLink class="btn btn-outline-secondary" href="@($"/projects/{Id}?view=showcase")">View showcase</NavLink>
+            </Actions>
+        </PageHero>
+
+        <div class="visually-hidden"
+             role="status"
+             aria-live="polite"
+             aria-atomic="true"
+             data-testid="project-edit-announcement">@_announcement</div>
+
+        @if (_project.IsHidden)
+        {
+            <div class="status-panel status-panel--warning" role="status" data-testid="project-edit-hidden">
+                <div class="status-panel__icon"><i class="bi bi-eye-slash" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">This project is hidden by moderation</div>
+                    <p class="status-panel__text mb-0">You may edit your work, but only a Moderator or Admin can restore public visibility.</p>
+                </div>
+            </div>
+        }
+        else if (_project.IsArchived)
+        {
+            <div class="status-panel status-panel--info" role="status" data-testid="project-edit-archived">
+                <div class="status-panel__icon"><i class="bi bi-inbox" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Project archived</div>
+                    <p class="status-panel__text mb-0">Restore it before editing metadata or changing diary entries.</p>
+                </div>
+                <button class="btn btn-primary btn-sm ms-auto" type="button" data-testid="project-restore-button" @onclick="RestoreProjectAsync" disabled="@_lifecycleBusy">@(_lifecycleBusy ? "Restoring..." : "Restore project")</button>
+            </div>
+        }
+
+        <div class="project-edit-layout">
+            <div class="project-edit-main content-stack">
+                <section class="surface-card project-edit-section" aria-labelledby="project-metadata-heading">
+                    <SectionHeader Eyebrow="Project profile"
+                                   Title="Metadata"
+                                   Description="Keep the title and overview broad; paints and techniques belong on individual posts."
+                                   TitleTag="h2"
+                                   TitleClass="section-heading__title h3 mb-0"
+                                   SectionName="Project Metadata" />
+
+                    @if (!string.IsNullOrWhiteSpace(_metadataMessage))
+                    {
+                        <div class="@(_metadataSucceeded ? "status-panel status-panel--success" : "status-panel status-panel--error")" role="status" data-testid="project-metadata-message">
+                            <div class="status-panel__icon"><i class="bi @(_metadataSucceeded ? "bi-check-circle" : "bi-exclamation-circle")" aria-hidden="true"></i></div>
+                            <p class="status-panel__text mb-0">@_metadataMessage</p>
+                        </div>
+                    }
+
+                    <EditForm Model="_metadata" OnValidSubmit="SaveMetadataAsync" data-testid="project-metadata-form">
+                        <DataAnnotationsValidator />
+                        <fieldset disabled="@(_metadataBusy || _project.IsArchived)">
+                            <div class="project-edit-fields">
+                                <div>
+                                    <label class="form-label" for="edit-project-title">Title</label>
+                                    <InputText id="edit-project-title" class="form-control" maxlength="@HobbyProjectRules.MaxTitleLength" data-testid="edit-project-title" @bind-Value="_metadata.Title" />
+                                    <ValidationMessage For="@(() => _metadata.Title)" />
+                                </div>
+                                <div>
+                                    <label class="form-label" for="edit-project-description">Description</label>
+                                    <InputTextArea id="edit-project-description" class="form-control project-edit-description" maxlength="@HobbyProjectRules.MaxDescriptionLength" data-testid="edit-project-description" @bind-Value="_metadata.Description" />
+                                    <ValidationMessage For="@(() => _metadata.Description)" />
+                                </div>
+                                <div class="project-edit-field-grid">
+                                    <div>
+                                        <label class="form-label" for="edit-project-kind">Kind</label>
+                                        <InputSelect id="edit-project-kind" class="form-select" data-testid="edit-project-kind" @bind-Value="_metadata.Kind">
+                                            @foreach (var kind in HobbyProjectKinds.All)
+                                            {
+                                                <option value="@kind">@kind</option>
+                                            }
+                                        </InputSelect>
+                                    </div>
+                                    <div>
+                                        <label class="form-label" for="edit-project-start">Start date</label>
+                                        <InputDate id="edit-project-start" class="form-control" @bind-Value="_metadata.StartDate" />
+                                    </div>
+                                    <div>
+                                        <label class="form-label" for="edit-project-system">Game system or range</label>
+                                        <InputText id="edit-project-system" class="form-control" maxlength="@HobbyProjectRules.MaxGameSystemLength" @bind-Value="_metadata.GameSystem" />
+                                        <ValidationMessage For="@(() => _metadata.GameSystem)" />
+                                    </div>
+                                    <div>
+                                        <label class="form-label" for="edit-project-faction">Faction or theme</label>
+                                        <InputText id="edit-project-faction" class="form-control" maxlength="@HobbyProjectRules.MaxFactionThemeLength" @bind-Value="_metadata.FactionTheme" />
+                                        <ValidationMessage For="@(() => _metadata.FactionTheme)" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label" for="edit-project-goal">Goal</label>
+                                    <InputText id="edit-project-goal" class="form-control" maxlength="@HobbyProjectRules.MaxGoalLength" data-testid="edit-project-goal" @bind-Value="_metadata.Goal" />
+                                    <ValidationMessage For="@(() => _metadata.Goal)" />
+                                </div>
+                            </div>
+                        </fieldset>
+                        <div class="project-edit-form-actions">
+                            <button class="btn btn-primary" type="submit" data-testid="project-metadata-save" disabled="@(_metadataBusy || _project.IsArchived)">
+                                @(_metadataBusy ? "Saving..." : "Save project details")
+                            </button>
+                        </div>
+                    </EditForm>
+                </section>
+
+                <section class="surface-card project-edit-section" aria-labelledby="project-diary-manage-heading">
+                    <div class="project-edit-section-heading">
+                        <div>
+                            <span class="section-label">Painting diary</span>
+                            <h2 id="project-diary-manage-heading">Linked progress posts</h2>
+                            <p>Label milestones, choose a cover, curate showcase posts, or remove a post from this project without deleting it.</p>
+                        </div>
+                        <span class="metric-chip"><span class="metric-chip__value">@_project.EntryCount</span><span class="metric-chip__label">updates</span></span>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_entriesError))
+                    {
+                        <div class="status-panel status-panel--error" role="alert" data-testid="project-manage-entries-error">
+                            <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                            <p class="status-panel__text mb-0">@_entriesError</p>
+                            <button class="btn btn-link btn-sm ms-auto" type="button" @onclick="LoadDiaryAsync">Retry</button>
+                        </div>
+                    }
+                    else if (_entriesLoading)
+                    {
+                        <div class="status-panel status-panel--info" aria-live="polite" data-testid="project-manage-entries-loading">
+                            <div class="status-panel__icon"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></div>
+                            <p class="status-panel__text mb-0">Loading linked posts...</p>
+                        </div>
+                    }
+                    else if (_diaryEntries.Count == 0)
+                    {
+                        <EmptyState IconClass="bi bi-journal-text"
+                                    Title="No posts linked yet"
+                                    Description="@(_project.IsHidden
+                                        ? "This project is hidden by staff, so new progress cannot be added until visibility is restored."
+                                        : "Use the available-post list below or publish a new progress post from this project.")"
+                                    TitleClass="empty-state__title h4"
+                                    TestId="project-manage-entries-empty">
+                            @if (!_project.IsHidden && !_project.IsArchived)
+                            {
+                                <NavLink class="btn btn-primary mt-2" href="@($"/posts/new?projectId={Id}")">Publish a progress post</NavLink>
+                            }
+                        </EmptyState>
+                    }
+                    else
+                    {
+                        <div class="project-entry-manager" data-testid="project-entry-manager">
+                            @foreach (var entry in _diaryEntries)
+                            {
+                                <article class="project-entry-row" data-testid="project-entry-row">
+                                    <NavLink class="project-entry-row__media" href="@($"/posts/{entry.PostId}")">
+                                        @if (!string.IsNullOrWhiteSpace(ResolvePostImage(entry.Post)))
+                                        {
+                                            <img src="@ResolvePostImage(entry.Post)"
+                                                 alt="@GetPostImageAlt(entry.Post)"
+                                                 loading="lazy"
+                                                 @onerror="() => HandlePostImageError(entry.Post)" />
+                                        }
+                                        else
+                                        {
+                                            <span aria-hidden="true"><i class="bi bi-image"></i></span>
+                                        }
+                                    </NavLink>
+                                    <div class="project-entry-row__body">
+                                        <div class="project-entry-row__title">
+                                            <NavLink href="@($"/posts/{entry.PostId}")">@entry.Post.Title</NavLink>
+                                            <span>@entry.Post.CreatedAt.ToLocalTime().ToString("MMM d, yyyy")</span>
+                                        </div>
+                                        <div>
+                                            <label class="form-label" for="@GetMilestoneInputId(entry.PostId)">Milestone label <span class="text-muted">(optional)</span></label>
+                                            <div class="project-entry-row__milestone">
+                                                <input id="@GetMilestoneInputId(entry.PostId)"
+                                                       class="form-control form-control-sm"
+                                                       maxlength="@HobbyProjectRules.MaxMilestoneLabelLength"
+                                                       value="@entry.MilestoneLabel"
+                                                       @oninput="args => UpdateMilestoneDraft(entry, args)"
+                                                       disabled="@(_project.IsArchived || _busyPostId.HasValue)"
+                                                       placeholder="e.g. First squad finished" />
+                                                <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="() => SaveMilestoneAsync(entry)" disabled="@(_project.IsArchived || _busyPostId.HasValue)">Save label</button>
+                                            </div>
+                                        </div>
+                                        <div class="project-entry-row__options">
+                                            @if (HasPostImage(entry.Post))
+                                            {
+                                                <label>
+                                                    <input type="checkbox"
+                                                           checked="@IsInShowcase(entry.PostId)"
+                                                           @onchange="args => ToggleShowcase(entry, args)"
+                                                           disabled="@(_project.IsArchived || _showcaseBusy)" />
+                                                    <span>Include in showcase</span>
+                                                </label>
+                                                @if (_project.SelectedCoverPostId == entry.PostId)
+                                                {
+                                                    <span class="badge text-bg-success"><i class="bi bi-check-circle" aria-hidden="true"></i> Cover</span>
+                                                    <button class="btn btn-link btn-sm" type="button" data-testid="project-cover-clear" @onclick="ClearCoverAsync" disabled="@(_project.IsArchived || _busyPostId.HasValue)">Remove cover</button>
+                                                }
+                                                else
+                                                {
+                                                    @if (_project.CoverPostId == entry.PostId)
+                                                    {
+                                                        <span class="badge text-bg-light" data-testid="project-automatic-cover">Automatic cover</span>
+                                                    }
+                                                    <button class="btn btn-link btn-sm" type="button" data-testid="project-cover-set" @onclick="() => SetCoverAsync(entry.PostId)" disabled="@(_project.IsArchived || _busyPostId.HasValue)">Set as cover</button>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="project-entry-row__image-note" data-testid="project-image-required">
+                                                    <i class="bi bi-image" aria-hidden="true"></i>
+                                                    Add an image to use this post in the showcase or as the cover.
+                                                </span>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="project-entry-row__remove">
+                                        @if (_pendingUnlinkPostId == entry.PostId)
+                                        {
+                                            <span>Remove from project?</span>
+                                            <button class="btn btn-outline-danger btn-sm" type="button" data-testid="project-unlink-confirm" @onclick="() => UnlinkPostAsync(entry.PostId)" disabled="@_busyPostId.HasValue">Remove</button>
+                                            <button class="btn btn-link btn-sm" type="button" @onclick="CancelUnlink">Cancel</button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-link btn-sm text-danger" type="button" data-testid="project-unlink-open" @onclick="() => RequestUnlink(entry.PostId)" disabled="@(_project.IsArchived || _busyPostId.HasValue)">
+                                                <i class="bi bi-x-circle" aria-hidden="true"></i>
+                                                <span>Unlink</span>
+                                            </button>
+                                        }
+                                    </div>
+                                </article>
+                            }
+                        </div>
+
+                        @if (_diaryTotalPages > 1)
+                        {
+                            <nav class="paginator-bar" aria-label="Linked post pages">
+                                <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="PreviousDiaryPageAsync" disabled="@(_diaryPage <= 1 || _entriesLoading)">Previous</button>
+                                <span>Page @_diaryPage of @_diaryTotalPages</span>
+                                <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="NextDiaryPageAsync" disabled="@(_diaryPage >= _diaryTotalPages || _entriesLoading)">Next</button>
+                            </nav>
+                        }
+                    }
+                </section>
+
+                <section class="surface-card project-edit-section" aria-labelledby="available-posts-heading">
+                    <div class="project-edit-section-heading">
+                        <div>
+                            <span class="section-label">Add existing work</span>
+                            <h2 id="available-posts-heading">Available posts</h2>
+                            <p>Only your visible posts that are not already in this project appear here.</p>
+                        </div>
+                        @if (!_project.IsHidden && !_project.IsArchived)
+                        {
+                            <NavLink class="btn btn-primary btn-sm" href="@($"/posts/new?projectId={Id}")">
+                                <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                                <span>New progress post</span>
+                            </NavLink>
+                        }
+                    </div>
+
+                    @if (_project.IsHidden)
+                    {
+                        <div class="project-addition-note" role="note" data-testid="project-additions-hidden">
+                            <i class="bi bi-eye-slash" aria-hidden="true"></i>
+                            <span>New posts cannot be linked while this project is hidden by staff.</span>
+                        </div>
+                    }
+
+                    <form class="available-post-search" @onsubmit="SearchAvailablePostsAsync" @onsubmit:preventDefault>
+                        <label class="form-label" for="available-post-search">Search your posts</label>
+                        <div>
+                            <InputText id="available-post-search"
+                                       class="form-control"
+                                       maxlength="@HobbyProjectRules.MaxSearchLength"
+                                       data-testid="available-post-search"
+                                       @bind-Value="_availableSearch"
+                                       placeholder="Post title or text" />
+                            <button class="btn btn-outline-secondary" type="submit" data-testid="available-post-search-submit" disabled="@(_availableLoading || _project.IsArchived)">
+                                <i class="bi bi-search" aria-hidden="true"></i>
+                                <span>Search</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    @if (!string.IsNullOrWhiteSpace(_availableError))
+                    {
+                        <div class="status-panel status-panel--error" role="alert" data-testid="available-posts-error">
+                            <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                            <p class="status-panel__text mb-0">@_availableError</p>
+                            <button class="btn btn-link btn-sm ms-auto" type="button" @onclick="LoadAvailablePostsAsync">Retry</button>
+                        </div>
+                    }
+                    else if (_availableLoading)
+                    {
+                        <div class="status-panel status-panel--info" aria-live="polite" data-testid="available-posts-loading">
+                            <div class="status-panel__icon"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></div>
+                            <p class="status-panel__text mb-0">Looking through your posts...</p>
+                        </div>
+                    }
+                    else if (_availablePosts.Count == 0)
+                    {
+                        <EmptyState IconClass="bi bi-images"
+                                    Title="@(string.IsNullOrWhiteSpace(_availableSearch) ? "No unlinked posts available" : "No posts match that search")"
+                                    Description="@(string.IsNullOrWhiteSpace(_availableSearch) ? "Publish a new progress post or continue with the entries already linked." : "Try a broader post title or clear the search.")"
+                                    TitleClass="empty-state__title h4"
+                                    TestId="available-posts-empty" />
+                    }
+                    else
+                    {
+                        <div class="available-post-list" data-testid="available-post-list">
+                            @foreach (var post in _availablePosts)
+                            {
+                                <article class="available-post-row" data-testid="available-post-row">
+                                    <NavLink class="available-post-row__media" href="@($"/posts/{post.Id}")">
+                                        @if (!string.IsNullOrWhiteSpace(ResolvePostImage(post)))
+                                        {
+                                            <img src="@ResolvePostImage(post)"
+                                                 alt="@GetPostImageAlt(post)"
+                                                 loading="lazy"
+                                                 @onerror="() => HandlePostImageError(post)" />
+                                        }
+                                        else
+                                        {
+                                            <span aria-hidden="true"><i class="bi bi-image"></i></span>
+                                        }
+                                    </NavLink>
+                                    <div class="available-post-row__body">
+                                        <NavLink href="@($"/posts/{post.Id}")">@post.Title</NavLink>
+                                        <span>@post.CreatedAt.ToLocalTime().ToString("MMM d, yyyy")</span>
+                                        <label class="visually-hidden" for="@GetLinkMilestoneInputId(post.Id)">Optional milestone label for @post.Title</label>
+                                        <input id="@GetLinkMilestoneInputId(post.Id)"
+                                               class="form-control form-control-sm"
+                                               maxlength="@HobbyProjectRules.MaxMilestoneLabelLength"
+                                               value="@GetLinkMilestone(post.Id)"
+                                               @oninput="args => SetLinkMilestone(post.Id, args)"
+                                               disabled="@(_project.IsArchived || _busyPostId.HasValue)"
+                                               placeholder="Optional milestone label" />
+                                    </div>
+                                    @if (RequiresMoveConfirmation(post) && _pendingMovePostId == post.Id)
+                                    {
+                                        <div class="available-post-row__move" data-testid="project-move-confirmation">
+                                            <span>Move from <strong>@post.Project!.Title</strong>? It will no longer appear in that project.</span>
+                                            <div>
+                                                <button class="btn btn-link btn-sm" type="button" @onclick="CancelMove">Cancel</button>
+                                                <button class="btn btn-primary btn-sm" type="button" data-testid="project-move-confirm" @onclick="() => LinkPostAsync(post, true)" disabled="@(_project.IsArchived || _project.IsHidden || _busyPostId.HasValue)">
+                                                    @(_busyPostId == post.Id ? "Moving..." : "Move post")
+                                                </button>
+                                            </div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="available-post-row__action">
+                                            @if (RequiresMoveConfirmation(post))
+                                            {
+                                                <span class="available-post-row__project">Currently in <NavLink href="@($"/projects/{post.Project!.Id}")">@post.Project.Title</NavLink></span>
+                                            }
+                                            <button class="btn btn-primary btn-sm" type="button" data-testid="project-link-post" @onclick="() => BeginLinkPost(post)" disabled="@(_project.IsArchived || _project.IsHidden || _busyPostId.HasValue)">
+                                                @(_busyPostId == post.Id ? "Adding..." : RequiresMoveConfirmation(post) ? "Move to project" : "Add to project")
+                                            </button>
+                                        </div>
+                                    }
+                                </article>
+                            }
+                        </div>
+
+                        @if (_availableTotalPages > 1)
+                        {
+                            <nav class="paginator-bar" aria-label="Available post pages">
+                                <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="PreviousAvailablePageAsync" disabled="@(_availablePage <= 1 || _availableLoading)">Previous</button>
+                                <span>Page @_availablePage of @_availableTotalPages</span>
+                                <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="NextAvailablePageAsync" disabled="@(_availablePage >= _availableTotalPages || _availableLoading)">Next</button>
+                            </nav>
+                        }
+                    }
+                </section>
+            </div>
+
+            <aside class="project-edit-sidebar content-stack">
+                <section class="surface-card project-lifecycle-card" aria-labelledby="project-status-heading">
+                    <span class="section-label">Lifecycle</span>
+                    <h2 id="project-status-heading">Project status</h2>
+                    <p>Status sets expectations without changing the diary or showcase selections.</p>
+
+                    @if (!string.IsNullOrWhiteSpace(_lifecycleMessage))
+                    {
+                        <div class="@(_lifecycleSucceeded ? "text-success small" : "text-danger small")" role="status" data-testid="project-lifecycle-message">@_lifecycleMessage</div>
+                    }
+
+                    <label class="form-label" for="project-status-select">Status</label>
+                    <select id="project-status-select" class="form-select" data-testid="project-status-select" @bind="_pendingStatus" disabled="@(_lifecycleBusy || _project.IsArchived)">
+                        @foreach (var status in HobbyProjectStatuses.All)
+                        {
+                            <option value="@status">@FormatStatus(status)</option>
+                        }
+                    </select>
+                    <button class="btn btn-primary" type="button" data-testid="project-status-save" @onclick="SaveStatusAsync" disabled="@(!CanSaveStatus)">
+                        @(_lifecycleBusy ? "Saving..." : "Update status")
+                    </button>
+
+                    @if (_pendingStatus == HobbyProjectStatuses.Completed)
+                    {
+                        <div class="project-completion-note" role="note" data-testid="project-completion-requirement">
+                            <i class="bi @(_hasSavedEligibleShowcase ? "bi-check-circle" : "bi-exclamation-triangle")" aria-hidden="true"></i>
+                            <span>@(_hasSavedEligibleShowcase
+                                ? "Ready to complete: an image-backed showcase post has been saved."
+                                : "Select and save at least one image-backed showcase post before completing.")</span>
+                        </div>
+                    }
+
+                    <div class="project-visibility-note">
+                        <i class="bi @(_project.IsPublic ? "bi-check-circle" : "bi-eye-slash")" aria-hidden="true"></i>
+                        <span>@(_project.IsPublic ? "Public after the first visible post was linked." : "Owner-only until a visible post is linked.")</span>
+                    </div>
+                </section>
+
+                <section class="surface-card showcase-manager" aria-labelledby="showcase-manager-heading">
+                    <div>
+                        <span class="section-label">Finished view</span>
+                        <h2 id="showcase-manager-heading">Showcase order</h2>
+                        <p>Choose up to @HobbyProjectRules.MaxShowcaseEntries posts and put the strongest work first.</p>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_showcaseError))
+                    {
+                        <div class="text-danger small" role="alert" data-testid="showcase-error">@_showcaseError</div>
+                    }
+
+                    @if (_showcaseLoading)
+                    {
+                        <div class="status-panel status-panel--info"><p class="status-panel__text mb-0">Loading showcase...</p></div>
+                    }
+                    else if (_showcaseEntries.Count == 0)
+                    {
+                        <div class="showcase-manager__empty">Select &ldquo;Include in showcase&rdquo; on a linked post.</div>
+                    }
+                    else
+                    {
+                        <ol class="showcase-order-list" data-testid="showcase-order-list">
+                            @for (var index = 0; index < _showcaseEntries.Count; index++)
+                            {
+                                var entry = _showcaseEntries[index];
+                                <li>
+                                    <span>@(index + 1)</span>
+                                    <strong>@entry.Post.Title</strong>
+                                    <div>
+                                        <button class="btn btn-outline-secondary btn-sm" type="button" aria-label="@GetMoveEarlierLabel(entry.Post.Title)" @onclick="() => MoveShowcaseEntry(entry.PostId, -1)" disabled="@(_project.IsArchived || _showcaseBusy || index == 0)"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
+                                        <button class="btn btn-outline-secondary btn-sm" type="button" aria-label="@GetMoveLaterLabel(entry.Post.Title)" @onclick="() => MoveShowcaseEntry(entry.PostId, 1)" disabled="@(_project.IsArchived || _showcaseBusy || index == _showcaseEntries.Count - 1)"><i class="bi bi-arrow-down" aria-hidden="true"></i></button>
+                                    </div>
+                                </li>
+                            }
+                        </ol>
+                    }
+
+                    <button class="btn btn-primary" type="button" data-testid="showcase-save" @onclick="SaveShowcaseAsync" disabled="@(_project.IsArchived || _showcaseBusy || !_showcaseDirty)">
+                        @(_showcaseBusy ? "Saving..." : "Save showcase")
+                    </button>
+                    <span class="showcase-manager__count">@_showcaseEntries.Count / @HobbyProjectRules.MaxShowcaseEntries selected</span>
+                </section>
+
+                <section class="surface-card project-archive-card" aria-labelledby="project-archive-heading">
+                    <span class="section-label">Project shelf</span>
+                    <h2 id="project-archive-heading">Archive</h2>
+                    <p>Archiving hides this project publicly and pauses editing without deleting any posts.</p>
+                    @if (_project.IsArchived)
+                    {
+                        <button class="btn btn-primary" type="button" @onclick="RestoreProjectAsync" disabled="@_lifecycleBusy">@(_lifecycleBusy ? "Restoring..." : "Restore project")</button>
+                    }
+                    else if (_archiveConfirmOpen)
+                    {
+                        <div class="project-archive-confirm" data-testid="project-archive-confirm">
+                            <strong>Archive this project?</strong>
+                            <span>You can restore it from My projects.</span>
+                            <div>
+                                <button class="btn btn-link btn-sm" type="button" @onclick="CloseArchiveConfirm" disabled="@_lifecycleBusy">Cancel</button>
+                                <button class="btn btn-outline-danger btn-sm" type="button" data-testid="project-archive-confirm-button" @onclick="ArchiveProjectAsync" disabled="@_lifecycleBusy">@(_lifecycleBusy ? "Archiving..." : "Archive")</button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <button class="btn btn-outline-danger" type="button" data-testid="project-archive-open" @onclick="OpenArchiveConfirm">Archive project</button>
+                    }
+                </section>
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    private const int DiaryPageSize = 20;
+    private const int AvailablePageSize = 10;
+
+    [Parameter]
+    public int Id { get; set; }
+
+    private HobbyProjectDto? _project;
+    private UpdateHobbyProjectDto _metadata = new();
+    private IReadOnlyList<HobbyProjectEntryDto> _diaryEntries = Array.Empty<HobbyProjectEntryDto>();
+    private List<HobbyProjectEntryDto> _showcaseEntries = new();
+    private IReadOnlyList<PostSummaryDto> _availablePosts = Array.Empty<PostSummaryDto>();
+    private readonly HashSet<int> _fullImagePostIds = new();
+    private readonly Dictionary<int, string?> _linkMilestones = new();
+    private string _pendingStatus = HobbyProjectStatuses.Planning;
+    private string? _availableSearch;
+    private int _diaryPage = 1;
+    private int _diaryTotalPages = 1;
+    private int _availablePage = 1;
+    private int _availableTotalPages = 1;
+    private int? _busyPostId;
+    private int? _pendingUnlinkPostId;
+    private int? _pendingMovePostId;
+    private bool _loading = true;
+    private bool _metadataBusy;
+    private bool _metadataSucceeded;
+    private bool _lifecycleBusy;
+    private bool _lifecycleSucceeded;
+    private bool _entriesLoading;
+    private bool _showcaseLoading;
+    private bool _showcaseBusy;
+    private bool _showcaseDirty;
+    private bool _hasSavedEligibleShowcase;
+    private bool _availableLoading;
+    private bool _archiveConfirmOpen;
+    private string? _loadError;
+    private string? _metadataMessage;
+    private string? _lifecycleMessage;
+    private string? _entriesError;
+    private string? _showcaseError;
+    private string? _availableError;
+    private string _announcement = string.Empty;
+
+    private bool CanSaveStatus =>
+        _project is not null &&
+        !_lifecycleBusy &&
+        !_project.IsArchived &&
+        _pendingStatus != _project.Status &&
+        (_pendingStatus != HobbyProjectStatuses.Completed || _hasSavedEligibleShowcase);
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _loadError = null;
+        _announcement = string.Empty;
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var currentUserId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var result = await Projects.GetAsync(Id);
+            if (!result.Success || result.Value is null)
+            {
+                _project = null;
+                _loadError = "This project could not be found.";
+                Announce(_loadError);
+                return;
+            }
+
+            if (!string.Equals(currentUserId, result.Value.OwnerUserId, StringComparison.Ordinal))
+            {
+                _project = null;
+                _loadError = "Only the project owner can open these settings.";
+                Announce(_loadError);
+                return;
+            }
+
+            ApplyProject(result.Value, resetMetadata: true, resetPendingStatus: true);
+            _diaryPage = 1;
+            _availablePage = 1;
+            await LoadManagementDataAsync();
+        }
+        catch
+        {
+            _project = null;
+            _loadError = "We couldn't load project settings. Please try again.";
+            Announce(_loadError);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadManagementDataAsync()
+    {
+        await Task.WhenAll(LoadDiaryAsync(), LoadShowcaseAsync(), LoadAvailablePostsAsync());
+    }
+
+    private async Task SaveMetadataAsync()
+    {
+        if (_project is null || _metadataBusy || _project.IsArchived)
+        {
+            return;
+        }
+
+        _metadataBusy = true;
+        _metadataMessage = null;
+        try
+        {
+            var result = await Projects.UpdateAsync(Id, _metadata);
+            if (!result.Success || result.Value is null)
+            {
+                SetMetadataMessage(false, "Project details were not saved. Your edits are still here.");
+                return;
+            }
+
+            ApplyProject(result.Value, resetMetadata: true);
+            SetMetadataMessage(true, "Project details saved.");
+        }
+        catch
+        {
+            SetMetadataMessage(false, "Project details were not saved. Your edits are still here.");
+        }
+        finally
+        {
+            _metadataBusy = false;
+        }
+    }
+
+    private async Task SaveStatusAsync()
+    {
+        if (!CanSaveStatus || _project is null)
+        {
+            if (_pendingStatus == HobbyProjectStatuses.Completed && !_hasSavedEligibleShowcase)
+            {
+                Announce("Save at least one image-backed showcase post before completing this project.");
+            }
+            return;
+        }
+
+        _lifecycleBusy = true;
+        _lifecycleMessage = null;
+        try
+        {
+            var result = await Projects.UpdateStatusAsync(Id, new UpdateHobbyProjectStatusDto { Status = _pendingStatus });
+            if (!result.Success || result.Value is null)
+            {
+                SetLifecycleMessage(false, _pendingStatus == HobbyProjectStatuses.Completed
+                    ? "Complete the showcase requirements before marking this project finished."
+                    : "Project status was not updated.");
+                return;
+            }
+
+            ApplyProject(result.Value, resetPendingStatus: true);
+            SetLifecycleMessage(true, $"Status changed to {FormatStatus(_project.Status)}.");
+        }
+        catch
+        {
+            SetLifecycleMessage(false, "Project status was not updated.");
+        }
+        finally
+        {
+            _lifecycleBusy = false;
+        }
+    }
+
+    private async Task LoadDiaryAsync()
+    {
+        if (_project is null)
+        {
+            return;
+        }
+
+        _entriesLoading = true;
+        _entriesError = null;
+        try
+        {
+            var result = await Projects.GetDiaryAsync(Id, _diaryPage, DiaryPageSize);
+            if (!result.Success || result.Value is null)
+            {
+                _diaryEntries = Array.Empty<HobbyProjectEntryDto>();
+                _diaryTotalPages = 1;
+                _entriesError = "Linked posts could not be loaded.";
+                Announce(_entriesError);
+                return;
+            }
+
+            _diaryEntries = result.Value.Items.ToList();
+            _diaryTotalPages = Math.Max(1, (int)Math.Ceiling(result.Value.TotalCount / (double)Math.Max(1, result.Value.PageSize)));
+        }
+        catch
+        {
+            _diaryEntries = Array.Empty<HobbyProjectEntryDto>();
+            _diaryTotalPages = 1;
+            _entriesError = "Linked posts could not be loaded.";
+            Announce(_entriesError);
+        }
+        finally
+        {
+            _entriesLoading = false;
+        }
+    }
+
+    private async Task LoadShowcaseAsync()
+    {
+        if (_project is null)
+        {
+            return;
+        }
+
+        _showcaseLoading = true;
+        _showcaseError = null;
+        try
+        {
+            var result = await Projects.GetShowcaseAsync(Id, 1, HobbyProjectRules.MaxShowcaseEntries);
+            if (!result.Success || result.Value is null)
+            {
+                _showcaseEntries = new List<HobbyProjectEntryDto>();
+                _hasSavedEligibleShowcase = false;
+                _showcaseError = "Showcase selections could not be loaded.";
+                Announce(_showcaseError);
+                return;
+            }
+
+            _showcaseEntries = result.Value.Items.OrderBy(entry => entry.ShowcaseOrder ?? int.MaxValue).ToList();
+            _hasSavedEligibleShowcase = _showcaseEntries.Any(entry => HasPostImage(entry.Post));
+            _showcaseDirty = false;
+        }
+        catch
+        {
+            _showcaseEntries = new List<HobbyProjectEntryDto>();
+            _hasSavedEligibleShowcase = false;
+            _showcaseError = "Showcase selections could not be loaded.";
+            Announce(_showcaseError);
+        }
+        finally
+        {
+            _showcaseLoading = false;
+        }
+    }
+
+    private async Task LoadAvailablePostsAsync()
+    {
+        if (_project is null)
+        {
+            return;
+        }
+
+        _availableLoading = true;
+        _availableError = null;
+        try
+        {
+            var result = await Projects.GetAvailablePostsAsync(Id, _availableSearch, _availablePage, AvailablePageSize);
+            if (!result.Success || result.Value is null)
+            {
+                _availablePosts = Array.Empty<PostSummaryDto>();
+                _availableTotalPages = 1;
+                _availableError = "Available posts could not be loaded.";
+                Announce(_availableError);
+                return;
+            }
+
+            _availablePosts = result.Value.Items.ToList();
+            _availableTotalPages = Math.Max(1, (int)Math.Ceiling(result.Value.TotalCount / (double)Math.Max(1, result.Value.PageSize)));
+        }
+        catch
+        {
+            _availablePosts = Array.Empty<PostSummaryDto>();
+            _availableTotalPages = 1;
+            _availableError = "Available posts could not be loaded.";
+            Announce(_availableError);
+        }
+        finally
+        {
+            _availableLoading = false;
+        }
+    }
+
+    private async Task SearchAvailablePostsAsync()
+    {
+        _availablePage = 1;
+        await LoadAvailablePostsAsync();
+    }
+
+    private Task BeginLinkPost(PostSummaryDto post)
+    {
+        if (RequiresMoveConfirmation(post))
+        {
+            _pendingMovePostId = post.Id;
+            Announce($"Confirm moving {post.Title} from {post.Project!.Title} to this project.");
+            return Task.CompletedTask;
+        }
+
+        return LinkPostAsync(post, false);
+    }
+
+    private async Task LinkPostAsync(PostSummaryDto post, bool moveConfirmed)
+    {
+        if (_project is null || _project.IsArchived || _project.IsHidden || _busyPostId.HasValue)
+        {
+            return;
+        }
+
+        var sourceProject = RequiresMoveConfirmation(post) ? post.Project : null;
+        if (sourceProject is not null && !moveConfirmed)
+        {
+            _pendingMovePostId = post.Id;
+            Announce($"Confirm moving {post.Title} from {sourceProject.Title} to this project.");
+            return;
+        }
+
+        _busyPostId = post.Id;
+        _entriesError = null;
+        try
+        {
+            var result = await Projects.LinkPostAsync(Id, new LinkHobbyProjectPostDto
+            {
+                PostId = post.Id,
+                SourceProjectId = moveConfirmed ? sourceProject?.Id : null,
+                MilestoneLabel = NormalizeOptional(GetLinkMilestone(post.Id))
+            });
+            if (!result.Success || result.Value is null)
+            {
+                _entriesError = "That post could not be added to this project.";
+                Announce(_entriesError);
+                return;
+            }
+
+            ApplyProject(result.Value);
+            _linkMilestones.Remove(post.Id);
+            _pendingMovePostId = null;
+            _diaryPage = 1;
+            await Task.WhenAll(LoadDiaryAsync(), LoadAvailablePostsAsync());
+            Announce(sourceProject is null
+                ? $"{post.Title} was added to this project."
+                : $"{post.Title} was moved from {sourceProject.Title} to this project.");
+        }
+        catch
+        {
+            _entriesError = "That post could not be added to this project.";
+            Announce(_entriesError);
+        }
+        finally
+        {
+            _busyPostId = null;
+        }
+    }
+
+    private async Task SaveMilestoneAsync(HobbyProjectEntryDto entry)
+    {
+        if (_project is null || _project.IsArchived || _busyPostId.HasValue)
+        {
+            return;
+        }
+
+        _busyPostId = entry.PostId;
+        _entriesError = null;
+        try
+        {
+            var result = await Projects.UpdateEntryAsync(Id, entry.PostId, new UpdateHobbyProjectEntryDto
+            {
+                MilestoneLabel = NormalizeOptional(entry.MilestoneLabel)
+            });
+            if (!result.Success || result.Value is null)
+            {
+                _entriesError = "The milestone label could not be saved.";
+                Announce(_entriesError);
+                return;
+            }
+
+            ApplyProject(result.Value);
+            var showcaseEntry = _showcaseEntries.FirstOrDefault(item => item.PostId == entry.PostId);
+            if (showcaseEntry is not null)
+            {
+                showcaseEntry.MilestoneLabel = entry.MilestoneLabel;
+            }
+            Announce(string.IsNullOrWhiteSpace(entry.MilestoneLabel)
+                ? $"Milestone label removed from {entry.Post.Title}."
+                : $"Milestone label saved for {entry.Post.Title}.");
+        }
+        catch
+        {
+            _entriesError = "The milestone label could not be saved.";
+            Announce(_entriesError);
+        }
+        finally
+        {
+            _busyPostId = null;
+        }
+    }
+
+    private async Task UnlinkPostAsync(int postId)
+    {
+        if (_project is null || _project.IsArchived || _busyPostId.HasValue)
+        {
+            return;
+        }
+
+        _busyPostId = postId;
+        _entriesError = null;
+        try
+        {
+            var result = await Projects.UnlinkPostAsync(Id, postId);
+            if (!result.Success || result.Value is null)
+            {
+                _entriesError = "The post could not be removed from this project.";
+                Announce(_entriesError);
+                return;
+            }
+
+            ApplyProject(result.Value);
+            _showcaseEntries.RemoveAll(entry => entry.PostId == postId);
+            _showcaseDirty = false;
+            _pendingUnlinkPostId = null;
+            await Task.WhenAll(LoadDiaryAsync(), LoadShowcaseAsync(), LoadAvailablePostsAsync());
+            Announce("The post was removed from this project. The post itself was not deleted.");
+        }
+        catch
+        {
+            _entriesError = "The post could not be removed from this project.";
+            Announce(_entriesError);
+        }
+        finally
+        {
+            _busyPostId = null;
+        }
+    }
+
+    private Task SetCoverAsync(int postId) => UpdateCoverAsync(postId);
+
+    private Task ClearCoverAsync() => UpdateCoverAsync(null);
+
+    private async Task UpdateCoverAsync(int? postId)
+    {
+        if (_project is null || _project.IsArchived || _busyPostId.HasValue)
+        {
+            return;
+        }
+
+        if (postId.HasValue)
+        {
+            var entry = _diaryEntries.FirstOrDefault(item => item.PostId == postId.Value);
+            if (entry is null || !HasPostImage(entry.Post))
+            {
+                Announce("Add an image before using that post as the project cover.");
+                return;
+            }
+        }
+
+        _busyPostId = postId ?? 0;
+        _entriesError = null;
+        try
+        {
+            var result = await Projects.UpdateCoverAsync(Id, new UpdateHobbyProjectCoverDto { PostId = postId });
+            if (!result.Success || result.Value is null)
+            {
+                _entriesError = "The project cover could not be changed.";
+                Announce(_entriesError);
+                return;
+            }
+
+            ApplyProject(result.Value);
+            Announce(postId.HasValue ? "Project cover updated." : "Project cover removed.");
+        }
+        catch
+        {
+            _entriesError = "The project cover could not be changed.";
+            Announce(_entriesError);
+        }
+        finally
+        {
+            _busyPostId = null;
+        }
+    }
+
+    private void ToggleShowcase(HobbyProjectEntryDto entry, ChangeEventArgs args)
+    {
+        if (!HasPostImage(entry.Post))
+        {
+            _showcaseError = "Add an image before using that post in the showcase.";
+            Announce(_showcaseError);
+            return;
+        }
+
+        var selected = args.Value is bool boolValue
+            ? boolValue
+            : bool.TryParse(args.Value?.ToString(), out var parsed) && parsed;
+
+        if (selected)
+        {
+            if (_showcaseEntries.Any(item => item.PostId == entry.PostId))
+            {
+                return;
+            }
+
+            if (_showcaseEntries.Count >= HobbyProjectRules.MaxShowcaseEntries)
+            {
+                _showcaseError = $"A showcase can include up to {HobbyProjectRules.MaxShowcaseEntries} posts.";
+                Announce(_showcaseError);
+                return;
+            }
+
+            _showcaseEntries.Add(entry);
+        }
+        else
+        {
+            _showcaseEntries.RemoveAll(item => item.PostId == entry.PostId);
+        }
+
+        _showcaseError = null;
+        _showcaseDirty = true;
+        Announce(selected
+            ? $"{entry.Post.Title} selected for the showcase. Save the showcase to apply this change."
+            : $"{entry.Post.Title} removed from the showcase selection. Save the showcase to apply this change.");
+    }
+
+    private void MoveShowcaseEntry(int postId, int direction)
+    {
+        var currentIndex = _showcaseEntries.FindIndex(entry => entry.PostId == postId);
+        var nextIndex = currentIndex + direction;
+        if (currentIndex < 0 || nextIndex < 0 || nextIndex >= _showcaseEntries.Count)
+        {
+            return;
+        }
+
+        var entry = _showcaseEntries[currentIndex];
+        _showcaseEntries.RemoveAt(currentIndex);
+        _showcaseEntries.Insert(nextIndex, entry);
+        _showcaseDirty = true;
+        Announce($"{entry.Post.Title} moved to showcase position {nextIndex + 1}. Save the showcase to apply the new order.");
+    }
+
+    private async Task SaveShowcaseAsync()
+    {
+        if (_project is null || _project.IsArchived || _showcaseBusy || !_showcaseDirty)
+        {
+            return;
+        }
+
+        _showcaseBusy = true;
+        _showcaseError = null;
+        try
+        {
+            var result = await Projects.UpdateShowcaseAsync(Id, new UpdateHobbyProjectShowcaseDto
+            {
+                PostIds = _showcaseEntries.Select(entry => entry.PostId).ToList()
+            });
+            if (!result.Success || result.Value is null)
+            {
+                _showcaseError = "The showcase order could not be saved.";
+                Announce(_showcaseError);
+                return;
+            }
+
+            ApplyProject(result.Value);
+            await LoadShowcaseAsync();
+            Announce("Showcase selection and order saved.");
+        }
+        catch
+        {
+            _showcaseError = "The showcase order could not be saved.";
+            Announce(_showcaseError);
+        }
+        finally
+        {
+            _showcaseBusy = false;
+        }
+    }
+
+    private async Task ArchiveProjectAsync()
+    {
+        if (_project is null || _lifecycleBusy)
+        {
+            return;
+        }
+
+        _lifecycleBusy = true;
+        _lifecycleMessage = null;
+        try
+        {
+            var result = await Projects.ArchiveAsync(Id);
+            if (!result.Success || result.Value is null)
+            {
+                SetLifecycleMessage(false, "The project could not be archived.");
+                return;
+            }
+
+            ApplyProject(result.Value);
+            _archiveConfirmOpen = false;
+            SetLifecycleMessage(true, "Project archived. Its posts remain unchanged.");
+        }
+        catch
+        {
+            SetLifecycleMessage(false, "The project could not be archived.");
+        }
+        finally
+        {
+            _lifecycleBusy = false;
+        }
+    }
+
+    private async Task RestoreProjectAsync()
+    {
+        if (_project is null || _lifecycleBusy)
+        {
+            return;
+        }
+
+        _lifecycleBusy = true;
+        _lifecycleMessage = null;
+        try
+        {
+            var result = await Projects.UnarchiveAsync(Id);
+            if (!result.Success || result.Value is null)
+            {
+                SetLifecycleMessage(false, "The project could not be restored.");
+                return;
+            }
+
+            ApplyProject(result.Value);
+            SetLifecycleMessage(true, "Project restored.");
+        }
+        catch
+        {
+            SetLifecycleMessage(false, "The project could not be restored.");
+        }
+        finally
+        {
+            _lifecycleBusy = false;
+        }
+    }
+
+    private async Task PreviousDiaryPageAsync()
+    {
+        _diaryPage--;
+        await LoadDiaryAsync();
+    }
+
+    private async Task NextDiaryPageAsync()
+    {
+        _diaryPage++;
+        await LoadDiaryAsync();
+    }
+
+    private async Task PreviousAvailablePageAsync()
+    {
+        _availablePage--;
+        await LoadAvailablePostsAsync();
+    }
+
+    private async Task NextAvailablePageAsync()
+    {
+        _availablePage++;
+        await LoadAvailablePostsAsync();
+    }
+
+    private void ApplyProject(HobbyProjectDto project, bool resetMetadata = false, bool resetPendingStatus = false)
+    {
+        _project = project;
+        if (resetPendingStatus)
+        {
+            _pendingStatus = project.Status;
+        }
+        if (resetMetadata)
+        {
+            _metadata = new UpdateHobbyProjectDto
+            {
+                Title = project.Title,
+                Description = project.Description,
+                Kind = project.Kind,
+                GameSystem = project.GameSystem,
+                FactionTheme = project.FactionTheme,
+                Goal = project.Goal,
+                StartDate = project.StartDate
+            };
+        }
+    }
+
+    private void SetMetadataMessage(bool succeeded, string message)
+    {
+        _metadataSucceeded = succeeded;
+        _metadataMessage = message;
+        Announce(message);
+    }
+
+    private void SetLifecycleMessage(bool succeeded, string message)
+    {
+        _lifecycleSucceeded = succeeded;
+        _lifecycleMessage = message;
+        Announce(message);
+    }
+
+    private string? ResolvePostImage(PostSummaryDto post) =>
+        _fullImagePostIds.Contains(post.Id)
+            ? post.ImageUrl ?? post.ThumbnailUrl
+            : post.ThumbnailUrl ?? post.ImageUrl;
+
+    private void HandlePostImageError(PostSummaryDto post)
+    {
+        if (!string.IsNullOrWhiteSpace(post.ImageUrl)
+            && !string.Equals(post.ThumbnailUrl, post.ImageUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            _fullImagePostIds.Add(post.Id);
+        }
+    }
+
+    private bool HasPostImage(PostSummaryDto post) => !string.IsNullOrWhiteSpace(ResolvePostImage(post));
+    private static string GetPostImageAlt(PostSummaryDto post) => $"{post.Title} post image";
+    private bool IsInShowcase(int postId) => _showcaseEntries.Any(entry => entry.PostId == postId);
+    private bool RequiresMoveConfirmation(PostSummaryDto post) => post.Project is not null && post.Project.Id != Id;
+    private static string GetMilestoneInputId(int postId) => $"project-milestone-{postId}";
+    private static string GetLinkMilestoneInputId(int postId) => $"project-link-milestone-{postId}";
+    private static string GetMoveEarlierLabel(string title) => $"Move {title} earlier";
+    private static string GetMoveLaterLabel(string title) => $"Move {title} later";
+    private string? GetLinkMilestone(int postId) => _linkMilestones.GetValueOrDefault(postId);
+
+    private void UpdateMilestoneDraft(HobbyProjectEntryDto entry, ChangeEventArgs args) => entry.MilestoneLabel = args.Value?.ToString();
+    private void SetLinkMilestone(int postId, ChangeEventArgs args) => _linkMilestones[postId] = args.Value?.ToString();
+    private void RequestUnlink(int postId) => _pendingUnlinkPostId = postId;
+    private void CancelUnlink() => _pendingUnlinkPostId = null;
+    private void CancelMove()
+    {
+        _pendingMovePostId = null;
+        Announce("Post move canceled.");
+    }
+    private void OpenArchiveConfirm() => _archiveConfirmOpen = true;
+    private void CloseArchiveConfirm() => _archiveConfirmOpen = false;
+
+    private void Announce(string message) => _announcement = message;
+
+    private static string? NormalizeOptional(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string FormatStatus(string status) => status switch
+    {
+        HobbyProjectStatuses.InProgress => "In progress",
+        HobbyProjectStatuses.OnHold => "On hold",
+        HobbyProjectStatuses.Completed => "Completed",
+        _ => "Planning"
+    };
+}

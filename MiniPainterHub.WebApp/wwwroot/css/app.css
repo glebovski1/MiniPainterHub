@@ -424,10 +424,44 @@ a:hover,
     box-shadow: 0 5px 14px rgba(88, 109, 98, 0.14);
 }
 
-.btn-primary:hover,
-.btn-primary:focus-visible {
+.btn-primary:hover {
     color: #fff;
     background: #485c52;
+    border-color: #485c52;
+}
+
+.btn-check:active + .btn-primary,
+.btn-check:checked + .btn-primary,
+.btn-primary.active,
+.btn-primary:active,
+.show > .btn-primary.dropdown-toggle {
+    color: #fff8f2;
+    background: #184a43;
+    border-color: #184a43;
+}
+
+.btn-check:focus + .btn-primary,
+.btn-primary:focus,
+.btn-primary:focus-visible,
+.btn-check:active + .btn-primary:focus,
+.btn-check:checked + .btn-primary:focus,
+.btn-primary.active:focus,
+.btn-primary:active:focus,
+.show > .btn-primary.dropdown-toggle:focus {
+    color: #fff;
+    background: #485c52;
+    border-color: #485c52;
+    box-shadow: 0 0 0 0.22rem rgba(31, 91, 82, 0.3);
+}
+
+.btn-primary.disabled,
+.btn-primary:disabled,
+fieldset:disabled .btn-primary {
+    color: #637772;
+    background: rgba(31, 91, 82, 0.12);
+    border-color: rgba(31, 91, 82, 0.18);
+    box-shadow: none;
+    opacity: 1;
 }
 
 .btn-outline-secondary,
@@ -542,6 +576,11 @@ input[type="file"].form-control::file-selector-button {
     color: var(--ink-700) !important;
 }
 
+.text-bg-light {
+    background-color: var(--surface-muted) !important;
+    color: var(--ink-800) !important;
+}
+
 .text-bg-warning {
     background-color: rgba(200, 159, 87, 0.18) !important;
     color: #7d5420 !important;
@@ -555,6 +594,12 @@ input[type="file"].form-control::file-selector-button {
 .text-bg-success {
     background-color: rgba(71, 121, 94, 0.14) !important;
     color: var(--success) !important;
+}
+
+.app-toast-container {
+    top: calc(var(--app-header-bottom, 0px) + 0.75rem);
+    z-index: 1080;
+    transition: top 160ms ease;
 }
 
 .list-group {
@@ -1627,6 +1672,36 @@ button.entity-row {
     border: 1px solid var(--admin-border);
     border-radius: 8px;
     background: var(--admin-soft);
+}
+
+.admin-activity-empty {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: center;
+    min-height: 8rem;
+    margin-top: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    background: var(--admin-soft);
+    color: var(--admin-muted);
+    text-align: left;
+}
+
+.admin-activity-empty i {
+    color: #64748b;
+    font-size: 1.5rem;
+}
+
+.admin-activity-empty strong {
+    display: block;
+    color: var(--admin-ink);
+}
+
+.admin-activity-empty p {
+    margin: 0.15rem 0 0;
+    font-size: 0.85rem;
 }
 
 .admin-activity-point {

@@ -8,6 +8,7 @@ namespace MiniPainterHub.Server.Services.Interfaces
         Task SubmitPostReportAsync(string reporterUserId, int postId, CreateReportRequestDto request);
         Task SubmitCommentReportAsync(string reporterUserId, int commentId, CreateReportRequestDto request);
         Task SubmitUserReportAsync(string reporterUserId, string targetUserId, CreateReportRequestDto request);
+        Task SubmitProjectReportAsync(string reporterUserId, int projectId, CreateReportRequestDto request);
         Task<PagedResult<ReportQueueItemDto>> GetQueueAsync(ReportQueueQueryDto query);
         Task ResolveAsync(string reviewerUserId, long reportId, ResolveReportRequestDto request);
     }

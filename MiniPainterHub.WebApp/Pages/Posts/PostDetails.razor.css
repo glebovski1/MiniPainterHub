@@ -981,3 +981,53 @@
     background: rgba(226, 185, 104, 0.09);
     color: #e5ceb0;
 }
+
+/* Mobile viewer panels join the modal's main scroll instead of competing for a
+   fixed-height internal viewport. This keeps long artwork notes and comments
+   readable above the composer on both single- and multi-image posts. */
+@media (max-width: 991.98px) {
+    .viewer-shell__side-panel .viewer-panel {
+        grid-template-rows: auto auto;
+        height: auto;
+        min-height: 0;
+        align-content: start;
+    }
+
+    .viewer-shell__side-panel .viewer-panel__content,
+    .viewer-shell__side-panel .viewer-panel__content--info,
+    .viewer-shell__side-panel .viewer-panel__content--comments,
+    .viewer-shell__side-panel .viewer-panel-section--comments,
+    .viewer-shell__side-panel .viewer-panel__comments-thread,
+    .viewer-shell__side-panel .viewer-panel__comments-scroll {
+        height: auto;
+        max-height: none;
+        min-height: 0;
+        overflow: visible;
+    }
+
+    .viewer-shell__side-panel .viewer-panel-section--hero,
+    .viewer-shell__side-panel .viewer-panel__copy {
+        max-height: none;
+        overflow: visible;
+    }
+
+    .viewer-shell__side-panel .viewer-panel__copy {
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    .viewer-shell__side-panel .viewer-panel-section--comments,
+    .viewer-shell__side-panel .viewer-panel__comments-thread,
+    .viewer-shell__side-panel .viewer-panel__comments-scroll {
+        flex: 0 0 auto;
+    }
+
+    .viewer-shell__side-panel .viewer-panel__comments-list {
+        min-height: 0;
+    }
+
+    .viewer-shell__side-panel .viewer-panel__composer-sticky {
+        position: static;
+        bottom: auto;
+    }
+}

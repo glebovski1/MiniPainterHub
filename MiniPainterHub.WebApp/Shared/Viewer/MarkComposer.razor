@@ -1,6 +1,11 @@
 <section class="viewer-composer @(IsReadOnly ? "is-readonly" : null)"
          style="@Style"
-         data-testid="viewer-mark-composer">
+         data-testid="viewer-mark-composer"
+         @onclick:stopPropagation="true"
+         @onpointerdown:stopPropagation="true"
+         @onpointerup:stopPropagation="true"
+         @ontouchstart:stopPropagation="true"
+         @ontouchend:stopPropagation="true">
     <div class="viewer-composer__header">
         <div>
             <div class="viewer-composer__eyebrow">@Title</div>
@@ -12,7 +17,7 @@
         <button type="button"
                 class="btn btn-link btn-sm p-0"
                 data-testid="viewer-mark-close"
-                @onclick="OnCancel">
+                @onclick="HandleCancelAsync">
             Close
         </button>
     </div>
@@ -139,6 +144,11 @@
         }
 
         await OnSave.InvokeAsync(_model.Clone());
+    }
+
+    private async Task HandleCancelAsync()
+    {
+        await OnCancel.InvokeAsync();
     }
 
     private static string? TrimToLength(string? value, int maxLength)

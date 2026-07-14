@@ -42,5 +42,6 @@ namespace MiniPainterHub.Common.DTOs
         public int LikeCount { get; set; }
         public bool IsDeleted { get; set; }
         public List<TagDto> Tags { get; set; } = new();
+        public HobbyProjectReferenceDto? Project { get; set; }
     }
 }

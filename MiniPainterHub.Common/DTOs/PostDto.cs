@@ -49,5 +49,7 @@ namespace MiniPainterHub.Common.DTOs
         public List<PostImageDto> Images { get; set; } = new();
 
         public List<TagDto> Tags { get; set; } = new();
+
+        public HobbyProjectReferenceDto? Project { get; set; }
     }
 }

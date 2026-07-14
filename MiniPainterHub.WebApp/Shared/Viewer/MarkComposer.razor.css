@@ -1,5 +1,6 @@
 .viewer-composer {
     position: absolute;
+    pointer-events: auto;
     width: min(18.5rem, calc(100% - 1.75rem));
     padding: 0.95rem;
     border-radius: calc(var(--radius-md) + 0.1rem);
@@ -66,9 +67,9 @@
 @media (max-width: 767.98px) {
     .viewer-composer {
         left: 0.75rem !important;
-        right: 0.75rem;
+        right: 0.75rem !important;
         top: auto !important;
-        bottom: 0.75rem;
+        bottom: 0.75rem !important;
         width: auto;
     }
 }

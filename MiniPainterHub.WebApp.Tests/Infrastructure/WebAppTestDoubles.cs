@@ -17,10 +17,30 @@ internal sealed class StubAuthService : IAuthService
 {
     public Func<LoginDto, Task<LoginOutcome>> LoginHandler { get; set; } = _ => Task.FromResult(LoginOutcome.Success);
     public Func<RegisterDto, Task<bool>> RegisterHandler { get; set; } = _ => Task.FromResult(true);
+    public Func<Task<AuthProvidersDto>> GetProvidersHandler { get; set; } = () => Task.FromResult(new AuthProvidersDto());
+    public Func<Task<ExternalAuthClientResult>> ExchangeExternalHandler { get; set; } = () =>
+        Task.FromResult(new ExternalAuthClientResult(ExternalAuthClientOutcome.Unavailable));
+    public Func<ExternalAuthRegistrationDto, Task<LoginOutcome>> CompleteExternalRegistrationHandler { get; set; } = _ =>
+        Task.FromResult(LoginOutcome.Success);
+    public Func<string, Task<ExternalAuthStartDto?>> BeginGoogleLinkHandler { get; set; } = _ =>
+        Task.FromResult<ExternalAuthStartDto?>(new ExternalAuthStartDto { StartUrl = "/api/auth/google/start?mode=link" });
+    public Func<Task<SignInMethodsDto?>> GetSignInMethodsHandler { get; set; } = () =>
+        Task.FromResult<SignInMethodsDto?>(new SignInMethodsDto());
+    public Func<SetPasswordDto, Task<SignInMethodsDto?>> SetPasswordHandler { get; set; } = _ =>
+        Task.FromResult<SignInMethodsDto?>(new SignInMethodsDto { HasPassword = true });
+    public Func<Task<SignInMethodsDto?>> DisconnectGoogleHandler { get; set; } = () =>
+        Task.FromResult<SignInMethodsDto?>(new SignInMethodsDto { HasPassword = true });
     public Func<Task> LogoutHandler { get; set; } = () => Task.CompletedTask;
 
     public Task<LoginOutcome> LoginAsync(LoginDto dto) => LoginHandler(dto);
     public Task<bool> RegisterAsync(RegisterDto dto) => RegisterHandler(dto);
+    public Task<AuthProvidersDto> GetProvidersAsync() => GetProvidersHandler();
+    public Task<ExternalAuthClientResult> ExchangeExternalAsync() => ExchangeExternalHandler();
+    public Task<LoginOutcome> CompleteExternalRegistrationAsync(ExternalAuthRegistrationDto dto) => CompleteExternalRegistrationHandler(dto);
+    public Task<ExternalAuthStartDto?> BeginGoogleLinkAsync(string returnUrl = "/account/sign-in-methods") => BeginGoogleLinkHandler(returnUrl);
+    public Task<SignInMethodsDto?> GetSignInMethodsAsync() => GetSignInMethodsHandler();
+    public Task<SignInMethodsDto?> SetPasswordAsync(SetPasswordDto dto) => SetPasswordHandler(dto);
+    public Task<SignInMethodsDto?> DisconnectGoogleAsync() => DisconnectGoogleHandler();
     public Task LogoutAsync() => LogoutHandler();
 }
 
@@ -428,6 +448,8 @@ internal sealed class StubModerationService : IModerationService
     public Func<int, ModerationActionRequestDto, Task<bool>> RestorePostHandler { get; set; } = (_, _) => Task.FromResult(true);
     public Func<int, ModerationActionRequestDto, Task<bool>> HideCommentHandler { get; set; } = (_, _) => Task.FromResult(true);
     public Func<int, ModerationActionRequestDto, Task<bool>> RestoreCommentHandler { get; set; } = (_, _) => Task.FromResult(true);
+    public Func<int, ModerationActionRequestDto, Task<bool>> HideProjectHandler { get; set; } = (_, _) => Task.FromResult(true);
+    public Func<int, ModerationActionRequestDto, Task<bool>> RestoreProjectHandler { get; set; } = (_, _) => Task.FromResult(true);
     public Func<string, SuspendUserRequestDto, Task<bool>> SuspendUserHandler { get; set; } = (_, _) => Task.FromResult(true);
     public Func<string, ModerationActionRequestDto, Task<bool>> UnsuspendUserHandler { get; set; } = (_, _) => Task.FromResult(true);
     public Func<ModerationAuditQueryDto, Task<ApiResult<PagedResult<ModerationAuditDto>?>>> GetAuditHandler { get; set; } = _ =>
@@ -444,17 +466,22 @@ internal sealed class StubModerationService : IModerationService
         Task.FromResult(new ApiResult<ModerationPostPreviewDto?>(true, HttpStatusCode.OK, null));
     public Func<int, Task<ApiResult<ModerationCommentPreviewDto?>>> GetCommentPreviewHandler { get; set; } = _ =>
         Task.FromResult(new ApiResult<ModerationCommentPreviewDto?>(true, HttpStatusCode.OK, null));
+    public Func<int, Task<ApiResult<ModerationHobbyProjectPreviewDto?>>> GetProjectPreviewHandler { get; set; } = _ =>
+        Task.FromResult(new ApiResult<ModerationHobbyProjectPreviewDto?>(true, HttpStatusCode.OK, null));
 
     public Task<bool> HidePostAsync(int postId, ModerationActionRequestDto request) => HidePostHandler(postId, request);
     public Task<bool> RestorePostAsync(int postId, ModerationActionRequestDto request) => RestorePostHandler(postId, request);
     public Task<bool> HideCommentAsync(int commentId, ModerationActionRequestDto request) => HideCommentHandler(commentId, request);
     public Task<bool> RestoreCommentAsync(int commentId, ModerationActionRequestDto request) => RestoreCommentHandler(commentId, request);
+    public Task<bool> HideProjectAsync(int projectId, ModerationActionRequestDto request) => HideProjectHandler(projectId, request);
+    public Task<bool> RestoreProjectAsync(int projectId, ModerationActionRequestDto request) => RestoreProjectHandler(projectId, request);
     public Task<bool> SuspendUserAsync(string userId, SuspendUserRequestDto request) => SuspendUserHandler(userId, request);
     public Task<bool> UnsuspendUserAsync(string userId, ModerationActionRequestDto request) => UnsuspendUserHandler(userId, request);
     public Task<ApiResult<PagedResult<ModerationAuditDto>?>> GetAuditAsync(ModerationAuditQueryDto query) => GetAuditHandler(query);
     public Task<ApiResult<IReadOnlyList<ModerationUserLookupDto>?>> SearchUsersAsync(string? query, int limit = 10) => SearchUsersHandler(query, limit);
     public Task<ApiResult<ModerationPostPreviewDto?>> GetPostPreviewAsync(int postId) => GetPostPreviewHandler(postId);
     public Task<ApiResult<ModerationCommentPreviewDto?>> GetCommentPreviewAsync(int commentId) => GetCommentPreviewHandler(commentId);
+    public Task<ApiResult<ModerationHobbyProjectPreviewDto?>> GetProjectPreviewAsync(int projectId) => GetProjectPreviewHandler(projectId);
 }
 
 internal sealed class StubSearchService : ISearchService
@@ -465,6 +492,14 @@ internal sealed class StubSearchService : ISearchService
         Task.FromResult(new ApiResult<PagedResult<PostSummaryDto>?>(true, HttpStatusCode.OK, new PagedResult<PostSummaryDto>
         {
             Items = Array.Empty<PostSummaryDto>(),
+            PageNumber = page,
+            PageSize = pageSize,
+            TotalCount = 0
+        }));
+    public Func<string?, int, int, Task<ApiResult<PagedResult<HobbyProjectSummaryDto>?>>> SearchProjectsHandler { get; set; } = (_, page, pageSize) =>
+        Task.FromResult(new ApiResult<PagedResult<HobbyProjectSummaryDto>?>(true, HttpStatusCode.OK, new PagedResult<HobbyProjectSummaryDto>
+        {
+            Items = Array.Empty<HobbyProjectSummaryDto>(),
             PageNumber = page,
             PageSize = pageSize,
             TotalCount = 0
@@ -488,8 +523,76 @@ internal sealed class StubSearchService : ISearchService
 
     public Task<ApiResult<SearchOverviewDto?>> GetOverviewAsync(string? query) => GetOverviewHandler(query);
     public Task<ApiResult<PagedResult<PostSummaryDto>?>> SearchPostsAsync(string? query, string? tag, int page, int pageSize) => SearchPostsHandler(query, tag, page, pageSize);
+    public Task<ApiResult<PagedResult<HobbyProjectSummaryDto>?>> SearchProjectsAsync(string? query, int page, int pageSize) => SearchProjectsHandler(query, page, pageSize);
     public Task<ApiResult<PagedResult<UserListItemDto>?>> SearchUsersAsync(string? query, int page, int pageSize) => SearchUsersHandler(query, page, pageSize);
     public Task<ApiResult<PagedResult<SearchTagResultDto>?>> SearchTagsAsync(string? query, int page, int pageSize) => SearchTagsHandler(query, page, pageSize);
+}
+
+internal sealed class StubHobbyProjectService : IHobbyProjectService
+{
+    public Func<HobbyProjectQueryDto, Task<ApiResult<PagedResult<HobbyProjectSummaryDto>?>>> GetAllHandler { get; set; } = query => Task.FromResult(ProjectPage(query));
+    public Func<HobbyProjectQueryDto, Task<ApiResult<PagedResult<HobbyProjectSummaryDto>?>>> GetMineHandler { get; set; } = query => Task.FromResult(ProjectPage(query));
+    public Func<string, HobbyProjectQueryDto, Task<ApiResult<PagedResult<HobbyProjectSummaryDto>?>>> GetByOwnerHandler { get; set; } = (_, query) => Task.FromResult(ProjectPage(query));
+    public Func<int, Task<ApiResult<HobbyProjectDto?>>> GetHandler { get; set; } = _ => Task.FromResult(new ApiResult<HobbyProjectDto?>(true, HttpStatusCode.OK, null));
+    public Func<int, int, int, Task<ApiResult<PagedResult<HobbyProjectEntryDto>?>>> GetDiaryHandler { get; set; } = (_, page, pageSize) => Task.FromResult(EntryPage(page, pageSize));
+    public Func<int, int, int, Task<ApiResult<PagedResult<HobbyProjectEntryDto>?>>> GetShowcaseHandler { get; set; } = (_, page, pageSize) => Task.FromResult(EntryPage(page, pageSize));
+    public Func<int, string?, int, int, Task<ApiResult<PagedResult<PostSummaryDto>?>>> GetAvailablePostsHandler { get; set; } = (_, _, page, pageSize) =>
+        Task.FromResult(new ApiResult<PagedResult<PostSummaryDto>?>(true, HttpStatusCode.OK, new PagedResult<PostSummaryDto>
+        {
+            Items = Array.Empty<PostSummaryDto>(),
+            PageNumber = page,
+            PageSize = pageSize,
+            TotalCount = 0
+        }));
+    public Func<CreateHobbyProjectDto, Task<ApiResult<HobbyProjectDto?>>> CreateHandler { get; set; } = _ => SuccessProject(1, HttpStatusCode.Created);
+    public Func<int, UpdateHobbyProjectDto, Task<ApiResult<HobbyProjectDto?>>> UpdateHandler { get; set; } = (id, _) => SuccessProject(id);
+    public Func<int, UpdateHobbyProjectStatusDto, Task<ApiResult<HobbyProjectDto?>>> UpdateStatusHandler { get; set; } = (id, _) => SuccessProject(id);
+    public Func<int, Task<ApiResult<HobbyProjectDto?>>> ArchiveHandler { get; set; } = id => SuccessProject(id);
+    public Func<int, Task<ApiResult<HobbyProjectDto?>>> UnarchiveHandler { get; set; } = id => SuccessProject(id);
+    public Func<int, LinkHobbyProjectPostDto, Task<ApiResult<HobbyProjectDto?>>> LinkPostHandler { get; set; } = (id, _) => SuccessProject(id);
+    public Func<int, int, UpdateHobbyProjectEntryDto, Task<ApiResult<HobbyProjectDto?>>> UpdateEntryHandler { get; set; } = (id, _, _) => SuccessProject(id);
+    public Func<int, int, Task<ApiResult<HobbyProjectDto?>>> UnlinkPostHandler { get; set; } = (id, _) => SuccessProject(id);
+    public Func<int, UpdateHobbyProjectShowcaseDto, Task<ApiResult<HobbyProjectDto?>>> UpdateShowcaseHandler { get; set; } = (id, _) => SuccessProject(id);
+    public Func<int, UpdateHobbyProjectCoverDto, Task<ApiResult<HobbyProjectDto?>>> UpdateCoverHandler { get; set; } = (id, _) => SuccessProject(id);
+
+    public Task<ApiResult<PagedResult<HobbyProjectSummaryDto>?>> GetAllAsync(HobbyProjectQueryDto query) => GetAllHandler(query);
+    public Task<ApiResult<PagedResult<HobbyProjectSummaryDto>?>> GetMineAsync(HobbyProjectQueryDto query) => GetMineHandler(query);
+    public Task<ApiResult<PagedResult<HobbyProjectSummaryDto>?>> GetByOwnerAsync(string ownerUserId, HobbyProjectQueryDto query) => GetByOwnerHandler(ownerUserId, query);
+    public Task<ApiResult<HobbyProjectDto?>> GetAsync(int projectId) => GetHandler(projectId);
+    public Task<ApiResult<PagedResult<HobbyProjectEntryDto>?>> GetDiaryAsync(int projectId, int page, int pageSize) => GetDiaryHandler(projectId, page, pageSize);
+    public Task<ApiResult<PagedResult<HobbyProjectEntryDto>?>> GetShowcaseAsync(int projectId, int page, int pageSize) => GetShowcaseHandler(projectId, page, pageSize);
+    public Task<ApiResult<PagedResult<PostSummaryDto>?>> GetAvailablePostsAsync(int projectId, string? search, int page, int pageSize) => GetAvailablePostsHandler(projectId, search, page, pageSize);
+    public Task<ApiResult<HobbyProjectDto?>> CreateAsync(CreateHobbyProjectDto request) => CreateHandler(request);
+    public Task<ApiResult<HobbyProjectDto?>> UpdateAsync(int projectId, UpdateHobbyProjectDto request) => UpdateHandler(projectId, request);
+    public Task<ApiResult<HobbyProjectDto?>> UpdateStatusAsync(int projectId, UpdateHobbyProjectStatusDto request) => UpdateStatusHandler(projectId, request);
+    public Task<ApiResult<HobbyProjectDto?>> ArchiveAsync(int projectId) => ArchiveHandler(projectId);
+    public Task<ApiResult<HobbyProjectDto?>> UnarchiveAsync(int projectId) => UnarchiveHandler(projectId);
+    public Task<ApiResult<HobbyProjectDto?>> LinkPostAsync(int projectId, LinkHobbyProjectPostDto request) => LinkPostHandler(projectId, request);
+    public Task<ApiResult<HobbyProjectDto?>> UpdateEntryAsync(int projectId, int postId, UpdateHobbyProjectEntryDto request) => UpdateEntryHandler(projectId, postId, request);
+    public Task<ApiResult<HobbyProjectDto?>> UnlinkPostAsync(int projectId, int postId) => UnlinkPostHandler(projectId, postId);
+    public Task<ApiResult<HobbyProjectDto?>> UpdateShowcaseAsync(int projectId, UpdateHobbyProjectShowcaseDto request) => UpdateShowcaseHandler(projectId, request);
+    public Task<ApiResult<HobbyProjectDto?>> UpdateCoverAsync(int projectId, UpdateHobbyProjectCoverDto request) => UpdateCoverHandler(projectId, request);
+
+    private static ApiResult<PagedResult<HobbyProjectSummaryDto>?> ProjectPage(HobbyProjectQueryDto query) =>
+        new(true, HttpStatusCode.OK, new PagedResult<HobbyProjectSummaryDto>
+        {
+            Items = Array.Empty<HobbyProjectSummaryDto>(),
+            PageNumber = query.PageNumber,
+            PageSize = query.PageSize,
+            TotalCount = 0
+        });
+
+    private static ApiResult<PagedResult<HobbyProjectEntryDto>?> EntryPage(int page, int pageSize) =>
+        new(true, HttpStatusCode.OK, new PagedResult<HobbyProjectEntryDto>
+        {
+            Items = Array.Empty<HobbyProjectEntryDto>(),
+            PageNumber = page,
+            PageSize = pageSize,
+            TotalCount = 0
+        });
+
+    private static Task<ApiResult<HobbyProjectDto?>> SuccessProject(int id, HttpStatusCode status = HttpStatusCode.OK) =>
+        Task.FromResult(new ApiResult<HobbyProjectDto?>(true, status, new HobbyProjectDto { Id = id }));
 }
 
 internal sealed class StubReportService : IReportService
@@ -497,6 +600,7 @@ internal sealed class StubReportService : IReportService
     public Func<int, CreateReportRequestDto, Task<bool>> ReportPostHandler { get; set; } = (_, _) => Task.FromResult(true);
     public Func<int, CreateReportRequestDto, Task<bool>> ReportCommentHandler { get; set; } = (_, _) => Task.FromResult(true);
     public Func<string, CreateReportRequestDto, Task<bool>> ReportUserHandler { get; set; } = (_, _) => Task.FromResult(true);
+    public Func<int, CreateReportRequestDto, Task<bool>> ReportProjectHandler { get; set; } = (_, _) => Task.FromResult(true);
     public Func<ReportQueueQueryDto, Task<ApiResult<PagedResult<ReportQueueItemDto>?>>> GetQueueHandler { get; set; } = query =>
         Task.FromResult(new ApiResult<PagedResult<ReportQueueItemDto>?>(true, HttpStatusCode.OK, new PagedResult<ReportQueueItemDto>
         {
@@ -510,6 +614,7 @@ internal sealed class StubReportService : IReportService
     public Task<bool> ReportPostAsync(int postId, CreateReportRequestDto request) => ReportPostHandler(postId, request);
     public Task<bool> ReportCommentAsync(int commentId, CreateReportRequestDto request) => ReportCommentHandler(commentId, request);
     public Task<bool> ReportUserAsync(string userId, CreateReportRequestDto request) => ReportUserHandler(userId, request);
+    public Task<bool> ReportProjectAsync(int projectId, CreateReportRequestDto request) => ReportProjectHandler(projectId, request);
     public Task<ApiResult<PagedResult<ReportQueueItemDto>?>> GetQueueAsync(ReportQueueQueryDto query) => GetQueueHandler(query);
     public Task<bool> ResolveAsync(long reportId, ResolveReportRequestDto request) => ResolveHandler(reportId, request);
 }

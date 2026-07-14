@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.HttpOverrides;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Middleware;
@@ -21,6 +22,11 @@ public partial class Program
 {
     private static void ConfigureMiniPainterHubPipeline(WebApplication app)
     {
+        if (app.Configuration.GetValue<bool>("ForwardedHeaders:Enabled"))
+        {
+            app.UseForwardedHeaders();
+        }
+
         if (app.Environment.IsDevelopment())
         {
             app.UseWebAssemblyDebugging();

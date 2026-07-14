@@ -416,6 +416,69 @@ namespace MiniPainterHub.Server.Migrations
                     b.ToTable("DirectMessages");
                 });
 
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.ExternalAuthExchange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ConsumedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("HandleHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("ProviderSubject")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("ReturnUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<string>("SuggestedDisplayName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("TargetUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("VerifiedEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresUtc");
+
+                    b.HasIndex("HandleHash")
+                        .IsUnique();
+
+                    b.ToTable("ExternalAuthExchanges");
+                });
+
             modelBuilder.Entity("MiniPainterHub.Server.Entities.Follow", b =>
                 {
                     b.Property<string>("FollowerUserId")
@@ -434,6 +497,141 @@ namespace MiniPainterHub.Server.Migrations
                     b.HasIndex("FollowedUserId");
 
                     b.ToTable("Follows");
+                });
+
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.HobbyProject", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ArchivedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("CompletedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CoverPostId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("FactionTheme")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("GameSystem")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Goal")
+                        .HasMaxLength(240)
+                        .HasColumnType("nvarchar(240)");
+
+                    b.Property<bool>("IsHidden")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("ModeratedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("ModeratedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModerationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("OwnerUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateOnly?>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(140)
+                        .HasColumnType("nvarchar(140)");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CoverPostId");
+
+                    b.HasIndex("ModeratedByUserId");
+
+                    b.HasIndex("IsHidden", "ArchivedUtc", "UpdatedUtc");
+
+                    b.HasIndex("OwnerUserId", "ArchivedUtc", "UpdatedUtc");
+
+                    b.HasIndex("Kind", "IsHidden", "ArchivedUtc", "UpdatedUtc");
+
+                    b.HasIndex("Status", "IsHidden", "ArchivedUtc", "UpdatedUtc");
+
+                    b.ToTable("HobbyProjects");
+                });
+
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.HobbyProjectEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("LinkedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("MilestoneLabel")
+                        .HasMaxLength(140)
+                        .HasColumnType("nvarchar(140)");
+
+                    b.Property<int>("PostId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ShowcaseOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PostId")
+                        .IsUnique();
+
+                    b.HasIndex("ProjectId", "PostId")
+                        .IsUnique();
+
+                    b.HasIndex("ProjectId", "ShowcaseOrder")
+                        .IsUnique()
+                        .HasFilter("[ShowcaseOrder] IS NOT NULL");
+
+                    b.HasIndex("ProjectId", "LinkedUtc", "PostId");
+
+                    b.ToTable("HobbyProjectEntries");
                 });
 
             modelBuilder.Entity("MiniPainterHub.Server.Entities.ImageAuthorMark", b =>
@@ -907,11 +1105,11 @@ namespace MiniPainterHub.Server.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Category", "Status", "UpdatedUtc");
-
                     b.HasIndex("RequesterUserId", "UpdatedUtc");
 
                     b.HasIndex("Status", "UpdatedUtc");
+
+                    b.HasIndex("Category", "Status", "UpdatedUtc");
 
                     b.ToTable("SupportTickets");
                 });
@@ -1066,7 +1264,9 @@ namespace MiniPainterHub.Server.Migrations
                     b.HasIndex("DisplayName");
 
                     b.HasIndex("NormalizedEmail")
-                        .HasDatabaseName("EmailIndex");
+                        .IsUnique()
+                        .HasDatabaseName("EmailIndex")
+                        .HasFilter("[NormalizedEmail] IS NOT NULL");
 
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
@@ -1227,6 +1427,50 @@ namespace MiniPainterHub.Server.Migrations
                     b.Navigation("FollowedUser");
 
                     b.Navigation("FollowerUser");
+                });
+
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.HobbyProject", b =>
+                {
+                    b.HasOne("MiniPainterHub.Server.Entities.Post", "CoverPost")
+                        .WithMany()
+                        .HasForeignKey("CoverPostId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("MiniPainterHub.Server.Identity.ApplicationUser", "ModeratedByUser")
+                        .WithMany()
+                        .HasForeignKey("ModeratedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("MiniPainterHub.Server.Identity.ApplicationUser", "OwnerUser")
+                        .WithMany("HobbyProjects")
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CoverPost");
+
+                    b.Navigation("ModeratedByUser");
+
+                    b.Navigation("OwnerUser");
+                });
+
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.HobbyProjectEntry", b =>
+                {
+                    b.HasOne("MiniPainterHub.Server.Entities.Post", "Post")
+                        .WithOne("HobbyProjectEntry")
+                        .HasForeignKey("MiniPainterHub.Server.Entities.HobbyProjectEntry", "PostId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MiniPainterHub.Server.Entities.HobbyProject", "Project")
+                        .WithMany("Entries")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Post");
+
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("MiniPainterHub.Server.Entities.ImageAuthorMark", b =>
@@ -1401,6 +1645,11 @@ namespace MiniPainterHub.Server.Migrations
                     b.Navigation("Participants");
                 });
 
+            modelBuilder.Entity("MiniPainterHub.Server.Entities.HobbyProject", b =>
+                {
+                    b.Navigation("Entries");
+                });
+
             modelBuilder.Entity("MiniPainterHub.Server.Entities.PaintingGuide", b =>
                 {
                     b.Navigation("Steps");
@@ -1409,6 +1658,8 @@ namespace MiniPainterHub.Server.Migrations
             modelBuilder.Entity("MiniPainterHub.Server.Entities.Post", b =>
                 {
                     b.Navigation("Comments");
+
+                    b.Navigation("HobbyProjectEntry");
 
                     b.Navigation("Images");
 
@@ -1441,6 +1692,8 @@ namespace MiniPainterHub.Server.Migrations
                     b.Navigation("Followers");
 
                     b.Navigation("Following");
+
+                    b.Navigation("HobbyProjects");
 
                     b.Navigation("Profile");
 

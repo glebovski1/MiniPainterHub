@@ -223,6 +223,17 @@
     box-shadow: none;
 }
 
+.public-profile-projects {
+    display: grid;
+    gap: 1rem;
+}
+
+.public-profile-project-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
 @media (max-width: 991.98px) {
     .public-profile-card__top,
     .public-profile-card__identity {
@@ -235,7 +246,8 @@
     }
 
     .public-profile-card__content,
-    .public-profile-card__stats {
+    .public-profile-card__stats,
+    .public-profile-project-grid {
         grid-template-columns: 1fr;
     }
 }

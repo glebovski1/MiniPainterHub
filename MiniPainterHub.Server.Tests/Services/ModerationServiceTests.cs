@@ -3,7 +3,9 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services;
@@ -220,6 +222,109 @@ public class ModerationServiceTests
         audit.ActorRole.Should().Be("Admin");
     }
 
+    [Fact]
+    public async Task ModerateHobbyProjectAsync_WhenHidingProject_UpdatesVisibilityAndWritesAudit()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var project = CreateProject(71, "project-owner");
+        await context.HobbyProjects.AddAsync(project);
+        await context.SaveChangesAsync();
+
+        var userManager = CreateUserManagerMock();
+        userManager.Setup(manager => manager.FindByIdAsync("mod-project"))
+            .ReturnsAsync(TestData.CreateUser("mod-project", "mod-project"));
+        userManager.Setup(manager => manager.GetRolesAsync(It.IsAny<ApplicationUser>()))
+            .ReturnsAsync(["Moderator"]);
+        var service = new ModerationService(context, userManager.Object);
+
+        await service.ModerateHobbyProjectAsync(project.Id, "mod-project", hide: true, reason: "unsafe metadata");
+
+        var stored = await context.HobbyProjects.SingleAsync(candidate => candidate.Id == project.Id);
+        stored.IsHidden.Should().BeTrue();
+        stored.ModeratedByUserId.Should().Be("mod-project");
+        stored.ModerationReason.Should().Be("unsafe metadata");
+        stored.ModeratedUtc.Should().NotBeNull();
+
+        var audit = await context.ModerationAuditLogs.SingleAsync();
+        audit.ActionType.Should().Be("HobbyProjectHide");
+        audit.TargetType.Should().Be(ReportTargetTypes.HobbyProject);
+        audit.TargetId.Should().Be(project.Id.ToString());
+    }
+
+    [Fact]
+    public async Task ModerateHobbyProjectAsync_WhenRestoringVisibleProject_ThrowsDomainValidationException()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var project = CreateProject(72, "project-owner");
+        await context.HobbyProjects.AddAsync(project);
+        await context.SaveChangesAsync();
+        var service = new ModerationService(context, CreateUserManagerMock().Object);
+
+        var act = async () => await service.ModerateHobbyProjectAsync(project.Id, "mod-project", hide: false, reason: "restore");
+
+        var exception = await act.Should().ThrowAsync<DomainValidationException>();
+        exception.Which.Errors.Should().ContainKey("projectId");
+        context.ModerationAuditLogs.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ModerateHobbyProjectAsync_LogsHideAndRestoreOutcomesWithoutReasonText()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var project = CreateProject(74, "project-owner");
+        await context.HobbyProjects.AddAsync(project);
+        await context.SaveChangesAsync();
+        var userManager = CreateUserManagerMock();
+        userManager.Setup(manager => manager.FindByIdAsync("mod-project"))
+            .ReturnsAsync(TestData.CreateUser("mod-project", "mod-project"));
+        userManager.Setup(manager => manager.GetRolesAsync(It.IsAny<ApplicationUser>()))
+            .ReturnsAsync(["Moderator"]);
+        var logger = new RecordingLogger<ModerationService>();
+        var service = new ModerationService(context, userManager.Object, logger);
+
+        await service.ModerateHobbyProjectAsync(project.Id, "mod-project", hide: true, reason: "Sensitive moderation reason");
+        await service.ModerateHobbyProjectAsync(project.Id, "mod-project", hide: false, reason: "Sensitive restore reason");
+
+        logger.Messages.Should().ContainSingle(message => message.Contains("Action=Hidden", StringComparison.Ordinal));
+        logger.Messages.Should().ContainSingle(message => message.Contains("Action=Restored", StringComparison.Ordinal));
+        logger.Messages.Should().NotContain(message => message.Contains("Sensitive", StringComparison.Ordinal));
+        (await context.ModerationAuditLogs.CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetHobbyProjectPreviewAsync_ReturnsMetadataAndTruncatedDescription()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var project = CreateProject(73, "project-owner");
+        project.Description = new string('p', 260);
+        project.IsHidden = true;
+        project.ModeratedByUserId = "mod-project";
+        project.ModeratedUtc = DateTime.UtcNow;
+        await context.HobbyProjects.AddAsync(project);
+        await context.SaveChangesAsync();
+        var service = new ModerationService(context, CreateUserManagerMock().Object);
+
+        var preview = await service.GetHobbyProjectPreviewAsync(project.Id);
+
+        preview.ProjectId.Should().Be(project.Id);
+        preview.OwnerUserId.Should().Be("project-owner");
+        preview.IsHidden.Should().BeTrue();
+        preview.DescriptionSnippet.Should().HaveLength(243).And.EndWith("...");
+    }
+
+    private static HobbyProject CreateProject(int id, string ownerUserId) =>
+        new()
+        {
+            Id = id,
+            OwnerUserId = ownerUserId,
+            Title = $"Project {id}",
+            Description = "Project description",
+            Kind = HobbyProjectKinds.Army,
+            Status = HobbyProjectStatuses.InProgress,
+            CreatedUtc = DateTime.UtcNow.AddDays(-1),
+            UpdatedUtc = DateTime.UtcNow
+        };
+
     private static Mock<UserManager<ApplicationUser>> CreateUserManagerMock()
     {
         var store = new Mock<IUserStore<ApplicationUser>>();
@@ -233,5 +338,30 @@ public class ModerationServiceTests
             null!,
             null!,
             null!);
+    }
+
+    private sealed class RecordingLogger<T> : ILogger<T>
+    {
+        public System.Collections.Generic.List<string> Messages { get; } = new();
+
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NoopScope.Instance;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter) =>
+            Messages.Add(formatter(state, exception));
+
+        private sealed class NoopScope : IDisposable
+        {
+            public static NoopScope Instance { get; } = new();
+            public void Dispose()
+            {
+            }
+        }
     }
 }

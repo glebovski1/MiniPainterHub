@@ -1,0 +1,111 @@
+@page "/auth/external/complete-registration"
+@inject IAuthService AuthService
+@inject ExternalAuthFlowState FlowState
+@inject NavigationManager Navigation
+
+<PageTitle>Complete your account</PageTitle>
+
+<div class="page-shell external-registration-page">
+    <section class="surface-card external-registration-card" data-testid="external-registration-card">
+        <p class="section-label mb-2">One last studio detail</p>
+        <h1 class="h2">Choose your MiniPainterHub username</h1>
+
+        @if (!FlowState.RegistrationPending)
+        {
+            <div class="status-panel status-panel--warning mt-4" role="alert" data-testid="external-registration-expired">
+                <div class="status-panel__icon"><i class="bi bi-clock-history" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Google registration expired</div>
+                    <p class="status-panel__text mb-0">Start again from the sign-in page. No account was created.</p>
+                </div>
+            </div>
+            <a class="btn btn-primary mt-4" href="/register">Return to registration</a>
+        }
+        else
+        {
+            <p class="text-muted">Google verified <strong>@FlowState.Email</strong>. Your username becomes your permanent public handle; you can customize your display name and avatar later.</p>
+
+            <EditForm Model="@_registration"
+                      OnValidSubmit="CompleteRegistration"
+                      aria-busy="@_submitting.ToString().ToLowerInvariant()"
+                      data-testid="external-registration-form">
+                <DataAnnotationsValidator />
+
+                <label for="external-username" class="form-label">Username</label>
+                <InputText id="external-username"
+                           class="form-control"
+                           autocomplete="username"
+                           data-testid="external-registration-username"
+                           @bind-Value="_registration.UserName" />
+                <ValidationMessage For="@(() => _registration.UserName)" class="text-danger small" />
+                <div class="form-text">Use the same username rules as standard MiniPainterHub registration.</div>
+
+                <button class="btn btn-primary w-100 mt-4"
+                        type="submit"
+                        disabled="@_submitting"
+                        data-testid="external-registration-submit">
+                    @(_submitting ? "Creating your account..." : "Create account and continue")
+                </button>
+            </EditForm>
+
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <div class="status-panel status-panel--error mt-3" role="alert" data-testid="external-registration-error">
+                    <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                    <div>
+                        <div class="status-panel__title">Account could not be created</div>
+                        <p class="status-panel__text mb-0">@_error</p>
+                    </div>
+                </div>
+            }
+        }
+    </section>
+</div>
+
+@code {
+    private readonly ExternalAuthRegistrationDto _registration = new();
+    private bool _submitting;
+    private string? _error;
+
+    protected override void OnInitialized()
+    {
+        if (FlowState.RegistrationPending)
+        {
+            _registration.UserName = FlowState.SuggestedUserName ?? string.Empty;
+        }
+    }
+
+    private async Task CompleteRegistration()
+    {
+        if (_submitting)
+        {
+            return;
+        }
+
+        _submitting = true;
+        _error = null;
+        try
+        {
+            var outcome = await AuthService.CompleteExternalRegistrationAsync(_registration);
+            if (outcome == LoginOutcome.Success)
+            {
+                var destination = LocalReturnUrl.Normalize(FlowState.ReturnUrl, new Uri(Navigation.BaseUri));
+                FlowState.Clear();
+                Navigation.NavigateTo(destination, replace: true);
+                return;
+            }
+
+            _error = outcome switch
+            {
+                LoginOutcome.ValidationFailure => "That username is unavailable or invalid. Adjust it and try again.",
+                LoginOutcome.Forbidden => "New registrations are not available right now.",
+                LoginOutcome.RateLimited => "Too many registration attempts. Wait a moment and try again.",
+                _ => "The secure registration could not be completed. Try again while this page remains open."
+            };
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+}

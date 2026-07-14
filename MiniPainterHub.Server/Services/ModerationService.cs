@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
@@ -19,11 +21,16 @@ namespace MiniPainterHub.Server.Services
         private static readonly string[] ActorRolePriority = { "Admin", "Moderator" };
         private readonly AppDbContext _db;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ILogger<ModerationService> _logger;
 
-        public ModerationService(AppDbContext db, UserManager<ApplicationUser> userManager)
+        public ModerationService(
+            AppDbContext db,
+            UserManager<ApplicationUser> userManager,
+            ILogger<ModerationService>? logger = null)
         {
             _db = db;
             _userManager = userManager;
+            _logger = logger ?? NullLogger<ModerationService>.Instance;
         }
 
         public async Task ModeratePostAsync(int postId, string actorUserId, bool hide, string? reason)
@@ -96,6 +103,45 @@ namespace MiniPainterHub.Server.Services
 
             await AddAuditAsync(actorUserId, hide ? "CommentHide" : "CommentRestore", "Comment", commentId.ToString(), reason);
             await _db.SaveChangesAsync();
+        }
+
+        public async Task ModerateHobbyProjectAsync(int projectId, string actorUserId, bool hide, string? reason)
+        {
+            var project = await _db.HobbyProjects
+                .FirstOrDefaultAsync(candidate => candidate.Id == projectId)
+                ?? throw new NotFoundException("Project not found.");
+
+            if (project.IsHidden == hide)
+            {
+                var message = hide
+                    ? "The project is already hidden."
+                    : "Only projects hidden by moderation can be restored.";
+                throw new DomainValidationException(
+                    "Project moderation state is invalid.",
+                    new Dictionary<string, string[]>
+                    {
+                        ["projectId"] = new[] { message }
+                    });
+            }
+
+            var now = DateTime.UtcNow;
+            project.IsHidden = hide;
+            project.ModeratedUtc = now;
+            project.ModeratedByUserId = actorUserId;
+            project.ModerationReason = reason;
+            project.UpdatedUtc = now;
+
+            await AddAuditAsync(
+                actorUserId,
+                hide ? "HobbyProjectHide" : "HobbyProjectRestore",
+                ReportTargetTypes.HobbyProject,
+                projectId.ToString(),
+                reason);
+            await _db.SaveChangesAsync();
+            _logger.LogInformation(
+                "Hobby project moderation outcome. Action={Action}; ProjectId={ProjectId}.",
+                hide ? "Hidden" : "Restored",
+                projectId);
         }
 
         public async Task SuspendUserAsync(string targetUserId, string actorUserId, DateTime? suspendedUntilUtc, string? reason)
@@ -328,6 +374,33 @@ namespace MiniPainterHub.Server.Services
                 .FirstOrDefaultAsync();
 
             return comment ?? throw new NotFoundException("Comment not found.");
+        }
+
+        public async Task<ModerationHobbyProjectPreviewDto> GetHobbyProjectPreviewAsync(int projectId)
+        {
+            var project = await _db.HobbyProjects
+                .AsNoTracking()
+                .Where(candidate => candidate.Id == projectId)
+                .Select(candidate => new ModerationHobbyProjectPreviewDto
+                {
+                    ProjectId = candidate.Id,
+                    Title = candidate.Title,
+                    DescriptionSnippet = candidate.Description.Length > 240
+                        ? candidate.Description.Substring(0, 240) + "..."
+                        : candidate.Description,
+                    OwnerUserId = candidate.OwnerUserId,
+                    Kind = candidate.Kind,
+                    Status = candidate.Status,
+                    IsHidden = candidate.IsHidden,
+                    CreatedUtc = candidate.CreatedUtc,
+                    UpdatedUtc = candidate.UpdatedUtc,
+                    ModeratedByUserId = candidate.ModeratedByUserId,
+                    ModeratedUtc = candidate.ModeratedUtc,
+                    ModerationReason = candidate.ModerationReason
+                })
+                .FirstOrDefaultAsync();
+
+            return project ?? throw new NotFoundException("Project not found.");
         }
 
         private async Task AddAuditAsync(string actorUserId, string actionType, string targetType, string targetId, string? reason)

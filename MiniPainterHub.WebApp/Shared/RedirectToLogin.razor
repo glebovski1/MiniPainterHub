@@ -64,7 +64,7 @@ else
             return "/login";
         }
 
-        var returnUrl = Uri.EscapeDataString(Navigation.Uri);
+        var returnUrl = Uri.EscapeDataString(LocalReturnUrl.Normalize(currentPath, new Uri(Navigation.BaseUri)));
         return $"/login?returnUrl={returnUrl}";
     }
 }

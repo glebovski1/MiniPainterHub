@@ -1,0 +1,59 @@
+@page "/terms"
+@inject IAuthService AuthService
+
+<PageTitle>Terms</PageTitle>
+
+<LegalDocument Eyebrow="Community agreement"
+               Title="MiniPainterHub Terms"
+               Summary="These pilot terms set practical expectations for using the shared painting workbench and keeping it useful and safe.">
+    <section>
+        <h2>Your account</h2>
+        <p>Provide accurate account information, keep your sign-in methods secure, and use only accounts you are authorized to access. You are responsible for activity performed through your account. Google connection never automatically merges accounts solely because their email addresses match.</p>
+    </section>
+
+    <section>
+        <h2>Your content</h2>
+        <p>You retain ownership of content you create. By publishing it, you give MiniPainterHub permission to store, process, display, resize, and distribute it as needed to operate the service. Only upload material you have the right to share, and respect other creators’ copyrights, trademarks, privacy, and attribution.</p>
+    </section>
+
+    <section>
+        <h2>Community conduct</h2>
+        <ul>
+            <li>Do not harass, threaten, impersonate, exploit, or expose another person’s private information.</li>
+            <li>Do not publish illegal, deceptive, hateful, sexually exploitative, or malicious material.</li>
+            <li>Do not attack the service, evade restrictions, automate abusive traffic, or interfere with other accounts.</li>
+            <li>Use reporting and support tools honestly and provide enough context for administrators to investigate.</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>Moderation and account restrictions</h2>
+        <p>Administrators and moderators may hide or restore content, investigate reports, preserve audit records, or restrict accounts to protect the community and service. Administrators may temporarily disable registration, posting, commenting, or other write operations during incidents or maintenance.</p>
+    </section>
+
+    <section>
+        <h2>Availability and changes</h2>
+        <p>MiniPainterHub is an evolving pilot provided without a promise of uninterrupted availability. Features, limits, and these terms may change as the community and service mature. Material updates will be reflected here with a new effective date.</p>
+    </section>
+
+    <section>
+        <h2>Contact</h2>
+        @if (!string.IsNullOrWhiteSpace(_supportEmail))
+        {
+            <p data-testid="terms-support-email">Questions about these terms can be sent to <a href="mailto:@_supportEmail">@_supportEmail</a>.</p>
+        }
+        else
+        {
+            <p>Signed-in users can contact administrators through the <a href="/support">Support Center</a>. A public support email will be displayed here before Google sign-in is activated.</p>
+        }
+    </section>
+</LegalDocument>
+
+@code {
+    private string? _supportEmail;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _supportEmail = (await AuthService.GetProvidersAsync()).SupportEmail;
+    }
+}

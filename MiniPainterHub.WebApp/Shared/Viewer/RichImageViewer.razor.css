@@ -1373,4 +1373,16 @@
         height: clamp(24rem, 58vh, 31rem);
         min-height: 0;
     }
+
+    .viewer-shell__side-panel {
+        height: max-content;
+        min-height: max-content;
+        max-height: none;
+        align-self: start;
+        overflow: visible;
+    }
+
+    .viewer-shell__side-panel > * {
+        flex: 0 0 auto;
+    }
 }

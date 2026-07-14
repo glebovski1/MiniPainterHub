@@ -1,0 +1,252 @@
+@page "/projects"
+@inject IHobbyProjectService Projects
+
+<PageTitle>Hobby projects</PageTitle>
+
+<div class="page-shell content-stack project-list-page">
+    <PageHero Eyebrow="Hobby projects"
+              Title="Follow the whole painting journey"
+              Description="Explore works in progress, milestone updates, and finished showcases assembled from painters' existing posts."
+              FrameName="Hobby Projects Header">
+        <Actions>
+            <AuthorizeView>
+                <Authorized>
+                    <NavLink class="btn btn-outline-secondary" href="/projects/mine" data-testid="projects-mine-link">
+                        <i class="bi bi-images" aria-hidden="true"></i>
+                        <span>My projects</span>
+                    </NavLink>
+                    <NavLink class="btn btn-primary" href="/projects/new" data-testid="projects-new-link">
+                        <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                        <span>Start a project</span>
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
+        </Actions>
+    </PageHero>
+
+    <section class="project-list-intro" aria-labelledby="project-list-heading">
+        <div>
+            <span class="section-label">Community workbenches</span>
+            <h2 id="project-list-heading">Projects taking shape</h2>
+            <p>Each project keeps progress posts in a diary and turns selected updates into a focused showcase.</p>
+        </div>
+        @if (!_loading && string.IsNullOrWhiteSpace(_error))
+        {
+            <div class="project-list-count" aria-live="polite">
+                <strong>@_totalCount</strong>
+                <span>project@(_totalCount == 1 ? string.Empty : "s") found</span>
+            </div>
+        }
+    </section>
+
+    <form class="project-filter-bar" aria-label="Project filters" @onsubmit="ApplyFiltersAsync" @onsubmit:preventDefault>
+        <div class="project-filter-bar__search">
+            <label class="form-label" for="project-search">Search projects</label>
+            <InputText id="project-search"
+                       class="form-control"
+                       maxlength="@HobbyProjectRules.MaxSearchLength"
+                       data-testid="project-search"
+                       @bind-Value="_query.Search"
+                       placeholder="Title, game system, faction, or theme" />
+        </div>
+        <div>
+            <label class="form-label" for="project-kind-filter">Kind</label>
+            <select id="project-kind-filter" class="form-select" data-testid="project-kind-filter" @bind="_query.Kind">
+                <option value="">All kinds</option>
+                @foreach (var kind in HobbyProjectKinds.All)
+                {
+                    <option value="@kind">@kind</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label" for="project-status-filter">Status</label>
+            <select id="project-status-filter" class="form-select" data-testid="project-status-filter" @bind="_query.Status">
+                <option value="">All statuses</option>
+                @foreach (var status in HobbyProjectStatuses.All)
+                {
+                    <option value="@status">@FormatStatus(status)</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label" for="project-sort">Sort</label>
+            <select id="project-sort" class="form-select" data-testid="project-sort" @bind="_query.Sort">
+                <option value="@HobbyProjectSorts.Recent">Recently updated</option>
+                <option value="@HobbyProjectSorts.Oldest">Oldest first</option>
+                <option value="@HobbyProjectSorts.Title">Title</option>
+            </select>
+        </div>
+        <div class="project-filter-bar__actions">
+            <button class="btn btn-primary" type="submit" data-testid="project-filter-apply" disabled="@_loading">
+                @(_loading ? "Loading..." : "Apply")
+            </button>
+            @if (HasFilters)
+            {
+                <button class="btn btn-link" type="button" data-testid="project-filter-clear" @onclick="ClearFiltersAsync" disabled="@_loading">Clear</button>
+            }
+        </div>
+    </form>
+
+    @if (_loading)
+    {
+        <div class="status-panel status-panel--info" aria-live="polite" data-testid="projects-loading">
+            <div class="status-panel__icon"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Loading hobby projects</div>
+                <p class="status-panel__text mb-0">Gathering the latest diaries and showcases.</p>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="status-panel status-panel--error" role="alert" data-testid="projects-error">
+            <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Projects are unavailable</div>
+                <p class="status-panel__text mb-0">@_error</p>
+            </div>
+            <button class="btn btn-link btn-sm ms-auto" type="button" @onclick="LoadAsync">Retry</button>
+        </div>
+    }
+    else if (_projects.Count == 0)
+    {
+        <EmptyState IconClass="bi bi-images"
+                    Title="@(HasFilters ? "No projects match those filters" : "The first workbench is ready")"
+                    Description="@(HasFilters ? "Try a broader search or clear one of the filters." : "Start a project to turn progress posts into a painting diary and finished showcase.")"
+                    TitleClass="empty-state__title h4"
+                    TestId="projects-empty">
+            @if (HasFilters)
+            {
+                <button class="btn btn-outline-secondary mt-2" type="button" @onclick="ClearFiltersAsync">Clear filters</button>
+            }
+            else
+            {
+                <AuthorizeView>
+                    <Authorized>
+                        <NavLink class="btn btn-primary mt-2" href="/projects/new">Start the first project</NavLink>
+                    </Authorized>
+                    <NotAuthorized>
+                        <NavLink class="btn btn-primary mt-2" href="/login?returnUrl=%2Fprojects%2Fnew">Sign in to start one</NavLink>
+                    </NotAuthorized>
+                </AuthorizeView>
+            }
+        </EmptyState>
+    }
+    else
+    {
+        <section class="project-card-grid" aria-label="Hobby project results" data-testid="project-list">
+            @foreach (var project in _projects)
+            {
+                <HobbyProjectCard Project="project" />
+            }
+        </section>
+
+        <nav class="paginator-bar" aria-label="Project result pages">
+            <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="PreviousPageAsync" disabled="@(_query.PageNumber <= 1 || _loading)">Previous</button>
+            <span>Page @_query.PageNumber of @_totalPages</span>
+            <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="NextPageAsync" disabled="@(_query.PageNumber >= _totalPages || _loading)">Next</button>
+        </nav>
+    }
+</div>
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "owner")]
+    public string? OwnerUserId { get; set; }
+
+    private readonly HobbyProjectQueryDto _query = new()
+    {
+        PageNumber = 1,
+        PageSize = 12,
+        Sort = HobbyProjectSorts.Recent
+    };
+    private IReadOnlyList<HobbyProjectSummaryDto> _projects = Array.Empty<HobbyProjectSummaryDto>();
+    private int _totalCount;
+    private int _totalPages = 1;
+    private bool _loading = true;
+    private string? _error;
+
+    private bool HasFilters =>
+        !string.IsNullOrWhiteSpace(_query.Search)
+        || !string.IsNullOrWhiteSpace(_query.Kind)
+        || !string.IsNullOrWhiteSpace(_query.Status)
+        || !string.Equals(_query.Sort, HobbyProjectSorts.Recent, StringComparison.Ordinal);
+
+    protected override Task OnParametersSetAsync()
+    {
+        _query.OwnerUserId = string.IsNullOrWhiteSpace(OwnerUserId) ? null : OwnerUserId.Trim();
+        return LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var result = await Projects.GetAllAsync(_query);
+            if (!result.Success || result.Value is null)
+            {
+                SetLoadFailure();
+                return;
+            }
+
+            _projects = result.Value.Items.ToList();
+            _totalCount = result.Value.TotalCount;
+            _totalPages = Math.Max(1, (int)Math.Ceiling(_totalCount / (double)Math.Max(1, result.Value.PageSize)));
+        }
+        catch
+        {
+            SetLoadFailure();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ApplyFiltersAsync()
+    {
+        _query.PageNumber = 1;
+        await LoadAsync();
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        _query.Search = null;
+        _query.Kind = null;
+        _query.Status = null;
+        _query.Sort = HobbyProjectSorts.Recent;
+        _query.PageNumber = 1;
+        await LoadAsync();
+    }
+
+    private async Task PreviousPageAsync()
+    {
+        _query.PageNumber--;
+        await LoadAsync();
+    }
+
+    private async Task NextPageAsync()
+    {
+        _query.PageNumber++;
+        await LoadAsync();
+    }
+
+    private void SetLoadFailure()
+    {
+        _projects = Array.Empty<HobbyProjectSummaryDto>();
+        _totalCount = 0;
+        _totalPages = 1;
+        _error = "We couldn't load hobby projects. Please try again.";
+    }
+
+    private static string FormatStatus(string status) => status switch
+    {
+        HobbyProjectStatuses.InProgress => "In progress",
+        HobbyProjectStatuses.OnHold => "On hold",
+        HobbyProjectStatuses.Completed => "Completed",
+        _ => "Planning"
+    };
+}

@@ -7,6 +7,7 @@ using System.Security.Claims;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -20,6 +21,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using MiniPainterHub;
 using MiniPainterHub.Server.Data;
+using MiniPainterHub.Server.Identity;
 
 namespace MiniPainterHub.Server.Tests.Infrastructure;
 
@@ -28,11 +30,15 @@ public sealed class IntegrationTestApplicationFactory : WebApplicationFactory<Pr
     private readonly string _databaseName = $"tests-{Guid.NewGuid():N}";
     private readonly IReadOnlyDictionary<string, string?> _overrides;
     private readonly IPAddress? _forcedRemoteIp;
+    private readonly bool _useTestAuthentication;
+    private readonly bool _registerRealGoogleHandler;
     private readonly string _imageRoot;
 
     public IntegrationTestApplicationFactory(
         IDictionary<string, string?>? configurationOverrides = null,
-        IPAddress? forcedRemoteIp = null)
+        IPAddress? forcedRemoteIp = null,
+        bool useTestAuthentication = true,
+        bool registerRealGoogleHandler = false)
     {
         _imageRoot = Path.Combine(Path.GetTempPath(), "MiniPainterHub.Tests", _databaseName, "uploads", "images");
         var overrides = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
@@ -51,11 +57,15 @@ public sealed class IntegrationTestApplicationFactory : WebApplicationFactory<Pr
 
         _overrides = overrides;
         _forcedRemoteIp = forcedRemoteIp;
+        _useTestAuthentication = useTestAuthentication;
+        _registerRealGoogleHandler = registerRealGoogleHandler;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+        ApplyEarlySetting(builder, "ForwardedHeaders:Enabled");
+        ApplyEarlySetting(builder, "ForwardedHeaders:TrustAllProxies");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -69,22 +79,49 @@ public sealed class IntegrationTestApplicationFactory : WebApplicationFactory<Pr
         {
             services.ReplaceAppDbContextWithInMemory(_databaseName);
 
-            services.AddAuthentication(options =>
+            if (_registerRealGoogleHandler)
             {
-                options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
-                options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
-                options.DefaultScheme = TestAuthHandler.SchemeName;
-            }).AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
+                services.AddAuthentication().AddGoogle(GoogleDefaults.AuthenticationScheme, options =>
+                {
+                    options.ClientId = "integration-client-id";
+                    options.ClientSecret = "integration-client-secret";
+                    options.CallbackPath = "/signin-google";
+                    options.SignInScheme = ExternalAuthenticationSchemes.ExternalCookie;
+                    options.SaveTokens = false;
+                    options.Scope.Clear();
+                    options.Scope.Add("openid");
+                    options.Scope.Add("profile");
+                    options.Scope.Add("email");
+                });
+            }
 
-            services.PostConfigure<AuthorizationOptions>(options =>
+            if (_useTestAuthentication)
             {
-                options.DefaultPolicy = new AuthorizationPolicyBuilder(TestAuthHandler.SchemeName)
-                    .RequireAuthenticatedUser()
-                    .Build();
-            });
+                services.AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
+                    options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
+                    options.DefaultScheme = TestAuthHandler.SchemeName;
+                }).AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
+
+                services.PostConfigure<AuthorizationOptions>(options =>
+                {
+                    options.DefaultPolicy = new AuthorizationPolicyBuilder(TestAuthHandler.SchemeName)
+                        .RequireAuthenticatedUser()
+                        .Build();
+                });
+            }
 
             services.AddSingleton<IStartupFilter>(new RemoteIpStartupFilter(_forcedRemoteIp));
         });
+    }
+
+    private void ApplyEarlySetting(IWebHostBuilder builder, string key)
+    {
+        if (_overrides.TryGetValue(key, out var value) && value is not null)
+        {
+            builder.UseSetting(key, value);
+        }
     }
 
     public HttpClient CreateAuthenticatedClient(

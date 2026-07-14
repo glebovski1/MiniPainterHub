@@ -139,6 +139,73 @@ public class AuthenticationTests
     }
 
     [Fact]
+    public async Task AuthService_GetProvidersAsync_ReturnsGoogleAndPublicSupportConfiguration()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        handler.EnqueueJson(HttpStatusCode.OK, """{"google":{"name":"Google","displayName":"Google","enabled":true},"supportEmail":"support@example.test"}""");
+        var service = CreateAuthService(handler, out _);
+
+        var providers = await service.GetProvidersAsync();
+
+        providers.Google.Enabled.Should().BeTrue();
+        providers.SupportEmail.Should().Be("support@example.test");
+        handler.Requests.Single().Uri.Should().Be(new Uri("https://example.test/api/auth/providers"));
+    }
+
+    [Fact]
+    public async Task AuthService_ExchangeExternalAsync_WhenAuthenticated_AcceptsApplicationToken()
+    {
+        var token = CreateJwtToken(new Dictionary<string, object?>
+        {
+            ["sub"] = "google-user",
+            ["name"] = "painter",
+            ["exp"] = DateTimeOffset.UtcNow.AddMinutes(10).ToUnixTimeSeconds()
+        });
+        var handler = new RecordingHttpMessageHandler();
+        handler.EnqueueJson(HttpStatusCode.OK, $"{{\"outcome\":\"Authenticated\",\"token\":\"{token}\",\"returnUrl\":\"/support\"}}");
+        var service = CreateAuthService(handler, out var tokenStore);
+
+        var result = await service.ExchangeExternalAsync();
+
+        result.Outcome.Should().Be(ExternalAuthClientOutcome.Authenticated);
+        result.ReturnUrl.Should().Be("/support");
+        tokenStore.Token.Should().Be(token);
+        handler.Requests.Single().Uri.Should().Be(new Uri("https://example.test/api/auth/external/exchange"));
+    }
+
+    [Fact]
+    public async Task AuthService_ExchangeExternalAsync_WhenHandleExpired_DoesNotPersistToken()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        handler.EnqueueJson(HttpStatusCode.Gone, """{"title":"External sign-in expired","status":410}""");
+        var service = CreateAuthService(handler, out var tokenStore);
+
+        var result = await service.ExchangeExternalAsync();
+
+        result.Outcome.Should().Be(ExternalAuthClientOutcome.Expired);
+        tokenStore.SetCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AuthService_AccountMethodOperations_UseExpectedEndpoints()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        handler.EnqueueJson(HttpStatusCode.OK, """{"hasPassword":false,"googleConnected":true,"canDisconnectGoogle":false}""");
+        handler.EnqueueJson(HttpStatusCode.OK, """{"hasPassword":true,"googleConnected":true,"canDisconnectGoogle":true}""");
+        handler.EnqueueJson(HttpStatusCode.OK, """{"hasPassword":true,"googleConnected":false,"canDisconnectGoogle":false}""");
+        var service = CreateAuthService(handler, out _);
+
+        (await service.GetSignInMethodsAsync())!.GoogleConnected.Should().BeTrue();
+        (await service.SetPasswordAsync(new SetPasswordDto { NewPassword = "ValidPass123!" }))!.HasPassword.Should().BeTrue();
+        (await service.DisconnectGoogleAsync())!.GoogleConnected.Should().BeFalse();
+
+        handler.Requests.Select(request => $"{request.Method} {request.Uri!.AbsolutePath}").Should().Equal(
+            "GET /api/auth/sign-in-methods",
+            "POST /api/auth/password/set",
+            "DELETE /api/auth/google");
+    }
+
+    [Fact]
     public async Task AuthService_LogoutAsync_ClearsTokenAndStillSignsOutDuringMaintenance()
     {
         var token = CreateJwtToken(new Dictionary<string, object?>
@@ -229,6 +296,15 @@ public class AuthenticationTests
         };
 
         return new ApiClient(httpClient, notifications);
+    }
+
+    private static AuthService CreateAuthService(RecordingHttpMessageHandler handler, out RecordingTokenStore tokenStore)
+    {
+        tokenStore = new RecordingTokenStore();
+        return new AuthService(
+            CreateApiClient(handler, new NotificationRecorder()),
+            tokenStore,
+            new JwtAuthenticationStateProvider(tokenStore));
     }
 
     private static Task<AuthenticationState> CaptureNextAuthState(AuthenticationStateProvider provider)

@@ -1,0 +1,131 @@
+@using MiniPainterHub.Common.DTOs
+
+<article class="hobby-project-card @(Project.IsArchived ? "hobby-project-card--archived" : string.Empty)" data-testid="hobby-project-card">
+    <a class="hobby-project-card__media" href="@ProjectUrl" aria-label="@OpenProjectLabel">
+        @if (!string.IsNullOrWhiteSpace(DisplayCoverUrl))
+        {
+            <img src="@DisplayCoverUrl" alt="@($"{Project.Title} project cover")" loading="lazy" />
+        }
+        else
+        {
+            <span class="hobby-project-card__placeholder" aria-hidden="true">
+                <i class="bi @KindIcon"></i>
+            </span>
+        }
+        <span class="hobby-project-card__kind">@FormatKind(Project.Kind)</span>
+    </a>
+
+    <div class="hobby-project-card__body">
+        <div class="hobby-project-card__status-row">
+            <span class="@StatusClass">@FormatStatus(Project.Status)</span>
+            @if (Project.IsHidden)
+            {
+                <span class="badge text-bg-warning" data-testid="hobby-project-hidden-badge">Hidden by staff</span>
+            }
+            @if (Project.IsArchived)
+            {
+                <span class="badge text-bg-light">Archived</span>
+            }
+            @if (!Project.IsPublic && !Project.IsHidden && !Project.IsArchived)
+            {
+                <span class="badge text-bg-light">Owner-only setup</span>
+            }
+        </div>
+
+        <a class="hobby-project-card__title" href="@ProjectUrl">@Project.Title</a>
+        <p class="hobby-project-card__description">@Project.Description</p>
+
+        @if (!string.IsNullOrWhiteSpace(Project.GameSystem) || !string.IsNullOrWhiteSpace(Project.FactionTheme))
+        {
+            <div class="hobby-project-card__tags" aria-label="Project details">
+                @if (!string.IsNullOrWhiteSpace(Project.GameSystem))
+                {
+                    <span><i class="bi bi-palette2" aria-hidden="true"></i>@Project.GameSystem</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(Project.FactionTheme))
+                {
+                    <span><i class="bi bi-flag" aria-hidden="true"></i>@Project.FactionTheme</span>
+                }
+            </div>
+        }
+
+        <div class="hobby-project-card__metrics" aria-label="Project activity">
+            <span><strong>@Project.EntryCount</strong> update@(Project.EntryCount == 1 ? string.Empty : "s")</span>
+            <span><strong>@Project.ShowcaseCount</strong> showcase</span>
+        </div>
+
+        @if (ShowOwner)
+        {
+            <a class="hobby-project-card__owner" href="@($"/users/{Project.OwnerUserId}")">
+                <UserAvatar ImageUrl="@Project.OwnerAvatarUrl"
+                            Name="@OwnerName"
+                            Size="28"
+                            ClassName="hobby-project-card__avatar" />
+                <span>@OwnerName</span>
+            </a>
+        }
+
+        <div class="hobby-project-card__footer">
+            <span>Updated @Project.UpdatedUtc.ToLocalTime().ToString("MMM d, yyyy")</span>
+            @if (ShowManage)
+            {
+                <a class="hobby-project-card__manage" href="@($"/projects/{Project.Id}/edit")" data-testid="hobby-project-manage-link">
+                    Manage
+                    <i class="bi bi-arrow-right-short" aria-hidden="true"></i>
+                </a>
+            }
+            else
+            {
+                <a class="hobby-project-card__manage" href="@ProjectUrl">
+                    Open
+                    <i class="bi bi-arrow-right-short" aria-hidden="true"></i>
+                </a>
+            }
+        </div>
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired]
+    public HobbyProjectSummaryDto Project { get; set; } = default!;
+
+    [Parameter]
+    public bool ShowOwner { get; set; } = true;
+
+    [Parameter]
+    public bool ShowManage { get; set; }
+
+    private string ProjectUrl => $"/projects/{Project.Id}";
+    private string OpenProjectLabel => $"Open {Project.Title}";
+    private string? DisplayCoverUrl => Project.CoverThumbnailUrl ?? Project.CoverImageUrl;
+    private string OwnerName => string.IsNullOrWhiteSpace(Project.OwnerDisplayName) ? Project.OwnerUserName : Project.OwnerDisplayName;
+
+    private string KindIcon => Project.Kind switch
+    {
+        HobbyProjectKinds.Army => "bi-images",
+        HobbyProjectKinds.Warband => "bi-people",
+        HobbyProjectKinds.Unit => "bi-journal-text",
+        HobbyProjectKinds.Terrain => "bi-image",
+        HobbyProjectKinds.Diorama => "bi-image",
+        HobbyProjectKinds.Miniature => "bi-person",
+        _ => "bi-palette2"
+    };
+
+    private static string FormatKind(string kind) => HobbyProjectKinds.All.Contains(kind, StringComparer.Ordinal) ? kind : "Other";
+
+    private static string FormatStatus(string status) => status switch
+    {
+        HobbyProjectStatuses.InProgress => "In progress",
+        HobbyProjectStatuses.OnHold => "On hold",
+        HobbyProjectStatuses.Completed => "Completed",
+        _ => "Planning"
+    };
+
+    private string StatusClass => Project.Status switch
+    {
+        HobbyProjectStatuses.InProgress => "badge text-bg-primary",
+        HobbyProjectStatuses.OnHold => "badge text-bg-warning",
+        HobbyProjectStatuses.Completed => "badge text-bg-success",
+        _ => "badge text-bg-secondary"
+    };
+}

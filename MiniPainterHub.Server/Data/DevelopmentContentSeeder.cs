@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Features.Tags;
 using MiniPainterHub.Server.Identity;
@@ -314,6 +315,8 @@ public sealed class DevelopmentContentSeeder
         var posts = CreatePosts(usersByUserName, now);
         _dbContext.Posts.AddRange(posts);
         await _dbContext.SaveChangesAsync(ct);
+        var hobbyProjects = CreateHobbyProjects(posts, usersByUserName, now);
+        _dbContext.HobbyProjects.AddRange(hobbyProjects);
         var commentsCreated = CreateComments(posts, usersByUserName);
         _dbContext.Comments.AddRange(commentsCreated);
         var followsCreated = CreateFollows(usersByUserName, now);
@@ -329,9 +332,10 @@ public sealed class DevelopmentContentSeeder
         }
 
         _logger.LogInformation(
-            "Seeded {UserCount} development users, {PostCount} posts, {CommentCount} comments, {AvatarCount} avatars, {FollowCount} follow relationships, {ConversationCount} conversations, {MessageCount} direct messages, and {PostImageCount} post images from avatar source {AvatarDirectory}{PostImageSuffix}",
+            "Seeded {UserCount} development users, {PostCount} posts, {ProjectCount} hobby projects, {CommentCount} comments, {AvatarCount} avatars, {FollowCount} follow relationships, {ConversationCount} conversations, {MessageCount} direct messages, and {PostImageCount} post images from avatar source {AvatarDirectory}{PostImageSuffix}",
             SeedUsers.Count,
             posts.Count,
+            hobbyProjects.Count,
             commentsCreated.Count,
             avatars.Count,
             followsCreated.Count,
@@ -712,6 +716,100 @@ public sealed class DevelopmentContentSeeder
                 Tag = tag
             });
         }
+    }
+
+    private static List<HobbyProject> CreateHobbyProjects(
+        IReadOnlyList<Post> posts,
+        IReadOnlyDictionary<string, ApplicationUser> usersByUserName,
+        DateTime now)
+    {
+        Post FindPost(string ownerUserName, string title)
+        {
+            var owner = usersByUserName[ownerUserName];
+            return posts.Single(post =>
+                string.Equals(post.CreatedById, owner.Id, StringComparison.Ordinal)
+                && string.Equals(post.Title, title, StringComparison.Ordinal));
+        }
+
+        HobbyProjectEntry Entry(HobbyProject project, Post post, string? milestone, int? showcaseOrder) =>
+            new()
+            {
+                Project = project,
+                Post = post,
+                PostId = post.Id,
+                LinkedUtc = post.CreatedUtc.AddMinutes(5),
+                MilestoneLabel = milestone,
+                ShowcaseOrder = showcaseOrder
+            };
+
+        var admin = usersByUserName["admin"];
+        var kickoff = FindPost("admin", "Studio kickoff: 2026 painting goals");
+        var sentinel = FindPost("admin", "WIP: rusted sentinel captain");
+        var sentinelProject = new HobbyProject
+        {
+            OwnerUserId = admin.Id,
+            OwnerUser = admin,
+            Title = "Rusted Sentinel Cohort",
+            Description = "A weathered sci-fi force built around warm copper, turquoise corrosion, and swamp basing.",
+            Kind = HobbyProjectKinds.Army,
+            GameSystem = "Grimdark sci-fi",
+            FactionTheme = "Rusted sentinels",
+            Goal = "Finish a cohesive display cohort while documenting the repeatable weathering recipe.",
+            StartDate = DateOnly.FromDateTime(now.AddDays(-90)),
+            Status = HobbyProjectStatuses.InProgress,
+            CoverPostId = sentinel.Id,
+            CoverPost = sentinel,
+            CreatedUtc = kickoff.CreatedUtc.AddHours(-2),
+            UpdatedUtc = sentinel.UpdatedUtc
+        };
+        sentinelProject.Entries.Add(Entry(sentinelProject, kickoff, "Project kickoff", null));
+        sentinelProject.Entries.Add(Entry(sentinelProject, sentinel, "First captain painted", 1));
+
+        var user = usersByUserName["user"];
+        var firstSquad = FindPost("user", "First squad done this month");
+        var snowBasing = FindPost("user", "Snow basing experiment");
+        var winterProject = new HobbyProject
+        {
+            OwnerUserId = user.Id,
+            OwnerUser = user,
+            Title = "Winter Infantry Company",
+            Description = "A completed winter force using a restricted green palette and cold crushed-glass snow bases.",
+            Kind = HobbyProjectKinds.Army,
+            GameSystem = "Historical tabletop",
+            FactionTheme = "Winter campaign",
+            Goal = "Complete a table-ready company with consistent greens and snow texture.",
+            StartDate = DateOnly.FromDateTime(now.AddDays(-120)),
+            Status = HobbyProjectStatuses.Completed,
+            CoverPostId = snowBasing.Id,
+            CoverPost = snowBasing,
+            CreatedUtc = firstSquad.CreatedUtc.AddDays(-30),
+            UpdatedUtc = snowBasing.UpdatedUtc,
+            CompletedUtc = snowBasing.UpdatedUtc
+        };
+        winterProject.Entries.Add(Entry(winterProject, firstSquad, "First squad complete", 1));
+        winterProject.Entries.Add(Entry(winterProject, snowBasing, "Winter basing locked", 2));
+
+        var terrainBuilder = usersByUserName["brasslantern"];
+        var archway = FindPost("brasslantern", "Ruined archway ready for primer");
+        var mudMix = FindPost("brasslantern", "Mud mix that survived varnish");
+        var terrainProject = new HobbyProject
+        {
+            OwnerUserId = terrainBuilder.Id,
+            OwnerUser = terrainBuilder,
+            Title = "Campaign Ruins Board",
+            Description = "A modular board of broken arches, resin debris, and durable wet mud for a narrative campaign.",
+            Kind = HobbyProjectKinds.Terrain,
+            FactionTheme = "Abandoned campaign ruins",
+            Goal = "Build six matching terrain modules for a compact campaign table.",
+            StartDate = DateOnly.FromDateTime(now.AddDays(-45)),
+            Status = HobbyProjectStatuses.InProgress,
+            CreatedUtc = archway.CreatedUtc.AddDays(-7),
+            UpdatedUtc = mudMix.UpdatedUtc
+        };
+        terrainProject.Entries.Add(Entry(terrainProject, archway, "First silhouette approved", 1));
+        terrainProject.Entries.Add(Entry(terrainProject, mudMix, "Mud recipe finalized", 2));
+
+        return new List<HobbyProject> { sentinelProject, winterProject, terrainProject };
     }
 
     private static List<Comment> CreateComments(

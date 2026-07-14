@@ -1,0 +1,38 @@
+.auth-completion-page {
+    display: grid;
+    place-items: center;
+    min-height: min(65vh, 36rem);
+    padding-block: clamp(2rem, 6vw, 5rem);
+}
+
+.auth-completion-card {
+    display: grid;
+    justify-items: center;
+    width: min(100%, 38rem);
+    padding: clamp(1.5rem, 4vw, 2.5rem);
+    text-align: center;
+}
+
+.auth-completion-card__icon {
+    display: grid;
+    place-items: center;
+    width: 3.4rem;
+    height: 3.4rem;
+    margin-bottom: 1rem;
+    border-radius: 50%;
+    background: rgba(31, 91, 82, 0.1);
+    color: var(--primary-700);
+    font-size: 1.45rem;
+}
+
+.auth-completion-card__icon--working {
+    background: transparent;
+}
+
+.auth-completion-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.65rem;
+    margin-top: 1.5rem;
+}

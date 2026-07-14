@@ -98,6 +98,53 @@ async function settle(page, milliseconds = 450) {
   await page.waitForTimeout(milliseconds);
 }
 
+function expectBoxContainedWithin(childBox, containerBox, label, tolerance = 2) {
+  expect(childBox, `Expected ${label} to have a bounding box.`).toBeTruthy();
+  expect(containerBox, `Expected ${label} container to have a bounding box.`).toBeTruthy();
+  expect(childBox.x, `${label} should stay inside the container's left edge.`)
+    .toBeGreaterThanOrEqual(containerBox.x - tolerance);
+  expect(childBox.y, `${label} should stay inside the container's top edge.`)
+    .toBeGreaterThanOrEqual(containerBox.y - tolerance);
+  expect(childBox.x + childBox.width, `${label} should stay inside the container's right edge.`)
+    .toBeLessThanOrEqual(containerBox.x + containerBox.width + tolerance);
+  expect(childBox.y + childBox.height, `${label} should stay inside the container's bottom edge.`)
+    .toBeLessThanOrEqual(containerBox.y + containerBox.height + tolerance);
+}
+
+async function expectImagesLoaded(images, expectedCount, label) {
+  await expect(images, `Expected ${expectedCount} ${label}.`).toHaveCount(expectedCount);
+  await images.evaluateAll((elements) => {
+    for (const element of elements) {
+      element.loading = "eager";
+    }
+  });
+  await expect.poll(
+    () => images.evaluateAll((elements) =>
+      elements.every((element) => element.complete && element.naturalWidth > 0)),
+    { message: `Expected every ${label} to load real image pixels.` },
+  ).toBe(true);
+}
+
+async function hydrateLazyImages(page) {
+  const lazyImages = page.locator('img[loading="lazy"]');
+  if (await lazyImages.count() === 0) {
+    return;
+  }
+
+  await lazyImages.evaluateAll((images) => {
+    for (const image of images) {
+      image.loading = "eager";
+    }
+  });
+
+  await page.waitForFunction(
+    () => Array.from(document.images).every((image) => image.complete),
+    undefined,
+    { timeout: 3_000 },
+  ).catch(() => {});
+  await page.waitForTimeout(100);
+}
+
 async function waitForViewerLayout(page) {
   await page.waitForFunction(() => {
     const image = document.querySelector("[data-testid='viewer-stage-image']");
@@ -233,8 +280,7 @@ async function resetAppState(request) {
 async function clearClientState(page) {
   await page.goto("/");
   await page.evaluate(() => {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("userPanelDesktopCollapsed");
+    localStorage.clear();
     sessionStorage.clear();
   });
   await page.context().clearCookies();
@@ -278,6 +324,20 @@ async function authenticateViaApi(page, request, userName, password) {
   await settle(page, 700);
 }
 
+async function requestAuthToken(request, userName, password) {
+  const response = await request.post("/api/auth/login", {
+    data: {
+      userName,
+      password
+    }
+  });
+
+  expect(response.ok(), `Login API failed with HTTP ${response.status()}`).toBeTruthy();
+  const payload = await response.json();
+  expect(payload?.token, "Login API did not return a token.").toBeTruthy();
+  return payload.token;
+}
+
 async function loginAsSeedUser(page, request) {
   await authenticateViaApi(page, request, "user", "User123!");
 }
@@ -296,6 +356,7 @@ async function capture(page, manifest, options) {
   const fileName = `${sequence}-${sanitizeFileToken(options.name)}-${options.viewport.name}.png`;
   const filePath = path.join(OUTPUT_DIR, fileName);
 
+  await hydrateLazyImages(page);
   if (!options.preserveScroll) {
     await page.evaluate(() => window.scrollTo(0, 0));
   }
@@ -375,7 +436,7 @@ async function ensureFollowedSeededAdmin(page, request) {
   await loginAsAdmin(page, request);
   const adminProfile = await ensureProfileExistsForCurrentUser(page, request, {
     displayName: "Admin Painter",
-    bio: "Handles moderation and seeded showcase content."
+    bio: "Hobby painter handling moderation, seeded showcases, fantasy armies, and coffee."
   });
   const adminUserId = adminProfile.userId;
 
@@ -406,6 +467,24 @@ async function ensureReportedSeededPost(page, request) {
     reasonCode: "Spam",
     details: "UI review seeded report."
   });
+}
+
+async function createProjectReviewPost(page, request, suffix, projectId, milestoneLabel) {
+  const response = await sendAuthedRequest(page, request, "POST", "/api/posts", {
+    title: `Project review ${suffix}`,
+    content: `Image-backed progress update prepared for the ${suffix} project review state.`,
+    tags: ["project-review"],
+    images: [{
+      imageUrl: "/uploads/images/9_minis1.jpg",
+      previewUrl: "/uploads/images/9_minis1.jpg",
+      thumbnailUrl: "/uploads/images/9_minis1.jpg",
+      width: 1600,
+      height: 1200
+    }],
+    projectId,
+    milestoneLabel
+  });
+  return response.json();
 }
 
 const scenarioGroups = {
@@ -480,6 +559,7 @@ const scenarioGroups = {
 
     await setViewport(page, VIEWPORTS.desktop);
     await page.goto("/login");
+    await expect(page.getByTestId("google-signin-link")).toBeVisible();
     await capture(page, manifest, {
       name: "auth-login-desktop",
       group: "auth",
@@ -528,6 +608,105 @@ const scenarioGroups = {
       authState: "unauthenticated",
       stateTags: ["auth", "mobile", "entry"]
     });
+
+    await startFreshState(page, request);
+    await setViewport(page, VIEWPORTS.desktop);
+    await page.goto("/api/auth/google/start?fake=conflict");
+    await page.waitForURL((url) => url.pathname === "/auth/external/callback");
+    await expect(page.getByTestId("external-auth-result-title")).toBeVisible();
+    await capture(page, manifest, {
+      name: "auth-google-email-conflict-desktop",
+      group: "auth",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["auth", "google", "desktop", "conflict"]
+    });
+
+    await startFreshState(page, request);
+    await page.goto("/api/auth/google/start");
+    await page.waitForURL((url) => url.pathname === "/auth/external/complete-registration");
+    await expect(page.getByTestId("external-registration-form")).toBeVisible();
+    await capture(page, manifest, {
+      name: "auth-google-registration-desktop",
+      group: "auth",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["auth", "google", "desktop", "onboarding"]
+    });
+
+    await setViewport(page, VIEWPORTS.mobile);
+    await capture(page, manifest, {
+      name: "auth-google-registration-mobile",
+      group: "auth",
+      viewport: VIEWPORTS.mobile,
+      authState: "unauthenticated",
+      stateTags: ["auth", "google", "mobile", "onboarding"]
+    });
+
+    await startFreshState(page, request);
+    await loginAsSeedUser(page, request);
+    await setViewport(page, VIEWPORTS.desktop);
+    await page.goto("/account/sign-in-methods");
+    await expect(page.getByTestId("sign-in-methods-content")).toBeVisible();
+    await capture(page, manifest, {
+      name: "auth-sign-in-methods-desktop",
+      group: "auth",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      stateTags: ["auth", "account", "desktop", "google-available"]
+    });
+
+    await page.route("**/api/auth/sign-in-methods", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ hasPassword: false, googleConnected: true, canDisconnectGoogle: false })
+      });
+    });
+    await page.goto("/account/sign-in-methods");
+    await expect(page.getByTestId("google-disconnect-blocked")).toBeVisible();
+    await capture(page, manifest, {
+      name: "auth-sign-in-methods-google-only-desktop",
+      group: "auth",
+      viewport: VIEWPORTS.desktop,
+      authState: "google-user",
+      stateTags: ["auth", "account", "desktop", "google-only"]
+    });
+    await page.unroute("**/api/auth/sign-in-methods");
+  },
+
+  async legal({ page, request, manifest }) {
+    await startFreshState(page, request);
+    await setViewport(page, VIEWPORTS.desktop);
+
+    await page.goto("/privacy");
+    await expect(page.getByRole("heading", { name: "Privacy at MiniPainterHub" })).toBeVisible();
+    await capture(page, manifest, {
+      name: "legal-privacy-desktop",
+      group: "legal",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["legal", "privacy", "desktop"]
+    });
+
+    await page.goto("/terms");
+    await expect(page.getByRole("heading", { name: "MiniPainterHub Terms" })).toBeVisible();
+    await capture(page, manifest, {
+      name: "legal-terms-desktop",
+      group: "legal",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["legal", "terms", "desktop"]
+    });
+
+    await setViewport(page, VIEWPORTS.mobile);
+    await capture(page, manifest, {
+      name: "legal-terms-mobile",
+      group: "legal",
+      viewport: VIEWPORTS.mobile,
+      authState: "unauthenticated",
+      stateTags: ["legal", "terms", "mobile"]
+    });
   },
 
   async community({ page, request, manifest }) {
@@ -564,6 +743,306 @@ const scenarioGroups = {
       viewport: VIEWPORTS.desktop,
       authState: "seed-user",
       stateTags: ["community", "desktop", "showcase"]
+    });
+  },
+
+  async projects({ page, request, manifest }) {
+    await startFreshState(page, request);
+    await setViewport(page, VIEWPORTS.desktop);
+
+    const publicProjectListPattern = /\/api\/projects\?.*/;
+    await page.route(publicProjectListPattern, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ items: [], totalCount: 0, pageNumber: 1, pageSize: 12 })
+      });
+    });
+    await page.goto("/projects");
+    await expect(page.getByTestId("projects-empty")).toBeVisible();
+    await capture(page, manifest, {
+      name: "projects-public-empty-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["projects", "public", "desktop", "empty"]
+    });
+    await page.unroute(publicProjectListPattern);
+
+    await page.route(publicProjectListPattern, async (route) => {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/problem+json",
+        body: JSON.stringify({ title: "Review outage", status: 503 })
+      });
+    });
+    await page.reload();
+    await expect(page.getByTestId("projects-error")).toBeVisible();
+    await capture(page, manifest, {
+      name: "projects-public-error-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["projects", "public", "desktop", "error", "retry"]
+    });
+    await page.unroute(publicProjectListPattern);
+
+    await loginAsSeedUser(page, request);
+    await page.goto("/projects/new");
+    await clickReliably(page.getByTestId("project-create-submit"));
+    await expect(page.locator(".validation-message").first()).toBeVisible();
+    await capture(page, manifest, {
+      name: "projects-create-validation-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      stateTags: ["projects", "owner", "desktop", "create", "validation"]
+    });
+
+    const projectResponse = await sendAuthedRequest(page, request, "POST", "/api/projects", {
+      title: "UI Review Alpine Cohort",
+      description: "A winter army diary with deliberate milestones, image-backed updates, and a curated finished showcase.",
+      kind: "Army",
+      gameSystem: "Smokehammer",
+      factionTheme: "Alpine expedition",
+      goal: "Finish two cohesive checkpoints for the review wall"
+    });
+    const project = await projectResponse.json();
+    const profile = await ensureProfileExistsForCurrentUser(page, request, {
+      displayName: "Project Review Painter",
+      bio: "A hobby painter fueled by tea, building fantasy armies through image-backed diaries and finished showcases."
+    });
+
+    await page.goto(`/projects/${project.id}`);
+    await expect(page.getByTestId("project-entries-empty")).toBeVisible();
+    await capture(page, manifest, {
+      name: "projects-owner-empty-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      stateTags: ["projects", "owner", "desktop", "empty", "setup"]
+    });
+
+    await page.goto(`/posts/new?projectId=${project.id}`);
+    await expect(page.getByTestId("create-post-project")).toHaveValue(String(project.id));
+    await page.getByTestId("create-post-milestone").fill("First checkpoint");
+    await capture(page, manifest, {
+      name: "projects-aware-composer-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      stateTags: ["projects", "owner", "desktop", "composer", "milestone", "preselected"]
+    });
+
+    const undercoatPost = await createProjectReviewPost(page, request, "undercoat", project.id, "Palette locked");
+    const commandPost = await createProjectReviewPost(page, request, "command", project.id, "Command group complete");
+
+    await page.goto(`/projects/${project.id}?view=diary`);
+    await expect(page.getByTestId("project-diary")).toContainText("Palette locked");
+    await expect(page.getByTestId("project-diary")).toContainText("Command group complete");
+    await capture(page, manifest, {
+      name: "projects-owner-diary-populated-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      stateTags: ["projects", "owner", "desktop", "diary", "populated", "milestones"]
+    });
+
+    await page.goto("/projects/mine");
+    await expect(page.getByTestId("my-project-list")).toContainText(project.title);
+    const ownerCard = page.getByTestId("hobby-project-card").filter({ hasText: project.title }).first();
+    expectBoxContainedWithin(
+      await ownerCard.locator(".hobby-project-card__kind").boundingBox(),
+      await ownerCard.locator(".hobby-project-card__media").boundingBox(),
+      "project kind badge",
+    );
+    await capture(page, manifest, {
+      name: "projects-owner-dashboard-populated-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      stateTags: ["projects", "owner", "desktop", "dashboard", "populated"]
+    });
+
+    await setViewport(page, VIEWPORTS.mobile);
+    await capture(page, manifest, {
+      name: "projects-owner-dashboard-populated-mobile",
+      group: "projects",
+      viewport: VIEWPORTS.mobile,
+      authState: "seed-user",
+      stateTags: ["projects", "owner", "mobile", "dashboard", "populated"]
+    });
+
+    await setViewport(page, VIEWPORTS.desktop);
+
+    await page.goto(`/projects/${project.id}/edit`);
+    await expect(page.getByTestId("project-entry-manager")).toBeVisible();
+    await expect(page.getByTestId("available-post-list")).not.toContainText(undercoatPost.title);
+    await expect(page.getByTestId("available-post-list")).not.toContainText(commandPost.title);
+    await expectImagesLoaded(
+      page.getByTestId("project-entry-manager").locator("img"),
+      2,
+      "linked project-management images",
+    );
+    await capture(page, manifest, {
+      name: "projects-owner-management-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      stateTags: ["projects", "owner", "desktop", "management", "populated"]
+    });
+
+    await sendAuthedRequest(page, request, "PUT", `/api/projects/${project.id}/showcase`, {
+      postIds: [undercoatPost.id, commandPost.id]
+    });
+    await sendAuthedRequest(page, request, "PUT", `/api/projects/${project.id}/showcase`, {
+      postIds: [commandPost.id, undercoatPost.id]
+    });
+    await sendAuthedRequest(page, request, "PUT", `/api/projects/${project.id}/cover`, {
+      postId: commandPost.id
+    });
+    await sendAuthedRequest(page, request, "PUT", `/api/projects/${project.id}/status`, {
+      status: "Completed"
+    });
+
+    await page.goto(`/projects/${project.id}?view=showcase`);
+    await expect(page.getByTestId("project-showcase")).toBeVisible();
+    await expectImagesLoaded(
+      page.getByTestId("project-showcase").locator("img"),
+      2,
+      "owner showcase images",
+    );
+    await capture(page, manifest, {
+      name: "projects-owner-completed-showcase-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      stateTags: ["projects", "owner", "desktop", "completed", "showcase", "populated"]
+    });
+
+    await setViewport(page, VIEWPORTS.mobile);
+    await capture(page, manifest, {
+      name: "projects-owner-completed-showcase-mobile",
+      group: "projects",
+      viewport: VIEWPORTS.mobile,
+      authState: "seed-user",
+      stateTags: ["projects", "owner", "mobile", "completed", "showcase"]
+    });
+
+    await setViewport(page, VIEWPORTS.desktop);
+    await sendAuthedRequest(page, request, "POST", `/api/projects/${project.id}/archive`);
+    await page.goto(`/projects/${project.id}`);
+    await expect(page.getByTestId("project-archived-state")).toBeVisible();
+    await capture(page, manifest, {
+      name: "projects-owner-archived-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      stateTags: ["projects", "owner", "desktop", "archived"]
+    });
+
+    await sendAuthedRequest(page, request, "POST", `/api/projects/${project.id}/restore`);
+    const moderatorToken = await requestAuthToken(request, "admin", "P@ssw0rd!");
+    const hideResponse = await request.post(`/api/moderation/projects/${project.id}/hide`, {
+      headers: { Authorization: `Bearer ${moderatorToken}` },
+      data: { reason: "UI review hidden project state." }
+    });
+    expect(hideResponse.ok(), `Project hide failed with HTTP ${hideResponse.status()}`).toBeTruthy();
+    await page.goto(`/projects/${project.id}`);
+    await expect(page.getByTestId("project-hidden-state")).toBeVisible();
+    await capture(page, manifest, {
+      name: "projects-owner-hidden-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      stateTags: ["projects", "owner", "desktop", "moderation-hidden"]
+    });
+
+    await page.goto("/projects/mine");
+    await expect(page.getByTestId("my-project-list")).toContainText(project.title);
+    await capture(page, manifest, {
+      name: "projects-owner-dashboard-hidden-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "seed-user",
+      stateTags: ["projects", "owner", "desktop", "dashboard", "moderation-hidden"]
+    });
+
+    const restoreResponse = await request.post(`/api/moderation/projects/${project.id}/restore`, {
+      headers: { Authorization: `Bearer ${moderatorToken}` },
+      data: { reason: "UI review restored project state." }
+    });
+    expect(restoreResponse.ok(), `Project restore failed with HTTP ${restoreResponse.status()}`).toBeTruthy();
+
+    await clearClientState(page);
+    await setViewport(page, VIEWPORTS.desktop);
+    await page.goto("/projects");
+    await expect(page.getByTestId("project-list")).toContainText(project.title);
+    await capture(page, manifest, {
+      name: "projects-public-discovery-populated-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["projects", "public", "desktop", "discovery", "populated"]
+    });
+
+    await page.goto(`/projects/${project.id}?view=diary`);
+    await expect(page.getByTestId("project-diary")).toBeVisible();
+    await capture(page, manifest, {
+      name: "projects-public-diary-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["projects", "public", "desktop", "diary", "populated"]
+    });
+
+    await page.goto(`/projects/${project.id}?view=showcase`);
+    await expect(page.getByTestId("project-showcase")).toBeVisible();
+    await expectImagesLoaded(
+      page.getByTestId("project-showcase").locator("img"),
+      2,
+      "public showcase images",
+    );
+    await capture(page, manifest, {
+      name: "projects-public-showcase-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["projects", "public", "desktop", "completed", "showcase"]
+    });
+
+    await setViewport(page, VIEWPORTS.mobile);
+    await capture(page, manifest, {
+      name: "projects-public-showcase-mobile",
+      group: "projects",
+      viewport: VIEWPORTS.mobile,
+      authState: "unauthenticated",
+      stateTags: ["projects", "public", "mobile", "completed", "showcase"]
+    });
+
+    await setViewport(page, VIEWPORTS.desktop);
+    await page.goto(`/users/${encodeURIComponent(profile.userId)}`);
+    await expect(page.getByTestId("profile-projects")).toContainText(project.title);
+    await expect(page.locator(".public-profile-card__summary"))
+      .toHaveText("Hobby painter with tea on deck and fantasy streak in the bio.");
+    await expect(page.locator(".public-profile-card__bio"))
+      .toHaveText("A hobby painter fueled by tea, building fantasy armies through image-backed diaries and finished showcases.");
+    await capture(page, manifest, {
+      name: "projects-public-profile-integration-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["projects", "public", "desktop", "profile", "integration"]
+    });
+
+    await page.goto(`/search?q=${encodeURIComponent("UI Review Alpine")}&tab=projects`);
+    await expect(page.getByTestId("search-projects-results")).toContainText(project.title);
+    await capture(page, manifest, {
+      name: "projects-public-search-integration-desktop",
+      group: "projects",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["projects", "public", "desktop", "search", "integration"]
     });
   },
 
@@ -663,6 +1142,16 @@ const scenarioGroups = {
 
     await loginAsSeedUser(page, request);
     await page.goto("/posts/new");
+    await expect(page.getByTestId("create-post-draft-restored")).toHaveCount(0);
+    await expect(page.getByTestId("create-post-title")).toHaveValue("");
+    await expect(page.getByTestId("create-post-content")).toHaveValue("");
+    await expect(page.getByTestId("create-post-tags")).toHaveValue("");
+    await expect(page.getByTestId("create-post-project")).toHaveValue("");
+    await expect(page.getByTestId("create-post-project-message")).toHaveCount(0);
+    const activeCreateBackground = await page.locator(".dashboard-create-btn:visible").first()
+      .evaluate((element) => getComputedStyle(element).backgroundColor);
+    expect(activeCreateBackground, "The active New post action must not fall back to Bootstrap blue.")
+      .not.toMatch(/^rgb\((?:10, 88, 202|11, 94, 215|13, 110, 253)\)$/);
     await capture(page, manifest, {
       name: "posts-new-composer",
       group: "posts",
@@ -672,6 +1161,12 @@ const scenarioGroups = {
     });
 
     await clickReliably(page.getByTestId("create-post-submit"));
+    await expect(page.getByText("The Title field is required.", { exact: true })).toBeVisible();
+    await expect(page.getByText("The Content field is required.", { exact: true })).toBeVisible();
+    const focusedPublishBackground = await page.getByTestId("create-post-submit")
+      .evaluate((element) => getComputedStyle(element).backgroundColor);
+    expect(focusedPublishBackground, "The focused Publish post action must not fall back to Bootstrap blue.")
+      .not.toMatch(/^rgb\((?:10, 88, 202|11, 94, 215|13, 110, 253)\)$/);
     await capture(page, manifest, {
       name: "posts-new-validation",
       group: "posts",
@@ -922,6 +1417,7 @@ const scenarioGroups = {
       stateTags: ["posts", "desktop", "viewer-open", "author-note", "composer"]
     });
     await clickReliably(page.getByTestId("viewer-mark-close"));
+    await expect(page.getByTestId("viewer-mark-composer")).toHaveCount(0);
 
     const delayedImagePattern = new RegExp(richViewerPost.primaryImage.previewUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
     let releaseDelayedImage;
@@ -937,12 +1433,15 @@ const scenarioGroups = {
       await delayedImageRelease;
       await route.continue();
     });
-    await clickReliably(page.getByTestId("viewer-close"));
-    await expect(page.getByTestId("rich-image-viewer-modal")).toHaveCount(0);
-    await page.goto(`/posts/${richViewerPost.postId}`);
-    await settle(page, 700);
-    await openViewerFromDetails(page, { waitForImage: false });
-    await delayedImageRequested;
+    await page.getByTestId("viewer-stage-image").dispatchEvent("error");
+    await expect(page.getByTestId("viewer-image-error")).toBeVisible();
+    await clickReliably(page.getByRole("button", { name: "Retry", exact: true }));
+    await Promise.race([
+      delayedImageRequested,
+      page.waitForTimeout(5_000).then(() => {
+        throw new Error("The rich-viewer retry did not request the cache-busted image within five seconds.");
+      })
+    ]);
     await expect(page.getByTestId("viewer-skeleton")).toHaveCount(1);
     await capture(page, manifest, {
       name: "posts-detail-rich-viewer-loading",
@@ -1117,11 +1616,15 @@ const scenarioGroups = {
     await loginAsAdmin(page, request);
     const adminProfile = await ensureProfileExistsForCurrentUser(page, request, {
       displayName: "Admin Painter",
-      bio: "Handles moderation and seeded showcase content."
+      bio: "Hobby painter handling moderation, seeded showcases, fantasy armies, and coffee."
     });
     await clearClientState(page);
     await loginAsSeedUser(page, request);
     await page.goto(`/users/${encodeURIComponent(adminProfile.userId)}`);
+    await expect(page.locator(".public-profile-card__summary"))
+      .toHaveText("Hobby painter with coffee on deck and fantasy streak in the bio.");
+    await expect(page.locator(".public-profile-card__bio"))
+      .toHaveText("Hobby painter handling moderation, seeded showcases, fantasy armies, and coffee.");
     await settle(page, 700);
     await capture(page, manifest, {
       name: "profile-public-desktop",
@@ -1138,6 +1641,8 @@ const scenarioGroups = {
     await setViewport(page, VIEWPORTS.desktop);
 
     await page.goto("/messages");
+    await expect(page.getByRole("heading", { name: "No conversations yet", exact: true })).toBeVisible();
+    await expect(page.locator(".message-inbox-panel .spinner-border")).toHaveCount(0);
     await capture(page, manifest, {
       name: "messages-empty-desktop",
       group: "messages",
@@ -1193,7 +1698,18 @@ const scenarioGroups = {
     await page.getByTestId("support-category").selectOption("Bug");
     await page.getByTestId("support-subject").fill("UI review upload issue");
     await page.getByTestId("support-message-input").fill("The upload stops before the preview appears. This seeded request verifies the complete support thread layout.");
-    await page.getByTestId("support-create-submit").click();
+    // Blazor's InputText components commit their model value on `change`. Explicitly
+    // blur the last field before requestSubmit so the review does not depend on a
+    // synthetic button click racing the final bound-value update.
+    await page.getByTestId("support-message-input").blur();
+    await settle(page, 200);
+    await expect(page.getByTestId("support-category")).toHaveValue("Bug");
+    await expect(page.getByTestId("support-subject")).toHaveValue("UI review upload issue");
+    const createResponse = page.waitForResponse(
+      response => response.request().method() === "POST" && response.url().endsWith("/api/support/tickets"),
+      { timeout: 15_000 });
+    await page.getByTestId("support-create-form").locator("form").evaluate(form => form.requestSubmit());
+    await expect((await createResponse).ok()).toBeTruthy();
     await expect(page).toHaveURL(/\/support\/\d+$/);
     await expect(page.getByTestId("support-ticket-detail")).toBeVisible();
     await capture(page, manifest, {

@@ -166,6 +166,10 @@
             {
                 success = await ReportService.ReportUserAsync(TargetId, request);
             }
+            else if (string.Equals(TargetType, ReportTargetTypes.HobbyProject, StringComparison.Ordinal))
+            {
+                success = int.TryParse(TargetId, out var projectId) && await ReportService.ReportProjectAsync(projectId, request);
+            }
             else
             {
                 success = false;

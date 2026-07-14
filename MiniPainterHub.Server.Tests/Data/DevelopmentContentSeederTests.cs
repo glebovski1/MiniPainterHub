@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Identity;
@@ -50,6 +51,8 @@ public class DevelopmentContentSeederTests
             db.Users.Should().HaveCount(10);
             db.Profiles.Should().HaveCount(10);
             db.Posts.Should().HaveCount(20);
+            db.HobbyProjects.Should().HaveCount(3);
+            db.HobbyProjectEntries.Should().HaveCount(6);
             db.Comments.Should().HaveCount(16);
             db.Follows.Should().HaveCount(12);
             db.Conversations.Should().HaveCount(4);
@@ -57,6 +60,20 @@ public class DevelopmentContentSeederTests
 
             db.Users.Select(u => u.UserName).Should().Contain(new[] { "admin", "user", "studiomod" });
             db.Users.OfType<ApplicationUser>().All(u => !string.IsNullOrWhiteSpace(u.AvatarUrl)).Should().BeTrue();
+            var winterProject = db.HobbyProjects
+                .Include(project => project.OwnerUser)
+                .Include(project => project.CoverPost)
+                .Include(project => project.Entries)
+                    .ThenInclude(entry => entry.Post)
+                .Single(project => project.Title == "Winter Infantry Company");
+            winterProject.OwnerUser.UserName.Should().Be("user");
+            winterProject.Kind.Should().Be(HobbyProjectKinds.Army);
+            winterProject.Status.Should().Be(HobbyProjectStatuses.Completed);
+            winterProject.CompletedUtc.Should().NotBeNull();
+            winterProject.CoverPost!.Title.Should().Be("Snow basing experiment");
+            winterProject.Entries.OrderBy(entry => entry.ShowcaseOrder).Select(entry => entry.ShowcaseOrder)
+                .Should().Equal(1, 2);
+            winterProject.Entries.Select(entry => entry.MilestoneLabel).Should().OnlyContain(label => !string.IsNullOrWhiteSpace(label));
             Directory.GetFiles(imageRoot, "seed-avatar-*").Should().HaveCount(10);
         }
         finally

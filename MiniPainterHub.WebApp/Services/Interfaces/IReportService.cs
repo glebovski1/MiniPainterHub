@@ -9,6 +9,7 @@ namespace MiniPainterHub.WebApp.Services.Interfaces
         Task<bool> ReportPostAsync(int postId, CreateReportRequestDto request);
         Task<bool> ReportCommentAsync(int commentId, CreateReportRequestDto request);
         Task<bool> ReportUserAsync(string userId, CreateReportRequestDto request);
+        Task<bool> ReportProjectAsync(int projectId, CreateReportRequestDto request);
         Task<ApiResult<PagedResult<ReportQueueItemDto>?>> GetQueueAsync(ReportQueueQueryDto query);
         Task<bool> ResolveAsync(long reportId, ResolveReportRequestDto request);
     }

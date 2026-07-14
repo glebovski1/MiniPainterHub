@@ -33,6 +33,26 @@ public class LoginTests : TestContext
     }
 
     [Fact]
+    public void WhenGoogleIsEnabled_RendersProviderActionWithSafeReturnPath()
+    {
+        this.AddAuthStub(new StubAuthService
+        {
+            GetProvidersHandler = () => Task.FromResult(new AuthProvidersDto
+            {
+                Google = new AuthProviderDto { Name = "Google", DisplayName = "Google", Enabled = true }
+            })
+        });
+        var nav = Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo(nav.GetUriWithQueryParameter("returnUrl", "/support"));
+
+        var cut = RenderComponent<Login>();
+
+        cut.WaitForAssertion(() =>
+            cut.Find("[data-testid='google-signin-link']").GetAttribute("href")
+                .Should().Be("/api/auth/google/start?returnUrl=%2Fsupport"));
+    }
+
+    [Fact]
     public async Task Submit_WhenCredentialsAreEmpty_ShowsOneFocusedValidationAlertWithoutCallingAuth()
     {
         var loginCalls = 0;
@@ -86,6 +106,21 @@ public class LoginTests : TestContext
             submitted.Password.Should().Be("User123!");
             nav.Uri.Should().Be("http://localhost/");
         });
+    }
+
+    [Fact]
+    public async Task PasswordSuccess_HonorsLocalReturnUrlAndRejectsExternalReturnUrl()
+    {
+        this.AddAuthStub(new StubAuthService { LoginHandler = _ => Task.FromResult(LoginOutcome.Success) });
+        var nav = Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo(nav.GetUriWithQueryParameter("returnUrl", "https://evil.example/path"));
+        var cut = RenderComponent<Login>();
+
+        cut.Find("[data-testid='login-username']").Input("artist");
+        cut.Find("[data-testid='login-password']").Input("User123!");
+        await cut.Find("[data-testid='login-form']").SubmitAsync();
+
+        cut.WaitForAssertion(() => nav.Uri.Should().Be("http://localhost/"));
     }
 
     [Theory]

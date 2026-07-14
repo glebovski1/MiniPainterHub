@@ -86,6 +86,158 @@ public class RichImageViewerTests : TestContext
     }
 
     [Fact]
+    public void LoadingImageKeepsTheCloseActionAvailable()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var cut = RenderViewer();
+
+        cut.Find(".viewer-toolbar").ClassList.Should().Contain("is-image-loading");
+        cut.Find("[data-testid='viewer-close']")
+            .ClassList
+            .Should()
+            .Contain("viewer-toolbar__close--persistent");
+    }
+
+    [Fact]
+    public void FailedImageKeepsCloseAndPagerButRemovesImageOnlyTools()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var cut = RenderViewer();
+
+        cut.Find("[data-testid='viewer-stage-image']").TriggerEvent("onerror", EventArgs.Empty);
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find(".viewer-toolbar").ClassList.Should().Contain("is-image-failed");
+            cut.Find("[data-testid='viewer-image-error']").Should().NotBeNull();
+            cut.Find("[data-testid='viewer-close']").Should().NotBeNull();
+            cut.Find("[data-testid='viewer-stage-pager']").Should().NotBeNull();
+            cut.Find(".viewer-toolbar__body").HasAttribute("hidden").Should().BeTrue();
+        });
+    }
+
+    [Fact]
+    public void AuthorNoteComposerUsesAClampedInsetAwayFromBothStagePagerControls()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var viewer = CreateViewer();
+        viewer.AuthorMarks.Add(new AuthorMarkDto
+        {
+            Id = 501,
+            PostImageId = 101,
+            NormalizedX = 0.25m,
+            NormalizedY = 0.5m,
+            Tag = "Left-side note"
+        });
+        viewer.AuthorMarks.Add(new AuthorMarkDto
+        {
+            Id = 502,
+            PostImageId = 101,
+            NormalizedX = 0.75m,
+            NormalizedY = 0.5m,
+            Tag = "Right-side note"
+        });
+
+        var cut = RenderComponent<RichImageViewer>(parameters => parameters
+            .Add(component => component.IsOpen, true)
+            .Add(component => component.Viewer, viewer)
+            .Add(component => component.ActiveImageId, 101)
+            .Add(component => component.SidePanelContent, (RenderFragment)(_ => { })));
+
+        cut.Find("[data-testid='viewer-stage-image']").TriggerEvent("onload", EventArgs.Empty);
+        var marks = cut.FindAll("[data-testid='viewer-author-mark']");
+
+        marks[0].Click();
+        cut.Find(".viewer-composer")
+            .GetAttribute("style")
+            .Should()
+            .Be("right:clamp(4.5rem, 6vw, 6rem);bottom:1.25rem;");
+
+        cut.FindAll("[data-testid='viewer-author-mark']")[1].Click();
+        cut.Find(".viewer-composer")
+            .GetAttribute("style")
+            .Should()
+            .Be("left:clamp(4.5rem, 6vw, 6rem);bottom:1.25rem;");
+    }
+
+    [Fact]
+    public void ClickingAuthorNoteComposerCloseRemovesTheComposer()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+
+        var viewer = CreateViewer();
+        viewer.AuthorMarks.Add(new AuthorMarkDto
+        {
+            Id = 501,
+            PostImageId = 101,
+            NormalizedX = 0.25m,
+            NormalizedY = 0.5m,
+            Tag = "Left-side note"
+        });
+
+        var cut = RenderComponent<RichImageViewer>(parameters => parameters
+            .Add(component => component.IsOpen, true)
+            .Add(component => component.Viewer, viewer)
+            .Add(component => component.ActiveImageId, 101)
+            .Add(component => component.SidePanelContent, (RenderFragment)(_ => { })));
+
+        cut.Find("[data-testid='viewer-stage-image']").TriggerEvent("onload", EventArgs.Empty);
+        cut.Find("[data-testid='viewer-author-mark']").Click();
+        cut.Find("[data-testid='viewer-mark-composer']").Should().NotBeNull();
+
+        cut.Find("[data-testid='viewer-mark-close']").Click();
+
+        cut.FindAll("[data-testid='viewer-mark-composer']").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ClickingNewAuthorNoteComposerCloseRemovesTheDraft()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        this.AddAuthorMarkStub();
+        var module = JSInterop.SetupModule("/JSHelpers/viewerInterop.js");
+        module.Setup<ViewerRelativePoint>("getRelativePoint", _ => true)
+            .SetResult(new ViewerRelativePoint { X = 480d, Y = 320d });
+        module.Setup<ViewerRelativeRect>("getRelativeRect", _ => true)
+            .SetResult(new ViewerRelativeRect
+            {
+                Left = 0d,
+                Top = 50d,
+                Width = 960d,
+                Height = 540d
+            });
+
+        var viewer = CreateViewer();
+        viewer.CanManageAuthorMarks = true;
+
+        var cut = RenderComponent<RichImageViewer>(parameters => parameters
+            .Add(component => component.IsOpen, true)
+            .Add(component => component.Viewer, viewer)
+            .Add(component => component.ActiveImageId, 101)
+            .Add(component => component.SidePanelContent, (RenderFragment)(_ => { })));
+
+        cut.Find("[data-testid='viewer-stage-image']").TriggerEvent("onload", EventArgs.Empty);
+        cut.Find("[data-testid='viewer-add-note']").Click();
+        cut.Find("[data-testid='viewer-stage']").Click(new MouseEventArgs
+        {
+            ClientX = 480d,
+            ClientY = 320d
+        });
+        cut.Find("[data-testid='viewer-mark-composer']").Should().NotBeNull();
+
+        cut.Find("[data-testid='viewer-mark-close']").Click();
+
+        cut.FindAll("[data-testid='viewer-mark-composer']").Should().BeEmpty();
+    }
+
+    [Fact]
     public void SingleFrameViewerOmitsStageNavigationArrows()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;

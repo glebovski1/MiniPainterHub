@@ -39,7 +39,8 @@ internal static class PostDtoMapper
                     Height = i.Height
                 })
                 .ToList(),
-            Tags = MapTags(post.PostTags)
+            Tags = MapTags(post.PostTags),
+            Project = MapProject(post)
         };
 
     public static PostSummaryDto ToPostSummaryDto(Post post, int commentCount, int likeCount)
@@ -62,7 +63,8 @@ internal static class PostDtoMapper
             CommentCount = commentCount,
             LikeCount = likeCount,
             IsDeleted = post.IsDeleted,
-            Tags = MapTags(post.PostTags)
+            Tags = MapTags(post.PostTags),
+            Project = MapProject(post)
         };
     }
 
@@ -120,4 +122,18 @@ internal static class PostDtoMapper
 
     public static string ResolveDisplayName(string? userName, string? profileDisplayName) =>
         string.IsNullOrWhiteSpace(profileDisplayName) ? (userName ?? string.Empty) : profileDisplayName;
+
+    private static HobbyProjectReferenceDto? MapProject(Post post)
+    {
+        var project = post.HobbyProjectEntry?.Project;
+        return project is null
+            ? null
+            : new HobbyProjectReferenceDto
+            {
+                Id = project.Id,
+                Title = project.Title,
+                Status = project.Status,
+                IsPublic = !project.IsHidden && project.ArchivedUtc is null && !post.IsDeleted
+            };
+    }
 }

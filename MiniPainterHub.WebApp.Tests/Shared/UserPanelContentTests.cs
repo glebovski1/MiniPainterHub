@@ -40,8 +40,11 @@ public class UserPanelContentTests : TestContext
             cut.Markup.Should().Contain("Connections");
             cut.Markup.Should().Contain("Messages");
             cut.Markup.Should().Contain("Support");
+            cut.Find("[data-testid='my-projects-nav-link']").TextContent.Should().Contain("My projects");
+            cut.Find("[data-testid='new-project-quick-action']").TextContent.Should().Contain("New project");
             cut.Markup.Should().Contain(">1<");
             cut.Find("[data-testid='support-nav-link']").TextContent.Should().Contain("3");
+            cut.Find("[data-testid='sign-in-methods-nav-link']").TextContent.Should().Contain("Sign-in methods");
             cut.Find(".dashboard-sidebar-content").Should().NotBeNull();
             cut.FindAll(".nav-pills").Should().BeEmpty();
         });

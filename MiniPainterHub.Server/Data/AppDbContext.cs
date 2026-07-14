@@ -32,6 +32,9 @@ namespace MiniPainterHub.Server.Data
         public DbSet<DirectMessage> DirectMessages { get; set; } = default!;
         public DbSet<SupportTicket> SupportTickets { get; set; } = default!;
         public DbSet<SupportTicketMessage> SupportTicketMessages { get; set; } = default!;
+        public DbSet<ExternalAuthExchange> ExternalAuthExchanges { get; set; } = default!;
+        public DbSet<HobbyProject> HobbyProjects { get; set; } = default!;
+        public DbSet<HobbyProjectEntry> HobbyProjectEntries { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -222,6 +225,81 @@ namespace MiniPainterHub.Server.Data
                 b.Property(u => u.DisplayName).HasMaxLength(80);
                 b.Property(u => u.SuspensionReason).HasMaxLength(500);
                 b.HasIndex(u => u.DisplayName);
+                b.HasIndex(u => u.NormalizedEmail)
+                    .HasDatabaseName("EmailIndex")
+                    .IsUnique()
+                    .HasFilter("[NormalizedEmail] IS NOT NULL");
+            });
+
+            builder.Entity<ExternalAuthExchange>(b =>
+            {
+                b.HasKey(e => e.Id);
+                b.Property(e => e.HandleHash).HasMaxLength(64).IsRequired();
+                b.Property(e => e.Provider).HasMaxLength(32).IsRequired();
+                b.Property(e => e.ProviderSubject).HasMaxLength(256).IsRequired();
+                b.Property(e => e.VerifiedEmail).HasMaxLength(256).IsRequired();
+                b.Property(e => e.SuggestedDisplayName).HasMaxLength(256);
+                b.Property(e => e.TargetUserId).HasMaxLength(450);
+                b.Property(e => e.Purpose).HasMaxLength(16).IsRequired();
+                b.Property(e => e.ReturnUrl).HasMaxLength(2048).IsRequired();
+                b.HasIndex(e => e.HandleHash).IsUnique();
+                b.HasIndex(e => e.ExpiresUtc);
+            });
+
+            builder.Entity<HobbyProject>(b =>
+            {
+                b.Property(p => p.OwnerUserId).HasMaxLength(450).IsRequired();
+                b.Property(p => p.Title).HasMaxLength(MiniPainterHub.Common.DTOs.HobbyProjectRules.MaxTitleLength).IsRequired();
+                b.Property(p => p.Description).HasMaxLength(MiniPainterHub.Common.DTOs.HobbyProjectRules.MaxDescriptionLength).IsRequired();
+                b.Property(p => p.Kind).HasMaxLength(32).IsRequired();
+                b.Property(p => p.GameSystem).HasMaxLength(MiniPainterHub.Common.DTOs.HobbyProjectRules.MaxGameSystemLength);
+                b.Property(p => p.FactionTheme).HasMaxLength(MiniPainterHub.Common.DTOs.HobbyProjectRules.MaxFactionThemeLength);
+                b.Property(p => p.Goal).HasMaxLength(MiniPainterHub.Common.DTOs.HobbyProjectRules.MaxGoalLength);
+                b.Property(p => p.Status).HasMaxLength(32).IsRequired();
+                b.Property(p => p.ModeratedByUserId).HasMaxLength(450);
+                b.Property(p => p.ModerationReason).HasMaxLength(500);
+
+                b.HasOne(p => p.OwnerUser)
+                    .WithMany(u => u.HobbyProjects)
+                    .HasForeignKey(p => p.OwnerUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(p => p.ModeratedByUser)
+                    .WithMany()
+                    .HasForeignKey(p => p.ModeratedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(p => p.CoverPost)
+                    .WithMany()
+                    .HasForeignKey(p => p.CoverPostId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasIndex(p => new { p.OwnerUserId, p.ArchivedUtc, p.UpdatedUtc });
+                b.HasIndex(p => new { p.IsHidden, p.ArchivedUtc, p.UpdatedUtc });
+                b.HasIndex(p => new { p.Status, p.IsHidden, p.ArchivedUtc, p.UpdatedUtc });
+                b.HasIndex(p => new { p.Kind, p.IsHidden, p.ArchivedUtc, p.UpdatedUtc });
+            });
+
+            builder.Entity<HobbyProjectEntry>(b =>
+            {
+                b.Property(e => e.MilestoneLabel).HasMaxLength(MiniPainterHub.Common.DTOs.HobbyProjectRules.MaxMilestoneLabelLength);
+
+                b.HasOne(e => e.Project)
+                    .WithMany(p => p.Entries)
+                    .HasForeignKey(e => e.ProjectId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasOne(e => e.Post)
+                    .WithOne(p => p.HobbyProjectEntry)
+                    .HasForeignKey<HobbyProjectEntry>(e => e.PostId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasIndex(e => new { e.ProjectId, e.PostId }).IsUnique();
+                b.HasIndex(e => e.PostId).IsUnique();
+                b.HasIndex(e => new { e.ProjectId, e.LinkedUtc, e.PostId });
+                b.HasIndex(e => new { e.ProjectId, e.ShowcaseOrder })
+                    .IsUnique()
+                    .HasFilter("[ShowcaseOrder] IS NOT NULL");
             });
 
             builder.Entity<AdminSiteControl>(b =>

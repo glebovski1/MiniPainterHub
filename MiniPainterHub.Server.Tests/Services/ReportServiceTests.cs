@@ -51,6 +51,88 @@ public class ReportServiceTests
     }
 
     [Fact]
+    public async Task SubmitProjectReportAsync_WhenProjectHasVisibleEntry_PersistsOpenReport()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var reporter = CreateUserWithProfile("reporter-project", "reporter-project", "Reporter");
+        var owner = CreateUserWithProfile("owner-project", "owner-project", "Project Owner");
+        var post = CreatePost(41, owner, "Project progress", "Visible progress");
+        var project = CreateProject(51, owner, post, "Winter Company");
+        context.Users.AddRange(reporter, owner);
+        context.Profiles.AddRange(reporter.Profile!, owner.Profile!);
+        context.Posts.Add(post);
+        context.HobbyProjects.Add(project);
+        await context.SaveChangesAsync();
+        var service = new ReportService(context);
+
+        await service.SubmitProjectReportAsync(reporter.Id, project.Id, new CreateReportRequestDto
+        {
+            ReasonCode = ReportReasonCodes.Spam
+        });
+
+        var report = context.ContentReports.Single();
+        report.TargetType.Should().Be(ReportTargetTypes.HobbyProject);
+        report.TargetId.Should().Be(project.Id.ToString());
+        report.Status.Should().Be(ReportStatuses.Open);
+    }
+
+    [Fact]
+    public async Task SubmitProjectReportAsync_WhenProjectHasNoVisibleEntry_ThrowsNotFoundException()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var reporter = CreateUserWithProfile("reporter-empty-project", "reporter-empty-project", "Reporter");
+        var owner = CreateUserWithProfile("owner-empty-project", "owner-empty-project", "Project Owner");
+        var project = CreateProject(52, owner, post: null, "Empty project");
+        context.Users.AddRange(reporter, owner);
+        context.Profiles.AddRange(reporter.Profile!, owner.Profile!);
+        context.HobbyProjects.Add(project);
+        await context.SaveChangesAsync();
+        var service = new ReportService(context);
+
+        var act = async () => await service.SubmitProjectReportAsync(reporter.Id, project.Id, new CreateReportRequestDto
+        {
+            ReasonCode = ReportReasonCodes.Spam
+        });
+
+        await act.Should().ThrowAsync<NotFoundException>()
+            .WithMessage("Project not found.");
+        context.ContentReports.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetQueueAsync_WhenTargetIsProject_MapsTitleAndProjectRoute()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var reporter = CreateUserWithProfile("project-queue-reporter", "project-queue-reporter", "Reporter");
+        var owner = CreateUserWithProfile("project-queue-owner", "project-queue-owner", "Owner");
+        var post = CreatePost(42, owner, "Progress", "Visible progress");
+        var project = CreateProject(53, owner, post, "Rusted Sentinel Cohort");
+        context.Users.AddRange(reporter, owner);
+        context.Profiles.AddRange(reporter.Profile!, owner.Profile!);
+        context.Posts.Add(post);
+        context.HobbyProjects.Add(project);
+        context.ContentReports.Add(new ContentReport
+        {
+            Id = 101,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow,
+            ReporterUserId = reporter.Id,
+            TargetType = ReportTargetTypes.HobbyProject,
+            TargetId = project.Id.ToString(),
+            ReasonCode = ReportReasonCodes.Spam,
+            Status = ReportStatuses.Open
+        });
+        await context.SaveChangesAsync();
+        var service = new ReportService(context);
+
+        var queue = await service.GetQueueAsync(new ReportQueueQueryDto { Page = 1, PageSize = 10 });
+
+        var item = queue.Items.Should().ContainSingle().Subject;
+        item.TargetSummary.Should().Be("Rusted Sentinel Cohort");
+        item.TargetUrl.Should().Be($"/projects/{project.Id}");
+    }
+
+    [Fact]
     public async Task SubmitUserReportAsync_WhenDuplicateOpenReportExists_ThrowsValidationException()
     {
         await using var context = AppDbContextFactory.Create();
@@ -225,5 +307,38 @@ public class ReportServiceTests
         post.Content = content;
         post.CreatedBy = author;
         return post;
+    }
+
+    private static HobbyProject CreateProject(
+        int id,
+        ApplicationUser owner,
+        Post? post,
+        string title)
+    {
+        var project = new HobbyProject
+        {
+            Id = id,
+            OwnerUserId = owner.Id,
+            OwnerUser = owner,
+            Title = title,
+            Description = "Project description",
+            Kind = HobbyProjectKinds.Army,
+            Status = HobbyProjectStatuses.InProgress,
+            CreatedUtc = DateTime.UtcNow.AddDays(-1),
+            UpdatedUtc = DateTime.UtcNow
+        };
+
+        if (post is not null)
+        {
+            project.Entries.Add(new HobbyProjectEntry
+            {
+                Project = project,
+                Post = post,
+                PostId = post.Id,
+                LinkedUtc = post.CreatedUtc
+            });
+        }
+
+        return project;
     }
 }

@@ -78,25 +78,38 @@
                     <span class="admin-cell-muted">Window: @_stats.WindowHours h</span>
                 </div>
 
-                <div class="admin-activity-chart" aria-label="Activity chart">
-                    @foreach (var point in _stats.Activity)
-                    {
-                        <div class="admin-activity-point" title="@($"{point.TimestampUtc.ToLocalTime():g}: {point.PageViews} views, {point.ApiRequests} API")">
-                            <span class="admin-activity-bar admin-activity-bar--views" style="@GetBarStyle(point.PageViews)"></span>
-                            <span class="admin-activity-bar admin-activity-bar--api" style="@GetBarStyle(point.ApiRequests)"></span>
-                            @if (point.ApiErrors > 0)
-                            {
-                                <span class="admin-activity-error" style="@GetBarStyle(point.ApiErrors)"></span>
-                            }
-                        </div>
-                    }
-                </div>
+                @if (HasActivity)
+                {
+                    <div class="admin-activity-chart" aria-label="Activity chart" data-testid="admin-activity-chart">
+                        @foreach (var point in _stats.Activity)
+                        {
+                            <div class="admin-activity-point" title="@($"{point.TimestampUtc.ToLocalTime():g}: {point.PageViews} views, {point.ApiRequests} API")">
+                                <span class="admin-activity-bar admin-activity-bar--views" style="@GetBarStyle(point.PageViews)"></span>
+                                <span class="admin-activity-bar admin-activity-bar--api" style="@GetBarStyle(point.ApiRequests)"></span>
+                                @if (point.ApiErrors > 0)
+                                {
+                                    <span class="admin-activity-error" style="@GetBarStyle(point.ApiErrors)"></span>
+                                }
+                            </div>
+                        }
+                    </div>
 
-                <div class="admin-chart-legend">
-                    <span><i class="admin-legend admin-legend--views"></i>Page views</span>
-                    <span><i class="admin-legend admin-legend--api"></i>API</span>
-                    <span><i class="admin-legend admin-legend--errors"></i>Errors</span>
-                </div>
+                    <div class="admin-chart-legend">
+                        <span><i class="admin-legend admin-legend--views"></i>Page views</span>
+                        <span><i class="admin-legend admin-legend--api"></i>API</span>
+                        <span><i class="admin-legend admin-legend--errors"></i>Errors</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="admin-activity-empty" role="status" data-testid="admin-activity-empty">
+                        <i class="bi bi-graph-up" aria-hidden="true"></i>
+                        <div>
+                            <strong>No activity recorded</strong>
+                            <p>There were no page views or API requests in this window.</p>
+                        </div>
+                    </div>
+                }
             </section>
 
             <section class="admin-dashboard-panel">
@@ -136,6 +149,9 @@
 
     private long _activityMax =>
         _stats?.Activity.SelectMany(p => new[] { p.PageViews, p.ApiRequests, p.ApiErrors }).DefaultIfEmpty(1).Max() ?? 1;
+
+    private bool HasActivity =>
+        _stats?.Activity.Any(p => p.PageViews > 0 || p.ApiRequests > 0 || p.ApiErrors > 0) == true;
 
     protected override async Task OnInitializedAsync()
     {

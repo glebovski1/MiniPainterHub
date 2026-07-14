@@ -71,6 +71,15 @@
                     <NavLink class="mini-stat text-decoration-none" href="@($"/users/{post.CreatedById}")">
                         By @post.AuthorName
                     </NavLink>
+                    @if (post.Project is { IsPublic: true } project)
+                    {
+                        <NavLink class="mini-stat text-decoration-none"
+                                 href="@($"/projects/{project.Id}")"
+                                 data-testid="post-details-project-link">
+                            <i class="bi bi-images" aria-hidden="true"></i>
+                            Part of @project.Title
+                        </NavLink>
+                    }
                 </div>
             </ChildContent>
         </PageHero>

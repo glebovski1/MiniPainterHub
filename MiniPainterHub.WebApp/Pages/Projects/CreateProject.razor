@@ -1,0 +1,373 @@
+@page "/projects/new"
+@attribute [Authorize]
+@using System.Text.Json
+@inject IHobbyProjectService Projects
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>Start a hobby project</PageTitle>
+
+<div class="page-shell content-stack project-create-page">
+    <nav aria-label="Breadcrumb">
+        <NavLink class="project-create-back" href="/projects/mine">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+            <span>Back to my projects</span>
+        </NavLink>
+    </nav>
+
+    <PageHero Eyebrow="Project workbench"
+              Title="Start a hobby project"
+              Description="Create the home for your progress posts now. You can choose milestones, a cover, and the finished showcase as the work grows."
+              FrameName="New Hobby Project" />
+
+    @if (_draftWasRestored)
+    {
+        <div class="status-panel status-panel--info" data-testid="project-create-draft-restored">
+            <div class="status-panel__icon"><i class="bi bi-journal-check" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Project draft restored</div>
+                <p class="status-panel__text mb-2">Your project details came back from this browser.</p>
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-testid="project-create-discard-draft" @onclick="DiscardDraftAsync" disabled="@_submitting">Discard draft</button>
+            </div>
+        </div>
+    }
+
+    <div class="project-create-layout">
+        <section class="surface-card project-create-form-card" data-testid="project-create-form-card">
+            <SectionHeader Eyebrow="Project details"
+                           Title="Name the workbench"
+                           Description="Use broad hobby metadata here. Individual paints and techniques stay on each progress post."
+                           TitleTag="h2"
+                           TitleClass="section-heading__title h3 mb-0"
+                           SectionName="Project Details" />
+
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <div class="status-panel status-panel--error" role="alert" data-testid="project-create-error">
+                    <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                    <div>
+                        <div class="status-panel__title">Project not created</div>
+                        <p class="status-panel__text mb-0">@_error</p>
+                    </div>
+                </div>
+            }
+
+            <EditForm Model="_request" OnValidSubmit="SubmitAsync" data-testid="project-create-form">
+                <DataAnnotationsValidator />
+
+                <div class="project-create-fields">
+                    <div>
+                        <label class="form-label" for="project-title">Project title</label>
+                        <InputText id="project-title"
+                                   class="form-control"
+                                   maxlength="@HobbyProjectRules.MaxTitleLength"
+                                   data-testid="project-create-title"
+                                   @bind-Value="_request.Title"
+                                   @bind-Value:after="PersistDraftAsync"
+                                   disabled="@_submitting"
+                                   placeholder="e.g. Frostgrave warband refresh" />
+                        <div class="project-create-field-note">
+                            <ValidationMessage For="@(() => _request.Title)" />
+                            <span>@(_request.Title?.Length ?? 0)/@HobbyProjectRules.MaxTitleLength</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="project-description">What are you building?</label>
+                        <InputTextArea id="project-description"
+                                       class="form-control project-create-description"
+                                       maxlength="@HobbyProjectRules.MaxDescriptionLength"
+                                       data-testid="project-create-description"
+                                       @bind-Value="_request.Description"
+                                       @bind-Value:after="PersistDraftAsync"
+                                       disabled="@_submitting"
+                                       placeholder="Describe the idea, starting point, and what finished looks like." />
+                        <div class="project-create-field-note">
+                            <ValidationMessage For="@(() => _request.Description)" />
+                            <span>@(_request.Description?.Length ?? 0)/@HobbyProjectRules.MaxDescriptionLength</span>
+                        </div>
+                    </div>
+
+                    <div class="project-create-grid">
+                        <div>
+                            <label class="form-label" for="project-kind">Project kind</label>
+                            <InputSelect id="project-kind"
+                                         class="form-select"
+                                         data-testid="project-create-kind"
+                                         @bind-Value="_request.Kind"
+                                         @bind-Value:after="PersistDraftAsync"
+                                         disabled="@_submitting">
+                                @foreach (var kind in HobbyProjectKinds.All)
+                                {
+                                    <option value="@kind">@kind</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => _request.Kind)" />
+                        </div>
+
+                        <div>
+                            <label class="form-label" for="project-start-date">Started on <span class="text-muted">(optional)</span></label>
+                            <InputDate id="project-start-date"
+                                       class="form-control"
+                                       data-testid="project-create-start-date"
+                                       @bind-Value="_request.StartDate"
+                                       @bind-Value:after="PersistDraftAsync"
+                                       disabled="@_submitting" />
+                        </div>
+
+                        <div>
+                            <label class="form-label" for="project-game-system">Game system or range <span class="text-muted">(optional)</span></label>
+                            <InputText id="project-game-system"
+                                       class="form-control"
+                                       maxlength="@HobbyProjectRules.MaxGameSystemLength"
+                                       data-testid="project-create-game-system"
+                                       @bind-Value="_request.GameSystem"
+                                       @bind-Value:after="PersistDraftAsync"
+                                       disabled="@_submitting"
+                                       placeholder="e.g. Age of Sigmar" />
+                            <ValidationMessage For="@(() => _request.GameSystem)" />
+                        </div>
+
+                        <div>
+                            <label class="form-label" for="project-faction-theme">Faction or theme <span class="text-muted">(optional)</span></label>
+                            <InputText id="project-faction-theme"
+                                       class="form-control"
+                                       maxlength="@HobbyProjectRules.MaxFactionThemeLength"
+                                       data-testid="project-create-faction-theme"
+                                       @bind-Value="_request.FactionTheme"
+                                       @bind-Value:after="PersistDraftAsync"
+                                       disabled="@_submitting"
+                                       placeholder="e.g. Winter-worn Stormcast" />
+                            <ValidationMessage For="@(() => _request.FactionTheme)" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="project-goal">Goal <span class="text-muted">(optional)</span></label>
+                        <InputText id="project-goal"
+                                   class="form-control"
+                                   maxlength="@HobbyProjectRules.MaxGoalLength"
+                                   data-testid="project-create-goal"
+                                   @bind-Value="_request.Goal"
+                                   @bind-Value:after="PersistDraftAsync"
+                                   disabled="@_submitting"
+                                   placeholder="e.g. Finish ten models before the autumn campaign" />
+                        <div class="project-create-field-note">
+                            <ValidationMessage For="@(() => _request.Goal)" />
+                            <span>@(_request.Goal?.Length ?? 0)/@HobbyProjectRules.MaxGoalLength</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="project-create-actions">
+                    <button class="btn btn-outline-secondary" type="button" data-testid="project-create-cancel" @onclick="Cancel" disabled="@_submitting">Cancel</button>
+                    @if (HasDraftContent)
+                    {
+                        <button class="btn btn-link" type="button" @onclick="DiscardDraftAsync" disabled="@_submitting">Clear form</button>
+                    }
+                    <button class="btn btn-primary ms-auto" type="submit" data-testid="project-create-submit" disabled="@_submitting">
+                        @if (_submitting)
+                        {
+                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                            <span>Creating...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-images" aria-hidden="true"></i>
+                            <span>Create project</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </section>
+
+        <aside class="project-create-preview" aria-label="Project preview">
+            <span class="section-label">Preview</span>
+            <div class="project-create-preview__cover" aria-hidden="true">
+                <i class="bi @KindIcon"></i>
+                <span>Your first linked image can become the cover</span>
+            </div>
+            <div class="project-create-preview__body">
+                <div class="project-create-preview__badges">
+                    <span class="badge text-bg-secondary">Planning</span>
+                    <span class="badge text-bg-light">@_request.Kind</span>
+                </div>
+                <h2>@PreviewTitle</h2>
+                <p>@PreviewDescription</p>
+                @if (!string.IsNullOrWhiteSpace(_request.Goal))
+                {
+                    <div class="project-create-preview__goal">
+                        <i class="bi bi-crosshair2" aria-hidden="true"></i>
+                        <span>@_request.Goal</span>
+                    </div>
+                }
+                <div class="project-create-preview__readiness" data-testid="project-create-readiness">
+                    <span class="@ReadinessClass(!string.IsNullOrWhiteSpace(_request.Title))"><i class="bi bi-check2" aria-hidden="true"></i> Title</span>
+                    <span class="@ReadinessClass(!string.IsNullOrWhiteSpace(_request.Description))"><i class="bi bi-check2" aria-hidden="true"></i> Story</span>
+                    <span class="@ReadinessClass(!string.IsNullOrWhiteSpace(_request.Goal))"><i class="bi bi-check2" aria-hidden="true"></i> Goal</span>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+@code {
+    private const string DraftStorageKey = "minipainterhub.hobbyProjectDraft.v1";
+    private static readonly JsonSerializerOptions DraftJsonOptions = new(JsonSerializerDefaults.Web);
+
+    private CreateHobbyProjectDto _request = new();
+    private bool _submitting;
+    private bool _draftWasRestored;
+    private bool _restoringDraft;
+    private string? _error;
+
+    private bool HasDraftContent =>
+        !string.IsNullOrWhiteSpace(_request.Title)
+        || !string.IsNullOrWhiteSpace(_request.Description)
+        || !string.IsNullOrWhiteSpace(_request.GameSystem)
+        || !string.IsNullOrWhiteSpace(_request.FactionTheme)
+        || !string.IsNullOrWhiteSpace(_request.Goal)
+        || _request.StartDate.HasValue
+        || !string.Equals(_request.Kind, HobbyProjectKinds.Other, StringComparison.Ordinal);
+
+    private string PreviewTitle => string.IsNullOrWhiteSpace(_request.Title) ? "Your project title" : _request.Title.Trim();
+    private string PreviewDescription => string.IsNullOrWhiteSpace(_request.Description)
+        ? "Describe the painting journey this project will collect."
+        : _request.Description.Trim();
+
+    private string KindIcon => _request.Kind switch
+    {
+        HobbyProjectKinds.Army => "bi-shield-check",
+        HobbyProjectKinds.Warband => "bi-people",
+        HobbyProjectKinds.Unit => "bi-grid",
+        HobbyProjectKinds.Terrain => "bi-geo-alt-fill",
+        HobbyProjectKinds.Diorama => "bi-images",
+        HobbyProjectKinds.Miniature => "bi-person",
+        _ => "bi-palette2"
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        await RestoreDraftAsync();
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_submitting)
+        {
+            return;
+        }
+
+        _submitting = true;
+        _error = null;
+        try
+        {
+            var result = await Projects.CreateAsync(_request);
+            if (!result.Success || result.Value is null)
+            {
+                _error = "We couldn't create the project. Your draft is still here, so you can try again.";
+                return;
+            }
+
+            await ClearDraftStorageAsync();
+            Nav.NavigateTo($"/projects/{result.Value.Id}");
+        }
+        catch
+        {
+            _error = "We couldn't create the project. Your draft is still here, so you can try again.";
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private async Task RestoreDraftAsync()
+    {
+        try
+        {
+            var json = await JS.InvokeAsync<string?>("localStorage.getItem", DraftStorageKey);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return;
+            }
+
+            var draft = JsonSerializer.Deserialize<CreateHobbyProjectDto>(json, DraftJsonOptions);
+            if (draft is null || !HasContent(draft))
+            {
+                return;
+            }
+
+            _restoringDraft = true;
+            _request = draft;
+            _draftWasRestored = true;
+            _restoringDraft = false;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            _restoringDraft = false;
+        }
+    }
+
+    private async Task PersistDraftAsync()
+    {
+        if (_restoringDraft)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!HasDraftContent)
+            {
+                await ClearDraftStorageAsync();
+                return;
+            }
+
+            await JS.InvokeVoidAsync("localStorage.setItem", DraftStorageKey, JsonSerializer.Serialize(_request, DraftJsonOptions));
+        }
+        catch
+        {
+            // Draft persistence is a convenience; the form stays usable if browser storage is unavailable.
+        }
+    }
+
+    private async Task DiscardDraftAsync()
+    {
+        _request = new CreateHobbyProjectDto();
+        _draftWasRestored = false;
+        _error = null;
+        await ClearDraftStorageAsync();
+    }
+
+    private async Task ClearDraftStorageAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.removeItem", DraftStorageKey);
+        }
+        catch
+        {
+            // Navigation and successful creation must not depend on browser storage.
+        }
+    }
+
+    private void Cancel() => Nav.NavigateTo("/projects/mine");
+
+    private static bool HasContent(CreateHobbyProjectDto draft) =>
+        !string.IsNullOrWhiteSpace(draft.Title)
+        || !string.IsNullOrWhiteSpace(draft.Description)
+        || !string.IsNullOrWhiteSpace(draft.GameSystem)
+        || !string.IsNullOrWhiteSpace(draft.FactionTheme)
+        || !string.IsNullOrWhiteSpace(draft.Goal)
+        || draft.StartDate.HasValue
+        || !string.Equals(draft.Kind, HobbyProjectKinds.Other, StringComparison.Ordinal);
+
+    private static string ReadinessClass(bool ready) => ready ? "project-readiness project-readiness--ready" : "project-readiness";
+}

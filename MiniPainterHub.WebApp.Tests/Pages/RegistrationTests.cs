@@ -26,6 +26,22 @@ public class RegistrationTests : TestContext
     }
 
     [Fact]
+    public void WhenGoogleIsEnabled_RendersProviderAction()
+    {
+        this.AddAuthStub(new StubAuthService
+        {
+            GetProvidersHandler = () => Task.FromResult(new AuthProvidersDto
+            {
+                Google = new AuthProviderDto { Name = "Google", DisplayName = "Google", Enabled = true }
+            })
+        });
+
+        var cut = RenderComponent<Registration>();
+
+        cut.WaitForAssertion(() => cut.Find("[data-testid='google-signin-link']").Should().NotBeNull());
+    }
+
+    [Fact]
     public async Task Submit_WhenRegisterSucceeds_NavigatesToLogin()
     {
         RegisterDto? captured = null;
@@ -46,7 +62,7 @@ public class RegistrationTests : TestContext
         cut.Find("#reg-password").Change("ValidPass123!");
         await cut.Find("form").SubmitAsync();
 
-        cut.WaitForAssertion(() => nav.Uri.Should().Be("http://localhost/login"));
+        cut.WaitForAssertion(() => nav.Uri.Should().Be("http://localhost/login?returnUrl=%2F"));
         captured.Should().NotBeNull();
         captured!.UserName.Should().Be("new-user");
         captured.Email.Should().Be("new-user@example.com");

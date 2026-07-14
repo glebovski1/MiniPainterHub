@@ -7,6 +7,7 @@
 @inject IFollowService Follows
 @inject IConversationSummaryService ConversationSummaries
 @inject IPostService Posts
+@inject IHobbyProjectService HobbyProjects
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Nav
 
@@ -141,6 +142,30 @@
             </article>
         </section>
 
+        @if (_projects.Count > 0)
+        {
+            <section class="surface-card public-profile-projects" data-testid="profile-projects">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-label">Hobby projects</p>
+                        <h2 class="section-heading__title">Projects by @GetDisplayName(_profile)</h2>
+                        <p class="section-heading__subtitle">Recently active diaries and curated showcases from this painter.</p>
+                    </div>
+                    <NavLink class="btn btn-outline-secondary"
+                             href="@($"/projects?owner={Uri.EscapeDataString(UserId)}")"
+                             data-testid="profile-projects-all">
+                        View all projects
+                    </NavLink>
+                </div>
+                <div class="public-profile-project-grid">
+                    @foreach (var project in _projects)
+                    {
+                        <HobbyProjectCard Project="project" />
+                    }
+                </div>
+            </section>
+        }
+
         <section class="surface-card">
             <div class="section-heading">
                 <div>
@@ -163,6 +188,7 @@
     private bool _isAuthenticated;
     private bool _isOwner;
     private string? _error;
+    private IReadOnlyList<HobbyProjectSummaryDto> _projects = Array.Empty<HobbyProjectSummaryDto>();
     private ProfileSignal[] _profileSignals = Array.Empty<ProfileSignal>();
 
     protected override async Task OnParametersSetAsync()
@@ -179,12 +205,23 @@
         {
             _profile = await Profiles.GetPublicProfileById(UserId);
             RefreshProfileSignals();
+
+            var projectsResult = await HobbyProjects.GetByOwnerAsync(UserId, new HobbyProjectQueryDto
+            {
+                Sort = HobbyProjectSorts.Recent,
+                PageNumber = 1,
+                PageSize = 3
+            });
+            _projects = projectsResult.Success && projectsResult.Value is not null
+                ? projectsResult.Value.Items.ToArray()
+                : Array.Empty<HobbyProjectSummaryDto>();
         }
         catch (Exception ex)
         {
             _error = ex.Message;
             _profile = null;
             _profileSignals = Array.Empty<ProfileSignal>();
+            _projects = Array.Empty<HobbyProjectSummaryDto>();
         }
         finally
         {

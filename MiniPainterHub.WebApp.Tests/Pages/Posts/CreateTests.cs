@@ -464,6 +464,121 @@ public class CreateTests : TestContext
         nav.Uri.Should().Be("http://localhost/");
     }
 
+    [Fact]
+    public async Task RequestedProject_WhenUnavailable_BlocksPublishUntilExplicitStandaloneChoice()
+    {
+        CreatePostDto? captured = null;
+        this.AddHobbyProjectStub(new StubHobbyProjectService
+        {
+            GetMineHandler = query => Task.FromResult(ProjectPage(new[] { ProjectSummary(7, "Available project") }, query))
+        });
+        AddComposerStubs(new StubPostService
+        {
+            CreateHandler = request =>
+            {
+                captured = request;
+                return Task.FromResult(new PostDto { Id = 201, Title = request.Title, Content = request.Content, CreatedById = "user-1" });
+            }
+        });
+        var nav = Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo("/posts/new?projectId=999");
+
+        var cut = RenderComponent<Create>();
+        cut.WaitForElement("[data-testid='create-post-without-project']");
+        cut.Find("[data-testid='create-post-project-message']").TextContent.Should().Contain("requested project is unavailable");
+        cut.Find("[data-testid='create-post-project']").GetAttribute("value").Should().BeNullOrEmpty();
+        cut.Find("[data-testid='create-post-submit']").HasAttribute("disabled").Should().BeTrue();
+
+        cut.Find("[data-testid='create-post-title']").Change("Standalone update");
+        cut.Find("[data-testid='create-post-content']").Change("Published only after an explicit standalone choice.");
+        cut.Find("[data-testid='create-post-without-project']").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.FindAll("[data-testid='create-post-without-project']").Should().BeEmpty();
+            cut.Find("[data-testid='create-post-submit']").HasAttribute("disabled").Should().BeFalse();
+        });
+
+        await cut.Find("[data-testid='create-post-form']").SubmitAsync();
+        cut.WaitForAssertion(() =>
+        {
+            captured.Should().NotBeNull();
+            captured!.ProjectId.Should().BeNull();
+            captured.MilestoneLabel.Should().BeNull();
+            nav.Uri.Should().Be("http://localhost/posts/201");
+        });
+    }
+
+    [Fact]
+    public async Task RequestedProject_PersistsProjectAndMilestoneAndReturnsToDiaryAnchor()
+    {
+        CreatePostDto? captured = null;
+        this.AddHobbyProjectStub(new StubHobbyProjectService
+        {
+            GetMineHandler = query => Task.FromResult(ProjectPage(new[] { ProjectSummary(7, "Winter army") }, query))
+        });
+        var js = AddComposerStubs(new StubPostService
+        {
+            CreateHandler = request =>
+            {
+                captured = request;
+                return Task.FromResult(new PostDto { Id = 202, Title = request.Title, Content = request.Content, CreatedById = "user-1" });
+            }
+        });
+        var nav = Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo("/posts/new?projectId=7");
+
+        var cut = RenderComponent<Create>();
+        cut.WaitForElement("[data-testid='create-post-milestone']");
+        cut.Find("[data-testid='create-post-project']").GetAttribute("value").Should().Be("7");
+        cut.Find("[data-testid='create-post-project-message']").TextContent.Should().Contain("Winter army");
+
+        cut.Find("[data-testid='create-post-title']").Change("First squad complete");
+        cut.Find("[data-testid='create-post-content']").Change("The first finished unit for the winter force.");
+        cut.Find("[data-testid='create-post-milestone']").Change("First squad finished");
+
+        cut.WaitForAssertion(() =>
+        {
+            js.LocalStorage[DraftStorageKey].Should().Contain("\"projectId\":7");
+            js.LocalStorage[DraftStorageKey].Should().Contain("\"milestoneLabel\":\"First squad finished\"");
+        });
+
+        await cut.Find("[data-testid='create-post-form']").SubmitAsync();
+        cut.WaitForAssertion(() =>
+        {
+            captured.Should().NotBeNull();
+            captured!.ProjectId.Should().Be(7);
+            captured.MilestoneLabel.Should().Be("First squad finished");
+            nav.Uri.Should().Be("http://localhost/projects/7?view=diary#post-202");
+            js.LocalStorage.Should().NotContainKey(DraftStorageKey);
+        });
+    }
+
+    private static ApiResult<PagedResult<HobbyProjectSummaryDto>?> ProjectPage(
+        IReadOnlyList<HobbyProjectSummaryDto> projects,
+        HobbyProjectQueryDto query) =>
+        new(true, HttpStatusCode.OK, new PagedResult<HobbyProjectSummaryDto>
+        {
+            Items = projects,
+            PageNumber = query.PageNumber,
+            PageSize = query.PageSize,
+            TotalCount = projects.Count
+        });
+
+    private static HobbyProjectSummaryDto ProjectSummary(int id, string title) => new()
+    {
+        Id = id,
+        OwnerUserId = "user-1",
+        OwnerUserName = "painter",
+        OwnerDisplayName = "Painter",
+        Title = title,
+        Description = "A project available to the post composer.",
+        Kind = HobbyProjectKinds.Army,
+        Status = HobbyProjectStatuses.InProgress,
+        IsPublic = true,
+        UpdatedUtc = DateTime.UtcNow
+    };
+
     private RecordingJsRuntime AddComposerStubs(StubPostService? postStub = null, StubSearchService? searchStub = null)
     {
         var js = new RecordingJsRuntime();

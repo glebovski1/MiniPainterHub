@@ -32,5 +32,7 @@ namespace MiniPainterHub.Server.Identity
         public ICollection<SupportTicket> SupportTickets { get; set; } = new List<SupportTicket>();
 
         public ICollection<SupportTicketMessage> SupportTicketMessages { get; set; } = new List<SupportTicketMessage>();
+
+        public ICollection<HobbyProject> HobbyProjects { get; set; } = new List<HobbyProject>();
     }
 }

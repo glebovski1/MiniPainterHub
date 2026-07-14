@@ -2,10 +2,16 @@
 @attribute [Authorize(Roles = "Moderator,Admin")]
 @using MiniPainterHub.Common.DTOs
 @inject MiniPainterHub.WebApp.Services.Interfaces.IReportService ReportService
+@inject MiniPainterHub.WebApp.Services.Interfaces.IModerationService ModerationService
 
 <PageTitle>Reports</PageTitle>
 
 <div class="page-shell content-stack">
+    <div class="visually-hidden"
+         aria-live="polite"
+         aria-atomic="true"
+         data-testid="report-project-live">@_projectAnnouncement</div>
+
     <PageHero Eyebrow="Community safety"
               Title="Reports queue"
               Description="Filter incoming reports, review context quickly, and resolve each item with a clear note and moderation outcome."
@@ -55,6 +61,7 @@
                     <option value="@ReportTargetTypes.Post">Post</option>
                     <option value="@ReportTargetTypes.Comment">Comment</option>
                     <option value="@ReportTargetTypes.User">User</option>
+                    <option value="@ReportTargetTypes.HobbyProject">Hobby project</option>
                 </select>
             </div>
 
@@ -120,6 +127,7 @@
     }
     else
     {
+        <div class="@(_inspectedProjectId.HasValue ? "admin-inbox-layout" : string.Empty)">
         <section class="content-stack">
             @foreach (var item in _items)
             {
@@ -150,6 +158,20 @@
                                     <p class="entity-row__summary mb-0">Reviewed by: @item.ReviewedByUserName</p>
                                 }
                             </div>
+                            @if (IsHobbyProjectReport(item))
+                            {
+                                <div class="page-toolbar">
+                                    <button class="btn btn-outline-secondary btn-sm"
+                                            type="button"
+                                            data-testid="report-project-inspect"
+                                            aria-expanded="@(_inspectedReportId == item.Id ? "true" : "false")"
+                                            aria-controls="report-project-inspector"
+                                            disabled="@(GetProjectId(item) is null || _projectInspectorLoading)"
+                                            @onclick="() => InspectProjectAsync(item)">
+                                        Inspect project
+                                    </button>
+                                </div>
+                            }
                         </div>
 
                         @if (!string.IsNullOrWhiteSpace(item.Details))
@@ -234,12 +256,166 @@
                 <span class="text-muted" data-testid="reports-page-state">Page @_page of @_totalPages</span>
             </div>
         </section>
+
+        @if (_inspectedProjectId.HasValue)
+        {
+            <aside id="report-project-inspector"
+                   class="admin-inspector"
+                   aria-label="Hobby project inspector"
+                   data-testid="report-project-inspector">
+                <div class="admin-inspector__header">
+                    <div>
+                        <p class="section-label">Reported hobby project</p>
+                        <h2 class="admin-inspector__title">Project inspector</h2>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm"
+                            type="button"
+                            aria-label="Close hobby project inspector"
+                            data-testid="report-project-inspector-close"
+                            @onclick="CloseProjectInspector">
+                        Close
+                    </button>
+                </div>
+
+                @if (_projectInspectorLoading)
+                {
+                    <div class="status-panel status-panel--info" data-testid="report-project-preview-loading">
+                        <div class="status-panel__icon"><i class="bi bi-search" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Loading project preview</div>
+                            <p class="status-panel__text mb-0">Fetching staff-only project context.</p>
+                        </div>
+                    </div>
+                }
+                else if (!string.IsNullOrWhiteSpace(_projectInspectorError))
+                {
+                    <div class="status-panel status-panel--error"
+                         role="alert"
+                         data-testid="report-project-preview-error">
+                        <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Project inspector unavailable</div>
+                            <p class="status-panel__text mb-0">@_projectInspectorError</p>
+                        </div>
+                        <button class="btn btn-link btn-sm ms-auto"
+                                type="button"
+                                data-testid="report-project-preview-retry"
+                                @onclick="() => LoadProjectPreviewAsync(_inspectedProjectId.Value)">
+                            Retry
+                        </button>
+                    </div>
+                }
+                else if (_projectPreview is not null)
+                {
+                    <div class="admin-inspector__header">
+                        <div>
+                            <p class="section-label">Project #@_projectPreview.ProjectId</p>
+                            <h3 class="admin-inspector__title" data-testid="report-project-preview-title">@_projectPreview.Title</h3>
+                        </div>
+                        <span class="@GetProjectVisibilityBadgeClass(_projectPreview.IsHidden)"
+                              data-testid="report-project-preview-state">
+                            @GetProjectVisibilityLabel(_projectPreview.IsHidden)
+                        </span>
+                    </div>
+
+                    <div class="admin-inspector__meta" data-testid="report-project-preview-meta">
+                        <span>Owner <strong>@_projectPreview.OwnerUserId</strong></span>
+                        <span>Kind <strong>@_projectPreview.Kind</strong></span>
+                        <span>Status <strong>@FormatProjectStatus(_projectPreview.Status)</strong></span>
+                        <span>Updated <strong>@_projectPreview.UpdatedUtc.ToLocalTime().ToString("g")</strong></span>
+                        <span>Created <strong>@_projectPreview.CreatedUtc.ToLocalTime().ToString("g")</strong></span>
+                    </div>
+
+                    <div class="admin-preview" data-testid="report-project-preview-description">
+                        <p>@(string.IsNullOrWhiteSpace(_projectPreview.DescriptionSnippet) ? "No project description." : _projectPreview.DescriptionSnippet)</p>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_projectPreview.ModerationReason))
+                    {
+                        <div class="admin-note" data-testid="report-project-preview-moderation-reason">
+                            <strong>Latest moderation reason</strong>
+                            <p>@_projectPreview.ModerationReason</p>
+                        </div>
+                    }
+
+                    <div>
+                        <label class="form-label" for="report-project-action-reason">Reason / audit note</label>
+                        <textarea id="report-project-action-reason"
+                                  class="form-control"
+                                  rows="3"
+                                  required
+                                  data-testid="report-project-action-reason"
+                                  @bind="_projectActionReason"></textarea>
+                        <div class="form-text">A reason is required for both hide and restore actions.</div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_projectActionError))
+                    {
+                        <div class="status-panel status-panel--error"
+                             role="alert"
+                             data-testid="report-project-action-error">
+                            <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+                            <div>
+                                <div class="status-panel__title">Project action blocked</div>
+                                <p class="status-panel__text mb-0">@_projectActionError</p>
+                            </div>
+                        </div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(_projectAnnouncement))
+                    {
+                        <div class="status-panel status-panel--success"
+                             role="status"
+                             data-testid="report-project-action-success">
+                            <div class="status-panel__icon"><i class="bi bi-check-circle" aria-hidden="true"></i></div>
+                            <div>
+                                <div class="status-panel__title">Project moderation updated</div>
+                                <p class="status-panel__text mb-0">@_projectAnnouncement</p>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="page-toolbar admin-inspector__actions">
+                        @if (_projectPreview.IsHidden)
+                        {
+                            <button class="btn btn-outline-success btn-sm"
+                                    type="button"
+                                    data-testid="report-project-restore"
+                                    disabled="@_projectActionBusy"
+                                    @onclick="() => ModerateProjectAsync(hide: false)">
+                                @(_projectActionBusy ? "Working..." : "Restore project")
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-danger btn-sm"
+                                    type="button"
+                                    data-testid="report-project-hide"
+                                    disabled="@_projectActionBusy"
+                                    @onclick="() => ModerateProjectAsync(hide: true)">
+                                @(_projectActionBusy ? "Working..." : "Hide project")
+                            </button>
+                        }
+                    </div>
+                }
+            </aside>
+        }
+        </div>
     }
 </div>
 
 @code {
     private readonly List<ReportQueueItemDto> _items = new();
     private readonly Dictionary<long, string?> _resolutionNotes = new();
+
+    private ModerationHobbyProjectPreviewDto? _projectPreview;
+    private long? _inspectedReportId;
+    private int? _inspectedProjectId;
+    private bool _projectInspectorLoading;
+    private bool _projectActionBusy;
+    private string _projectActionReason = string.Empty;
+    private string? _projectInspectorError;
+    private string? _projectActionError;
+    private string? _projectAnnouncement;
 
     private bool _loading;
     private bool _resolving;
@@ -358,6 +534,146 @@
     {
         _resolutionNotes[reportId] = note;
     }
+
+    private async Task InspectProjectAsync(ReportQueueItemDto item)
+    {
+        var projectId = GetProjectId(item);
+        if (!projectId.HasValue)
+        {
+            _projectInspectorError = "The report does not contain a valid hobby project id.";
+            _projectAnnouncement = _projectInspectorError;
+            return;
+        }
+
+        _inspectedReportId = item.Id;
+        _inspectedProjectId = projectId.Value;
+        _projectActionReason = string.Empty;
+        _projectActionError = null;
+        _projectAnnouncement = null;
+        await LoadProjectPreviewAsync(projectId.Value);
+    }
+
+    private async Task LoadProjectPreviewAsync(int projectId)
+    {
+        _projectInspectorLoading = true;
+        _projectInspectorError = null;
+        _projectActionError = null;
+        _projectPreview = null;
+
+        try
+        {
+            var result = await ModerationService.GetProjectPreviewAsync(projectId);
+            if (!result.Success || result.Value is null)
+            {
+                SetProjectInspectorError("Could not load the staff project preview. The public project page may be unavailable when content is hidden.");
+                return;
+            }
+
+            _projectPreview = result.Value;
+        }
+        catch
+        {
+            SetProjectInspectorError("Could not load the staff project preview. Please try again.");
+        }
+        finally
+        {
+            _projectInspectorLoading = false;
+        }
+    }
+
+    private async Task ModerateProjectAsync(bool hide)
+    {
+        if (_projectPreview is null)
+        {
+            return;
+        }
+
+        _projectActionError = null;
+        _projectAnnouncement = null;
+        var reason = NormalizeOptional(_projectActionReason);
+        if (reason is null)
+        {
+            SetProjectActionError("Enter a reason before hiding or restoring this project.");
+            return;
+        }
+
+        var projectId = _projectPreview.ProjectId;
+        _projectActionBusy = true;
+        try
+        {
+            var request = new ModerationActionRequestDto { Reason = reason };
+            var success = hide
+                ? await ModerationService.HideProjectAsync(projectId, request)
+                : await ModerationService.RestoreProjectAsync(projectId, request);
+            if (!success)
+            {
+                SetProjectActionError(hide
+                    ? "Could not hide the hobby project."
+                    : "Could not restore the hobby project.");
+                return;
+            }
+
+            _projectActionReason = string.Empty;
+            _projectAnnouncement = hide
+                ? $"Project {projectId} hidden. Its linked posts remain available independently."
+                : $"Project {projectId} restored from staff moderation. Public eligibility still follows archive and visible-entry rules.";
+            await LoadProjectPreviewAsync(projectId);
+        }
+        catch
+        {
+            SetProjectActionError(hide
+                ? "Could not hide the hobby project. Please try again."
+                : "Could not restore the hobby project. Please try again.");
+        }
+        finally
+        {
+            _projectActionBusy = false;
+        }
+    }
+
+    private void CloseProjectInspector()
+    {
+        _projectPreview = null;
+        _inspectedReportId = null;
+        _inspectedProjectId = null;
+        _projectInspectorError = null;
+        _projectActionError = null;
+        _projectAnnouncement = null;
+        _projectActionReason = string.Empty;
+    }
+
+    private void SetProjectInspectorError(string message)
+    {
+        _projectInspectorError = message;
+        _projectAnnouncement = message;
+    }
+
+    private void SetProjectActionError(string message)
+    {
+        _projectActionError = message;
+        _projectAnnouncement = message;
+    }
+
+    private static bool IsHobbyProjectReport(ReportQueueItemDto item) =>
+        string.Equals(item.TargetType, ReportTargetTypes.HobbyProject, StringComparison.Ordinal);
+
+    private static int? GetProjectId(ReportQueueItemDto item) =>
+        IsHobbyProjectReport(item) && int.TryParse(item.TargetId, out var projectId) && projectId > 0
+            ? projectId
+            : null;
+
+    private static string GetProjectVisibilityBadgeClass(bool isHidden) =>
+        isHidden ? "badge text-bg-danger" : "badge text-bg-success";
+
+    private static string GetProjectVisibilityLabel(bool isHidden) =>
+        isHidden ? "Hidden by staff" : "Not hidden by staff";
+
+    private static string FormatProjectStatus(string status) => status switch
+    {
+        HobbyProjectStatuses.InProgress => "In progress",
+        HobbyProjectStatuses.OnHold => "On hold",
+        _ => status
+    };
 
     private static string GetStatusBadgeClass(string status) => status switch
     {

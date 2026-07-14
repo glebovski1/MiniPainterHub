@@ -1,21 +1,21 @@
-<header class="viewer-toolbar @(HasSequence ? "has-sequence" : "is-single-frame")">
+<header class="@ToolbarClass">
     <div class="viewer-toolbar__top" data-testid="viewer-rail-header">
         <div class="viewer-toolbar__identity">
             <div class="viewer-toolbar__title" id="@TitleId">@Title</div>
         </div>
-
-        <button type="button"
-                class="btn btn-sm btn-outline-light viewer-toolbar__icon-action viewer-toolbar__close"
-                data-testid="viewer-close"
-                aria-label="Close viewer"
-                title="Close viewer"
-                @onclick="OnClose">
-            <i class="bi bi-x-lg" aria-hidden="true"></i>
-            <span class="visually-hidden">Close viewer</span>
-        </button>
     </div>
 
-    <div class="viewer-toolbar__body">
+    <button type="button"
+            class="btn btn-sm btn-outline-light viewer-toolbar__icon-action viewer-toolbar__close viewer-toolbar__close--persistent"
+            data-testid="viewer-close"
+            aria-label="Close viewer"
+            title="Close viewer"
+            @onclick="OnClose">
+        <i class="bi bi-x-lg" aria-hidden="true"></i>
+        <span class="visually-hidden">Close viewer</span>
+    </button>
+
+    <div class="viewer-toolbar__body" hidden="@IsImageFailed">
         <div class="viewer-toolbar__groups">
             <section class="viewer-toolbar__section viewer-toolbar__section--zoom" data-testid="viewer-rail-zoom" aria-label="Zoom controls">
                 <div class="viewer-toolbar__section-head">
@@ -150,6 +150,8 @@
 
 @code {
     private bool HasSequence => TotalCount > 1;
+    private string ToolbarClass =>
+        $"viewer-toolbar {(HasSequence ? "has-sequence" : "is-single-frame")} {(IsImageLoading ? "is-image-loading" : null)} {(IsImageFailed ? "is-image-failed" : null)}";
     private string CurrentPositionText => $"{Math.Max(CurrentIndex, 1)} / {Math.Max(TotalCount, 1)}";
     private string CurrentPositionNarration => $"{Math.Max(CurrentIndex, 1)} of {Math.Max(TotalCount, 1)}";
     private string FullscreenLabel => IsFullscreen ? "Window" : "Fullscreen";
@@ -167,6 +169,8 @@
     [Parameter] public string Eyebrow { get; set; } = "Rich viewer";
     [Parameter] public string Title { get; set; } = "Image viewer";
     [Parameter] public string? TitleId { get; set; }
+    [Parameter] public bool IsImageLoading { get; set; }
+    [Parameter] public bool IsImageFailed { get; set; }
     [Parameter] public int CurrentIndex { get; set; }
     [Parameter] public int TotalCount { get; set; }
     [Parameter] public int ZoomPercent { get; set; }

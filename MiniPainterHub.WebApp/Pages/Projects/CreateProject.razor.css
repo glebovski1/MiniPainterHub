@@ -1,0 +1,203 @@
+.project-create-page {
+    max-width: 76rem;
+}
+
+.project-create-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--primary-700);
+    font-weight: 850;
+    text-decoration: none;
+}
+
+.project-create-back:hover,
+.project-create-back:focus-visible {
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+}
+
+.project-create-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.65fr) minmax(17rem, 0.75fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.project-create-form-card {
+    display: grid;
+    gap: 1rem;
+}
+
+.project-create-fields {
+    display: grid;
+    gap: 1rem;
+}
+
+.project-create-description {
+    min-height: 9rem;
+    resize: vertical;
+}
+
+.project-create-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.project-create-field-note {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-height: 1.35rem;
+    margin-top: 0.25rem;
+    color: var(--ink-500);
+    font-size: 0.74rem;
+}
+
+.project-create-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(23, 33, 39, 0.1);
+}
+
+.project-create-preview {
+    position: sticky;
+    top: 1rem;
+    overflow: hidden;
+    border: 1px solid rgba(23, 33, 39, 0.12);
+    border-radius: var(--radius-md);
+    background: rgba(255, 254, 250, 0.94);
+    box-shadow: var(--shadow-soft);
+}
+
+.project-create-preview > .section-label {
+    display: block;
+    padding: 0.9rem 1rem 0;
+}
+
+.project-create-preview__cover {
+    display: grid;
+    min-height: 11.5rem;
+    margin: 0.75rem 1rem 0;
+    padding: 1rem;
+    place-items: center;
+    align-content: center;
+    gap: 0.65rem;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(145deg, rgba(31, 91, 82, 0.13), rgba(184, 106, 67, 0.13));
+    color: var(--primary-700);
+    text-align: center;
+}
+
+.project-create-preview__cover i {
+    font-size: 2.4rem;
+}
+
+.project-create-preview__cover span {
+    max-width: 13rem;
+    color: var(--ink-600);
+    font-size: 0.78rem;
+    font-weight: 750;
+}
+
+.project-create-preview__body {
+    display: grid;
+    gap: 0.72rem;
+    padding: 1rem;
+}
+
+.project-create-preview__badges,
+.project-create-preview__readiness {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.project-create-preview h2 {
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: var(--ink-900);
+    font-family: var(--font-display);
+    font-size: 1.45rem;
+}
+
+.project-create-preview p {
+    display: -webkit-box;
+    margin: 0;
+    overflow: hidden;
+    color: var(--ink-600);
+    line-height: 1.55;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 5;
+}
+
+.project-create-preview__goal {
+    display: flex;
+    gap: 0.55rem;
+    padding: 0.7rem;
+    border-radius: var(--radius-sm);
+    background: rgba(184, 106, 67, 0.09);
+    color: var(--ink-700);
+    font-size: 0.82rem;
+}
+
+.project-create-preview__readiness {
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(23, 33, 39, 0.09);
+}
+
+.project-readiness {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.28rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(23, 33, 39, 0.06);
+    color: var(--ink-500);
+    font-size: 0.7rem;
+    font-weight: 850;
+}
+
+.project-readiness--ready {
+    background: rgba(31, 91, 82, 0.1);
+    color: var(--primary-700);
+}
+
+@media (max-width: 991.98px) {
+    .project-create-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .project-create-preview {
+        position: static;
+        display: grid;
+        grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 1fr);
+    }
+
+    .project-create-preview > .section-label {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 639.98px) {
+    .project-create-grid,
+    .project-create-preview {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .project-create-actions {
+        align-items: stretch;
+        flex-direction: column-reverse;
+    }
+
+    .project-create-actions .btn,
+    .project-create-actions .btn-link {
+        width: 100%;
+        margin-left: 0 !important;
+    }
+}

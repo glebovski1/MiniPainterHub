@@ -72,9 +72,9 @@
                 </NavLink>
             </li>
             <li class="nav-item">
-                <NavLink class="nav-link atelier-nav__link" href="/posts/top" @onclick="CloseNavigationAsync">
-                    <i class="bi bi-trophy" aria-hidden="true"></i>
-                    <span>Top posts</span>
+                <NavLink class="nav-link atelier-nav__link" href="/projects" data-testid="nav-projects" @onclick="CloseNavigationAsync">
+                    <i class="bi bi-images" aria-hidden="true"></i>
+                    <span>Projects</span>
                 </NavLink>
             </li>
             <li class="nav-item">
@@ -102,6 +102,15 @@
                 <ul class="dropdown-menu dropdown-menu-end atelier-nav__dropdown" aria-labelledby="navMoreMenu">
                     <li>
                         <NavLink class="dropdown-item atelier-nav__dropdown-item"
+                                 href="/posts/top"
+                                 data-testid="nav-more-top-posts"
+                                 @onclick="CloseNavigationAsync">
+                            <i class="bi bi-trophy" aria-hidden="true"></i>
+                            <span>Top posts</span>
+                        </NavLink>
+                    </li>
+                    <li>
+                        <NavLink class="dropdown-item atelier-nav__dropdown-item"
                                  href="/home"
                                  data-testid="nav-more-highlights"
                                  @onclick="CloseNavigationAsync">
@@ -116,6 +125,24 @@
                                  @onclick="CloseNavigationAsync">
                             <i class="bi bi-info-circle" aria-hidden="true"></i>
                             <span>About</span>
+                        </NavLink>
+                    </li>
+                    <li>
+                        <NavLink class="dropdown-item atelier-nav__dropdown-item"
+                                 href="/privacy"
+                                 data-testid="nav-more-privacy"
+                                 @onclick="CloseNavigationAsync">
+                            <i class="bi bi-shield-check" aria-hidden="true"></i>
+                            <span>Privacy</span>
+                        </NavLink>
+                    </li>
+                    <li>
+                        <NavLink class="dropdown-item atelier-nav__dropdown-item"
+                                 href="/terms"
+                                 data-testid="nav-more-terms"
+                                 @onclick="CloseNavigationAsync">
+                            <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+                            <span>Terms</span>
                         </NavLink>
                     </li>
                 </ul>

@@ -35,6 +35,7 @@ public class Program
         //------------------------------------------------------------
         builder.Services
             .AddScoped<ITokenStore, LocalStorageTokenStore>()
+            .AddScoped<ExternalAuthFlowState>()
             .AddScoped<JwtAuthenticationStateProvider>()
             .AddScoped<AuthenticationStateProvider>(sp =>
                 sp.GetRequiredService<JwtAuthenticationStateProvider>());
@@ -55,6 +56,7 @@ public class Program
         builder.Services.AddScoped<ApiClient>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IPostService, PostService>();
+        builder.Services.AddScoped<IHobbyProjectService, HobbyProjectService>();
         builder.Services.AddScoped<IPostViewerService, PostViewerService>();
         builder.Services.AddScoped<IPaintingGuideService, PaintingGuideService>();
         builder.Services.AddScoped<INewsAnnouncementService, NewsAnnouncementService>();

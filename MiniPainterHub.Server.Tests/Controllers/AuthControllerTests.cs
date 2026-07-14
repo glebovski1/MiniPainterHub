@@ -310,4 +310,28 @@ public class AuthControllerTests
         var payload = await duplicate.Content.ReadAsStringAsync();
         payload.Should().Contain("DuplicateUserName");
     }
+
+    [Fact]
+    public async Task Register_WhenEmailAlreadyBelongsToDifferentUser_ReturnsDuplicateEmailValidation()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateClient();
+        await client.PostAsJsonAsync("/api/auth/register", new RegisterDto
+        {
+            UserName = "first-user",
+            Email = "shared@example.test",
+            Password = "ValidPass123!"
+        });
+
+        var duplicate = await client.PostAsJsonAsync("/api/auth/register", new RegisterDto
+        {
+            UserName = "second-user",
+            Email = "shared@example.test",
+            Password = "ValidPass123!"
+        });
+
+        duplicate.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await duplicate.Content.ReadAsStringAsync()).Should().Contain("DuplicateEmail");
+    }
 }

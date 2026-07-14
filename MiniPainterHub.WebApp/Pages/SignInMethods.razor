@@ -1,0 +1,259 @@
+@page "/account/sign-in-methods"
+@attribute [Authorize]
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Sign-in methods</PageTitle>
+
+<div class="page-shell account-security-page">
+    <section class="surface-card account-security-hero">
+        <div>
+            <p class="section-label mb-2">Account security</p>
+            <h1 class="h2 mb-2">Sign-in methods</h1>
+            <p class="text-muted mb-0">Control how you return to MiniPainterHub without changing your public profile or community roles.</p>
+        </div>
+        <i class="bi bi-shield-lock account-security-hero__icon" aria-hidden="true"></i>
+    </section>
+
+    @if (_loading)
+    {
+        <div class="status-panel status-panel--info" data-testid="sign-in-methods-loading">
+            <div class="status-panel__icon"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span></div>
+            <div><div class="status-panel__title">Loading account security</div></div>
+        </div>
+    }
+    else if (_methods is null)
+    {
+        <div class="status-panel status-panel--error" role="alert" data-testid="sign-in-methods-error">
+            <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Sign-in methods are unavailable</div>
+                <p class="status-panel__text mb-0">Try loading the page again.</p>
+            </div>
+        </div>
+        <button class="btn btn-primary align-self-start" @onclick="LoadAsync">Retry</button>
+    }
+    else
+    {
+        @if (IsLinked)
+        {
+            <div class="status-panel status-panel--success" role="status" data-testid="google-link-success">
+                <div class="status-panel__icon"><i class="bi bi-check-circle" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Google is connected</div>
+                    <p class="status-panel__text mb-0">You can use Google the next time you sign in.</p>
+                </div>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_statusMessage))
+        {
+            <div class="status-panel status-panel--success" role="status" data-testid="sign-in-methods-status">
+                <div class="status-panel__icon"><i class="bi bi-check-circle" aria-hidden="true"></i></div>
+                <div><p class="status-panel__text mb-0">@_statusMessage</p></div>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <div class="status-panel status-panel--error" role="alert" data-testid="sign-in-methods-action-error">
+                <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                <div><p class="status-panel__text mb-0">@_error</p></div>
+            </div>
+        }
+
+        <div class="account-method-grid" data-testid="sign-in-methods-content">
+            <article class="surface-card account-method-card">
+                <div class="account-method-card__header">
+                    <div class="account-method-card__icon"><i class="bi bi-key" aria-hidden="true"></i></div>
+                    <div>
+                        <h2 class="h4 mb-1">Username and password</h2>
+                        <p class="text-muted mb-0">@(_methods.HasPassword ? "Available as a reliable local sign-in method." : "No local password has been set yet.")</p>
+                    </div>
+                    <span class="account-method-badge @(_methods.HasPassword ? "is-connected" : string.Empty)">
+                        @(_methods.HasPassword ? "Available" : "Not set")
+                    </span>
+                </div>
+
+                @if (!_methods.HasPassword)
+                {
+                    <EditForm Model="@_password" OnValidSubmit="SetPasswordAsync" data-testid="set-password-form" class="account-method-form">
+                        <DataAnnotationsValidator />
+                        <div>
+                            <label for="new-password" class="form-label">New password</label>
+                            <InputText id="new-password" type="password" autocomplete="new-password" class="form-control" data-testid="set-password-new" @bind-Value="_password.NewPassword" />
+                            <ValidationMessage For="@(() => _password.NewPassword)" class="text-danger small" />
+                        </div>
+                        <div>
+                            <label for="confirm-password" class="form-label">Confirm password</label>
+                            <InputText id="confirm-password" type="password" autocomplete="new-password" class="form-control" data-testid="set-password-confirm" @bind-Value="_password.ConfirmPassword" />
+                            <ValidationMessage For="@(() => _password.ConfirmPassword)" class="text-danger small" />
+                        </div>
+                        <button class="btn btn-primary" type="submit" disabled="@_busy" data-testid="set-password-submit">
+                            @(_busy ? "Saving..." : "Set local password")
+                        </button>
+                    </EditForm>
+                }
+            </article>
+
+            <article class="surface-card account-method-card">
+                <div class="account-method-card__header">
+                    <div class="account-method-card__icon account-method-card__icon--google" aria-hidden="true">
+                        <img src="brand/google-g-logo.png" width="22" height="23" alt="" />
+                    </div>
+                    <div>
+                        <h2 class="h4 mb-1">Google</h2>
+                        <p class="text-muted mb-0">@(_methods.GoogleConnected ? "Connected to this MiniPainterHub account." : "Use a verified Google account for faster sign-in.")</p>
+                    </div>
+                    <span class="account-method-badge @(_methods.GoogleConnected ? "is-connected" : string.Empty)">
+                        @(_methods.GoogleConnected ? "Connected" : "Not connected")
+                    </span>
+                </div>
+
+                @if (!_methods.GoogleConnected)
+                {
+                    @if (_providers.Google.Enabled)
+                    {
+                        <button class="btn btn-outline-primary align-self-start" @onclick="ConnectGoogleAsync" disabled="@_busy" data-testid="connect-google">
+                            @(_busy ? "Preparing Google..." : "Connect Google")
+                        </button>
+                    }
+                    else
+                    {
+                        <p class="account-method-card__note mb-0" data-testid="google-provider-disabled">Google connection is not enabled on this deployment.</p>
+                    }
+                }
+                else if (!_methods.CanDisconnectGoogle)
+                {
+                    <p class="account-method-card__note mb-0" data-testid="google-disconnect-blocked">Google is your only sign-in method. Set a local password before disconnecting it.</p>
+                }
+                else if (!_confirmDisconnect)
+                {
+                    <button class="btn btn-outline-danger align-self-start" @onclick="() => _confirmDisconnect = true" data-testid="disconnect-google">Disconnect Google</button>
+                }
+                else
+                {
+                    <div class="account-method-confirm" data-testid="disconnect-google-confirmation">
+                        <p class="mb-0">Future Google sign-in will stop immediately. Your current session stays active.</p>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button class="btn btn-danger" @onclick="DisconnectGoogleAsync" disabled="@_busy" data-testid="disconnect-google-confirm">Confirm disconnect</button>
+                            <button class="btn btn-outline-secondary" @onclick="() => _confirmDisconnect = false" disabled="@_busy">Cancel</button>
+                        </div>
+                    </div>
+                }
+            </article>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "linked")]
+    public bool Linked { get; set; }
+
+    private AuthProvidersDto _providers = new();
+    private SignInMethodsDto? _methods;
+    private readonly PasswordSetupModel _password = new();
+    private bool _loading = true;
+    private bool _busy;
+    private bool _confirmDisconnect;
+    private string? _statusMessage;
+    private string? _error;
+
+    private bool IsLinked => Linked
+        || bool.TryParse(LocalReturnUrl.GetQueryParameter(Navigation.Uri, "linked"), out var linked) && linked;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        _providers = await AuthService.GetProvidersAsync();
+        _methods = await AuthService.GetSignInMethodsAsync();
+        _loading = false;
+    }
+
+    private async Task ConnectGoogleAsync()
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        try
+        {
+            var start = await AuthService.BeginGoogleLinkAsync();
+            if (start is null || string.IsNullOrWhiteSpace(start.StartUrl))
+            {
+                _error = "Google connection could not be started. Try again.";
+                return;
+            }
+
+            Navigation.NavigateTo(start.StartUrl, forceLoad: true);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task SetPasswordAsync()
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        _statusMessage = null;
+        try
+        {
+            var updated = await AuthService.SetPasswordAsync(new SetPasswordDto { NewPassword = _password.NewPassword });
+            if (updated is null)
+            {
+                _error = "The password could not be set. Check the password requirements and try again.";
+                return;
+            }
+
+            _methods = updated;
+            _password.NewPassword = string.Empty;
+            _password.ConfirmPassword = string.Empty;
+            _statusMessage = "Your local password is ready to use.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DisconnectGoogleAsync()
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        _statusMessage = null;
+        try
+        {
+            var updated = await AuthService.DisconnectGoogleAsync();
+            if (updated is null)
+            {
+                _error = "Google could not be disconnected. Make sure another sign-in method is available.";
+                return;
+            }
+
+            _methods = updated;
+            _confirmDisconnect = false;
+            _statusMessage = "Google was disconnected. Your current session remains active.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private sealed class PasswordSetupModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string NewPassword { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.Compare(nameof(NewPassword), ErrorMessage = "Passwords do not match.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

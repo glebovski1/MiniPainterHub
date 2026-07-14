@@ -1,0 +1,648 @@
+@page "/projects/{Id:int}"
+@using System.Security.Claims
+@inject IHobbyProjectService Projects
+@inject IModerationService Moderation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Nav
+
+<PageTitle>@(_project?.Title ?? "Hobby project")</PageTitle>
+
+<div class="page-shell content-stack project-details-page">
+    @if (_loading)
+    {
+        <div class="status-panel status-panel--info" aria-live="polite" data-testid="project-details-loading">
+            <div class="status-panel__icon"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Opening the project workbench</div>
+                <p class="status-panel__text mb-0">Loading project details and its latest progress.</p>
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="status-panel status-panel--error" role="alert" data-testid="project-details-error">
+            <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+            <div>
+                <div class="status-panel__title">Project unavailable</div>
+                <p class="status-panel__text mb-0">@_error</p>
+            </div>
+            <button class="btn btn-link btn-sm ms-auto" type="button" @onclick="LoadProjectAsync">Retry</button>
+        </div>
+    }
+    else if (_project is not null)
+    {
+        <nav aria-label="Breadcrumb">
+            <NavLink class="project-details-back" href="@(_isOwner ? "/projects/mine" : "/projects")">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                <span>@(_isOwner ? "Back to my projects" : "Back to projects")</span>
+            </NavLink>
+        </nav>
+
+        @if (_project.IsHidden)
+        {
+            <div class="status-panel status-panel--warning" role="status" data-testid="project-hidden-state">
+                <div class="status-panel__icon"><i class="bi bi-eye-slash" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Hidden by moderation</div>
+                    <p class="status-panel__text mb-0">This project is not visible in public project lists.</p>
+                </div>
+            </div>
+        }
+        else if (_project.IsArchived)
+        {
+            <div class="status-panel status-panel--info" role="status" data-testid="project-archived-state">
+                <div class="status-panel__icon"><i class="bi bi-inbox" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Archived project</div>
+                    <p class="status-panel__text mb-0">Restore it from project settings when you are ready to continue.</p>
+                </div>
+            </div>
+        }
+
+        <section class="project-details-hero" data-testid="project-details-hero">
+            <div class="project-details-hero__cover">
+                @if (!string.IsNullOrWhiteSpace(ProjectCoverUrl))
+                {
+                    <img src="@ProjectCoverUrl" alt="@ProjectCoverAlt" />
+                }
+                else
+                {
+                    <div class="project-details-hero__placeholder" aria-hidden="true">
+                        <i class="bi bi-images"></i>
+                        <span>The first linked image can become this cover</span>
+                    </div>
+                }
+            </div>
+
+            <div class="project-details-hero__body">
+                <div class="project-details-hero__badges">
+                    <span class="@StatusClass">@FormatStatus(_project.Status)</span>
+                    <span class="badge text-bg-light">@_project.Kind</span>
+                    @if (!_project.IsPublic && !_project.IsArchived && !_project.IsHidden)
+                    {
+                        <span class="badge text-bg-light">Visible to owner</span>
+                    }
+                </div>
+
+                <div>
+                    <p class="page-hero__eyebrow">Hobby project</p>
+                    <h1>@_project.Title</h1>
+                    <p class="project-details-hero__description">@_project.Description</p>
+                </div>
+
+                <NavLink class="project-details-owner" href="@($"/users/{_project.OwnerUserId}")">
+                    <UserAvatar ImageUrl="@_project.OwnerAvatarUrl"
+                                Name="@OwnerName"
+                                Size="36"
+                                ClassName="project-details-owner__avatar" />
+                    <span>
+                        <small>Project by</small>
+                        <strong>@OwnerName</strong>
+                    </span>
+                </NavLink>
+
+                @if (!string.IsNullOrWhiteSpace(_project.Goal))
+                {
+                    <div class="project-details-goal">
+                        <i class="bi bi-crosshair2" aria-hidden="true"></i>
+                        <div>
+                            <span>Project goal</span>
+                            <strong>@_project.Goal</strong>
+                        </div>
+                    </div>
+                }
+
+                <div class="project-details-hero__actions">
+                    @if (_isOwner)
+                    {
+                        @if (!_project.IsHidden && !_project.IsArchived)
+                        {
+                            <NavLink class="btn btn-primary" href="@($"/posts/new?projectId={_project.Id}")" data-testid="project-add-update-link">
+                                <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                                <span>Add progress post</span>
+                            </NavLink>
+                        }
+                        <NavLink class="btn btn-outline-secondary" href="@($"/projects/{_project.Id}/edit")" data-testid="project-edit-link">
+                            <i class="bi bi-pencil" aria-hidden="true"></i>
+                            <span>Manage project</span>
+                        </NavLink>
+                    }
+                </div>
+            </div>
+        </section>
+
+        <section class="project-detail-facts" aria-label="Project details">
+            <div>
+                <span>Updates</span>
+                <strong>@_project.EntryCount</strong>
+            </div>
+            <div>
+                <span>Showcase picks</span>
+                <strong>@_project.ShowcaseCount</strong>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_project.GameSystem))
+            {
+                <div>
+                    <span>Game system</span>
+                    <strong>@_project.GameSystem</strong>
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(_project.FactionTheme))
+            {
+                <div>
+                    <span>Faction or theme</span>
+                    <strong>@_project.FactionTheme</strong>
+                </div>
+            }
+            <div>
+                <span>Started</span>
+                <strong>@FormatStartDate(_project)</strong>
+            </div>
+            <div>
+                <span>Last update</span>
+                <strong>@_project.UpdatedUtc.ToLocalTime().ToString("MMM d, yyyy")</strong>
+            </div>
+        </section>
+
+        @if (_project.HasCurationWarning && _isOwner)
+        {
+            <div class="status-panel status-panel--warning" role="status" data-testid="project-curation-warning">
+                <div class="status-panel__icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Showcase needs a finishing pass</div>
+                    <p class="status-panel__text mb-0">Choose at least one image-backed update before marking this project completed.</p>
+                </div>
+                <NavLink class="btn btn-outline-secondary btn-sm ms-auto" href="@($"/projects/{_project.Id}/edit")">Curate showcase</NavLink>
+            </div>
+        }
+
+        <section class="project-content-section" aria-labelledby="project-content-heading">
+            <div class="project-content-heading">
+                <div>
+                    <span class="section-label">Project story</span>
+                    <h2 id="project-content-heading">@(_activeView == ProjectView.Diary ? "Painting diary" : "Finished showcase")</h2>
+                </div>
+                <div class="project-view-tabs" role="tablist" aria-label="Project views">
+                    <button class="@GetTabClass(ProjectView.Diary)"
+                            id="project-diary-tab"
+                            type="button"
+                            role="tab"
+                            aria-selected="@GetAriaSelected(ProjectView.Diary)"
+                            aria-controls="project-diary-panel"
+                            data-testid="project-diary-tab"
+                            @onclick="() => SelectViewAsync(ProjectView.Diary)">
+                        <i class="bi bi-journal-text" aria-hidden="true"></i>
+                        Diary <span>@_project.EntryCount</span>
+                    </button>
+                    <button class="@GetTabClass(ProjectView.Showcase)"
+                            id="project-showcase-tab"
+                            type="button"
+                            role="tab"
+                            aria-selected="@GetAriaSelected(ProjectView.Showcase)"
+                            aria-controls="project-showcase-panel"
+                            data-testid="project-showcase-tab"
+                            @onclick="() => SelectViewAsync(ProjectView.Showcase)">
+                        <i class="bi bi-images" aria-hidden="true"></i>
+                        Showcase <span>@_project.ShowcaseCount</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="@ActivePanelId"
+                 class="project-view-panel"
+                 role="tabpanel"
+                 aria-labelledby="@ActiveTabId"
+                 tabindex="0">
+            @if (_entriesLoading)
+            {
+                <div class="status-panel status-panel--info" aria-live="polite" data-testid="project-entries-loading">
+                    <div class="status-panel__icon"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></div>
+                    <div>
+                        <div class="status-panel__title">Loading @(_activeView == ProjectView.Diary ? "diary" : "showcase")</div>
+                        <p class="status-panel__text mb-0">Preparing the selected project posts.</p>
+                    </div>
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(_entriesError))
+            {
+                <div class="status-panel status-panel--error" role="alert" data-testid="project-entries-error">
+                    <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                    <div>
+                        <div class="status-panel__title">Project posts unavailable</div>
+                        <p class="status-panel__text mb-0">@_entriesError</p>
+                    </div>
+                    <button class="btn btn-link btn-sm ms-auto" type="button" @onclick="LoadEntriesAsync">Retry</button>
+                </div>
+            }
+            else if (_entries.Count == 0)
+            {
+                <EmptyState IconClass="@(_activeView == ProjectView.Diary ? "bi bi-journal-text" : "bi bi-images")"
+                            Title="@(_activeView == ProjectView.Diary ? "No diary updates yet" : "No showcase picks yet")"
+                            Description="@BuildEmptyDescription()"
+                            TitleClass="empty-state__title h4"
+                            TestId="project-entries-empty">
+                    @if (_isOwner && (_activeView == ProjectView.Showcase || (!_project.IsHidden && !_project.IsArchived)))
+                    {
+                        <NavLink class="btn btn-primary mt-2" href="@(_activeView == ProjectView.Diary ? $"/posts/new?projectId={_project.Id}" : $"/projects/{_project.Id}/edit")">
+                            @(_activeView == ProjectView.Diary ? "Publish the first update" : "Choose showcase posts")
+                        </NavLink>
+                    }
+                </EmptyState>
+            }
+            else if (_activeView == ProjectView.Diary)
+            {
+                <ol class="project-diary" data-testid="project-diary">
+                    @foreach (var entry in _entries)
+                    {
+                        <li id="@GetPostAnchor(entry.PostId)" class="project-diary__entry">
+                            <div class="project-diary__rail" aria-hidden="true">
+                                <span class="@(string.IsNullOrWhiteSpace(entry.MilestoneLabel) ? string.Empty : "project-diary__dot--milestone")"></span>
+                            </div>
+                            <div class="project-diary__content">
+                                <div class="project-diary__meta">
+                                    <span>@entry.Post.CreatedAt.ToLocalTime().ToString("MMM d, yyyy")</span>
+                                    @if (!string.IsNullOrWhiteSpace(entry.MilestoneLabel))
+                                    {
+                                        <strong><i class="bi bi-flag" aria-hidden="true"></i>@entry.MilestoneLabel</strong>
+                                    }
+                                </div>
+                                <PostCard Post="entry.Post" />
+                            </div>
+                        </li>
+                    }
+                </ol>
+            }
+            else
+            {
+                <div class="project-showcase" data-testid="project-showcase">
+                    @foreach (var entry in _entries)
+                    {
+                        <article class="project-showcase-card">
+                            <NavLink class="project-showcase-card__media" href="@($"/posts/{entry.PostId}")">
+                                @if (!string.IsNullOrWhiteSpace(ResolvePostImage(entry.Post)))
+                                {
+                                    <img src="@ResolvePostImage(entry.Post)"
+                                         alt="@GetShowcaseAlt(entry)"
+                                         loading="lazy"
+                                         @onerror="() => HandlePostImageError(entry.Post)" />
+                                }
+                                else
+                                {
+                                    <span aria-hidden="true"><i class="bi bi-image"></i></span>
+                                }
+                                @if (entry.ShowcaseOrder.HasValue)
+                                {
+                                    <small>#@entry.ShowcaseOrder.Value</small>
+                                }
+                            </NavLink>
+                            <div class="project-showcase-card__body">
+                                @if (!string.IsNullOrWhiteSpace(entry.MilestoneLabel))
+                                {
+                                    <span class="project-showcase-card__milestone"><i class="bi bi-flag" aria-hidden="true"></i>@entry.MilestoneLabel</span>
+                                }
+                                <NavLink href="@($"/posts/{entry.PostId}")">@entry.Post.Title</NavLink>
+                                <span>@entry.Post.CreatedAt.ToLocalTime().ToString("MMM d, yyyy")</span>
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+
+            @if (!_entriesLoading && string.IsNullOrWhiteSpace(_entriesError) && _entries.Count > 0 && _entryTotalPages > 1)
+            {
+                <nav class="paginator-bar" aria-label="Project post pages">
+                    <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="PreviousEntriesPageAsync" disabled="@(_entryPage <= 1 || _entriesLoading)">Previous</button>
+                    <span>Page @_entryPage of @_entryTotalPages</span>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="NextEntriesPageAsync" disabled="@(_entryPage >= _entryTotalPages || _entriesLoading)">Next</button>
+                </nav>
+            }
+            </div>
+        </section>
+
+        @if (_isAuthenticated && !_isOwner)
+        {
+            <section class="project-safety-actions" aria-label="Project safety actions">
+                <ReportAction TargetType="@ReportTargetTypes.HobbyProject"
+                              TargetId="@(Id.ToString())"
+                              OwnerUserId="@_project.OwnerUserId"
+                              TestIdPrefix="project-report" />
+
+                @if (_canModerate)
+                {
+                    <div class="project-moderation" data-testid="project-moderation-controls">
+                        <button class="@(_project.IsHidden ? "btn btn-outline-secondary btn-sm" : "btn btn-outline-warning btn-sm")"
+                                type="button"
+                                data-testid="@(_project.IsHidden ? "project-restore" : "project-hide")"
+                                @onclick="OpenModerationPanel"
+                                disabled="@_moderationBusy">
+                            <i class="bi @(_project.IsHidden ? "bi-check-circle" : "bi-eye-slash")" aria-hidden="true"></i>
+                            <span>@(_project.IsHidden ? "Restore project" : "Hide project")</span>
+                        </button>
+
+                        @if (_moderationPanelOpen)
+                        {
+                            <div class="project-moderation__panel">
+                                <label class="form-label" for="project-moderation-reason">Moderation reason</label>
+                                <InputTextArea id="project-moderation-reason" class="form-control" rows="3" @bind-Value="_moderationReason" />
+                                <div class="project-moderation__actions">
+                                    <button class="btn btn-link btn-sm" type="button" @onclick="CloseModerationPanel" disabled="@_moderationBusy">Cancel</button>
+                                    <button class="btn btn-warning btn-sm" type="button" data-testid="project-moderation-confirm" @onclick="ModerateAsync" disabled="@_moderationBusy">
+                                        @(_moderationBusy ? "Saving..." : (_project.IsHidden ? "Confirm restore" : "Confirm hide"))
+                                    </button>
+                                </div>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(_moderationError))
+                        {
+                            <div class="text-danger small" role="alert" data-testid="project-moderation-error">@_moderationError</div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(_moderationResult))
+                        {
+                            <div class="text-success small" role="status" data-testid="project-moderation-result">@_moderationResult</div>
+                        }
+                    </div>
+                }
+            </section>
+        }
+    }
+</div>
+
+@code {
+    private const int DiaryPageSize = 12;
+    private const int ShowcasePageSize = HobbyProjectRules.MaxShowcaseEntries;
+
+    [Parameter]
+    public int Id { get; set; }
+
+    [Parameter, SupplyParameterFromQuery(Name = "view")]
+    public string? View { get; set; }
+
+    private HobbyProjectDto? _project;
+    private IReadOnlyList<HobbyProjectEntryDto> _entries = Array.Empty<HobbyProjectEntryDto>();
+    private ProjectView _activeView = ProjectView.Diary;
+    private int _entryPage = 1;
+    private int _entryTotalPages = 1;
+    private bool _loading = true;
+    private bool _entriesLoading;
+    private bool _isAuthenticated;
+    private bool _isOwner;
+    private bool _canModerate;
+    private bool _moderationPanelOpen;
+    private bool _moderationBusy;
+    private string? _error;
+    private string? _entriesError;
+    private string? _moderationReason;
+    private string? _moderationError;
+    private string? _moderationResult;
+    private readonly HashSet<int> _fullImagePostIds = new();
+
+    private string? ProjectCoverUrl => _project?.CoverImageUrl ?? _project?.CoverThumbnailUrl;
+    private string ProjectCoverAlt => _project is null ? "Hobby project cover" : $"{_project.Title} project cover";
+    private string OwnerName => _project is null
+        ? string.Empty
+        : string.IsNullOrWhiteSpace(_project.OwnerDisplayName) ? _project.OwnerUserName : _project.OwnerDisplayName;
+    private string ActivePanelId => _activeView == ProjectView.Diary ? "project-diary-panel" : "project-showcase-panel";
+    private string ActiveTabId => _activeView == ProjectView.Diary ? "project-diary-tab" : "project-showcase-tab";
+    private string GetAriaSelected(ProjectView view) => _activeView == view ? "true" : "false";
+
+    private string StatusClass => _project?.Status switch
+    {
+        HobbyProjectStatuses.InProgress => "badge text-bg-primary",
+        HobbyProjectStatuses.OnHold => "badge text-bg-warning",
+        HobbyProjectStatuses.Completed => "badge text-bg-success",
+        _ => "badge text-bg-secondary"
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadProjectAsync();
+    }
+
+    private async Task LoadProjectAsync()
+    {
+        _loading = true;
+        _error = null;
+        _entries = Array.Empty<HobbyProjectEntryDto>();
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var currentUserId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            _isAuthenticated = authState.User.Identity?.IsAuthenticated == true;
+
+            var result = await Projects.GetAsync(Id);
+            if (!result.Success || result.Value is null)
+            {
+                _project = null;
+                _error = result.StatusCode == System.Net.HttpStatusCode.NotFound
+                    ? "This project may be private, archived, hidden, or no longer available."
+                    : "We couldn't load this project. Please try again.";
+                return;
+            }
+
+            _project = result.Value;
+            _isOwner = string.Equals(currentUserId, _project.OwnerUserId, StringComparison.Ordinal);
+            var isStaff = authState.User.IsInRole("Admin") || authState.User.IsInRole("Moderator");
+            _canModerate = isStaff && !_isOwner;
+            _activeView = ResolveRequestedView(_project);
+            _entryPage = 1;
+            await LoadEntriesAsync();
+        }
+        catch
+        {
+            _project = null;
+            _error = "We couldn't load this project. Please try again.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadEntriesAsync()
+    {
+        if (_project is null)
+        {
+            return;
+        }
+
+        _entriesLoading = true;
+        _entriesError = null;
+        try
+        {
+            var pageSize = _activeView == ProjectView.Diary ? DiaryPageSize : ShowcasePageSize;
+            var result = _activeView == ProjectView.Diary
+                ? await Projects.GetDiaryAsync(Id, _entryPage, pageSize)
+                : await Projects.GetShowcaseAsync(Id, _entryPage, pageSize);
+
+            if (!result.Success || result.Value is null)
+            {
+                _entries = Array.Empty<HobbyProjectEntryDto>();
+                _entryTotalPages = 1;
+                _entriesError = "We couldn't load this project view. Please try again.";
+                return;
+            }
+
+            _entries = result.Value.Items.ToList();
+            _entryTotalPages = Math.Max(1, (int)Math.Ceiling(result.Value.TotalCount / (double)Math.Max(1, result.Value.PageSize)));
+        }
+        catch
+        {
+            _entries = Array.Empty<HobbyProjectEntryDto>();
+            _entryTotalPages = 1;
+            _entriesError = "We couldn't load this project view. Please try again.";
+        }
+        finally
+        {
+            _entriesLoading = false;
+        }
+    }
+
+    private async Task SelectViewAsync(ProjectView view)
+    {
+        if (_activeView == view)
+        {
+            return;
+        }
+
+        _activeView = view;
+        View = view == ProjectView.Diary ? "diary" : "showcase";
+        _entryPage = 1;
+        Nav.NavigateTo($"/projects/{Id}?view={View}", replace: true);
+        await LoadEntriesAsync();
+    }
+
+    private async Task PreviousEntriesPageAsync()
+    {
+        _entryPage--;
+        await LoadEntriesAsync();
+    }
+
+    private async Task NextEntriesPageAsync()
+    {
+        _entryPage++;
+        await LoadEntriesAsync();
+    }
+
+    private void OpenModerationPanel()
+    {
+        _moderationPanelOpen = true;
+        _moderationError = null;
+        _moderationResult = null;
+        _moderationReason = _project?.IsHidden == true ? "Restored after moderator review." : null;
+    }
+
+    private void CloseModerationPanel()
+    {
+        _moderationPanelOpen = false;
+        _moderationReason = null;
+    }
+
+    private async Task ModerateAsync()
+    {
+        if (_project is null || !_canModerate || _moderationBusy)
+        {
+            return;
+        }
+
+        if (!_project.IsHidden && string.IsNullOrWhiteSpace(_moderationReason))
+        {
+            _moderationError = "Add a reason before hiding this project.";
+            return;
+        }
+
+        _moderationBusy = true;
+        _moderationError = null;
+        _moderationResult = null;
+        var restoring = _project.IsHidden;
+        try
+        {
+            var request = new ModerationActionRequestDto { Reason = _moderationReason?.Trim() };
+            var success = restoring
+                ? await Moderation.RestoreProjectAsync(Id, request)
+                : await Moderation.HideProjectAsync(Id, request);
+
+            if (!success)
+            {
+                _moderationError = "The moderation action could not be completed.";
+                return;
+            }
+
+            _project.IsHidden = !restoring;
+            _moderationPanelOpen = false;
+            _moderationReason = null;
+            _moderationResult = restoring ? "Project restored." : "Project hidden.";
+        }
+        catch
+        {
+            _moderationError = "The moderation action could not be completed.";
+        }
+        finally
+        {
+            _moderationBusy = false;
+        }
+    }
+
+    private string GetTabClass(ProjectView view) => _activeView == view
+        ? "project-view-tab project-view-tab--active"
+        : "project-view-tab";
+
+    private string BuildEmptyDescription() => _activeView == ProjectView.Diary
+        ? _isOwner
+            ? "Publish or attach a post to begin the chronological painting diary."
+            : "The painter has not published a project update yet."
+        : _isOwner
+            ? "Choose the strongest image-backed posts in project settings."
+            : "The painter has not curated the finished view yet.";
+
+    private static string FormatStatus(string status) => status switch
+    {
+        HobbyProjectStatuses.InProgress => "In progress",
+        HobbyProjectStatuses.OnHold => "On hold",
+        HobbyProjectStatuses.Completed => "Completed",
+        _ => "Planning"
+    };
+
+    private static string FormatStartDate(HobbyProjectDto project) => project.StartDate.HasValue
+        ? project.StartDate.Value.ToString("MMM d, yyyy")
+        : project.CreatedUtc.ToLocalTime().ToString("MMM d, yyyy");
+
+    private string? ResolvePostImage(PostSummaryDto post) =>
+        _fullImagePostIds.Contains(post.Id)
+            ? post.ImageUrl ?? post.ThumbnailUrl
+            : post.ThumbnailUrl ?? post.ImageUrl;
+
+    private void HandlePostImageError(PostSummaryDto post)
+    {
+        if (!string.IsNullOrWhiteSpace(post.ImageUrl)
+            && !string.Equals(post.ThumbnailUrl, post.ImageUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            _fullImagePostIds.Add(post.Id);
+        }
+    }
+    private static string GetShowcaseAlt(HobbyProjectEntryDto entry) => $"{entry.Post.Title} showcase image";
+    private static string GetPostAnchor(int postId) => $"post-{postId}";
+
+    private ProjectView ResolveRequestedView(HobbyProjectDto project)
+    {
+        if (string.Equals(View, "diary", StringComparison.OrdinalIgnoreCase))
+        {
+            return ProjectView.Diary;
+        }
+
+        if (string.Equals(View, "showcase", StringComparison.OrdinalIgnoreCase))
+        {
+            return ProjectView.Showcase;
+        }
+
+        return project.Status == HobbyProjectStatuses.Completed && project.ShowcaseCount > 0
+            ? ProjectView.Showcase
+            : ProjectView.Diary;
+    }
+
+    private enum ProjectView
+    {
+        Diary,
+        Showcase
+    }
+}
