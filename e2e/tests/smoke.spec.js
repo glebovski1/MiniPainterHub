@@ -461,10 +461,10 @@ test("new and returning Google user completes the full fake-provider flow", asyn
     response.request().method() === "POST" && response.url().endsWith("/api/auth/external/register"));
   await page.getByTestId("external-registration-submit").click();
   const registrationResponse = await registrationResponsePromise;
-  expect(
-    registrationResponse.ok(),
-    `External registration failed with HTTP ${registrationResponse.status()}: ${await registrationResponse.text()}`,
-  ).toBeTruthy();
+  if (!registrationResponse.ok()) {
+    const responseBody = await registrationResponse.text().catch(() => "<response body unavailable>");
+    throw new Error(`External registration failed with HTTP ${registrationResponse.status()}: ${responseBody}`);
+  }
   await expect(page).toHaveURL(/\/profile$/);
   await expect(page.getByTestId("nav-logout")).toBeVisible();
 
