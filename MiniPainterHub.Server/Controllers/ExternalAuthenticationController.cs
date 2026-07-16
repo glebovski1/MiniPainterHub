@@ -255,8 +255,7 @@ public sealed class ExternalAuthenticationController : ControllerBase
         var value = returnUrl.Trim();
         if (!value.StartsWith("/", StringComparison.Ordinal)
             || value.StartsWith("//", StringComparison.Ordinal)
-            || value.Contains("\\", StringComparison.Ordinal)
-            || Uri.TryCreate(value, UriKind.Absolute, out _))
+            || value.Contains("\\", StringComparison.Ordinal))
         {
             return "/";
         }
