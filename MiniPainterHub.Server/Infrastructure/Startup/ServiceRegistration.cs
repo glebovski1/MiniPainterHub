@@ -173,7 +173,7 @@ public partial class Program
                 options.ClaimActions.Add(new JsonKeyClaimAction(
                     "urn:google:email_verified",
                     ClaimValueTypes.Boolean,
-                    "verified_email"));
+                    "email_verified"));
                 options.Events.OnRemoteFailure = context =>
                 {
                     context.HandleResponse();
