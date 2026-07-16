@@ -1636,23 +1636,24 @@ test("hobby project lifecycle stays connected across diary, showcase, discovery,
   await page.getByTestId("create-post-submit").click();
   const publishResponse = await publishResponsePromise;
   expect(publishResponse.ok(), `Project-aware image publish failed with HTTP ${publishResponse.status()}.`).toBeTruthy();
-  const milestonePost = await publishResponse.json();
-  await expect(page).toHaveURL(new RegExp(`/projects/${projectId}\\?view=diary#post-${milestonePost.id}$`));
+  await expect(page).toHaveURL(new RegExp(`/projects/${projectId}\\?view=diary#post-\\d+$`));
+  const milestonePostId = Number(new URL(page.url()).hash.replace("#post-", ""));
+  expect(milestonePostId).toBeGreaterThan(0);
   await expect(page.getByTestId("project-diary")).toContainText("Command group complete");
 
   await sendAuthedRequest(request, userToken, "PUT", `/api/projects/${projectId}/showcase`, {
-    postIds: [attachedPost.id, milestonePost.id],
+    postIds: [attachedPost.id, milestonePostId],
   });
   let showcaseResponse = await request.get(`/api/projects/${projectId}/showcase`);
   let showcase = await showcaseResponse.json();
-  expect(showcase.items.map((entry) => entry.postId)).toEqual([attachedPost.id, milestonePost.id]);
+  expect(showcase.items.map((entry) => entry.postId)).toEqual([attachedPost.id, milestonePostId]);
 
   await sendAuthedRequest(request, userToken, "PUT", `/api/projects/${projectId}/showcase`, {
-    postIds: [milestonePost.id, attachedPost.id],
+    postIds: [milestonePostId, attachedPost.id],
   });
   showcaseResponse = await request.get(`/api/projects/${projectId}/showcase`);
   showcase = await showcaseResponse.json();
-  expect(showcase.items.map((entry) => entry.postId)).toEqual([milestonePost.id, attachedPost.id]);
+  expect(showcase.items.map((entry) => entry.postId)).toEqual([milestonePostId, attachedPost.id]);
 
   await sendAuthedRequest(request, userToken, "PUT", `/api/projects/${projectId}/cover`, {
     postId: attachedPost.id,
@@ -1700,7 +1701,7 @@ test("hobby project lifecycle stays connected across diary, showcase, discovery,
   project = await ownerRead.json();
   expect(project.selectedCoverPostId, "Moving the selected cover must clear the explicit source selection.").toBeNull();
   expect(project.coverPostId, "Moving the selected cover must remove the moved post from the effective cover.").not.toBe(attachedPost.id);
-  expect(project.coverPostId, "The source project should fall back to its remaining showcase image.").toBe(milestonePost.id);
+  expect(project.coverPostId, "The source project should fall back to its remaining showcase image.").toBe(milestonePostId);
   expect(project.entryCount).toBe(2);
 
   let lifecycleResponse = await sendAuthedRequest(request, userToken, "POST", `/api/projects/${projectId}/archive`);
@@ -1721,7 +1722,7 @@ test("hobby project lifecycle stays connected across diary, showcase, discovery,
     reason: "Project lifecycle moderation smoke hide.",
   });
   expect((await request.get(`/api/projects/${projectId}`)).status()).toBe(404);
-  expect((await request.get(`/api/posts/${milestonePost.id}`)).ok(), "Project moderation must not hide linked posts.").toBeTruthy();
+  expect((await request.get(`/api/posts/${milestonePostId}`)).ok(), "Project moderation must not hide linked posts.").toBeTruthy();
   const hiddenOwnerRead = await request.get(`/api/projects/${projectId}`, {
     headers: { Authorization: `Bearer ${userToken}` },
   });
