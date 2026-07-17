@@ -64,7 +64,13 @@ public class MessagesTests : TestContext
         });
 
         var cut = RenderComponent<Messages>(parameters => parameters.Add(p => p.ConversationId, 5));
-        cut.WaitForAssertion(() => cut.Markup.Should().Contain("Other Painter"));
+        cut.WaitForAssertion(() =>
+        {
+            cut.Markup.Should().Contain("Other Painter");
+            cut.Find(".message-conversation-list__content").Should().NotBeNull();
+            cut.Find(".message-conversation-list__preview").Should().NotBeNull();
+            cut.Find(".message-bubble__body").Should().NotBeNull();
+        });
 
         cut.Find("input.form-control").Change("New message");
         cut.Find("button[type='submit']").Click();

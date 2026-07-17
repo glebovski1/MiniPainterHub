@@ -1,0 +1,110 @@
+@page "/confirm-email"
+@inject IAuthService AuthService
+@inject NavigationManager Nav
+@using MiniPainterHub.WebApp.Services.Auth
+
+<PageTitle>Confirm email</PageTitle>
+
+<div class="page-shell">
+    <section class="surface-card auth-card mx-auto">
+        <SectionHeader Eyebrow="Account security"
+                       Title="Confirm your email"
+                       Description="Finish setting up your MiniPainterHub account."
+                       TitleTag="h1"
+                       TitleClass="auth-card__title"
+                       ClassName="section-heading section-heading--auth"
+                       SectionName="Email Confirmation" />
+
+        @if (_loading)
+        {
+            <div class="status-panel status-panel--info mt-4" role="status" data-testid="confirm-email-loading">
+                <div class="spinner-border spinner-border-sm" aria-hidden="true"></div>
+                <div><div class="status-panel__title">Confirming your email</div></div>
+            </div>
+        }
+        else if (_outcome == EmailConfirmationOutcome.Success)
+        {
+            <div class="status-panel status-panel--success mt-4" role="status" data-testid="confirm-email-success">
+                <div class="status-panel__icon"><i class="bi bi-check-circle" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Email confirmed</div>
+                    <p class="status-panel__text mb-0">Your account is ready to use.</p>
+                </div>
+            </div>
+            <NavLink class="btn btn-primary w-100 mt-4" href="@LoginUrl">Sign in</NavLink>
+        }
+        else if (_outcome == EmailConfirmationOutcome.InvalidOrExpired)
+        {
+            <div class="status-panel status-panel--error mt-4" role="alert" data-testid="confirm-email-invalid">
+                <div class="status-panel__icon"><i class="bi bi-link-45deg" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">This link is invalid or expired</div>
+                    <p class="status-panel__text mb-0">Request a fresh confirmation email and try again.</p>
+                </div>
+            </div>
+            <NavLink class="btn btn-primary w-100 mt-4" href="/resend-confirmation">Resend confirmation</NavLink>
+        }
+        else
+        {
+            <div class="status-panel status-panel--error mt-4" role="alert" data-testid="confirm-email-error">
+                <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                <div>
+                    <div class="status-panel__title">Confirmation unavailable</div>
+                    <p class="status-panel__text mb-0">@ErrorMessage</p>
+                </div>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "userId")]
+    public string? UserId { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "code")]
+    public string? Code { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    private EmailConfirmationOutcome? _outcome;
+    private bool _loading = true;
+    private string? _processedKey;
+
+    private string LoginUrl => $"/login?returnUrl={Uri.EscapeDataString(GetSafeReturnUrl())}";
+    private string ErrorMessage => _outcome == EmailConfirmationOutcome.RateLimited
+        ? "Too many attempts were made. Wait a moment and reopen the link."
+        : "We couldn't confirm your email right now. Please try again.";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var key = $"{UserId}\n{Code}";
+        if (string.Equals(_processedKey, key, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _processedKey = key;
+        _loading = true;
+        if (string.IsNullOrWhiteSpace(UserId) || string.IsNullOrWhiteSpace(Code))
+        {
+            _outcome = EmailConfirmationOutcome.InvalidOrExpired;
+        }
+        else
+        {
+            _outcome = await AuthService.ConfirmEmailAsync(new ConfirmEmailDto
+            {
+                UserId = UserId,
+                Code = Code
+            });
+        }
+
+        _loading = false;
+    }
+
+    private string GetSafeReturnUrl() =>
+        LocalReturnUrl.Normalize(ReturnUrl, new Uri(Nav.BaseUri));
+}

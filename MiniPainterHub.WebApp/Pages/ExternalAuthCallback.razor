@@ -13,7 +13,7 @@
                 <span class="spinner-border" aria-hidden="true"></span>
             </div>
             <p class="section-label mb-2">Secure handoff</p>
-            <h1 class="h3">Finishing your Google sign-in</h1>
+            <h1 class="h3">Finishing your @_provider sign-in</h1>
             <p class="text-muted mb-0">MiniPainterHub is verifying the completed sign-in and preparing your studio session.</p>
         }
         else
@@ -36,15 +36,25 @@
     [SupplyParameterFromQuery(Name = "error")]
     public string? Error { get; set; }
 
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "provider")]
+    public string? Provider { get; set; }
+
     private bool _loading = true;
-    private string _eyebrow = "Google sign-in";
+    private string _provider = ExternalAuthProviderNames.Google;
+    private string _eyebrow = "External sign-in";
     private string _title = "Sign-in could not be completed";
-    private string _message = "Please try Google again or use your username and password.";
+    private string _message = "Please try again or use your username and password.";
     private string _icon = "bi-exclamation-circle";
     private string _primaryHref = "/login";
     private string _primaryLabel = "Try again";
-
     private bool _completionStarted;
+
+    protected override void OnParametersSet()
+    {
+        var queryProvider = LocalReturnUrl.GetQueryParameter(Navigation.Uri, "provider") ?? Provider;
+        _provider = NormalizeProvider(queryProvider);
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -65,6 +75,10 @@
             {
                 ShowExpired();
             }
+            else if (string.Equals(callbackError, "unverified", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowUnverified();
+            }
             else
             {
                 ShowUnavailable();
@@ -74,6 +88,7 @@
         }
 
         var result = await AuthService.ExchangeExternalAsync();
+        _provider = NormalizeProvider(result.Provider ?? _provider);
         switch (result.Outcome)
         {
             case ExternalAuthClientOutcome.Authenticated:
@@ -84,7 +99,9 @@
                 Navigation.NavigateTo("/auth/external/complete-registration", replace: true);
                 return;
             case ExternalAuthClientOutcome.LinkCompleted:
-                Navigation.NavigateTo("/account/sign-in-methods?linked=true", replace: true);
+                Navigation.NavigateTo(
+                    $"/account/sign-in-methods?linked=true&provider={Uri.EscapeDataString(_provider)}",
+                    replace: true);
                 return;
             case ExternalAuthClientOutcome.EmailConflict:
                 ShowEmailConflict();
@@ -114,7 +131,7 @@
         _loading = false;
         _eyebrow = "Sign-in cancelled";
         _title = "No changes were made";
-        _message = "Google sign-in was cancelled before MiniPainterHub received an account confirmation.";
+        _message = $"{_provider} sign-in was cancelled before MiniPainterHub received an account confirmation.";
         _icon = "bi-x-circle";
         _primaryHref = "/login";
         _primaryLabel = "Return to sign in";
@@ -124,8 +141,8 @@
     {
         _loading = false;
         _eyebrow = "Account already exists";
-        _title = "Sign in before connecting Google";
-        _message = "That verified Google email matches an existing MiniPainterHub account. Sign in with its username and password, then connect Google from Sign-in methods. Accounts are never merged automatically.";
+        _title = $"Sign in before connecting {_provider}";
+        _message = $"That verified {_provider} email matches an existing MiniPainterHub account. Sign in with its username and password, then connect {_provider} from Sign-in methods. Accounts are never merged automatically.";
         _icon = "bi-person-lock";
         _primaryHref = "/login?returnUrl=%2Faccount%2Fsign-in-methods";
         _primaryLabel = "Sign in to connect";
@@ -135,11 +152,22 @@
     {
         _loading = false;
         _eyebrow = "Session expired";
-        _title = "Start Google sign-in again";
+        _title = $"Start {_provider} sign-in again";
         _message = "The secure sign-in handoff is no longer valid. Nothing was changed on your account.";
         _icon = "bi-clock-history";
         _primaryHref = "/login";
-        _primaryLabel = "Try Google again";
+        _primaryLabel = $"Try {_provider} again";
+    }
+
+    private void ShowUnverified()
+    {
+        _loading = false;
+        _eyebrow = "Verified email required";
+        _title = $"{_provider} could not verify this account";
+        _message = $"MiniPainterHub requires a verified email from {_provider}. Verify the email on that account, then try again.";
+        _icon = "bi-envelope-exclamation";
+        _primaryHref = "/login";
+        _primaryLabel = "Return to sign in";
     }
 
     private void ShowForbidden()
@@ -156,11 +184,16 @@
     private void ShowUnavailable()
     {
         _loading = false;
-        _eyebrow = "Google sign-in";
+        _eyebrow = $"{_provider} sign-in";
         _title = "Sign-in could not be completed";
         _message = "The provider or MiniPainterHub is temporarily unavailable. Try again or use your username and password.";
         _icon = "bi-exclamation-circle";
         _primaryHref = "/login";
         _primaryLabel = "Try again";
     }
+
+    private static string NormalizeProvider(string? provider) =>
+        string.Equals(provider, ExternalAuthProviderNames.Discord, StringComparison.OrdinalIgnoreCase)
+            ? ExternalAuthProviderNames.Discord
+            : ExternalAuthProviderNames.Google;
 }

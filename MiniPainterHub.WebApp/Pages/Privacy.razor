@@ -8,7 +8,7 @@
                Summary="This pilot privacy notice explains what MiniPainterHub collects, why it is used, and the choices available to community members.">
     <section>
         <h2>Information we collect</h2>
-        <p>Account information includes your username, email address, password credential managed by ASP.NET Core Identity, account roles, sign-in methods, and account restriction history. Google sign-in stores Google’s stable account identifier and verified email association, but not Google access or refresh tokens.</p>
+        <p>Account information includes your username, email address, password credential managed by ASP.NET Core Identity, account roles, sign-in methods, and account restriction history. Google and Discord sign-in store the selected provider’s stable account identifier and verified email association, but not provider access or refresh tokens.</p>
         <p>Profile and community information includes display name, biography, avatar, posts, images, painting guides, comments, likes, follows, direct messages, reports, and support conversations you choose to create.</p>
         <p>Hobby Project information includes project metadata, status and dates, milestone labels, showcase order, cover choices, and the relationships between a project and your existing posts. Archiving or editing a project does not delete those posts.</p>
     </section>
@@ -25,7 +25,7 @@
 
     <section>
         <h2>Service providers and disclosure</h2>
-        <p>MiniPainterHub uses Microsoft Azure to host application, database, and image-storage infrastructure. If you choose Google sign-in, Google processes the authentication interaction under its own privacy terms. Information may also be disclosed when required for security, legal compliance, or protection of community members. MiniPainterHub does not sell personal information.</p>
+        <p>MiniPainterHub uses Microsoft Azure to host application, database, image-storage, and account-email infrastructure. If you choose Google or Discord sign-in, that provider processes the authentication interaction under its own privacy terms. Information may also be disclosed when required for security, legal compliance, or protection of community members. MiniPainterHub does not sell personal information.</p>
     </section>
 
     <section>
@@ -35,7 +35,7 @@
 
     <section>
         <h2>Your choices</h2>
-        <p>You can edit your public profile, choose whether to connect Google, set a local password, and disconnect Google once another sign-in method exists. Signed-in users can contact administrators through the <a href="/support">Support Center</a> to ask questions or request account-data review or deletion. Some safety, audit, or legal records may need to be retained.</p>
+        <p>You can edit your public profile, choose whether to connect Google or Discord, set a local password, and disconnect an external provider once another sign-in method exists. Signed-in users can contact administrators through the <a href="/support">Support Center</a> to ask questions or request account-data review or deletion. Some safety, audit, or legal records may need to be retained.</p>
     </section>
 
     <section>
@@ -46,7 +46,7 @@
         }
         else
         {
-            <p>Signed-in community members can contact the administrators through the <a href="/support">Support Center</a>. A public support email will be displayed here before Google sign-in is activated.</p>
+            <p>Signed-in community members can contact the administrators through the <a href="/support">Support Center</a>. A public support email will be displayed here before external sign-in is activated.</p>
         }
     </section>
 </LegalDocument>

@@ -38,6 +38,7 @@ public sealed class ExternalAuthenticationServiceTests
 
         var exchange = await service.ExchangeAsync(handle);
         exchange.Outcome.Should().Be(ExternalAuthOutcomes.RegistrationRequired);
+        exchange.Provider.Should().Be(ExternalAuthProviderNames.Google);
         exchange.Email.Should().Be("artist@example.test");
         exchange.SuggestedUserName.Should().Be("ArtistName");
         exchange.ReturnUrl.Should().Be("/feed");
@@ -166,15 +167,63 @@ public sealed class ExternalAuthenticationServiceTests
         (await users.CreateAsync(user)).Succeeded.Should().BeTrue();
         (await users.AddLoginAsync(user, new UserLoginInfo("Google", "only-subject", "Google"))).Succeeded.Should().BeTrue();
 
-        var disconnect = () => service.DisconnectGoogleAsync(user.Id);
+        var disconnect = () => service.DisconnectAsync(user.Id, ExternalAuthProviderNames.Google);
         await disconnect.Should().ThrowAsync<ForbiddenException>();
 
         var methods = await service.SetPasswordAsync(user.Id, new SetPasswordDto { NewPassword = "ValidPass123!" });
         methods.HasPassword.Should().BeTrue();
         methods.CanDisconnectGoogle.Should().BeTrue();
-        var disconnected = await service.DisconnectGoogleAsync(user.Id);
+        var disconnected = await service.DisconnectAsync(user.Id, ExternalAuthProviderNames.Google);
         disconnected.GoogleConnected.Should().BeFalse();
         disconnected.HasPassword.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DualExternalProviders_AllowOneProviderToBeDisconnectedWithoutPassword()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var scope = factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var service = scope.ServiceProvider.GetRequiredService<IExternalAuthenticationService>();
+        var user = new ApplicationUser
+        {
+            UserName = "dualprovider",
+            Email = "dual@example.test",
+            EmailConfirmed = true
+        };
+        (await users.CreateAsync(user)).Succeeded.Should().BeTrue();
+        (await users.AddLoginAsync(user, new UserLoginInfo(ExternalAuthProviderNames.Google, "google-subject", ExternalAuthProviderNames.Google))).Succeeded.Should().BeTrue();
+        (await users.AddLoginAsync(user, new UserLoginInfo(ExternalAuthProviderNames.Discord, "discord-subject", ExternalAuthProviderNames.Discord))).Succeeded.Should().BeTrue();
+
+        var methods = await service.GetSignInMethodsAsync(user.Id);
+
+        methods.GoogleConnected.Should().BeTrue();
+        methods.DiscordConnected.Should().BeTrue();
+        methods.CanDisconnectGoogle.Should().BeTrue();
+        methods.CanDisconnectDiscord.Should().BeTrue();
+
+        var afterDiscord = await service.DisconnectAsync(user.Id, ExternalAuthProviderNames.Discord);
+        afterDiscord.DiscordConnected.Should().BeFalse();
+        afterDiscord.GoogleConnected.Should().BeTrue();
+        afterDiscord.CanDisconnectGoogle.Should().BeFalse();
+        await FluentActions.Invoking(() => service.DisconnectAsync(user.Id, ExternalAuthProviderNames.Google))
+            .Should().ThrowAsync<ForbiddenException>();
+    }
+
+    [Fact]
+    public async Task CreateExchange_RejectsUnknownProvider()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        using var scope = factory.Services.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<IExternalAuthenticationService>();
+
+        await FluentActions.Invoking(() => service.CreateExchangeAsync(
+                new ExternalIdentity("Unknown", "subject", "artist@example.test", "Artist"),
+                ExternalAuthPurposes.SignIn,
+                null,
+                "/"))
+            .Should().ThrowAsync<UnauthorizedAccessException>();
     }
 
     [Fact]

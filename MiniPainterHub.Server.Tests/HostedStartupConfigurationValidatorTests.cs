@@ -129,6 +129,47 @@ public class HostedStartupConfigurationValidatorTests
             .WithMessage("*AllowedHosts must restrict the public Google authentication host*");
     }
 
+    [Fact]
+    public void Validate_WhenEmailConfirmationEnabledWithoutAzureSettings_ThrowsWithDeploymentKeys()
+    {
+        var values = RequiredHostedValues();
+        values["EmailConfirmation:Enabled"] = "true";
+
+        Action act = () => HostedStartupConfigurationValidator.Validate(CreateConfiguration(values), Environments.Production);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*EmailConfirmation__Provider*EmailConfirmation__PublicOrigin*EmailConfirmation__Endpoint*EmailConfirmation__SenderAddress*EmailConfirmation__SenderDisplayName*");
+    }
+
+    [Fact]
+    public void Validate_WhenEmailConfirmationUsesDevelopmentProvider_RejectsHostedStartup()
+    {
+        var values = RequiredHostedValues();
+        values["EmailConfirmation:Enabled"] = "true";
+        values["EmailConfirmation:Provider"] = EmailConfirmationProviders.DevelopmentLog;
+        values["EmailConfirmation:PublicOrigin"] = "https://example.test";
+        values["EmailConfirmation:Endpoint"] = "https://example.communication.azure.com";
+        values["EmailConfirmation:SenderAddress"] = "donotreply@example.test";
+        values["EmailConfirmation:SenderDisplayName"] = "MiniPainterHub";
+
+        Action act = () => HostedStartupConfigurationValidator.Validate(CreateConfiguration(values), Environments.Production);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*EmailConfirmation__Provider must be AzureCommunicationServices outside Development/Test*");
+    }
+
+    [Fact]
+    public void Validate_WhenDiscordEnabledWithoutProviderSettings_ThrowsWithDeploymentKeys()
+    {
+        var values = RequiredHostedValues();
+        values["Authentication:Discord:Enabled"] = "true";
+
+        Action act = () => HostedStartupConfigurationValidator.Validate(CreateConfiguration(values), Environments.Production);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Authentication__Discord__ClientId*Authentication__Discord__ClientSecret*Authentication__Discord__CallbackPath*Authentication__Discord__PublicOrigin*Site__SupportEmail*");
+    }
+
     private static Dictionary<string, string?> RequiredHostedValues() => new(StringComparer.OrdinalIgnoreCase)
     {
         ["ConnectionStrings:DefaultConnection"] = "Server=tcp:test.database.windows.net;Initial Catalog=MiniPainterHub;",

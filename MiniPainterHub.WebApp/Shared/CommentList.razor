@@ -2,7 +2,10 @@
 @using MiniPainterHub.WebApp.Services
 @using System.Net
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
 @inject ICommentService CommentService
+@inject IJSRuntime JS
 
 <div class="comment-list @(IsViewerPanel ? "comment-list--viewer-panel" : null)" data-testid="comment-list-container">
     <AuthorizeView Roles="Moderator,Admin">
@@ -28,7 +31,7 @@
         <div class="status-panel status-panel--warning" role="alert">
             <div class="status-panel__icon"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i></div>
             <div>
-                <div class="status-panel__title">Couldn’t load comments</div>
+                <div class="status-panel__title">Couldn't load comments</div>
                 <p class="status-panel__text mb-0">
                     @_loadError
                     @if (_errorStatus.HasValue)
@@ -74,23 +77,53 @@
                          OnModerated="ReloadAsync" />
         }
 
-        <nav aria-label="Comment pagination">
-            <ul class="pagination mb-0">
-                <li class="page-item @(_page == 1 ? "disabled" : string.Empty)">
-                    <button class="page-link" @onclick="() => ChangePage(_page - 1)">&lt;&lt;</button>
-                </li>
-                @for (var pageNumber = 1; pageNumber <= _comments.TotalPages; pageNumber++)
+        @if (IsViewerPanel)
+        {
+            <div class="comment-list__infinite-status" aria-live="polite">
+                @if (_isLoadingMore)
                 {
-                    var selectedPage = pageNumber;
-                    <li class="page-item @(pageNumber == _page ? "active" : string.Empty)">
-                        <button class="page-link" @onclick="() => ChangePage(selectedPage)">@selectedPage</button>
-                    </li>
+                    <div class="comment-list__loading-more" role="status" data-testid="viewer-comments-loading-more">
+                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                        <span>Loading more comments</span>
+                    </div>
                 }
-                <li class="page-item @(_page == _comments.TotalPages ? "disabled" : string.Empty)">
-                    <button class="page-link" @onclick="() => ChangePage(_page + 1)">&gt;&gt;</button>
-                </li>
-            </ul>
-        </nav>
+                else if (!string.IsNullOrWhiteSpace(_loadMoreError))
+                {
+                    <div class="comment-list__load-more-error" role="alert" data-testid="viewer-comments-load-more-error">
+                        <span>@_loadMoreError</span>
+                        <button type="button" class="btn btn-link btn-sm" @onclick="LoadMoreAsync">Try again</button>
+                    </div>
+                }
+
+                @if (HasMorePages)
+                {
+                    <span class="comment-list__infinite-sentinel"
+                          data-testid="viewer-comments-load-sentinel"
+                          @ref="_loadMoreSentinel"
+                          aria-hidden="true"></span>
+                }
+            </div>
+        }
+        else
+        {
+            <nav aria-label="Comment pagination">
+                <ul class="pagination mb-0">
+                    <li class="page-item @(_page == 1 ? "disabled" : string.Empty)">
+                        <button class="page-link" @onclick="() => ChangePage(_page - 1)">&lt;&lt;</button>
+                    </li>
+                    @for (var pageNumber = 1; pageNumber <= _comments.TotalPages; pageNumber++)
+                    {
+                        var selectedPage = pageNumber;
+                        <li class="page-item @(pageNumber == _page ? "active" : string.Empty)">
+                            <button class="page-link" @onclick="() => ChangePage(selectedPage)">@pageNumber</button>
+                        </li>
+                    }
+                    <li class="page-item @(_page == _comments.TotalPages ? "disabled" : string.Empty)">
+                        <button class="page-link" @onclick="() => ChangePage(_page + 1)">&gt;&gt;</button>
+                    </li>
+                </ul>
+            </nav>
+        }
     }
 </div>
 
@@ -105,14 +138,23 @@
     [Parameter] public string ViewerActionLabel { get; set; } = "Show on image";
     [Parameter] public string ViewerActionActiveLabel { get; set; } = "Hide marker";
 
+    private const int PageSize = 10;
+    private const string InfiniteScrollModulePath = "/JSHelpers/commentListInfiniteScroll.js";
     private PagedResult<CommentDto>? _comments;
     private int _page = 1;
-    private const int PageSize = 10;
     private string? _loadError;
+    private string? _loadMoreError;
     private HttpStatusCode? _errorStatus;
     private string _visibilityFilter = "active";
-    private bool isLoading => _comments == null && string.IsNullOrWhiteSpace(_loadError);
+    private bool _isLoadingMore;
+    private bool _needsObserverRegistration;
     private int? _loadedPostId;
+    private readonly string _observerId = $"comment-list-{Guid.NewGuid():N}";
+    private ElementReference _loadMoreSentinel;
+    private IJSObjectReference? _infiniteScrollModule;
+    private DotNetObjectReference<CommentList>? _dotNetReference;
+    private bool isLoading => (_comments == null && string.IsNullOrWhiteSpace(_loadError)) || _isLoadingMore;
+    private bool HasMorePages => IsViewerPanel && _comments is { PageSize: > 0 } && _page < _comments.TotalPages;
     private string VisibilitySelectId => IsViewerPanel ? "viewer-comment-visibility-select" : "comment-visibility-select";
 
     protected override async Task OnParametersSetAsync()
@@ -127,35 +169,112 @@
         await LoadPageAsync();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!IsViewerPanel || !_needsObserverRegistration || !HasMorePages)
+        {
+            return;
+        }
+
+        _infiniteScrollModule ??= await JS.InvokeAsync<IJSObjectReference>("import", InfiniteScrollModulePath);
+        if (_infiniteScrollModule is null)
+        {
+            return;
+        }
+
+        _dotNetReference ??= DotNetObjectReference.Create(this);
+        await _infiniteScrollModule.InvokeVoidAsync("observeInfiniteScroll", _loadMoreSentinel, _dotNetReference, _observerId);
+        _needsObserverRegistration = false;
+    }
+
     public async Task ReloadAsync()
     {
+        if (IsViewerPanel)
+        {
+            _page = 1;
+        }
+
         await LoadPageAsync();
     }
 
     private async Task LoadPageAsync()
     {
         _loadError = null;
+        _loadMoreError = null;
         _errorStatus = null;
 
+        var loaded = await FetchPageAsync(_page, append: false);
+        _needsObserverRegistration = loaded && HasMorePages;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task LoadMoreAsync()
+    {
+        if (!IsViewerPanel || _isLoadingMore || !HasMorePages)
+        {
+            return;
+        }
+
+        _isLoadingMore = true;
+        _loadMoreError = null;
+        await InvokeAsync(StateHasChanged);
+
+        var loaded = false;
+
+        try
+        {
+            loaded = await FetchPageAsync(_page + 1, append: true);
+        }
+        finally
+        {
+            _isLoadingMore = false;
+            _needsObserverRegistration = loaded && HasMorePages;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task<bool> FetchPageAsync(int page, bool append)
+    {
         var includeDeleted = _visibilityFilter is "all" or "hidden";
         var deletedOnly = _visibilityFilter == "hidden";
-
-        var response = await CommentService.GetByPostAsync(PostId, _page, PageSize, includeDeleted, deletedOnly);
+        var response = await CommentService.GetByPostAsync(PostId, page, PageSize, includeDeleted, deletedOnly);
 
         if (!response.Success)
         {
+            if (append)
+            {
+                _loadMoreError = "We couldn't load more comments. Try again.";
+                return false;
+            }
+
             _errorStatus = response.StatusCode;
             _loadError = response.StatusCode == HttpStatusCode.NotFound
                 ? "Comments could not be found for this post."
                 : "We couldn't load comments right now. Please try again.";
             _comments = null;
-        }
-        else
-        {
-            _comments = response.Value ?? new PagedResult<CommentDto>();
+            return false;
         }
 
-        await InvokeAsync(StateHasChanged);
+        var loadedPage = response.Value ?? new PagedResult<CommentDto>
+        {
+            PageNumber = page,
+            PageSize = PageSize
+        };
+
+        if (append && _comments is not null)
+        {
+            loadedPage.Items = _comments.Items
+                .Concat(loadedPage.Items)
+                .GroupBy(comment => comment.Id)
+                .Select(group => group.First())
+                .ToArray();
+        }
+
+        _comments = loadedPage;
+        _page = page;
+        _loadMoreError = null;
+        return true;
     }
 
     private async Task ChangePage(int newPage)
@@ -189,4 +308,33 @@
 
     private Task ToggleViewerMarkAsync(CommentDto comment) =>
         OnToggleViewerMark.HasDelegate ? OnToggleViewerMark.InvokeAsync(comment) : Task.CompletedTask;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_infiniteScrollModule is not null && _dotNetReference is not null)
+        {
+            try
+            {
+                await _infiniteScrollModule.InvokeVoidAsync("disconnectInfiniteScroll", _observerId);
+            }
+            catch (JSDisconnectedException)
+            {
+                // The browser runtime has already been released.
+            }
+        }
+
+        if (_infiniteScrollModule is not null)
+        {
+            try
+            {
+                await _infiniteScrollModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The browser runtime has already been released.
+            }
+        }
+
+        _dotNetReference?.Dispose();
+    }
 }

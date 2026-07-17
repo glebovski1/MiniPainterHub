@@ -50,14 +50,75 @@ namespace MiniPainterHub.WebApp.Services
             return LoginOutcome.Success;
         }
 
-        public async Task<bool> RegisterAsync(RegisterDto dto)
+        public async Task<RegistrationOutcome> RegisterAsync(RegisterDto dto)
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/register")
             {
                 Content = ApiClient.CreateJsonContent(dto)
             };
 
-            return await _api.SendAsync(request);
+            var result = await _api.SendForResultAsync<RegistrationResultDto>(
+                request,
+                new ApiRequestOptions { SuppressErrorNotifications = true });
+            if (!result.Success || result.Value?.IsSuccess != true)
+            {
+                return result.StatusCode switch
+                {
+                    HttpStatusCode.BadRequest => RegistrationOutcome.ValidationFailure,
+                    HttpStatusCode.TooManyRequests => RegistrationOutcome.RateLimited,
+                    _ => RegistrationOutcome.Unavailable
+                };
+            }
+
+            if (!result.Value.RequiresEmailConfirmation)
+            {
+                return RegistrationOutcome.Success;
+            }
+
+            return result.Value.ConfirmationEmailSent
+                ? RegistrationOutcome.ConfirmationSent
+                : RegistrationOutcome.ConfirmationPendingDelivery;
+        }
+
+        public async Task<EmailConfirmationOutcome> ConfirmEmailAsync(ConfirmEmailDto dto)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/email/confirm")
+            {
+                Content = ApiClient.CreateJsonContent(dto)
+            };
+            var result = await _api.SendForResultAsync<object>(
+                request,
+                new ApiRequestOptions { SuppressErrorNotifications = true });
+            if (result.Success)
+            {
+                return EmailConfirmationOutcome.Success;
+            }
+
+            return result.StatusCode switch
+            {
+                HttpStatusCode.BadRequest => EmailConfirmationOutcome.InvalidOrExpired,
+                HttpStatusCode.TooManyRequests => EmailConfirmationOutcome.RateLimited,
+                _ => EmailConfirmationOutcome.Unavailable
+            };
+        }
+
+        public async Task<ResendEmailConfirmationOutcome> ResendEmailConfirmationAsync(ResendEmailConfirmationDto dto)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/email/resend")
+            {
+                Content = ApiClient.CreateJsonContent(dto)
+            };
+            var result = await _api.SendForResultAsync<object>(
+                request,
+                new ApiRequestOptions { SuppressErrorNotifications = true });
+            if (result.Success)
+            {
+                return ResendEmailConfirmationOutcome.Accepted;
+            }
+
+            return result.StatusCode == HttpStatusCode.TooManyRequests
+                ? ResendEmailConfirmationOutcome.RateLimited
+                : ResendEmailConfirmationOutcome.Unavailable;
         }
 
         public async Task<AuthProvidersDto> GetProvidersAsync()
@@ -106,7 +167,8 @@ namespace MiniPainterHub.WebApp.Services
                 outcome,
                 value.Email,
                 value.SuggestedUserName,
-                value.ReturnUrl);
+                value.ReturnUrl,
+                value.Provider);
         }
 
         public async Task<LoginOutcome> CompleteExternalRegistrationAsync(ExternalAuthRegistrationDto dto)
@@ -135,9 +197,15 @@ namespace MiniPainterHub.WebApp.Services
                 : LoginOutcome.Unavailable;
         }
 
-        public async Task<ExternalAuthStartDto?> BeginGoogleLinkAsync(string returnUrl = "/account/sign-in-methods")
+        public async Task<ExternalAuthStartDto?> BeginExternalLinkAsync(string provider, string returnUrl = "/account/sign-in-methods")
         {
-            var path = $"api/auth/google/link-intent?returnUrl={Uri.EscapeDataString(returnUrl)}";
+            var providerSlug = NormalizeProviderSlug(provider);
+            if (providerSlug is null)
+            {
+                return null;
+            }
+
+            var path = $"api/auth/{providerSlug}/link-intent?returnUrl={Uri.EscapeDataString(returnUrl)}";
             using var request = new HttpRequestMessage(HttpMethod.Post, path);
             var result = await _api.SendForResultAsync<ExternalAuthStartDto>(request);
             return result.Success ? result.Value : null;
@@ -158,10 +226,28 @@ namespace MiniPainterHub.WebApp.Services
             return await _api.SendAsync<SignInMethodsDto>(request);
         }
 
-        public async Task<SignInMethodsDto?> DisconnectGoogleAsync()
+        public async Task<SignInMethodsDto?> DisconnectExternalAsync(string provider)
         {
-            using var request = new HttpRequestMessage(HttpMethod.Delete, "api/auth/google");
+            var providerSlug = NormalizeProviderSlug(provider);
+            if (providerSlug is null)
+            {
+                return null;
+            }
+
+            using var request = new HttpRequestMessage(HttpMethod.Delete, $"api/auth/{providerSlug}");
             return await _api.SendAsync<SignInMethodsDto>(request);
+        }
+
+        private static string? NormalizeProviderSlug(string provider)
+        {
+            if (string.Equals(provider, ExternalAuthProviderNames.Google, StringComparison.OrdinalIgnoreCase))
+            {
+                return "google";
+            }
+
+            return string.Equals(provider, ExternalAuthProviderNames.Discord, StringComparison.OrdinalIgnoreCase)
+                ? "discord"
+                : null;
         }
 
         public async Task LogoutAsync()

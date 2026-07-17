@@ -475,6 +475,33 @@ test("new and returning Google user completes the full fake-provider flow", asyn
   await expect(page.getByTestId("nav-logout")).toBeVisible();
 });
 
+test("new and returning Discord user completes the full fake-provider flow", async ({ page }) => {
+  await page.goto("/register?returnUrl=%2Fprofile");
+  await expect(page.getByTestId("discord-signin-link")).toBeVisible();
+  await page.getByTestId("discord-signin-link").click();
+  await expect(page).toHaveURL(/\/auth\/external\/complete-registration$/);
+  await expect(page.getByText("discord-user@example.test")).toBeVisible();
+  await expect(page.getByText(/Discord verified/)).toBeVisible();
+
+  await page.getByTestId("external-registration-username").fill("discordpainter");
+  await page.getByTestId("external-registration-submit").click();
+  await expect(page).toHaveURL(/\/profile$/);
+  await expect(page.getByTestId("nav-logout")).toBeVisible();
+
+  await page.getByTestId("nav-logout").click();
+  await page.goto("/api/auth/discord/start?returnUrl=https%3A%2F%2Fevil.example%2Fphish");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByTestId("nav-logout")).toBeVisible();
+});
+
+test("Discord rejects identities without a verified usable email", async ({ page }) => {
+  for (const scenario of ["unverified", "missing-email", "bot", "system"]) {
+    await page.goto(`/api/auth/discord/start?fake=${scenario}`);
+    await expect(page.getByTestId("external-auth-result-title")).toContainText("Discord could not verify");
+    await expect(page.getByTestId("nav-login")).toBeVisible();
+  }
+});
+
 test("Google email conflict never merges and can be linked after password sign-in", async ({ page }) => {
   await page.goto("/api/auth/google/start?fake=conflict");
   await expect(page.getByTestId("external-auth-result-title")).toContainText("Sign in before connecting Google");
@@ -490,13 +517,31 @@ test("Google email conflict never merges and can be linked after password sign-i
   expect(intent.ok(), `Link intent failed with HTTP ${intent.status()}`).toBeTruthy();
   const intentBody = await intent.json();
   await page.goto(`${intentBody.startUrl}&fake=conflict`);
-  await expect(page).toHaveURL(/\/account\/sign-in-methods\?linked=true$/);
+  await expect(page).toHaveURL(/\/account\/sign-in-methods\?linked=true&provider=Google$/);
   await expect(page.getByTestId("google-link-success")).toContainText("Google is connected");
 
   await page.getByTestId("nav-logout").click();
   await page.goto("/api/auth/google/start?fake=conflict");
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByTestId("nav-logout")).toBeVisible();
+});
+
+test("Google and Discord can be linked to the same password account", async ({ page }) => {
+  await loginAsSeedUser(page);
+  const token = await page.evaluate(() => localStorage.getItem("authToken"));
+
+  for (const provider of ["google", "discord"]) {
+    const intent = await page.context().request.post(`/api/auth/${provider}/link-intent`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(intent.ok(), `${provider} link intent failed with HTTP ${intent.status()}`).toBeTruthy();
+    const intentBody = await intent.json();
+    await page.goto(`${intentBody.startUrl}&fake=conflict`);
+    await expect(page).toHaveURL(new RegExp(`/account/sign-in-methods\\?linked=true&provider=${provider === "google" ? "Google" : "Discord"}$`));
+  }
+
+  await expect(page.getByTestId("disconnect-google")).toBeVisible();
+  await expect(page.getByTestId("disconnect-discord")).toBeVisible();
 });
 
 test("Google-only user can set a password, disconnect Google, and retain local access", async ({ page }) => {
@@ -546,6 +591,7 @@ test("Google controls stay hidden when the provider is disabled", async ({ page 
       contentType: "application/json",
       body: JSON.stringify({
         google: { name: "Google", displayName: "Google", enabled: false },
+        discord: { name: "Discord", displayName: "Discord", enabled: false },
         supportEmail: null,
       }),
     });
@@ -970,8 +1016,13 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
   await expect(page.locator("[data-testid='viewer-comments-thread'] [data-testid='comment-item']").first()).toBeVisible();
   await expectViewerComposerLayout(page);
   const commentsScroll = page.getByTestId("viewer-comments-scroll");
+  const viewerCommentItems = page.locator("[data-testid='viewer-comments-thread'] [data-testid='comment-item']");
+  const expectedViewerCommentCount = viewerPost.extraComments.length + 4;
   const composerSticky = page.getByTestId("viewer-composer-sticky");
   const composerBoxBeforeScroll = await composerSticky.boundingBox();
+  await expect(viewerCommentItems).toHaveCount(10);
+  await expect(page.locator("[data-testid='viewer-comments-thread'] nav[aria-label='Comment pagination']")).toHaveCount(0);
+  await expect(page.getByTestId("viewer-comments-load-sentinel")).toHaveCount(1);
   const scrollMetrics = await commentsScroll.evaluate((element) => {
     const styles = window.getComputedStyle(element);
     return {
@@ -981,20 +1032,18 @@ test("rich viewer overlay keeps post details intact and supports refined layout 
       offsetWidth: element.offsetWidth,
       overflowY: styles.overflowY,
       scrollbarGutter: styles.scrollbarGutter,
-      supportsStableScrollbarGutter: typeof CSS !== "undefined"
-        && typeof CSS.supports === "function"
-        && CSS.supports("scrollbar-gutter: stable"),
+      scrollbarWidth: styles.scrollbarWidth,
     };
   });
-  expect(scrollMetrics.overflowY).toBe("scroll");
+  expect(scrollMetrics.overflowY).toBe("auto");
+  expect(scrollMetrics.scrollbarGutter).toBe("auto");
+  expect(scrollMetrics.scrollbarWidth).toBe("none");
   expect(scrollMetrics.scrollHeight).toBeGreaterThan(scrollMetrics.clientHeight);
-  if (scrollMetrics.supportsStableScrollbarGutter) {
-    expect(scrollMetrics.scrollbarGutter).toMatch(/\bstable\b/);
-  }
   await commentsScroll.evaluate((element) => {
     element.scrollTop = element.scrollHeight;
   });
-  await page.waitForTimeout(160);
+  await expect(viewerCommentItems).toHaveCount(expectedViewerCommentCount);
+  await expect(page.getByTestId("viewer-comments-load-sentinel")).toHaveCount(0);
   const scrollMetricsAfterScroll = await commentsScroll.evaluate((element) => ({
     scrollTop: element.scrollTop,
     clientWidth: element.clientWidth,
@@ -1405,6 +1454,7 @@ test("post details prompt sign-in for comments when session is cleared", async (
 });
 
 test("messages thread loads and sending works", async ({ page, request }) => {
+  await page.setViewportSize({ width: 1144, height: 832 });
   const adminToken = await loginViaApi(request, "admin", ADMIN_PASSWORD);
   const adminProfile = await ensureProfileForToken(request, adminToken, {
     displayName: "Admin Painter",
@@ -1428,10 +1478,37 @@ test("messages thread loads and sending works", async ({ page, request }) => {
   await page.goto(`/messages/${conversation.id}`);
   await expect(page.getByRole("heading", { name: "Admin Painter" })).toBeVisible();
 
-  const messageBody = "Smoke DM from Playwright";
+  const messageBody = `Smoke DM from Playwright ${"unbroken-message-content-".repeat(18)}`;
   await page.getByPlaceholder("Write a message...").fill(messageBody);
   await page.getByRole("button", { name: "Send" }).click();
   await expect(page.locator(".message-thread .message-bubble").filter({ hasText: messageBody }).last()).toBeVisible();
+
+  const desktopContainment = await page.evaluate(() => {
+    const inbox = document.querySelector(".message-inbox-panel");
+    const item = document.querySelector(".message-conversation-list .list-group-item.active");
+    const thread = document.querySelector(".message-thread-panel");
+    const bubbles = [...document.querySelectorAll(".message-bubble")];
+    if (!inbox || !item || !thread || bubbles.length === 0) return false;
+    const inboxBounds = inbox.getBoundingClientRect();
+    const itemBounds = item.getBoundingClientRect();
+    const threadBounds = thread.getBoundingClientRect();
+    return document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+      && itemBounds.right <= inboxBounds.right + 1
+      && bubbles.every((bubble) => bubble.getBoundingClientRect().right <= threadBounds.right + 1);
+  });
+  expect(desktopContainment, "Expected long previews and messages to remain inside desktop panels.").toBeTruthy();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/messages");
+  await expect(page.locator(".message-conversation-list .list-group-item").first()).toBeVisible();
+  const mobileContainment = await page.evaluate(() => {
+    const panel = document.querySelector(".message-inbox-panel");
+    const item = document.querySelector(".message-conversation-list .list-group-item");
+    if (!panel || !item) return false;
+    return document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+      && item.getBoundingClientRect().right <= panel.getBoundingClientRect().right + 1;
+  });
+  expect(mobileContainment, "Expected long previews to remain inside the mobile inbox.").toBeTruthy();
 });
 
 test("support request flows from user to admin and can be reopened", async ({ page }) => {

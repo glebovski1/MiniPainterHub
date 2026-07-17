@@ -122,16 +122,18 @@ public class AuthenticationTests
         var apiClient = CreateApiClient(handler, new NotificationRecorder());
         var tokenStore = new RecordingTokenStore();
         var service = new AuthService(apiClient, tokenStore, new JwtAuthenticationStateProvider(tokenStore));
-        handler.Enqueue(new HttpResponseMessage(HttpStatusCode.NoContent));
+        handler.EnqueueJson(
+            HttpStatusCode.OK,
+            """{"isSuccess":true,"requiresEmailConfirmation":true,"confirmationEmailSent":true}""");
 
-        var success = await service.RegisterAsync(new RegisterDto
+        var outcome = await service.RegisterAsync(new RegisterDto
         {
             UserName = "artist",
             Email = "artist@example.test",
             Password = "User123!"
         });
 
-        success.Should().BeTrue();
+        outcome.Should().Be(RegistrationOutcome.ConfirmationSent);
         handler.Requests.Should().ContainSingle();
         handler.Requests[0].Method.Should().Be(HttpMethod.Post);
         handler.Requests[0].Uri.Should().Be(new Uri("https://example.test/api/auth/register"));
@@ -139,15 +141,85 @@ public class AuthenticationTests
     }
 
     [Fact]
+    public async Task AuthService_EmailConfirmationMethods_UseExpectedEndpoints()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        handler.Enqueue(new HttpResponseMessage(HttpStatusCode.NoContent));
+        handler.Enqueue(new HttpResponseMessage(HttpStatusCode.Accepted));
+        var service = CreateAuthService(handler, out _);
+
+        var confirm = await service.ConfirmEmailAsync(new ConfirmEmailDto { UserId = "user-1", Code = "token" });
+        var resend = await service.ResendEmailConfirmationAsync(new ResendEmailConfirmationDto { Email = "artist@example.test" });
+
+        confirm.Should().Be(EmailConfirmationOutcome.Success);
+        resend.Should().Be(ResendEmailConfirmationOutcome.Accepted);
+        handler.Requests.Select(request => (request.Method, request.Uri!.AbsolutePath)).Should().Equal(
+            (HttpMethod.Post, "/api/auth/email/confirm"),
+            (HttpMethod.Post, "/api/auth/email/resend"));
+    }
+
+    [Fact]
+    public async Task AuthService_RegisterAsync_WhenDeliveryIsPending_ReturnsRecoveryOutcome()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        handler.EnqueueJson(
+            HttpStatusCode.OK,
+            """{"isSuccess":true,"requiresEmailConfirmation":true,"confirmationEmailSent":false}""");
+        var service = CreateAuthService(handler, out _);
+
+        var outcome = await service.RegisterAsync(new RegisterDto
+        {
+            UserName = "artist",
+            Email = "artist@example.test",
+            Password = "User123!"
+        });
+
+        outcome.Should().Be(RegistrationOutcome.ConfirmationPendingDelivery);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.BadRequest, RegistrationOutcome.ValidationFailure)]
+    [InlineData(HttpStatusCode.TooManyRequests, RegistrationOutcome.RateLimited)]
+    [InlineData(HttpStatusCode.ServiceUnavailable, RegistrationOutcome.Unavailable)]
+    public async Task AuthService_RegisterAsync_MapsFailureOutcomes(HttpStatusCode status, RegistrationOutcome expected)
+    {
+        var handler = new RecordingHttpMessageHandler();
+        handler.EnqueueJson(status, """{"title":"Registration failed"}""");
+        var service = CreateAuthService(handler, out _);
+
+        var outcome = await service.RegisterAsync(new RegisterDto
+        {
+            UserName = "artist",
+            Email = "artist@example.test",
+            Password = "User123!"
+        });
+
+        outcome.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task AuthService_ConfirmEmailAsync_WhenLinkIsRejected_ReturnsInvalidOutcome()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        handler.EnqueueJson(HttpStatusCode.BadRequest, """{"title":"Invalid link"}""");
+        var service = CreateAuthService(handler, out _);
+
+        var outcome = await service.ConfirmEmailAsync(new ConfirmEmailDto { UserId = "user-1", Code = "bad" });
+
+        outcome.Should().Be(EmailConfirmationOutcome.InvalidOrExpired);
+    }
+
+    [Fact]
     public async Task AuthService_GetProvidersAsync_ReturnsGoogleAndPublicSupportConfiguration()
     {
         var handler = new RecordingHttpMessageHandler();
-        handler.EnqueueJson(HttpStatusCode.OK, """{"google":{"name":"Google","displayName":"Google","enabled":true},"supportEmail":"support@example.test"}""");
+        handler.EnqueueJson(HttpStatusCode.OK, """{"google":{"name":"Google","displayName":"Google","enabled":true},"discord":{"name":"Discord","displayName":"Discord","enabled":true},"supportEmail":"support@example.test"}""");
         var service = CreateAuthService(handler, out _);
 
         var providers = await service.GetProvidersAsync();
 
         providers.Google.Enabled.Should().BeTrue();
+        providers.Discord.Enabled.Should().BeTrue();
         providers.SupportEmail.Should().Be("support@example.test");
         handler.Requests.Single().Uri.Should().Be(new Uri("https://example.test/api/auth/providers"));
     }
@@ -190,19 +262,25 @@ public class AuthenticationTests
     public async Task AuthService_AccountMethodOperations_UseExpectedEndpoints()
     {
         var handler = new RecordingHttpMessageHandler();
-        handler.EnqueueJson(HttpStatusCode.OK, """{"hasPassword":false,"googleConnected":true,"canDisconnectGoogle":false}""");
-        handler.EnqueueJson(HttpStatusCode.OK, """{"hasPassword":true,"googleConnected":true,"canDisconnectGoogle":true}""");
-        handler.EnqueueJson(HttpStatusCode.OK, """{"hasPassword":true,"googleConnected":false,"canDisconnectGoogle":false}""");
+        handler.EnqueueJson(HttpStatusCode.OK, """{"hasPassword":false,"googleConnected":true,"canDisconnectGoogle":false,"discordConnected":false,"canDisconnectDiscord":false}""");
+        handler.EnqueueJson(HttpStatusCode.OK, """{"hasPassword":true,"googleConnected":true,"canDisconnectGoogle":true,"discordConnected":false,"canDisconnectDiscord":false}""");
+        handler.EnqueueJson(HttpStatusCode.OK, """{"hasPassword":true,"googleConnected":false,"canDisconnectGoogle":false,"discordConnected":false,"canDisconnectDiscord":false}""");
+        handler.EnqueueJson(HttpStatusCode.OK, """{"startUrl":"/api/auth/discord/start"}""");
+        handler.EnqueueJson(HttpStatusCode.OK, """{"hasPassword":true,"googleConnected":false,"canDisconnectGoogle":false,"discordConnected":false,"canDisconnectDiscord":false}""");
         var service = CreateAuthService(handler, out _);
 
         (await service.GetSignInMethodsAsync())!.GoogleConnected.Should().BeTrue();
         (await service.SetPasswordAsync(new SetPasswordDto { NewPassword = "ValidPass123!" }))!.HasPassword.Should().BeTrue();
-        (await service.DisconnectGoogleAsync())!.GoogleConnected.Should().BeFalse();
+        (await service.DisconnectExternalAsync(ExternalAuthProviderNames.Google))!.GoogleConnected.Should().BeFalse();
+        (await service.BeginExternalLinkAsync(ExternalAuthProviderNames.Discord))!.StartUrl.Should().Contain("discord");
+        (await service.DisconnectExternalAsync(ExternalAuthProviderNames.Discord))!.DiscordConnected.Should().BeFalse();
 
         handler.Requests.Select(request => $"{request.Method} {request.Uri!.AbsolutePath}").Should().Equal(
             "GET /api/auth/sign-in-methods",
             "POST /api/auth/password/set",
-            "DELETE /api/auth/google");
+            "DELETE /api/auth/google",
+            "POST /api/auth/discord/link-intent",
+            "DELETE /api/auth/discord");
     }
 
     [Fact]

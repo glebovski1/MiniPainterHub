@@ -47,9 +47,11 @@
       "patterns": [
         "MiniPainterHub.WebApp/Pages/Login.razor",
         "MiniPainterHub.WebApp/Pages/Registration.razor",
+        "MiniPainterHub.WebApp/Pages/ConfirmEmail.razor",
+        "MiniPainterHub.WebApp/Pages/ResendEmailConfirmation.razor",
         "MiniPainterHub.WebApp/Pages/ExternalAuth*.razor",
         "MiniPainterHub.WebApp/Pages/SignInMethods.razor",
-        "MiniPainterHub.WebApp/Shared/GoogleSignInAction.razor"
+        "MiniPainterHub.WebApp/Shared/ExternalSignInActions.razor"
       ]
     },
     "legal": {
@@ -134,7 +136,8 @@
     "messages": {
       "description": "Conversation list, message thread, and composer.",
       "patterns": [
-        "MiniPainterHub.WebApp/Pages/Messages.razor"
+        "MiniPainterHub.WebApp/Pages/Messages.razor",
+        "MiniPainterHub.WebApp/Pages/Messages.razor.css"
       ]
     },
     "support": {

@@ -1,18 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Mail;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Options;
 using MiniPainterHub.Common.Auth;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
+using MiniPainterHub.Server.Options;
 
 namespace MiniPainterHub.Server.Controllers
 {
@@ -26,8 +29,18 @@ namespace MiniPainterHub.Server.Controllers
         private readonly IAccountRestrictionService _accountRestrictionService;
         private readonly IMaintenanceBypassService _maintenanceBypassService;
         private readonly IJwtTokenIssuer _jwtTokenIssuer;
+        private readonly IEmailConfirmationService _emailConfirmation;
+        private readonly EmailConfirmationOptions _emailConfirmationOptions;
 
-        public AuthController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IProfileService profileService, IAccountRestrictionService accountRestrictionService, IMaintenanceBypassService maintenanceBypassService, IJwtTokenIssuer jwtTokenIssuer)
+        public AuthController(
+            UserManager<ApplicationUser> userManager,
+            SignInManager<ApplicationUser> signInManager,
+            IProfileService profileService,
+            IAccountRestrictionService accountRestrictionService,
+            IMaintenanceBypassService maintenanceBypassService,
+            IJwtTokenIssuer jwtTokenIssuer,
+            IEmailConfirmationService emailConfirmation,
+            IOptions<EmailConfirmationOptions> emailConfirmationOptions)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -35,10 +48,12 @@ namespace MiniPainterHub.Server.Controllers
             _accountRestrictionService = accountRestrictionService;
             _maintenanceBypassService = maintenanceBypassService;
             _jwtTokenIssuer = jwtTokenIssuer;
+            _emailConfirmation = emailConfirmation;
+            _emailConfirmationOptions = emailConfirmationOptions.Value;
         }
 
         [HttpPost("register")]
-        [EnableRateLimiting(RateLimitingPolicies.Auth)]
+        [EnableRateLimiting(RateLimitingPolicies.EmailConfirmation)]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
             if (!ModelState.IsValid)
@@ -48,7 +63,12 @@ namespace MiniPainterHub.Server.Controllers
 
             await _accountRestrictionService.EnsureCanRegisterAsync();
 
-            var user = new ApplicationUser { UserName = dto.UserName, Email = dto.Email };
+            var user = new ApplicationUser
+            {
+                UserName = dto.UserName,
+                Email = dto.Email,
+                EmailConfirmed = !_emailConfirmationOptions.Enabled
+            };
             var result = await _userManager.CreateAsync(user, dto.Password);
 
             if (!result.Succeeded)
@@ -63,7 +83,44 @@ namespace MiniPainterHub.Server.Controllers
             };
             await _profileService.CreateAsync(user.Id, createProfileDto);
 
-            return Ok(new AuthResponseDto { IsSuccess = true });
+            var confirmationSent = _emailConfirmationOptions.Enabled
+                && await _emailConfirmation.SendConfirmationAsync(user, dto.ReturnUrl, HttpContext.RequestAborted);
+
+            return Ok(new RegistrationResultDto
+            {
+                IsSuccess = true,
+                RequiresEmailConfirmation = _emailConfirmationOptions.Enabled,
+                ConfirmationEmailSent = confirmationSent
+            });
+        }
+
+        [HttpPost("email/confirm")]
+        [EnableRateLimiting(RateLimitingPolicies.Auth)]
+        public async Task<IActionResult> ConfirmEmail([FromBody] ConfirmEmailDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                throw new DomainValidationException("Email confirmation request is invalid.", CreateModelStateErrors());
+            }
+
+            if (!await _emailConfirmation.ConfirmAsync(dto.UserId, dto.Code))
+            {
+                throw new DomainValidationException("This confirmation link is invalid or has expired.");
+            }
+
+            return NoContent();
+        }
+
+        [HttpPost("email/resend")]
+        [EnableRateLimiting(RateLimitingPolicies.EmailConfirmation)]
+        public async Task<IActionResult> ResendEmailConfirmation([FromBody] ResendEmailConfirmationRequest? request)
+        {
+            if (MailAddress.TryCreate(request?.Email, out _))
+            {
+                await _emailConfirmation.ResendAsync(request!.Email!, HttpContext.RequestAborted);
+            }
+
+            return Accepted();
         }
 
         [HttpPost("login")]
@@ -165,5 +222,10 @@ namespace MiniPainterHub.Server.Controllers
 
             return result;
         }
+    }
+
+    public sealed class ResendEmailConfirmationRequest
+    {
+        public string? Email { get; set; }
     }
 }

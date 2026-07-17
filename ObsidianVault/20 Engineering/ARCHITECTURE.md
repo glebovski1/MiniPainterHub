@@ -113,7 +113,7 @@ Image infrastructure:
 - `IUploadConcurrencyLimiter -> UploadConcurrencyLimiter` gates expensive upload/image-processing work per user/IP and globally.
 
 Traffic shaping:
-- `TrafficShapingOptions` configures fixed-window rate limits for auth, search, write, upload, and realtime handshake traffic.
+- `TrafficShapingOptions` configures fixed-window rate limits for auth, email registration/resend, search, write, upload, and realtime handshake traffic.
 - Rate-limited endpoints return HTTP `429` with `ProblemDetails` and `Retry-After` when the runtime exposes a retry value.
 - Auth uses both the auth rate-limit policy and Identity lockout (`5` failed attempts for `15` minutes by default).
 
@@ -123,11 +123,14 @@ Authentication model:
 - ASP.NET Core Identity (`ApplicationUser`) backed by `AppDbContext`.
 - JWT bearer authentication (`AddAuthentication().AddJwtBearer(...)`).
 - `IJwtTokenIssuer` issues the same role-bearing application JWT after password or external authentication.
-- Google uses an explicit ASP.NET Core external-provider challenge while JWT bearer remains the default API authentication and challenge scheme.
-- Provider identities are stored through Identity's `AspNetUserLogins`; Google `sub` is the durable key and email is used only for collision detection and explicit same-account linking.
+- Google and Discord use explicit ASP.NET Core external-provider challenges while JWT bearer remains the default API authentication and challenge scheme. Discord uses the built-in generic OAuth handler with only `identify` and `email` scopes.
+- Provider identities are stored through Identity's `AspNetUserLogins`; the provider subject is the durable key and verified email is used only for collision detection and explicit same-account linking.
 - The OAuth callback creates a short-lived, hashed, single-use `ExternalAuthExchange`. Its raw handle is held only in an HttpOnly cookie and is exchanged by the SPA for the ordinary application JWT.
-- New Google users choose a MiniPainterHub username before atomic user/profile/login creation. Matching email never auto-merges accounts; an authenticated user must explicitly connect Google.
-- Authenticated account security supports adding a password and disconnecting Google only when another sign-in method remains.
+- New external-provider users choose a MiniPainterHub username before atomic user/profile/login creation. Matching email never auto-merges accounts; an authenticated user must explicitly connect each provider with the same verified email.
+- Authenticated account security supports adding a password and disconnecting Google or Discord only when another sign-in method remains.
+- New password registrations persist as unconfirmed Identity users and receive a 24-hour, URL-safe confirmation token. Password login remains generic and unavailable until Identity reports the email confirmed.
+- `IEmailConfirmationService` owns token generation, safe return paths, confirmation, and privacy-safe resend behavior. `IAccountEmailSender` is implemented by Azure Communication Services Email in hosted environments, a link logger in local tooling, and an in-memory sender in integration tests.
+- Google and Discord registrations and explicit same-email links set `EmailConfirmed`; the one-way `GrandfatherExistingEmailConfirmations` migration marks pre-feature accounts confirmed so rollout does not lock them out.
 
 Authorization model:
 - Controllers are typically `[Authorize]` with `[AllowAnonymous]` on selected read endpoints.
@@ -212,16 +215,18 @@ Soft-delete behavior:
 Main controllers under `MiniPainterHub.Server/Controllers`:
 
 - `AuthController` (`/api/auth`)
-  - `POST /register`
+  - `POST /register` creates a pending password account and reports whether its confirmation email was accepted for delivery.
+  - `POST /email/confirm` consumes a URL-safe Identity confirmation token; repeat confirmation is idempotent.
+  - `POST /email/resend` returns the same accepted response for unknown, confirmed, and pending addresses while only pending accounts receive mail.
   - `POST /login`
   - `POST /maintenance-bypass`
   - `DELETE /maintenance-bypass`
 - `ExternalAuthenticationController` (`/api/auth`)
-  - `GET /providers` and `GET /google/start`
-  - Google middleware callback `/signin-google` and internal completion `/google/complete`
+  - `GET /providers` and `GET /{provider}/start` for the allowlisted `google` and `discord` providers
+  - Middleware callbacks `/signin-google` and `/signin-discord`, followed by internal `/{provider}/complete`
   - `POST /external/exchange` and `POST /external/register`
-  - `POST /google/link-intent`
-  - `GET /sign-in-methods`, `POST /password/set`, and `DELETE /google`
+  - `POST /{provider}/link-intent`
+  - `GET /sign-in-methods`, `POST /password/set`, and `DELETE /{provider}`
 - `PostsController` (`/api/posts`)
   - `GET /`
     - Supports visibility query options for moderation roles: `includeDeleted` and `deletedOnly`.
@@ -355,10 +360,12 @@ Service clients in `MiniPainterHub.WebApp/Services` mirror server domains (`Auth
 Service clients also include moderation flows (`ModerationService`) and keep query DTO/filter parity with the server API.
 
 Authentication UX composition:
-- `Pages/Login.razor` and `Pages/Registration.razor` retain password forms and conditionally expose Google when the server reports it enabled.
+- `Pages/Login.razor` and `Pages/Registration.razor` retain password forms and conditionally expose Google and Discord when the server reports them enabled.
+- `Pages/ConfirmEmail.razor` handles successful, invalid, expired, rate-limited, and unavailable confirmation states; `Pages/ResendEmailConfirmation.razor` provides enumeration-safe recovery.
+- Registration keeps the created account visible as a check-email or delivery-recovery state instead of redirecting an unconfirmed user directly into login.
 - `Pages/ExternalAuthCallback.razor` exchanges the HttpOnly handoff and renders cancellation, expiry, conflict, restriction, and provider-failure states.
 - `Pages/ExternalAuthRegistration.razor` holds onboarding state only in scoped WASM memory and collects the permanent username.
-- `Pages/SignInMethods.razor` manages Google linking, local-password setup, and guarded disconnection.
+- `Pages/SignInMethods.razor` manages Google and Discord linking, local-password setup, and guarded provider disconnection.
 - `Pages/Privacy.razor` and `Pages/Terms.razor` are public pilot legal surfaces; their support address comes from server configuration.
 - All password and external success paths use the same token-acceptance logic and validated local return paths.
 

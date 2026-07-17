@@ -38,6 +38,11 @@ public class PostDetailsViewerTests : TestContext
             cut.Find("[data-testid='comment-list-container']");
             cut.FindAll("[data-testid='rich-image-viewer-modal']").Should().BeEmpty();
             cut.Find(".page-hero").ClassList.Should().Contain("page-hero--compact");
+            cut.Find("[data-testid='post-details-back']").TextContent.Should().Contain("Back to gallery");
+            var artworkActions = cut.Find("[data-testid='post-details-artwork-actions']");
+            artworkActions.QuerySelector("[data-testid='post-like-toggle']").Should().NotBeNull();
+            artworkActions.QuerySelector("[data-testid='post-details-open-viewer']").Should().NotBeNull();
+            cut.FindAll("[data-testid='post-details-header-actions']").Should().BeEmpty();
             cut.Find("[data-testid='post-details-gallery']").TextContent.Should().Contain("Artwork");
             cut.Find("[data-testid='post-details-gallery']").TextContent.Should().Contain("View close-up");
             cut.Find(".page-shell").TextContent.Should().NotContain("Viewer state");

@@ -18,7 +18,6 @@ namespace MiniPainterHub.Server.Services;
 
 public sealed class ExternalAuthenticationService : IExternalAuthenticationService
 {
-    public const string GoogleProvider = "Google";
     private static readonly TimeSpan ExchangeLifetime = TimeSpan.FromMinutes(10);
 
     private readonly AppDbContext _db;
@@ -44,7 +43,7 @@ public sealed class ExternalAuthenticationService : IExternalAuthenticationServi
     public async Task<string> CreateExchangeAsync(ExternalIdentity identity, string purpose, string? targetUserId, string returnUrl)
     {
         ArgumentNullException.ThrowIfNull(identity);
-        if (!string.Equals(identity.Provider, GoogleProvider, StringComparison.Ordinal)
+        if (!ExternalAuthenticationProviders.IsAllowed(identity.Provider)
             || string.IsNullOrWhiteSpace(identity.ProviderSubject)
             || string.IsNullOrWhiteSpace(identity.VerifiedEmail))
         {
@@ -90,6 +89,7 @@ public sealed class ExternalAuthenticationService : IExternalAuthenticationServi
             return new ExternalAuthExchangeResponseDto
             {
                 Outcome = ExternalAuthOutcomes.Authenticated,
+                Provider = exchange.Provider,
                 Token = await _tokens.IssueAsync(user),
                 ReturnUrl = exchange.ReturnUrl
             };
@@ -103,6 +103,7 @@ public sealed class ExternalAuthenticationService : IExternalAuthenticationServi
             return new ExternalAuthExchangeResponseDto
             {
                 Outcome = ExternalAuthOutcomes.EmailConflict,
+                Provider = exchange.Provider,
                 Email = exchange.VerifiedEmail,
                 ReturnUrl = exchange.ReturnUrl
             };
@@ -112,6 +113,7 @@ public sealed class ExternalAuthenticationService : IExternalAuthenticationServi
         return new ExternalAuthExchangeResponseDto
         {
             Outcome = ExternalAuthOutcomes.RegistrationRequired,
+            Provider = exchange.Provider,
             Email = exchange.VerifiedEmail,
             SuggestedUserName = exchange.SuggestedDisplayName,
             ReturnUrl = exchange.ReturnUrl
@@ -209,15 +211,20 @@ public sealed class ExternalAuthenticationService : IExternalAuthenticationServi
         return await CreateSignInMethodsAsync(user);
     }
 
-    public async Task<SignInMethodsDto> DisconnectGoogleAsync(string userId)
+    public async Task<SignInMethodsDto> DisconnectAsync(string userId, string provider)
     {
+        if (!ExternalAuthenticationProviders.TryResolve(provider, out var canonicalProvider, out _))
+        {
+            throw new NotFoundException("The external sign-in provider is not available.");
+        }
+
         var user = await RequireUserAsync(userId);
         await _restrictions.EnsureCanLoginAsync(user);
         var logins = await _userManager.GetLoginsAsync(user);
-        var google = logins.SingleOrDefault(l => string.Equals(l.LoginProvider, GoogleProvider, StringComparison.Ordinal));
-        if (google is null)
+        var login = logins.SingleOrDefault(l => string.Equals(l.LoginProvider, canonicalProvider, StringComparison.Ordinal));
+        if (login is null)
         {
-            throw new NotFoundException("Google is not connected to this account.");
+            throw new NotFoundException($"{canonicalProvider} is not connected to this account.");
         }
 
         var hasPassword = await _userManager.HasPasswordAsync(user);
@@ -226,8 +233,10 @@ public sealed class ExternalAuthenticationService : IExternalAuthenticationServi
             throw new ForbiddenException("Set a password before disconnecting the only sign-in method.");
         }
 
-        EnsureIdentitySuccess(await _userManager.RemoveLoginAsync(user, google.LoginProvider, google.ProviderKey), "Google could not be disconnected.");
-        _logger.LogInformation("Sign-in method changed. Method={Method}; Outcome={Outcome}.", GoogleProvider, "disconnected");
+        EnsureIdentitySuccess(
+            await _userManager.RemoveLoginAsync(user, login.LoginProvider, login.ProviderKey),
+            $"{canonicalProvider} could not be disconnected.");
+        _logger.LogInformation("Sign-in method changed. Method={Method}; Outcome={Outcome}.", canonicalProvider, "disconnected");
         return await CreateSignInMethodsAsync(user);
     }
 
@@ -245,14 +254,14 @@ public sealed class ExternalAuthenticationService : IExternalAuthenticationServi
             || !string.Equals(user.NormalizedEmail, normalizedExternalEmail, StringComparison.Ordinal))
         {
             await ConsumeAsync(exchange);
-            throw new ForbiddenException("The Google account email must match your MiniPainterHub email.");
+            throw new ForbiddenException($"The {exchange.Provider} account email must match your MiniPainterHub email.");
         }
 
         var owner = await _userManager.FindByLoginAsync(exchange.Provider, exchange.ProviderSubject);
         if (owner is not null && owner.Id != user.Id)
         {
             await ConsumeAsync(exchange);
-            throw new ConflictException("That Google account is already connected to another user.");
+            throw new ConflictException($"That {exchange.Provider} account is already connected to another user.");
         }
 
         async Task LinkAccountAsync()
@@ -261,13 +270,13 @@ public sealed class ExternalAuthenticationService : IExternalAuthenticationServi
             {
                 EnsureIdentitySuccess(
                     await _userManager.AddLoginAsync(user, new UserLoginInfo(exchange.Provider, exchange.ProviderSubject, exchange.Provider)),
-                    "Google could not be connected.");
+                    $"{exchange.Provider} could not be connected.");
             }
 
             if (!user.EmailConfirmed)
             {
                 user.EmailConfirmed = true;
-                EnsureIdentitySuccess(await _userManager.UpdateAsync(user), "Google could not be connected.");
+                EnsureIdentitySuccess(await _userManager.UpdateAsync(user), $"{exchange.Provider} could not be connected.");
             }
 
             await ConsumeAsync(exchange);
@@ -282,7 +291,12 @@ public sealed class ExternalAuthenticationService : IExternalAuthenticationServi
             await LinkAccountAsync();
         }
         _logger.LogInformation("External authentication completed. Provider={Provider}; Purpose={Purpose}; Outcome={Outcome}.", exchange.Provider, exchange.Purpose, ExternalAuthOutcomes.LinkCompleted);
-        return new ExternalAuthExchangeResponseDto { Outcome = ExternalAuthOutcomes.LinkCompleted, ReturnUrl = exchange.ReturnUrl };
+        return new ExternalAuthExchangeResponseDto
+        {
+            Outcome = ExternalAuthOutcomes.LinkCompleted,
+            Provider = exchange.Provider,
+            ReturnUrl = exchange.ReturnUrl
+        };
     }
 
     private async Task<ApplicationUser> RequireUserAsync(string userId) =>
@@ -292,12 +306,15 @@ public sealed class ExternalAuthenticationService : IExternalAuthenticationServi
     {
         var logins = await _userManager.GetLoginsAsync(user);
         var hasPassword = await _userManager.HasPasswordAsync(user);
-        var googleConnected = logins.Any(l => string.Equals(l.LoginProvider, GoogleProvider, StringComparison.Ordinal));
+        var googleConnected = logins.Any(l => string.Equals(l.LoginProvider, ExternalAuthProviderNames.Google, StringComparison.Ordinal));
+        var discordConnected = logins.Any(l => string.Equals(l.LoginProvider, ExternalAuthProviderNames.Discord, StringComparison.Ordinal));
         return new SignInMethodsDto
         {
             HasPassword = hasPassword,
             GoogleConnected = googleConnected,
-            CanDisconnectGoogle = googleConnected && (hasPassword || logins.Count > 1)
+            CanDisconnectGoogle = googleConnected && (hasPassword || logins.Count > 1),
+            DiscordConnected = discordConnected,
+            CanDisconnectDiscord = discordConnected && (hasPassword || logins.Count > 1)
         };
     }
 

@@ -1,0 +1,95 @@
+@page "/resend-confirmation"
+@inject IAuthService AuthService
+@using MiniPainterHub.WebApp.Services.Auth
+
+<PageTitle>Resend confirmation</PageTitle>
+
+<div class="page-shell">
+    <EditForm Model="_request" OnValidSubmit="HandleResendAsync" class="w-100" data-testid="resend-confirmation-form">
+        <DataAnnotationsValidator />
+        <section class="surface-card auth-card mx-auto">
+            <SectionHeader Eyebrow="Account security"
+                           Title="Resend confirmation"
+                           Description="Enter the email used for your MiniPainterHub account."
+                           TitleTag="h1"
+                           TitleClass="auth-card__title"
+                           ClassName="section-heading section-heading--auth"
+                           SectionName="Resend Email Confirmation" />
+
+            @if (_accepted)
+            {
+                <div class="status-panel status-panel--success mt-4" role="status" data-testid="resend-confirmation-success">
+                    <div class="status-panel__icon"><i class="bi bi-envelope-check" aria-hidden="true"></i></div>
+                    <div>
+                        <div class="status-panel__title">Check your inbox</div>
+                        <p class="status-panel__text mb-0">If an unconfirmed account matches that address, a fresh confirmation link is on its way.</p>
+                    </div>
+                </div>
+                <NavLink class="btn btn-primary w-100 mt-4" href="/login">Return to sign in</NavLink>
+            }
+            else
+            {
+                <div class="form-grid mt-4">
+                    <div>
+                        <label for="resend-email" class="form-label">Email</label>
+                        <InputText id="resend-email"
+                                   type="email"
+                                   class="form-control"
+                                   autocomplete="email"
+                                   data-testid="resend-confirmation-email"
+                                   @bind-Value="_request.Email" />
+                        <ValidationMessage For="@(() => _request.Email)" class="text-danger small" />
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 mt-4" disabled="@_sending" data-testid="resend-confirmation-submit">
+                    @(_sending ? "Sending..." : "Send confirmation email")
+                </button>
+
+                @if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <div class="status-panel status-panel--error mt-3" role="alert" data-testid="resend-confirmation-error">
+                        <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Email not requested</div>
+                            <p class="status-panel__text mb-0">@_error</p>
+                        </div>
+                    </div>
+                }
+            }
+        </section>
+    </EditForm>
+</div>
+
+@code {
+    private readonly ResendEmailConfirmationDto _request = new();
+    private bool _sending;
+    private bool _accepted;
+    private string? _error;
+
+    private async Task HandleResendAsync()
+    {
+        if (_sending)
+        {
+            return;
+        }
+
+        _sending = true;
+        _error = null;
+        try
+        {
+            var outcome = await AuthService.ResendEmailConfirmationAsync(_request);
+            _accepted = outcome == ResendEmailConfirmationOutcome.Accepted;
+            _error = outcome switch
+            {
+                ResendEmailConfirmationOutcome.RateLimited => "Too many requests were made. Wait before trying again.",
+                ResendEmailConfirmationOutcome.Unavailable => "Confirmation email is unavailable right now. Please try again.",
+                _ => null
+            };
+        }
+        finally
+        {
+            _sending = false;
+        }
+    }
+}

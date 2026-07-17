@@ -53,6 +53,26 @@ public class LoginTests : TestContext
     }
 
     [Fact]
+    public void WhenDiscordIsEnabled_RendersDiscordActionWithSafeReturnPath()
+    {
+        this.AddAuthStub(new StubAuthService
+        {
+            GetProvidersHandler = () => Task.FromResult(new AuthProvidersDto
+            {
+                Discord = new AuthProviderDto { Name = "Discord", DisplayName = "Discord", Enabled = true }
+            })
+        });
+        var nav = Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo(nav.GetUriWithQueryParameter("returnUrl", "/support"));
+
+        var cut = RenderComponent<Login>();
+
+        cut.WaitForAssertion(() =>
+            cut.Find("[data-testid='discord-signin-link']").GetAttribute("href")
+                .Should().Be("/api/auth/discord/start?returnUrl=%2Fsupport"));
+    }
+
+    [Fact]
     public async Task Submit_WhenCredentialsAreEmpty_ShowsOneFocusedValidationAlertWithoutCallingAuth()
     {
         var loginCalls = 0;
