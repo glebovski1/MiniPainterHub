@@ -31,6 +31,8 @@ public sealed class ExternalAuthenticationControllerTests
         result.Should().NotBeNull();
         result!.Google.Enabled.Should().BeFalse();
         result.Google.Name.Should().Be("Google");
+        result.Discord.Enabled.Should().BeFalse();
+        result.Discord.Name.Should().Be("Discord");
         result.SupportEmail.Should().Be("support@example.test");
     }
 
@@ -82,6 +84,7 @@ public sealed class ExternalAuthenticationControllerTests
         var exchange = await (await client.PostAsync("/api/auth/external/exchange", null))
             .Content.ReadFromJsonAsync<ExternalAuthExchangeResponseDto>();
         exchange!.Outcome.Should().Be(ExternalAuthOutcomes.RegistrationRequired);
+        exchange.Provider.Should().Be(ExternalAuthProviderNames.Google);
 
         var registrationResponse = await client.PostAsJsonAsync(
             "/api/auth/external/register",
@@ -117,7 +120,7 @@ public sealed class ExternalAuthenticationControllerTests
         start.Headers.Location!.OriginalString.Should().Be("/api/auth/google/complete?error=cancelled");
         var complete = await client.GetAsync(start.Headers.Location);
         complete.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        complete.Headers.Location!.OriginalString.Should().Be("/auth/external/callback?error=cancelled");
+        complete.Headers.Location!.OriginalString.Should().Be("/auth/external/callback?provider=Google&error=cancelled");
     }
 
     [Fact]
@@ -134,7 +137,7 @@ public sealed class ExternalAuthenticationControllerTests
         var response = await client.GetAsync("/api/auth/google/start?fake=expired");
 
         response.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        response.Headers.Location!.OriginalString.Should().Be("/auth/external/callback?error=expired");
+        response.Headers.Location!.OriginalString.Should().Be("/auth/external/callback?error=expired&provider=Google");
     }
 
     [Fact]
@@ -197,7 +200,7 @@ public sealed class ExternalAuthenticationControllerTests
 
         var conflictStart = await client.GetAsync("/api/auth/google/start?fake=conflict");
         var conflictComplete = await client.GetAsync(conflictStart.Headers.Location);
-        conflictComplete.Headers.Location!.OriginalString.Should().Be("/auth/external/callback");
+        conflictComplete.Headers.Location!.OriginalString.Should().Be("/auth/external/callback?provider=Google");
         var conflictResponse = await client.PostAsync("/api/auth/external/exchange", null);
         var conflict = await conflictResponse.Content.ReadFromJsonAsync<ExternalAuthExchangeResponseDto>();
         conflict!.Outcome.Should().Be(ExternalAuthOutcomes.EmailConflict);
@@ -210,7 +213,7 @@ public sealed class ExternalAuthenticationControllerTests
         intent.StatusCode.Should().Be(HttpStatusCode.OK);
         var linkStart = await client.GetAsync("/api/auth/google/start?fake=conflict");
         var linkComplete = await client.GetAsync(linkStart.Headers.Location);
-        linkComplete.Headers.Location!.OriginalString.Should().Be("/auth/external/callback");
+        linkComplete.Headers.Location!.OriginalString.Should().Be("/auth/external/callback?provider=Google");
         var linkResponse = await client.PostAsync("/api/auth/external/exchange", null);
         var linked = await linkResponse.Content.ReadFromJsonAsync<ExternalAuthExchangeResponseDto>();
         linked!.Outcome.Should().Be(ExternalAuthOutcomes.LinkCompleted);
@@ -221,6 +224,87 @@ public sealed class ExternalAuthenticationControllerTests
         (await verificationUsers.GetLoginsAsync(existing!)).Should().ContainSingle(login => login.ProviderKey == "google-conflict-subject");
     }
 
+    [Fact]
+    public async Task FakeDiscord_FullRegistrationAndReturningLoginFlow_WorksWithoutProviderCredentials()
+    {
+        using var factory = CreateDiscordFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("http://127.0.0.1"),
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+
+        await CompleteFakeChallengeAsync(client, "discord");
+        var exchange = await (await client.PostAsync("/api/auth/external/exchange", null))
+            .Content.ReadFromJsonAsync<ExternalAuthExchangeResponseDto>();
+        exchange!.Outcome.Should().Be(ExternalAuthOutcomes.RegistrationRequired);
+        exchange.Provider.Should().Be(ExternalAuthProviderNames.Discord);
+        exchange.Email.Should().Be("discord-user@example.test");
+
+        var registrationResponse = await client.PostAsJsonAsync(
+            "/api/auth/external/register",
+            new ExternalAuthRegistrationDto { UserName = "fakediscord" });
+        registrationResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        await CompleteFakeChallengeAsync(client, "discord");
+        var returning = await (await client.PostAsync("/api/auth/external/exchange", null))
+            .Content.ReadFromJsonAsync<ExternalAuthExchangeResponseDto>();
+        returning!.Outcome.Should().Be(ExternalAuthOutcomes.Authenticated);
+        returning.Provider.Should().Be(ExternalAuthProviderNames.Discord);
+        returning.Token.Should().NotBeNullOrWhiteSpace();
+
+        using var verificationScope = factory.Services.CreateScope();
+        var users = verificationScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var created = await users.FindByNameAsync("fakediscord");
+        created!.EmailConfirmed.Should().BeTrue();
+        (await users.GetLoginsAsync(created)).Should().ContainSingle(login =>
+            login.LoginProvider == ExternalAuthProviderNames.Discord
+            && login.ProviderKey == "discord-test-subject");
+    }
+
+    [Theory]
+    [InlineData("unverified")]
+    [InlineData("missing-email")]
+    [InlineData("bot")]
+    [InlineData("system")]
+    public async Task FakeDiscord_UntrustedIdentity_IsRejected(string scenario)
+    {
+        using var factory = CreateDiscordFactory();
+        using var client = factory.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("http://127.0.0.1"),
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+
+        var start = await client.GetAsync($"/api/auth/discord/start?fake={scenario}");
+        var complete = await client.GetAsync(start.Headers.Location);
+
+        complete.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        complete.Headers.Location!.OriginalString.Should().Be("/auth/external/callback?provider=Discord&error=unverified");
+        (await client.PostAsync("/api/auth/external/exchange", null)).StatusCode.Should().Be(HttpStatusCode.Gone);
+    }
+
+    [Fact]
+    public async Task Callback_WhenRouteProviderDiffersFromProtectedProvider_IsRejected()
+    {
+        using var factory = CreateGoogleAndDiscordFactory();
+        using var client = factory.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("http://127.0.0.1"),
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+
+        var start = await client.GetAsync("/api/auth/discord/start");
+        start.Headers.Location!.OriginalString.Should().Be("/api/auth/discord/complete");
+        var mismatch = await client.GetAsync("/api/auth/google/complete");
+
+        mismatch.Headers.Location!.OriginalString.Should().Be("/auth/external/callback?provider=Google&error=invalid");
+    }
+
     private static IntegrationTestApplicationFactory CreateGoogleFactory() => new(new Dictionary<string, string?>
     {
         ["Authentication:Google:Enabled"] = "true",
@@ -229,13 +313,35 @@ public sealed class ExternalAuthenticationControllerTests
         ["Site:SupportEmail"] = "support@example.test"
     });
 
-    private static async Task CompleteFakeChallengeAsync(HttpClient client)
+    private static IntegrationTestApplicationFactory CreateDiscordFactory() => new(new Dictionary<string, string?>
     {
-        var start = await client.GetAsync("/api/auth/google/start?returnUrl=%2Fsupport");
+        ["Authentication:Discord:Enabled"] = "true",
+        ["Authentication:Discord:UseFakeProvider"] = "true",
+        ["Authentication:Discord:PublicOrigin"] = "https://localhost",
+        ["Site:SupportEmail"] = "support@example.test"
+    });
+
+    private static IntegrationTestApplicationFactory CreateGoogleAndDiscordFactory() => new(new Dictionary<string, string?>
+    {
+        ["Authentication:Google:Enabled"] = "true",
+        ["Authentication:Google:UseFakeProvider"] = "true",
+        ["Authentication:Google:PublicOrigin"] = "https://localhost",
+        ["Authentication:Discord:Enabled"] = "true",
+        ["Authentication:Discord:UseFakeProvider"] = "true",
+        ["Authentication:Discord:PublicOrigin"] = "https://localhost",
+        ["Site:SupportEmail"] = "support@example.test"
+    });
+
+    private static Task CompleteFakeChallengeAsync(HttpClient client) => CompleteFakeChallengeAsync(client, "google");
+
+    private static async Task CompleteFakeChallengeAsync(HttpClient client, string provider)
+    {
+        var displayName = string.Equals(provider, "discord", StringComparison.OrdinalIgnoreCase) ? "Discord" : "Google";
+        var start = await client.GetAsync($"/api/auth/{provider}/start?returnUrl=%2Fsupport");
         start.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        start.Headers.Location!.OriginalString.Should().Be("/api/auth/google/complete");
+        start.Headers.Location!.OriginalString.Should().Be($"/api/auth/{provider}/complete");
         var complete = await client.GetAsync(start.Headers.Location);
         complete.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        complete.Headers.Location!.OriginalString.Should().Be("/auth/external/callback");
+        complete.Headers.Location!.OriginalString.Should().Be($"/auth/external/callback?provider={displayName}");
     }
 }

@@ -52,6 +52,9 @@
 .bi-cup-hot::before { content: "\f7eb"; }
 .bi-dash-lg::before { content: "\f63b"; }
 .bi-diagram-3::before { content: "\f2ee"; }
+.bi-discord::before { content: "\f300"; }
+.bi-envelope-check::before { content: "\f68c"; }
+.bi-envelope-exclamation::before { content: "\f692"; }
 .bi-exclamation-circle::before { content: "\f333"; }
 .bi-exclamation-octagon::before { content: "\f337"; }
 .bi-exclamation-triangle::before { content: "\f33b"; }
@@ -83,6 +86,7 @@
 .bi-layout-sidebar-inset-reverse::before { content: "\f45c"; }
 .bi-life-preserver::before { content: "\f467"; }
 .bi-lightbulb::before { content: "\f46b"; }
+.bi-link-45deg::before { content: "\f470"; }
 .bi-megaphone::before { content: "\f484"; }
 .bi-palette2::before { content: "\f4b2"; }
 .bi-pencil::before { content: "\f4cb"; }

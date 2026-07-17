@@ -10,6 +10,12 @@ public sealed class TrafficShapingOptions
         WindowSeconds = 60
     };
 
+    public RateLimitPolicyOptions EmailConfirmation { get; set; } = new()
+    {
+        PermitLimit = 5,
+        WindowSeconds = 3_600
+    };
+
     public RateLimitPolicyOptions Search { get; set; } = new()
     {
         PermitLimit = 60,

@@ -448,8 +448,17 @@ async function ensureFollowedSeededAdmin(page, request) {
 
 async function ensureConversationWithSeededAdmin(page, request) {
   const adminUserId = await ensureFollowedSeededAdmin(page, request);
-  await sendAuthedRequest(page, request, "POST", `/api/conversations/direct/${encodeURIComponent(adminUserId)}`);
-  await page.goto("/messages");
+  const conversationResponse = await sendAuthedRequest(
+    page,
+    request,
+    "POST",
+    `/api/conversations/direct/${encodeURIComponent(adminUserId)}`,
+  );
+  const conversation = await conversationResponse.json();
+  await sendAuthedRequest(page, request, "POST", `/api/conversations/${conversation.id}/messages`, {
+    body: `UI review containment ${"unbroken-preview-content-".repeat(16)}`
+  });
+  await page.goto(`/messages/${conversation.id}`);
   await settle(page, 700);
 }
 
@@ -599,6 +608,80 @@ const scenarioGroups = {
       stateTags: ["auth", "desktop", "entry"]
     });
 
+    await page.route("**/api/auth/register", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          isSuccess: true,
+          requiresEmailConfirmation: true,
+          confirmationEmailSent: true
+        })
+      });
+    });
+    await page.getByTestId("register-username").fill("review-painter");
+    await page.getByTestId("register-email").fill("review@example.test");
+    await page.getByTestId("register-password").fill("ReviewPass123!");
+    await clickReliably(page.getByTestId("register-submit"));
+    await expect(page.getByTestId("register-confirmation-sent")).toBeVisible();
+    await capture(page, manifest, {
+      name: "auth-register-confirmation-sent-desktop",
+      group: "auth",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["auth", "desktop", "registration", "confirmation-sent"]
+    });
+    await page.unroute("**/api/auth/register");
+
+    await page.goto("/resend-confirmation");
+    await expect(page.getByTestId("resend-confirmation-form")).toBeVisible();
+    await capture(page, manifest, {
+      name: "auth-resend-confirmation-desktop",
+      group: "auth",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["auth", "desktop", "resend", "entry"]
+    });
+
+    await page.route("**/api/auth/email/resend", async (route) => {
+      await route.fulfill({ status: 202, body: "" });
+    });
+    await page.getByTestId("resend-confirmation-email").fill("review@example.test");
+    await clickReliably(page.getByTestId("resend-confirmation-submit"));
+    await expect(page.getByTestId("resend-confirmation-success")).toBeVisible();
+    await capture(page, manifest, {
+      name: "auth-resend-confirmation-success-desktop",
+      group: "auth",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["auth", "desktop", "resend", "accepted"]
+    });
+    await page.unroute("**/api/auth/email/resend");
+
+    await page.route("**/api/auth/email/confirm", async (route) => {
+      await route.fulfill({ status: 204, body: "" });
+    });
+    await page.goto("/confirm-email?userId=review-user&code=review-token&returnUrl=%2Fsupport");
+    await expect(page.getByTestId("confirm-email-success")).toBeVisible();
+    await capture(page, manifest, {
+      name: "auth-confirm-email-success-desktop",
+      group: "auth",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["auth", "desktop", "confirmation", "success"]
+    });
+    await page.unroute("**/api/auth/email/confirm");
+
+    await page.goto("/confirm-email");
+    await expect(page.getByTestId("confirm-email-invalid")).toBeVisible();
+    await capture(page, manifest, {
+      name: "auth-confirm-email-invalid-desktop",
+      group: "auth",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["auth", "desktop", "confirmation", "invalid"]
+    });
+
     await setViewport(page, VIEWPORTS.mobile);
     await page.goto("/login");
     await capture(page, manifest, {
@@ -644,6 +727,28 @@ const scenarioGroups = {
     });
 
     await startFreshState(page, request);
+    await setViewport(page, VIEWPORTS.desktop);
+    await page.goto("/api/auth/discord/start");
+    await page.waitForURL((url) => url.pathname === "/auth/external/complete-registration");
+    await expect(page.getByText(/Discord verified/)).toBeVisible();
+    await capture(page, manifest, {
+      name: "auth-discord-registration-desktop",
+      group: "auth",
+      viewport: VIEWPORTS.desktop,
+      authState: "unauthenticated",
+      stateTags: ["auth", "discord", "desktop", "onboarding"]
+    });
+
+    await setViewport(page, VIEWPORTS.mobile);
+    await capture(page, manifest, {
+      name: "auth-discord-registration-mobile",
+      group: "auth",
+      viewport: VIEWPORTS.mobile,
+      authState: "unauthenticated",
+      stateTags: ["auth", "discord", "mobile", "onboarding"]
+    });
+
+    await startFreshState(page, request);
     await loginAsSeedUser(page, request);
     await setViewport(page, VIEWPORTS.desktop);
     await page.goto("/account/sign-in-methods");
@@ -660,7 +765,13 @@ const scenarioGroups = {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ hasPassword: false, googleConnected: true, canDisconnectGoogle: false })
+        body: JSON.stringify({
+          hasPassword: false,
+          googleConnected: true,
+          canDisconnectGoogle: false,
+          discordConnected: false,
+          canDisconnectDiscord: false
+        })
       });
     });
     await page.goto("/account/sign-in-methods");
@@ -1288,8 +1399,14 @@ const scenarioGroups = {
     });
 
     const viewerCommentsScroll = page.getByTestId("viewer-comments-scroll");
+    const viewerCommentItems = page.locator("[data-testid='viewer-comments-thread'] [data-testid='comment-item']");
     await viewerCommentsScroll.hover({ position: { x: 8, y: 120 } });
     await page.mouse.wheel(0, 220);
+    await viewerCommentsScroll.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect(viewerCommentItems).toHaveCount(richViewerPost.extraComments.length + 4);
+    await expect(page.getByTestId("viewer-comments-load-sentinel")).toHaveCount(0);
     await viewerCommentsScroll.evaluate((element) => {
       element.scrollTop = Math.round((element.scrollHeight - element.clientHeight) * 0.45);
     });

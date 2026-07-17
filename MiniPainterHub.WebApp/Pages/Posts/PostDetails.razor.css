@@ -1,3 +1,35 @@
+.post-details-back-link {
+    display: inline-flex;
+    align-items: center;
+    align-self: start;
+    gap: 0.45rem;
+    margin-bottom: -0.35rem;
+    padding: 0.32rem 0.15rem;
+    border: 0;
+    background: transparent;
+    color: var(--primary-700);
+    font-weight: 750;
+    line-height: 1.2;
+    text-decoration: none;
+}
+
+.post-details-back-link:hover {
+    color: var(--primary-900);
+    text-decoration: underline;
+    text-underline-offset: 0.2rem;
+}
+
+.post-details-back-link:focus-visible {
+    outline: 2px solid rgba(38, 111, 104, 0.38);
+    outline-offset: 0.2rem;
+    border-radius: 0.25rem;
+}
+
+.post-details-moderator-id {
+    background: rgba(38, 111, 104, 0.09);
+    color: var(--primary-700);
+}
+
 .post-details-grid {
     align-items: start;
     gap: 1rem;
@@ -18,6 +50,30 @@
     justify-content: space-between;
     align-items: start;
     gap: 1rem;
+}
+
+.post-details-gallery__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.55rem;
+}
+
+::deep(.post-details-gallery__actions .like-button) {
+    min-height: 2.45rem;
+    padding-inline: 0.78rem;
+    border-color: rgba(180, 168, 150, 0.72);
+    background: rgba(255, 253, 249, 0.78);
+    color: var(--ink-700);
+    font-weight: 750;
+}
+
+::deep(.post-details-gallery__actions .like-button:hover),
+::deep(.post-details-gallery__actions .like-button:focus-visible) {
+    border-color: rgba(38, 111, 104, 0.58);
+    background: #fff;
+    color: var(--primary-700);
 }
 
 .post-details-gallery__title {
@@ -702,6 +758,18 @@
         align-items: stretch;
     }
 
+    .post-details-gallery__actions {
+        width: 100%;
+        flex-wrap: nowrap;
+    }
+
+    .post-details-gallery__launch,
+    ::deep(.post-details-gallery__actions .like-button) {
+        flex: 1 1 0;
+        min-width: 0;
+        justify-content: center;
+    }
+
     .post-details-gallery__thumb {
         width: 5.4rem;
         flex-basis: 5.4rem;
@@ -873,30 +941,16 @@
 }
 
 .viewer-shell__side-panel .viewer-panel__comments-scroll {
-    overflow-y: scroll;
-    scrollbar-gutter: stable;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(218, 181, 115, 0.58) transparent;
+    overflow-y: auto;
+    scrollbar-gutter: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
 .viewer-shell__side-panel .viewer-panel__comments-scroll::-webkit-scrollbar {
-    width: 0.42rem;
-}
-
-.viewer-shell__side-panel .viewer-panel__comments-scroll::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.viewer-shell__side-panel .viewer-panel__comments-scroll::-webkit-scrollbar-thumb {
-    border: 1px solid transparent;
-    border-radius: 999px;
-    background: rgba(218, 181, 115, 0.58);
-    background-clip: padding-box;
-}
-
-.viewer-shell__side-panel .viewer-panel__comments-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgba(235, 200, 137, 0.78);
-    background-clip: padding-box;
+    display: none;
+    width: 0;
+    height: 0;
 }
 
 .viewer-shell__side-panel .viewer-panel__eyebrow,

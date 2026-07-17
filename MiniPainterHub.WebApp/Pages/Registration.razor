@@ -1,6 +1,7 @@
 @page "/register"
 @inject IAuthService AuthService
 @inject NavigationManager Nav
+@using MiniPainterHub.WebApp.Services.Auth
 
 <PageTitle>Register</PageTitle>
 
@@ -47,54 +48,82 @@
                                ClassName="section-heading section-heading--auth"
                                SectionName="Registration Card" />
 
-                <GoogleSignInAction ReturnUrl="@ReturnUrl" />
-
-                <ValidationSummary class="text-danger small mt-3 mb-0" />
-
-                <div class="form-grid mt-4">
-                    <div>
-                        <label for="reg-username" class="form-label">Username</label>
-                        <InputText id="reg-username"
-                                   class="form-control"
-                                   autocomplete="username"
-                                   data-testid="register-username"
-                                   @bind-Value="registration.UserName" />
-                    </div>
-
-                    <div>
-                        <label for="reg-email" class="form-label">Email</label>
-                        <InputText id="reg-email"
-                                   type="email"
-                                   class="form-control"
-                                   autocomplete="email"
-                                   data-testid="register-email"
-                                   @bind-Value="registration.Email" />
-                    </div>
-
-                    <div>
-                        <label for="reg-password" class="form-label">Password</label>
-                        <InputText id="reg-password"
-                                   type="password"
-                                   class="form-control"
-                                   autocomplete="new-password"
-                                   data-testid="register-password"
-                                   @bind-Value="registration.Password" />
-                    </div>
-                </div>
-
-                <button type="submit" class="btn btn-primary w-100 mt-4" data-testid="register-submit">
-                    Create Account
-                </button>
-
-                @if (!string.IsNullOrEmpty(error))
+                @if (_outcome == RegistrationOutcome.ConfirmationSent)
                 {
-                    <div class="status-panel status-panel--error mt-3" data-testid="register-error">
-                        <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                    <div class="status-panel status-panel--success mt-4" role="status" data-testid="register-confirmation-sent">
+                        <div class="status-panel__icon"><i class="bi bi-envelope-check" aria-hidden="true"></i></div>
                         <div>
-                            <div class="status-panel__title">Registration failed</div>
-                            <p class="status-panel__text mb-0">@error</p>
+                            <div class="status-panel__title">Check your email</div>
+                            <p class="status-panel__text mb-0">Your account is ready. Open the confirmation link we sent to <strong>@registration.Email</strong> before signing in.</p>
                         </div>
                     </div>
+                    <div class="d-grid gap-2 mt-4">
+                        <NavLink class="btn btn-primary" href="@LoginUrl">Continue to sign in</NavLink>
+                        <NavLink class="btn btn-outline-secondary" href="/resend-confirmation">Didn't receive the email?</NavLink>
+                    </div>
+                }
+                else if (_outcome == RegistrationOutcome.ConfirmationPendingDelivery)
+                {
+                    <div class="status-panel status-panel--warning mt-4" role="alert" data-testid="register-confirmation-pending">
+                        <div class="status-panel__icon"><i class="bi bi-envelope-exclamation" aria-hidden="true"></i></div>
+                        <div>
+                            <div class="status-panel__title">Account created, but email was not sent</div>
+                            <p class="status-panel__text mb-0">Your account is safely pending confirmation. Use resend when you're ready; do not create the account again.</p>
+                        </div>
+                    </div>
+                    <NavLink class="btn btn-primary w-100 mt-4" href="/resend-confirmation">Resend confirmation email</NavLink>
+                }
+                else
+                {
+                    <ExternalSignInActions ReturnUrl="@ReturnUrl" />
+
+                    <ValidationSummary class="text-danger small mt-3 mb-0" />
+
+                    <div class="form-grid mt-4">
+                        <div>
+                            <label for="reg-username" class="form-label">Username</label>
+                            <InputText id="reg-username"
+                                       class="form-control"
+                                       autocomplete="username"
+                                       data-testid="register-username"
+                                       @bind-Value="registration.UserName" />
+                        </div>
+
+                        <div>
+                            <label for="reg-email" class="form-label">Email</label>
+                            <InputText id="reg-email"
+                                       type="email"
+                                       class="form-control"
+                                       autocomplete="email"
+                                       data-testid="register-email"
+                                       @bind-Value="registration.Email" />
+                        </div>
+
+                        <div>
+                            <label for="reg-password" class="form-label">Password</label>
+                            <InputText id="reg-password"
+                                       type="password"
+                                       class="form-control"
+                                       autocomplete="new-password"
+                                       data-testid="register-password"
+                                       @bind-Value="registration.Password" />
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 mt-4" data-testid="register-submit" disabled="@_isSubmitting">
+                        @(_isSubmitting ? "Creating account..." : "Create Account")
+                    </button>
+
+                    @if (!string.IsNullOrEmpty(error))
+                    {
+                        <div class="status-panel status-panel--error mt-3" data-testid="register-error">
+                            <div class="status-panel__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+                            <div>
+                                <div class="status-panel__title">Registration failed</div>
+                                <p class="status-panel__text mb-0">@error</p>
+                            </div>
+                        </div>
+                    }
                 }
 
                 <div class="auth-card__footer">
@@ -113,20 +142,47 @@
 
     private RegisterDto registration = new();
     private string? error;
+    private RegistrationOutcome? _outcome;
+    private bool _isSubmitting;
+
+    private string LoginUrl => $"/login?returnUrl={Uri.EscapeDataString(GetSafeReturnUrl())}";
 
     private async Task HandleRegister()
     {
+        if (_isSubmitting)
+        {
+            return;
+        }
+
         error = null;
-        var success = await AuthService.RegisterAsync(registration);
-        if (success)
+        _isSubmitting = true;
+        registration.ReturnUrl = GetSafeReturnUrl();
+        try
         {
-            var suppliedReturnUrl = LocalReturnUrl.GetQueryParameter(Nav.Uri, "returnUrl") ?? ReturnUrl;
-            var destination = LocalReturnUrl.Normalize(suppliedReturnUrl, new Uri(Nav.BaseUri));
-            Nav.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(destination)}");
+            _outcome = await AuthService.RegisterAsync(registration);
+            if (_outcome == RegistrationOutcome.Success)
+            {
+                Nav.NavigateTo(LoginUrl);
+                return;
+            }
+
+            error = _outcome switch
+            {
+                RegistrationOutcome.ValidationFailure => "Check your account details and try again.",
+                RegistrationOutcome.RateLimited => "Too many registration attempts. Wait before trying again.",
+                RegistrationOutcome.Unavailable => "Registration is unavailable right now. Please try again.",
+                _ => null
+            };
         }
-        else
+        finally
         {
-            error = "Registration failed.";
+            _isSubmitting = false;
         }
+    }
+
+    private string GetSafeReturnUrl()
+    {
+        var suppliedReturnUrl = LocalReturnUrl.GetQueryParameter(Nav.Uri, "returnUrl") ?? ReturnUrl;
+        return LocalReturnUrl.Normalize(suppliedReturnUrl, new Uri(Nav.BaseUri));
     }
 }

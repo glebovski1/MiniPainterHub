@@ -69,10 +69,10 @@
                         <button type="button"
                                 class="list-group-item list-group-item-action text-start @(ActiveThreadId == conversation.Id ? "active" : string.Empty)"
                                 @onclick="@(() => OpenConversation(conversation.Id))">
-                            <div class="d-flex justify-content-between align-items-start gap-2">
-                                <div>
+                            <div class="message-conversation-list__row d-flex justify-content-between align-items-start gap-2">
+                                <div class="message-conversation-list__content">
                                     <div class="fw-semibold">@conversation.OtherUser.DisplayName</div>
-                                    <div class="small @(ActiveThreadId == conversation.Id ? "text-white-50" : "text-muted")">
+                                    <div class="message-conversation-list__preview small @(ActiveThreadId == conversation.Id ? "text-white-50" : "text-muted")">
                                         @(string.IsNullOrWhiteSpace(conversation.LatestMessagePreview) ? "No messages yet." : conversation.LatestMessagePreview)
                                     </div>
                                 </div>
@@ -172,7 +172,7 @@
                         {
                             <div class="message-bubble @(message.IsMine ? "message-bubble--mine" : string.Empty)">
                                 <div class="small fw-semibold mb-1">@message.SenderDisplayName</div>
-                                <div>@message.Body</div>
+                                <div class="message-bubble__body">@message.Body</div>
                                 <div class="message-bubble__meta mt-2">
                                     @message.SentUtc.ToLocalTime().ToString("MMM dd, HH:mm")
                                 </div>

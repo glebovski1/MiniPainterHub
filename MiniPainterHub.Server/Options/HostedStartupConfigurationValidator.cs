@@ -39,6 +39,41 @@ internal static class HostedStartupConfigurationValidator
             missingSettings,
             legacyKeys: ["ImageStorageAzureContainer"]);
 
+        if (configuration.GetValue<bool>("EmailConfirmation:Enabled"))
+        {
+            var provider = GetRequiredConfigurationValue(
+                configuration,
+                "EmailConfirmation:Provider",
+                "EmailConfirmation__Provider",
+                missingSettings);
+            GetRequiredConfigurationValue(
+                configuration,
+                "EmailConfirmation:PublicOrigin",
+                "EmailConfirmation__PublicOrigin",
+                missingSettings);
+            GetRequiredConfigurationValue(
+                configuration,
+                "EmailConfirmation:Endpoint",
+                "EmailConfirmation__Endpoint",
+                missingSettings);
+            GetRequiredConfigurationValue(
+                configuration,
+                "EmailConfirmation:SenderAddress",
+                "EmailConfirmation__SenderAddress",
+                missingSettings);
+            GetRequiredConfigurationValue(
+                configuration,
+                "EmailConfirmation:SenderDisplayName",
+                "EmailConfirmation__SenderDisplayName",
+                missingSettings);
+
+            if (!string.IsNullOrWhiteSpace(provider)
+                && !string.Equals(provider, EmailConfirmationProviders.AzureCommunicationServices, StringComparison.Ordinal))
+            {
+                missingSettings.Add("EmailConfirmation__Provider must be AzureCommunicationServices outside Development/Test");
+            }
+        }
+
         if (configuration.GetValue<bool>("Authentication:Google:Enabled"))
         {
             GetRequiredConfigurationValue(configuration, "Authentication:Google:ClientId", "Authentication__Google__ClientId", missingSettings);
@@ -55,6 +90,25 @@ internal static class HostedStartupConfigurationValidator
             if (string.Equals(configuration["AllowedHosts"], "*", StringComparison.Ordinal))
             {
                 missingSettings.Add("AllowedHosts must restrict the public Google authentication host");
+            }
+        }
+
+        if (configuration.GetValue<bool>("Authentication:Discord:Enabled"))
+        {
+            GetRequiredConfigurationValue(configuration, "Authentication:Discord:ClientId", "Authentication__Discord__ClientId", missingSettings);
+            GetRequiredConfigurationValue(configuration, "Authentication:Discord:ClientSecret", "Authentication__Discord__ClientSecret", missingSettings);
+            GetRequiredConfigurationValue(configuration, "Authentication:Discord:CallbackPath", "Authentication__Discord__CallbackPath", missingSettings);
+            GetRequiredConfigurationValue(configuration, "Authentication:Discord:PublicOrigin", "Authentication__Discord__PublicOrigin", missingSettings);
+            GetRequiredConfigurationValue(configuration, "Site:SupportEmail", "Site__SupportEmail", missingSettings);
+
+            if (configuration.GetValue<bool>("Authentication:Discord:UseFakeProvider"))
+            {
+                missingSettings.Add("Authentication__Discord__UseFakeProvider must be false outside Development/Test");
+            }
+
+            if (string.Equals(configuration["AllowedHosts"], "*", StringComparison.Ordinal))
+            {
+                missingSettings.Add("AllowedHosts must restrict the public Discord authentication host");
             }
         }
 

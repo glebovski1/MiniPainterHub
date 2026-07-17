@@ -15,4 +15,5 @@ public sealed record ExternalAuthClientResult(
     ExternalAuthClientOutcome Outcome,
     string? Email = null,
     string? SuggestedUserName = null,
-    string ReturnUrl = "/");
+    string ReturnUrl = "/",
+    string? Provider = null);

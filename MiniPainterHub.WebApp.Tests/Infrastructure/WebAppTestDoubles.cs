@@ -16,31 +16,40 @@ namespace MiniPainterHub.WebApp.Tests.Infrastructure;
 internal sealed class StubAuthService : IAuthService
 {
     public Func<LoginDto, Task<LoginOutcome>> LoginHandler { get; set; } = _ => Task.FromResult(LoginOutcome.Success);
-    public Func<RegisterDto, Task<bool>> RegisterHandler { get; set; } = _ => Task.FromResult(true);
+    public Func<RegisterDto, Task<RegistrationOutcome>> RegisterHandler { get; set; } = _ =>
+        Task.FromResult(RegistrationOutcome.ConfirmationSent);
+    public Func<ConfirmEmailDto, Task<EmailConfirmationOutcome>> ConfirmEmailHandler { get; set; } = _ =>
+        Task.FromResult(EmailConfirmationOutcome.Success);
+    public Func<ResendEmailConfirmationDto, Task<ResendEmailConfirmationOutcome>> ResendEmailConfirmationHandler { get; set; } = _ =>
+        Task.FromResult(ResendEmailConfirmationOutcome.Accepted);
     public Func<Task<AuthProvidersDto>> GetProvidersHandler { get; set; } = () => Task.FromResult(new AuthProvidersDto());
     public Func<Task<ExternalAuthClientResult>> ExchangeExternalHandler { get; set; } = () =>
         Task.FromResult(new ExternalAuthClientResult(ExternalAuthClientOutcome.Unavailable));
     public Func<ExternalAuthRegistrationDto, Task<LoginOutcome>> CompleteExternalRegistrationHandler { get; set; } = _ =>
         Task.FromResult(LoginOutcome.Success);
-    public Func<string, Task<ExternalAuthStartDto?>> BeginGoogleLinkHandler { get; set; } = _ =>
-        Task.FromResult<ExternalAuthStartDto?>(new ExternalAuthStartDto { StartUrl = "/api/auth/google/start?mode=link" });
+    public Func<string, string, Task<ExternalAuthStartDto?>> BeginExternalLinkHandler { get; set; } = (provider, _) =>
+        Task.FromResult<ExternalAuthStartDto?>(new ExternalAuthStartDto { StartUrl = $"/api/auth/{provider.ToLowerInvariant()}/start?mode=link" });
     public Func<Task<SignInMethodsDto?>> GetSignInMethodsHandler { get; set; } = () =>
         Task.FromResult<SignInMethodsDto?>(new SignInMethodsDto());
     public Func<SetPasswordDto, Task<SignInMethodsDto?>> SetPasswordHandler { get; set; } = _ =>
         Task.FromResult<SignInMethodsDto?>(new SignInMethodsDto { HasPassword = true });
-    public Func<Task<SignInMethodsDto?>> DisconnectGoogleHandler { get; set; } = () =>
+    public Func<string, Task<SignInMethodsDto?>> DisconnectExternalHandler { get; set; } = _ =>
         Task.FromResult<SignInMethodsDto?>(new SignInMethodsDto { HasPassword = true });
     public Func<Task> LogoutHandler { get; set; } = () => Task.CompletedTask;
 
     public Task<LoginOutcome> LoginAsync(LoginDto dto) => LoginHandler(dto);
-    public Task<bool> RegisterAsync(RegisterDto dto) => RegisterHandler(dto);
+    public Task<RegistrationOutcome> RegisterAsync(RegisterDto dto) => RegisterHandler(dto);
+    public Task<EmailConfirmationOutcome> ConfirmEmailAsync(ConfirmEmailDto dto) => ConfirmEmailHandler(dto);
+    public Task<ResendEmailConfirmationOutcome> ResendEmailConfirmationAsync(ResendEmailConfirmationDto dto) =>
+        ResendEmailConfirmationHandler(dto);
     public Task<AuthProvidersDto> GetProvidersAsync() => GetProvidersHandler();
     public Task<ExternalAuthClientResult> ExchangeExternalAsync() => ExchangeExternalHandler();
     public Task<LoginOutcome> CompleteExternalRegistrationAsync(ExternalAuthRegistrationDto dto) => CompleteExternalRegistrationHandler(dto);
-    public Task<ExternalAuthStartDto?> BeginGoogleLinkAsync(string returnUrl = "/account/sign-in-methods") => BeginGoogleLinkHandler(returnUrl);
+    public Task<ExternalAuthStartDto?> BeginExternalLinkAsync(string provider, string returnUrl = "/account/sign-in-methods") =>
+        BeginExternalLinkHandler(provider, returnUrl);
     public Task<SignInMethodsDto?> GetSignInMethodsAsync() => GetSignInMethodsHandler();
     public Task<SignInMethodsDto?> SetPasswordAsync(SetPasswordDto dto) => SetPasswordHandler(dto);
-    public Task<SignInMethodsDto?> DisconnectGoogleAsync() => DisconnectGoogleHandler();
+    public Task<SignInMethodsDto?> DisconnectExternalAsync(string provider) => DisconnectExternalHandler(provider);
     public Task LogoutAsync() => LogoutHandler();
 }
 

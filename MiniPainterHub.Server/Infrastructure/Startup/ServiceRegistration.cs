@@ -1,7 +1,10 @@
 using Azure.Storage.Blobs;
+using Azure.Communication.Email;
+using Azure.Identity;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authentication.OAuth.Claims;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
@@ -34,8 +37,11 @@ using System.IO.Compression;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using System.Threading.RateLimiting;
 
 namespace MiniPainterHub;
@@ -75,7 +81,7 @@ public partial class Program
 
         builder.Services.AddDefaultIdentity<ApplicationUser>(o =>
         {
-            o.SignIn.RequireConfirmedAccount = false;
+            o.SignIn.RequireConfirmedEmail = builder.Configuration.GetValue<bool>("EmailConfirmation:Enabled");
             o.User.RequireUniqueEmail = true;
             o.Lockout.AllowedForNewUsers = true;
             o.Lockout.MaxFailedAccessAttempts = 5;
@@ -84,10 +90,13 @@ public partial class Program
         .AddRoles<IdentityRole>()
         .AddEntityFrameworkStores<AppDbContext>()
         .AddSignInManager();
+        builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+            options.TokenLifespan = TimeSpan.FromHours(24));
 
         AddAuthentication(builder, hostedStartupConfiguration?.Jwt);
         AddFrameworkServices(builder);
         AddOptions(builder);
+        AddEmailServices(builder);
         AddTrafficShaping(builder);
         AddImageServices(builder, isLocalToolingEnvironment, hostedStartupConfiguration);
         AddDomainServices(builder.Services);
@@ -179,6 +188,86 @@ public partial class Program
                     context.HandleResponse();
                     context.Response.Redirect("/api/auth/google/complete?error=cancelled");
                     return System.Threading.Tasks.Task.CompletedTask;
+                };
+            });
+        }
+
+        var discord = builder.Configuration.GetSection(DiscordAuthenticationOptions.SectionName).Get<DiscordAuthenticationOptions>()
+            ?? new DiscordAuthenticationOptions();
+        authentication.AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, FakeDiscordAuthenticationHandler>(
+            ExternalAuthenticationSchemes.FakeDiscord,
+            _ => { });
+
+        if (discord.Enabled && !discord.UseFakeProvider)
+        {
+            authentication.AddOAuth(ExternalAuthenticationSchemes.Discord, options =>
+            {
+                options.ClientId = discord.ClientId!;
+                options.ClientSecret = discord.ClientSecret!;
+                options.CallbackPath = discord.CallbackPath;
+                options.SignInScheme = ExternalAuthenticationSchemes.ExternalCookie;
+                options.AuthorizationEndpoint = "https://discord.com/oauth2/authorize";
+                options.TokenEndpoint = "https://discord.com/api/oauth2/token";
+                options.UserInformationEndpoint = "https://discord.com/api/v10/users/@me";
+                options.SaveTokens = false;
+                options.Scope.Clear();
+                options.Scope.Add("identify");
+                options.Scope.Add("email");
+                options.ClaimActions.Add(new JsonKeyClaimAction(
+                    ClaimTypes.NameIdentifier,
+                    ClaimValueTypes.String,
+                    "id"));
+                options.ClaimActions.Add(new JsonKeyClaimAction(
+                    ClaimTypes.Email,
+                    ClaimValueTypes.Email,
+                    "email"));
+                options.ClaimActions.Add(new JsonKeyClaimAction(
+                    ClaimTypes.Name,
+                    ClaimValueTypes.String,
+                    "global_name"));
+                options.ClaimActions.Add(new JsonKeyClaimAction(
+                    "urn:discord:username",
+                    ClaimValueTypes.String,
+                    "username"));
+                options.ClaimActions.Add(new JsonKeyClaimAction(
+                    "urn:discord:email_verified",
+                    ClaimValueTypes.Boolean,
+                    "verified"));
+                options.ClaimActions.Add(new JsonKeyClaimAction(
+                    "urn:discord:bot",
+                    ClaimValueTypes.Boolean,
+                    "bot"));
+                options.ClaimActions.Add(new JsonKeyClaimAction(
+                    "urn:discord:system",
+                    ClaimValueTypes.Boolean,
+                    "system"));
+                options.Events = new OAuthEvents
+                {
+                    OnCreatingTicket = async context =>
+                    {
+                        if (string.IsNullOrWhiteSpace(context.AccessToken))
+                        {
+                            throw new InvalidOperationException("Discord did not provide an access token.");
+                        }
+
+                        using var request = new HttpRequestMessage(HttpMethod.Get, context.Options.UserInformationEndpoint);
+                        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", context.AccessToken);
+                        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                        request.Headers.UserAgent.ParseAdd("MiniPainterHub/1.0");
+                        using var response = await context.Backchannel.SendAsync(request, context.HttpContext.RequestAborted);
+                        response.EnsureSuccessStatusCode();
+                        await using var responseStream = await response.Content.ReadAsStreamAsync(context.HttpContext.RequestAborted);
+                        using var user = await JsonDocument.ParseAsync(
+                            responseStream,
+                            cancellationToken: context.HttpContext.RequestAborted);
+                        context.RunClaimActions(user.RootElement);
+                    },
+                    OnRemoteFailure = context =>
+                    {
+                        context.HandleResponse();
+                        context.Response.Redirect("/api/auth/discord/complete?error=cancelled");
+                        return System.Threading.Tasks.Task.CompletedTask;
+                    }
                 };
             });
         }
@@ -274,9 +363,17 @@ public partial class Program
             .Bind(builder.Configuration.GetSection("TrafficShaping"))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+        builder.Services.AddSingleton<IValidateOptions<EmailConfirmationOptions>, EmailConfirmationOptionsValidator>();
+        builder.Services.AddOptions<EmailConfirmationOptions>()
+            .Bind(builder.Configuration.GetSection(EmailConfirmationOptions.SectionName))
+            .ValidateOnStart();
         builder.Services.AddSingleton<IValidateOptions<GoogleAuthenticationOptions>, GoogleAuthenticationOptionsValidator>();
         builder.Services.AddOptions<GoogleAuthenticationOptions>()
             .Bind(builder.Configuration.GetSection(GoogleAuthenticationOptions.SectionName))
+            .ValidateOnStart();
+        builder.Services.AddSingleton<IValidateOptions<DiscordAuthenticationOptions>, DiscordAuthenticationOptionsValidator>();
+        builder.Services.AddOptions<DiscordAuthenticationOptions>()
+            .Bind(builder.Configuration.GetSection(DiscordAuthenticationOptions.SectionName))
             .ValidateOnStart();
     }
 
@@ -345,6 +442,8 @@ public partial class Program
 
             options.AddPolicy(RateLimitingPolicies.Auth, context =>
                 CreateFixedWindowPartition(GetIpPartitionKey(context), traffic.Auth));
+            options.AddPolicy(RateLimitingPolicies.EmailConfirmation, context =>
+                CreateFixedWindowPartition(GetIpPartitionKey(context), traffic.EmailConfirmation));
             options.AddPolicy(RateLimitingPolicies.Search, context =>
                 CreateFixedWindowPartition(GetIpPartitionKey(context), traffic.Search));
             options.AddPolicy(RateLimitingPolicies.Write, context =>
@@ -419,6 +518,28 @@ public partial class Program
         builder.Services.AddSingleton<AzureBlobImageService>();
         builder.Services.AddSingleton<IImageService>(sp => sp.GetRequiredService<AzureBlobImageService>());
         builder.Services.AddSingleton<IImageStore>(sp => sp.GetRequiredService<AzureBlobImageService>());
+    }
+
+    private static void AddEmailServices(WebApplicationBuilder builder)
+    {
+        var email = builder.Configuration.GetSection(EmailConfirmationOptions.SectionName).Get<EmailConfirmationOptions>()
+            ?? new EmailConfirmationOptions();
+
+        if (!email.Enabled)
+        {
+            builder.Services.AddSingleton<IAccountEmailSender, DisabledAccountEmailSender>();
+        }
+        else if (string.Equals(email.Provider, EmailConfirmationProviders.AzureCommunicationServices, StringComparison.Ordinal))
+        {
+            builder.Services.AddSingleton(_ => new EmailClient(new Uri(email.Endpoint!), new DefaultAzureCredential()));
+            builder.Services.AddSingleton<IAccountEmailSender, AzureCommunicationAccountEmailSender>();
+        }
+        else
+        {
+            builder.Services.AddSingleton<IAccountEmailSender, DevelopmentAccountEmailSender>();
+        }
+
+        builder.Services.AddScoped<IEmailConfirmationService, EmailConfirmationService>();
     }
 
     private static void AddDomainServices(IServiceCollection services)

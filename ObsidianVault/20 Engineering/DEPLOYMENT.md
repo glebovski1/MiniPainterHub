@@ -104,6 +104,75 @@ To rotate the Google client secret, create a second secret for the existing OAut
 
 The current Azure hostname is acceptable for a test-user pilot. General availability and branded consent require a verified custom domain plus owner-reviewed public Privacy and Terms content.
 
+## Discord authentication pilot activation
+
+Discord authentication ships disabled and requires no database migration or Discord bot. Create an application in the Discord Developer Portal, keep bot installation and guild permissions disabled, and register these OAuth2 redirects:
+
+```text
+https://localhost:7295/signin-discord
+https://minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net/signin-discord
+```
+
+Store the Discord application credentials in Azure App Service settings:
+
+```text
+Authentication__Discord__Enabled=true
+Authentication__Discord__ClientId=<Discord Application ID>
+Authentication__Discord__ClientSecret=<Discord client secret or Key Vault reference>
+Authentication__Discord__CallbackPath=/signin-discord
+Authentication__Discord__PublicOrigin=https://minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net
+Authentication__Discord__UseFakeProvider=false
+Site__SupportEmail=<monitored public support address>
+```
+
+MiniPainterHub requests only Discord's `identify` and `email` scopes. It requires a verified email, stores the Discord user ID through `AspNetUserLogins`, and does not retain Discord access or refresh tokens. `Authentication__Discord__UseFakeProvider=true` is reserved for Development/Test and startup rejects it elsewhere.
+
+Activation sequence:
+
+1. Deploy with Discord disabled and create the Discord application plus client secret.
+2. Register both exact redirects and configure the Azure settings above.
+3. Restart App Service and confirm `/api/auth/providers` reports Discord enabled.
+4. Smoke-test new-user onboarding, returning login, unverified-email rejection, same-email conflict, explicit linking, dual Google/Discord methods, guarded disconnection, cancellation, suspension, and registration controls.
+5. Keep password and Google sign-in available throughout the pilot.
+
+To roll back without code or schema changes, set `Authentication__Discord__Enabled=false` and restart. Existing password and Google methods remain available; Discord-only users require Discord to be re-enabled or an already-configured alternate sign-in method. Discord availability is intentionally not part of `/healthz/ready`.
+
+To rotate the client secret, create a replacement secret in the Discord Developer Portal, update `Authentication__Discord__ClientSecret` or its Key Vault reference, restart, and complete a returning-user smoke test before revoking the previous secret. Never store or configure a Discord bot token for authentication.
+
+## Password email confirmation activation
+
+Password registration requires Azure Communication Services Email in hosted environments. The first release uses the free Azure-managed sender domain; its default MailFrom address has the form `donotreply@<resource-id>.azurecomm.net`.
+
+Provision the Azure resources before deploying the confirmation code:
+
+1. Create an Email Communication Services resource and add its one-click Azure-managed domain.
+2. Create or select an Azure Communication Services resource and connect the managed email domain under **Email > Domains**.
+3. Enable the system-assigned managed identity on the `MiniPainterHub` App Service.
+4. On the Communication Services resource, assign that managed identity the built-in **Communication and Email Service Owner** role.
+5. Copy the Communication Services endpoint and the managed domain's default MailFrom address into these App Service settings:
+
+```text
+EmailConfirmation__Enabled=true
+EmailConfirmation__Provider=AzureCommunicationServices
+EmailConfirmation__PublicOrigin=https://minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net
+EmailConfirmation__Endpoint=https://<resource-name>.communication.azure.com
+EmailConfirmation__SenderAddress=donotreply@<resource-id>.azurecomm.net
+EmailConfirmation__SenderDisplayName=MiniPainterHub
+```
+
+The application uses `DefaultAzureCredential`, so there is no ACS connection string or API key to store. Hosted startup rejects missing settings and rejects the local `DevelopmentLog` provider. Local Development/Lighthouse runs log confirmation links for manual testing; production must never log those links.
+
+The Azure-managed domain is a pilot sender with a fixed limit of 5 messages per minute and 10 per hour. MiniPainterHub additionally limits registration and resend requests to five per hour per source IP. Promote to a verified custom domain before traffic can exceed the managed-domain limit or when a branded sender is required.
+
+Activation sequence:
+
+1. Configure and verify ACS by sending a portal test email to a controlled mailbox.
+2. In the existing Admin site controls, disable **Registrations** so no account can be created between migration and deployment.
+3. Run the normal deploy. `GrandfatherExistingEmailConfirmations` marks every existing account confirmed before the new application is published; the migration is intentionally one-way.
+4. Register a new password account, verify that pre-confirmation login fails, open the emailed link, and verify login succeeds afterward.
+5. Verify unknown-address and known-address resend requests present the same browser response, and verify an existing password account plus a Google account can still sign in.
+6. Re-enable **Registrations** only after those checks pass.
+
 ## First deployment
 
 1. Confirm the GitHub `production` environment has the variables and `AZURE_WEBAPP_PUBLISH_PROFILE` secret above. Add `PRODUCTION_SQL_CONNECTION_STRING` only when an explicit migration credential override is required.
@@ -158,11 +227,13 @@ After deployment:
 1. Open the site root and confirm the Blazor app loads.
 2. Confirm `/healthz` returns `200 OK`.
 3. Confirm `/healthz/ready` returns `200 OK`.
-4. Confirm registration or login works.
-5. When Google is enabled, complete one returning-user Google login and confirm the callback returns to HTTPS without exposing an application token in the URL.
-6. Confirm image upload works.
-7. Confirm the database migrated successfully from GitHub Actions logs.
-8. Confirm SignalR chat endpoints connect if chat is enabled.
+4. Confirm a new password registration receives email, remains blocked before confirmation, and can log in after following the link.
+5. Confirm confirmation resend shows the same response for known and unknown addresses.
+6. Confirm an existing password account still works after the grandfather migration.
+7. When Google is enabled, complete one returning-user Google login and confirm the callback returns to HTTPS without exposing an application token in the URL.
+8. Confirm image upload works.
+9. Confirm the database migrated successfully from GitHub Actions logs.
+10. Confirm SignalR chat endpoints connect if chat is enabled.
 
 Production startup does not run EF migrations by default. If the deployment migration step is unavailable during a single-instance emergency rollout, temporarily set `Database__AutoMigrateOnStartup=true`, deploy once, then remove it after the app starts cleanly.
 
@@ -177,4 +248,4 @@ If the app fails after a successful upload, treat it as a deployed-app startup p
 3. Use Kudu/Advanced Tools to inspect deployed files under `site/wwwroot`.
 4. Run the deployed app directly from Kudu.
 
-The most common runtime failure causes for this repo are missing `Jwt__...` settings, missing `ImageStorage__...` settings, failed database connectivity, or production dependencies that are unreachable from the App Service.
+The most common runtime failure causes for this repo are missing `Jwt__...`, `ImageStorage__...`, or `EmailConfirmation__...` settings, failed database connectivity, missing ACS managed-identity authorization, or production dependencies that are unreachable from the App Service.

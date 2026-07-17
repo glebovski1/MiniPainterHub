@@ -22,7 +22,8 @@ public class ExternalAuthenticationPagesTests : TestContext
                 ExternalAuthClientOutcome.RegistrationRequired,
                 "painter@example.test",
                 "painter",
-                "/support"))
+                "/support",
+                ExternalAuthProviderNames.Discord))
         });
         Services.AddSingleton(new ExternalAuthFlowState());
         var nav = Services.GetRequiredService<NavigationManager>();
@@ -34,6 +35,7 @@ public class ExternalAuthenticationPagesTests : TestContext
         state.RegistrationPending.Should().BeTrue();
         state.Email.Should().Be("painter@example.test");
         state.ReturnUrl.Should().Be("/support");
+        state.Provider.Should().Be(ExternalAuthProviderNames.Discord);
     }
 
     [Fact]
@@ -51,6 +53,51 @@ public class ExternalAuthenticationPagesTests : TestContext
         {
             cut.Find("[data-testid='external-auth-result-title']").TextContent.Should().Contain("Sign in before connecting Google");
             cut.Find("[data-testid='external-auth-result-message']").TextContent.Should().Contain("never merged automatically");
+        });
+    }
+
+    [Fact]
+    public void Callback_WhenDiscordEmailConflicts_UsesDiscordGuidance()
+    {
+        this.AddAuthStub(new StubAuthService
+        {
+            ExchangeExternalHandler = () => Task.FromResult(new ExternalAuthClientResult(
+                ExternalAuthClientOutcome.EmailConflict,
+                Provider: ExternalAuthProviderNames.Discord))
+        });
+        Services.AddSingleton(new ExternalAuthFlowState());
+
+        var cut = RenderComponent<ExternalAuthCallback>();
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='external-auth-result-title']").TextContent.Should().Contain("connecting Discord");
+            cut.Find("[data-testid='external-auth-result-message']").TextContent.Should().Contain("verified Discord email");
+        });
+    }
+
+    [Fact]
+    public void Callback_WhenDiscordIdentityIsUnverified_ShowsRecoveryGuidanceWithoutExchange()
+    {
+        var exchangeCalls = 0;
+        this.AddAuthStub(new StubAuthService
+        {
+            ExchangeExternalHandler = () =>
+            {
+                exchangeCalls++;
+                return Task.FromResult(new ExternalAuthClientResult(ExternalAuthClientOutcome.Unavailable));
+            }
+        });
+        Services.AddSingleton(new ExternalAuthFlowState());
+        Services.GetRequiredService<NavigationManager>()
+            .NavigateTo("http://localhost/auth/external/callback?provider=Discord&error=unverified");
+
+        var cut = RenderComponent<ExternalAuthCallback>();
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='external-auth-result-title']").TextContent.Should().Contain("Discord could not verify");
+            exchangeCalls.Should().Be(0);
         });
     }
 
@@ -119,7 +166,7 @@ public class ExternalAuthenticationPagesTests : TestContext
                 GoogleConnected = true,
                 CanDisconnectGoogle = true
             }),
-            DisconnectGoogleHandler = () => Task.FromResult<SignInMethodsDto?>(new SignInMethodsDto
+            DisconnectExternalHandler = _ => Task.FromResult<SignInMethodsDto?>(new SignInMethodsDto
             {
                 HasPassword = true,
                 GoogleConnected = false,
@@ -135,6 +182,61 @@ public class ExternalAuthenticationPagesTests : TestContext
         {
             cut.Find("[data-testid='sign-in-methods-status']").TextContent.Should().Contain("Google was disconnected");
             cut.Markup.Should().Contain("Not connected");
+        });
+    }
+
+    [Fact]
+    public void SignInMethods_DiscordOnlyAccountRequiresAnotherMethodBeforeDisconnect()
+    {
+        this.AddAuthStub(new StubAuthService
+        {
+            GetProvidersHandler = () => Task.FromResult(new AuthProvidersDto
+            {
+                Discord = new AuthProviderDto { Name = "Discord", DisplayName = "Discord", Enabled = true }
+            }),
+            GetSignInMethodsHandler = () => Task.FromResult<SignInMethodsDto?>(new SignInMethodsDto
+            {
+                DiscordConnected = true,
+                CanDisconnectDiscord = false
+            })
+        });
+
+        var cut = RenderComponent<SignInMethods>();
+
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid='discord-disconnect-blocked']").TextContent.Should().Contain("only sign-in method");
+            cut.FindAll("[data-testid='disconnect-discord']").Should().BeEmpty();
+        });
+    }
+
+    [Fact]
+    public void SignInMethods_DiscordDisconnectUsesProviderAwareService()
+    {
+        string? disconnectedProvider = null;
+        this.AddAuthStub(new StubAuthService
+        {
+            GetSignInMethodsHandler = () => Task.FromResult<SignInMethodsDto?>(new SignInMethodsDto
+            {
+                HasPassword = true,
+                DiscordConnected = true,
+                CanDisconnectDiscord = true
+            }),
+            DisconnectExternalHandler = provider =>
+            {
+                disconnectedProvider = provider;
+                return Task.FromResult<SignInMethodsDto?>(new SignInMethodsDto { HasPassword = true });
+            }
+        });
+        var cut = RenderComponent<SignInMethods>();
+        cut.WaitForElement("[data-testid='disconnect-discord']").Click();
+
+        cut.Find("[data-testid='disconnect-discord-confirm']").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            disconnectedProvider.Should().Be(ExternalAuthProviderNames.Discord);
+            cut.Find("[data-testid='sign-in-methods-status']").TextContent.Should().Contain("Discord was disconnected");
         });
     }
 

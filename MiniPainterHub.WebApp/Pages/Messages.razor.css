@@ -11,12 +11,18 @@
 }
 
 .message-bubble {
+    min-width: 0;
     max-width: min(76%, 34rem);
     padding: 0.88rem 1rem;
     border-radius: 8px;
     background: rgba(255, 253, 248, 0.9);
     border: 1px solid rgba(146, 131, 99, 0.24);
     box-shadow: var(--shadow-soft);
+}
+
+.message-bubble__body {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
 }
 
 .message-bubble--mine {
@@ -51,12 +57,30 @@
 .message-conversation-list {
     display: grid;
     gap: 0.55rem;
+    min-width: 0;
 }
 
 .message-conversation-list.list-group-flush > .list-group-item {
+    min-width: 0;
+    max-width: 100%;
     border-width: 1px;
     border-radius: 8px;
     background: rgba(255, 253, 248, 0.84);
+}
+
+.message-conversation-list__row,
+.message-conversation-list__content {
+    min-width: 0;
+}
+
+.message-conversation-list__content {
+    flex: 1 1 auto;
+}
+
+.message-conversation-list__preview {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .message-conversation-list.list-group-flush > .list-group-item.active {

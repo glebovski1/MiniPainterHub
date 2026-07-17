@@ -1,0 +1,60 @@
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+@if (_loading)
+{
+    <div class="external-signin-placeholder" aria-hidden="true"></div>
+}
+else if (_providers.Google.Enabled || _providers.Discord.Enabled)
+{
+    <div class="external-signin" data-testid="external-signin-section">
+        <div class="external-signin__providers">
+            @if (_providers.Google.Enabled)
+            {
+                <a class="external-signin-button external-signin-button--google"
+                   data-testid="google-signin-link"
+                   href="@BuildStartUrl(ExternalAuthProviderNames.Google)"
+                   aria-label="Continue with Google">
+                    <span class="external-signin-button__mark external-signin-button__mark--google" aria-hidden="true">
+                        <img src="brand/google-g-logo.png" width="20" height="21" alt="" />
+                    </span>
+                    <span>Continue with Google</span>
+                </a>
+            }
+            @if (_providers.Discord.Enabled)
+            {
+                <a class="external-signin-button external-signin-button--discord"
+                   data-testid="discord-signin-link"
+                   href="@BuildStartUrl(ExternalAuthProviderNames.Discord)"
+                   aria-label="Continue with Discord">
+                    <i class="bi bi-discord" aria-hidden="true"></i>
+                    <span>Continue with Discord</span>
+                </a>
+            }
+        </div>
+        <div class="external-signin__divider" aria-hidden="true">
+            <span>or use username and password</span>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string? ReturnUrl { get; set; }
+
+    private AuthProvidersDto _providers = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _providers = await AuthService.GetProvidersAsync();
+        _loading = false;
+    }
+
+    private string BuildStartUrl(string provider)
+    {
+        var suppliedReturnUrl = LocalReturnUrl.GetQueryParameter(Navigation.Uri, "returnUrl") ?? ReturnUrl;
+        var returnUrl = LocalReturnUrl.Normalize(suppliedReturnUrl, new Uri(Navigation.BaseUri));
+        return $"/api/auth/{provider.ToLowerInvariant()}/start?returnUrl={Uri.EscapeDataString(returnUrl)}";
+    }
+}

@@ -13,5 +13,8 @@ namespace MiniPainterHub.Common.Auth
 
         [Required]
         public string Password { get; set; } = string.Empty;
+
+        [StringLength(2048)]
+        public string? ReturnUrl { get; set; }
     }
 }

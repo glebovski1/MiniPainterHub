@@ -38,7 +38,7 @@ public sealed class FakeGoogleAuthenticationHandler : AuthenticationHandler<Auth
 
         if (string.Equals(scenario, "expired", StringComparison.OrdinalIgnoreCase))
         {
-            Response.Redirect("/auth/external/callback?error=expired");
+            Response.Redirect("/auth/external/callback?error=expired&provider=Google");
             return;
         }
 

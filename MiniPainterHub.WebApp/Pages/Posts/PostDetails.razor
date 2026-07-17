@@ -47,25 +47,20 @@
     }
     else
     {
+        <button type="button"
+                class="post-details-back-link"
+                data-testid="post-details-back"
+                @onclick='() => Nav.NavigateTo("/")'>
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+            <span>Back to gallery</span>
+        </button>
+
         <PageHero Eyebrow="Post details"
                   Title="@post.Title"
                   TitleTestId="post-title"
                   Description="@($"Shared on {post.CreatedAt.ToLocalTime():MMM dd, yyyy}")"
                   ClassName="page-hero--compact"
                   FrameName="Post Details Header">
-            <Actions>
-                <div class="mini-stat-bar">
-                    <LikeButton PostId="@PostId" TestId="post-like-toggle" />
-                    <button class="btn btn-outline-secondary btn-sm" @onclick='() => Nav.NavigateTo("/")'>
-                        Back
-                    </button>
-                    <AuthorizeView Roles="Moderator,Admin">
-                        <Authorized>
-                            <span class="badge text-bg-secondary" data-testid="post-id-badge">#@PostId</span>
-                        </Authorized>
-                    </AuthorizeView>
-                </div>
-            </Actions>
             <ChildContent>
                 <div class="mini-stat-bar">
                     <NavLink class="mini-stat text-decoration-none" href="@($"/users/{post.CreatedById}")">
@@ -80,6 +75,11 @@
                             Part of @project.Title
                         </NavLink>
                     }
+                    <AuthorizeView Roles="Moderator,Admin">
+                        <Authorized>
+                            <span class="mini-stat post-details-moderator-id" data-testid="post-id-badge">#@PostId</span>
+                        </Authorized>
+                    </AuthorizeView>
                 </div>
             </ChildContent>
         </PageHero>
@@ -92,13 +92,18 @@
                             <p class="section-label mb-2">Artwork</p>
                             <h2 class="post-details-gallery__title">Study the piece up close.</h2>
                         </div>
-                        <button type="button"
-                                class="btn btn-dark post-details-gallery__launch"
-                                data-testid="post-details-open-viewer"
-                                @onclick="OpenViewerAsync">
-                            <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
-                            View close-up
-                        </button>
+                        <div class="post-details-gallery__actions"
+                             data-testid="post-details-artwork-actions"
+                             aria-label="Artwork actions">
+                            <LikeButton PostId="@PostId" TestId="post-like-toggle" />
+                            <button type="button"
+                                    class="btn btn-dark post-details-gallery__launch"
+                                    data-testid="post-details-open-viewer"
+                                    @onclick="OpenViewerAsync">
+                                <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
+                                View close-up
+                            </button>
+                        </div>
                     </div>
 
                     @if (CurrentPreviewImage is not null)
@@ -436,7 +441,9 @@
                         {
                             <section class="viewer-panel-section viewer-panel-section--comments">
                                 <div class="viewer-panel__comments-thread" data-testid="viewer-comments-thread">
-                                    <div class="viewer-panel__comments-scroll" data-testid="viewer-comments-scroll">
+                                    <div class="viewer-panel__comments-scroll"
+                                         data-testid="viewer-comments-scroll"
+                                         data-infinite-scroll-root>
                                         <div class="viewer-panel__comments-list">
                                             <CommentList @ref="_viewerCommentList"
                                                          PostId="@PostId"

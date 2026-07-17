@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,7 @@ using Microsoft.Extensions.Options;
 using MiniPainterHub;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Identity;
+using MiniPainterHub.Server.Services.Interfaces;
 
 namespace MiniPainterHub.Server.Tests.Infrastructure;
 
@@ -32,19 +34,24 @@ public sealed class IntegrationTestApplicationFactory : WebApplicationFactory<Pr
     private readonly IPAddress? _forcedRemoteIp;
     private readonly bool _useTestAuthentication;
     private readonly bool _registerRealGoogleHandler;
+    private readonly TimeSpan? _emailConfirmationTokenLifespan;
     private readonly string _imageRoot;
+
+    public TestAccountEmailSender EmailSender { get; } = new();
 
     public IntegrationTestApplicationFactory(
         IDictionary<string, string?>? configurationOverrides = null,
         IPAddress? forcedRemoteIp = null,
         bool useTestAuthentication = true,
-        bool registerRealGoogleHandler = false)
+        bool registerRealGoogleHandler = false,
+        TimeSpan? emailConfirmationTokenLifespan = null)
     {
         _imageRoot = Path.Combine(Path.GetTempPath(), "MiniPainterHub.Tests", _databaseName, "uploads", "images");
         var overrides = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
         {
             ["ImageStorage:LocalPath"] = _imageRoot,
-            ["ImageStorage:RequestPath"] = "/uploads/images"
+            ["ImageStorage:RequestPath"] = "/uploads/images",
+            ["EmailConfirmation:Enabled"] = "false"
         };
 
         if (configurationOverrides is not null)
@@ -59,6 +66,7 @@ public sealed class IntegrationTestApplicationFactory : WebApplicationFactory<Pr
         _forcedRemoteIp = forcedRemoteIp;
         _useTestAuthentication = useTestAuthentication;
         _registerRealGoogleHandler = registerRealGoogleHandler;
+        _emailConfirmationTokenLifespan = emailConfirmationTokenLifespan;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -66,6 +74,13 @@ public sealed class IntegrationTestApplicationFactory : WebApplicationFactory<Pr
         builder.UseEnvironment("Development");
         ApplyEarlySetting(builder, "ForwardedHeaders:Enabled");
         ApplyEarlySetting(builder, "ForwardedHeaders:TrustAllProxies");
+        ApplyEarlySetting(builder, "EmailConfirmation:Enabled");
+        ApplyEarlySetting(builder, "Authentication:Discord:Enabled");
+        ApplyEarlySetting(builder, "Authentication:Discord:ClientId");
+        ApplyEarlySetting(builder, "Authentication:Discord:ClientSecret");
+        ApplyEarlySetting(builder, "Authentication:Discord:CallbackPath");
+        ApplyEarlySetting(builder, "Authentication:Discord:PublicOrigin");
+        ApplyEarlySetting(builder, "Authentication:Discord:UseFakeProvider");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -78,6 +93,13 @@ public sealed class IntegrationTestApplicationFactory : WebApplicationFactory<Pr
         builder.ConfigureTestServices(services =>
         {
             services.ReplaceAppDbContextWithInMemory(_databaseName);
+            services.RemoveAll<IAccountEmailSender>();
+            services.AddSingleton<IAccountEmailSender>(EmailSender);
+            if (_emailConfirmationTokenLifespan.HasValue)
+            {
+                services.PostConfigure<DataProtectionTokenProviderOptions>(options =>
+                    options.TokenLifespan = _emailConfirmationTokenLifespan.Value);
+            }
 
             if (_registerRealGoogleHandler)
             {

@@ -53,7 +53,7 @@
                                ClassName="section-heading section-heading--auth"
                                SectionName="Login Card" />
 
-                <GoogleSignInAction ReturnUrl="@ReturnUrl" />
+                <ExternalSignInActions ReturnUrl="@ReturnUrl" />
 
                 <div class="form-grid mt-4">
                     <div>
@@ -106,8 +106,14 @@
                 }
 
                 <div class="auth-card__footer">
-                    Don't have an account?
-                    <NavLink href="/register">Register</NavLink>
+                    <div>
+                        Don't have an account?
+                        <NavLink href="/register">Register</NavLink>
+                    </div>
+                    <div class="mt-2">
+                        Waiting for verification?
+                        <NavLink href="/resend-confirmation">Resend confirmation</NavLink>
+                    </div>
                 </div>
             </section>
         </EditForm>

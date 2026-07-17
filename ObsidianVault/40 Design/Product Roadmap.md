@@ -13,7 +13,7 @@ Related notes: [Design index](<README.md>), [Architecture](<../20 Engineering/AR
 | Priority | Feature | Status |
 | --- | --- | --- |
 | 1 | Support Center | Implemented |
-| 2 | Google authentication | Implemented |
+| 2 | Google and Discord authentication | Implemented |
 | 3 | Hobby Projects | Implemented |
 | 4 | AI Newsletter | Planned |
 
@@ -25,15 +25,15 @@ Related notes: [Design index](<README.md>), [Architecture](<../20 Engineering/AR
 
 **V1 boundaries:** authenticated users only; Admin access only; ticket categories and statuses; in-app unread state; plain-text messages. Excludes Moderators, anonymous submissions, attachments, assignment, internal notes, email, real-time notifications, and deletion.
 
-## 2. Google Authentication
+## 2. Google and Discord Authentication
 
-**Intended outcome:** reduce registration and sign-in friction through Google while retaining MiniPainterHub's existing account and authorization model.
+**Intended outcome:** reduce registration and sign-in friction through Google and Discord while retaining MiniPainterHub's existing account and authorization model.
 
 **Rationale:** easier account creation can improve activation before investing in features that require a larger active community.
 
-**Status:** implemented and deploy-ready. Google remains disabled by default until the owner supplies Google credentials, configures the documented pilot callbacks and test users, and enables the production setting.
+**Status:** implemented and deploy-ready. Both providers remain disabled by default until the owner supplies credentials, configures the documented callbacks, and enables the corresponding production setting.
 
-**V1 delivered boundaries:** Google is the first external provider and issues the same role-bearing application session used by password accounts. New users complete username onboarding; matching email never auto-merges; linking is explicit and same-email only. Account security supports local-password setup and safe Google disconnection. The delivery includes short-lived single-use exchanges, persistent production data-protection configuration, legal pages, a Development/Test fake provider, Azure-pilot activation and rollback guidance, and complete automated/visual coverage. Discord, One Tap, avatars, live activation, general-public custom-domain verification, account deletion UI, email verification delivery, and password recovery remain outside this version.
+**V1 delivered boundaries:** Google and Discord issue the same role-bearing application session used by password accounts. New users complete username onboarding; matching email never auto-merges; linking is explicit and same-email only. Account security supports local-password setup and safe provider disconnection. The delivery includes provider-bound short-lived exchanges, Development/Test fake providers, Azure activation and rollback guidance, and automated/visual coverage. Discord guild membership, bots, provider avatars, One Tap, live activation, account deletion UI, and password recovery remain outside this version.
 
 ## 3. Hobby Projects
 

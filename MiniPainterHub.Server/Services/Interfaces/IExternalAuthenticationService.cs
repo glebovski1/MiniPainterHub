@@ -10,7 +10,7 @@ public interface IExternalAuthenticationService
     Task<AuthResponseDto> RegisterAsync(string rawHandle, ExternalAuthRegistrationDto request);
     Task<SignInMethodsDto> GetSignInMethodsAsync(string userId);
     Task<SignInMethodsDto> SetPasswordAsync(string userId, SetPasswordDto request);
-    Task<SignInMethodsDto> DisconnectGoogleAsync(string userId);
+    Task<SignInMethodsDto> DisconnectAsync(string userId, string provider);
 }
 
 public sealed record ExternalIdentity(
