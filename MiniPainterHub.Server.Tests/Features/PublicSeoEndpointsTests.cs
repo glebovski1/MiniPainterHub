@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
+using MiniPainterHub.Server.Features.Seo;
 using MiniPainterHub.Server.Tests.Infrastructure;
 using System.Collections.Generic;
 using System.Net;
@@ -11,6 +12,17 @@ namespace MiniPainterHub.Server.Tests.Features;
 
 public class PublicSeoEndpointsTests
 {
+    [Theory]
+    [InlineData("/", "https://rollandpaint.com/")]
+    [InlineData("/posts/42", "https://rollandpaint.com/posts/42")]
+    [InlineData("https://images.example.test/post.png", "https://images.example.test/post.png")]
+    [InlineData("file:///tmp/canonical", "https://rollandpaint.com/tmp/canonical")]
+    public void ShellRenderer_OnlyPreservesWebAbsoluteUrls(string pathOrUrl, string expected)
+    {
+        PublicSeoShellRenderer.BuildAbsoluteUrl("https://rollandpaint.com", pathOrUrl)
+            .Should().Be(expected);
+    }
+
     [Fact]
     public async Task Home_ReturnsServerRenderedCanonicalMetadataAndSnapshot()
     {

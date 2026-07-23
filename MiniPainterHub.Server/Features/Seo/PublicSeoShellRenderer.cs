@@ -121,11 +121,16 @@ internal sealed class PublicSeoShellRenderer
             + source[end..];
     }
 
-    private static string BuildAbsoluteUrl(string publicOrigin, string pathOrUrl)
+    internal static string BuildAbsoluteUrl(string publicOrigin, string pathOrUrl)
     {
         if (Uri.TryCreate(pathOrUrl, UriKind.Absolute, out var absolute))
         {
-            return absolute.ToString();
+            if (absolute.Scheme == Uri.UriSchemeHttps || absolute.Scheme == Uri.UriSchemeHttp)
+            {
+                return absolute.ToString();
+            }
+
+            pathOrUrl = absolute.AbsolutePath;
         }
 
         return new Uri(new Uri(publicOrigin.TrimEnd('/') + "/", UriKind.Absolute), pathOrUrl.TrimStart('/')).ToString();
