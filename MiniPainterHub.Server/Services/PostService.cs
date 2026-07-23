@@ -285,7 +285,9 @@ namespace MiniPainterHub.Server.Services
         {
             PaginationGuard.Validate(page, pageSize);
 
-            var ordered = query.OrderByDescending(p => p.CreatedUtc);
+            var ordered = query
+                .OrderByDescending(p => p.CreatedUtc)
+                .ThenByDescending(p => p.Id);
             var totalCount = await ordered.CountAsync();
             var pageItems = await ordered
                 .Skip((page - 1) * pageSize)
@@ -383,20 +385,40 @@ namespace MiniPainterHub.Server.Services
                 .Where(t => normalizedNames.Contains(t.NormalizedName))
                 .ToListAsync();
             var tagByNormalizedName = existingTags.ToDictionary(t => t.NormalizedName, StringComparer.OrdinalIgnoreCase);
+
+            var missingTags = normalizedTags
+                .Where(tag => !tagByNormalizedName.ContainsKey(tag.NormalizedName))
+                .ToList();
+            var candidateSlugs = missingTags
+                .SelectMany(tag => new[]
+                {
+                    tag.Slug,
+                    TagTextUtilities.CreateDisambiguatedSlug(tag.Slug, tag.NormalizedName),
+                    TagTextUtilities.CreateDisambiguatedSlug(tag.Slug, tag.NormalizedName, 16)
+                })
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
             var usedSlugs = (await _appDbContext.Tags
                 .AsNoTracking()
+                .Where(tag => candidateSlugs.Contains(tag.Slug))
                 .Select(t => t.Slug)
                 .ToListAsync())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var normalizedTag in normalizedTags)
+            foreach (var normalizedTag in missingTags)
             {
-                if (tagByNormalizedName.ContainsKey(normalizedTag.NormalizedName))
+                var slug = new[]
                 {
-                    continue;
+                    normalizedTag.Slug,
+                    TagTextUtilities.CreateDisambiguatedSlug(normalizedTag.Slug, normalizedTag.NormalizedName),
+                    TagTextUtilities.CreateDisambiguatedSlug(normalizedTag.Slug, normalizedTag.NormalizedName, 16)
+                }.FirstOrDefault(candidate => !usedSlugs.Contains(candidate));
+
+                if (slug is null)
+                {
+                    throw new ConflictException("A unique tag address could not be generated. Try a more specific tag name.");
                 }
 
-                var slug = TagTextUtilities.ResolveUniqueSlug(normalizedTag.Slug, usedSlugs);
                 var tag = new Tag
                 {
                     DisplayName = normalizedTag.DisplayName,

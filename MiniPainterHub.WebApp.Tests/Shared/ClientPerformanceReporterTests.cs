@@ -15,7 +15,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Shared;
 
-public class ClientPerformanceReporterTests : TestContext
+public class ClientPerformanceReporterTests : BunitContext
 {
     [Fact]
     public async Task Reporter_RecordsFirstRenderAndRouteRenderMetrics()
@@ -24,7 +24,7 @@ public class ClientPerformanceReporterTests : TestContext
         Services.AddSingleton<IClientPerformanceMetrics>(metrics);
         JSInterop.Mode = JSRuntimeMode.Loose;
 
-        var cut = RenderComponent<ClientPerformanceReporter>();
+        var cut = Render<ClientPerformanceReporter>();
 
         await WaitForMetricAsync(metrics, metric =>
             metric.Name == "blazor.first_render.ms"

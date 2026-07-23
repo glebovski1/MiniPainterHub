@@ -11,7 +11,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages;
 
-public class ExternalAuthenticationPagesTests : TestContext
+public class ExternalAuthenticationPagesTests : BunitContext
 {
     [Fact]
     public void Callback_WhenRegistrationIsRequired_PreservesFlowInMemoryAndNavigates()
@@ -28,7 +28,7 @@ public class ExternalAuthenticationPagesTests : TestContext
         Services.AddSingleton(new ExternalAuthFlowState());
         var nav = Services.GetRequiredService<NavigationManager>();
 
-        RenderComponent<ExternalAuthCallback>();
+        Render<ExternalAuthCallback>();
 
         nav.Uri.Should().Be("http://localhost/auth/external/complete-registration");
         var state = Services.GetRequiredService<ExternalAuthFlowState>();
@@ -47,7 +47,7 @@ public class ExternalAuthenticationPagesTests : TestContext
         });
         Services.AddSingleton(new ExternalAuthFlowState());
 
-        var cut = RenderComponent<ExternalAuthCallback>();
+        var cut = Render<ExternalAuthCallback>();
 
         cut.WaitForAssertion(() =>
         {
@@ -67,7 +67,7 @@ public class ExternalAuthenticationPagesTests : TestContext
         });
         Services.AddSingleton(new ExternalAuthFlowState());
 
-        var cut = RenderComponent<ExternalAuthCallback>();
+        var cut = Render<ExternalAuthCallback>();
 
         cut.WaitForAssertion(() =>
         {
@@ -92,7 +92,7 @@ public class ExternalAuthenticationPagesTests : TestContext
         Services.GetRequiredService<NavigationManager>()
             .NavigateTo("http://localhost/auth/external/callback?provider=Discord&error=unverified");
 
-        var cut = RenderComponent<ExternalAuthCallback>();
+        var cut = Render<ExternalAuthCallback>();
 
         cut.WaitForAssertion(() =>
         {
@@ -116,7 +116,7 @@ public class ExternalAuthenticationPagesTests : TestContext
             "/"));
         Services.AddSingleton(state);
 
-        var cut = RenderComponent<ExternalAuthRegistration>();
+        var cut = Render<ExternalAuthRegistration>();
         cut.Find("[data-testid='external-registration-username']").Change("chosen-name");
         await cut.Find("[data-testid='external-registration-form']").SubmitAsync();
 
@@ -145,7 +145,7 @@ public class ExternalAuthenticationPagesTests : TestContext
             })
         });
 
-        var cut = RenderComponent<SignInMethods>();
+        var cut = Render<SignInMethods>();
 
         cut.WaitForAssertion(() =>
         {
@@ -173,7 +173,7 @@ public class ExternalAuthenticationPagesTests : TestContext
                 CanDisconnectGoogle = false
             })
         });
-        var cut = RenderComponent<SignInMethods>();
+        var cut = Render<SignInMethods>();
         cut.WaitForElement("[data-testid='disconnect-google']").Click();
 
         cut.Find("[data-testid='disconnect-google-confirm']").Click();
@@ -201,7 +201,7 @@ public class ExternalAuthenticationPagesTests : TestContext
             })
         });
 
-        var cut = RenderComponent<SignInMethods>();
+        var cut = Render<SignInMethods>();
 
         cut.WaitForAssertion(() =>
         {
@@ -228,7 +228,7 @@ public class ExternalAuthenticationPagesTests : TestContext
                 return Task.FromResult<SignInMethodsDto?>(new SignInMethodsDto { HasPassword = true });
             }
         });
-        var cut = RenderComponent<SignInMethods>();
+        var cut = Render<SignInMethods>();
         cut.WaitForElement("[data-testid='disconnect-discord']").Click();
 
         cut.Find("[data-testid='disconnect-discord-confirm']").Click();
@@ -248,7 +248,7 @@ public class ExternalAuthenticationPagesTests : TestContext
             GetProvidersHandler = () => Task.FromResult(new AuthProvidersDto { SupportEmail = "support@example.test" })
         });
 
-        var cut = RenderComponent<Privacy>();
+        var cut = Render<Privacy>();
 
         cut.WaitForAssertion(() => cut.Find("[data-testid='privacy-support-email']").TextContent.Should().Contain("support@example.test"));
     }
@@ -261,7 +261,7 @@ public class ExternalAuthenticationPagesTests : TestContext
             GetProvidersHandler = () => Task.FromResult(new AuthProvidersDto { SupportEmail = "support@example.test" })
         });
 
-        var cut = RenderComponent<Terms>();
+        var cut = Render<Terms>();
 
         cut.WaitForAssertion(() => cut.Find("[data-testid='terms-support-email']").TextContent.Should().Contain("support@example.test"));
     }

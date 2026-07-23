@@ -13,7 +13,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Admin;
 
-public class AuditLogTests : TestContext
+public class AuditLogTests : BunitContext
 {
     [Fact]
     public void OnLoad_RequestsFirstPageAndRendersRows()
@@ -46,7 +46,7 @@ public class AuditLogTests : TestContext
             }
         });
 
-        var cut = RenderComponent<AuditLog>();
+        var cut = Render<AuditLog>();
 
         cut.WaitForAssertion(() =>
         {
@@ -77,7 +77,7 @@ public class AuditLogTests : TestContext
             }
         });
 
-        var cut = RenderComponent<AuditLog>();
+        var cut = Render<AuditLog>();
         cut.WaitForAssertion(() => calls.Should().NotBeEmpty());
         calls.Clear();
 
@@ -117,7 +117,7 @@ public class AuditLogTests : TestContext
             }
         });
 
-        var cut = RenderComponent<AuditLog>();
+        var cut = Render<AuditLog>();
         cut.WaitForAssertion(() => calls.Should().NotBeEmpty());
         calls.Clear();
 

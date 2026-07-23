@@ -9,7 +9,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages;
 
-public class UserProfileTests : TestContext
+public class UserProfileTests : BunitContext
 {
     [Fact]
     public void WhenNoProfileExists_RendersCreateForm()
@@ -19,7 +19,7 @@ public class UserProfileTests : TestContext
             GetMineHandler = () => Task.FromResult<UserProfileDto?>(null)
         });
 
-        var cut = RenderComponent<UserProfile>();
+        var cut = Render<UserProfile>();
 
         cut.WaitForAssertion(() =>
         {
@@ -43,7 +43,7 @@ public class UserProfileTests : TestContext
             })
         });
 
-        var cut = RenderComponent<UserProfile>();
+        var cut = Render<UserProfile>();
         cut.WaitForElement("[data-testid='profile-create-submit']");
 
         cut.Find("[data-testid='profile-create-display-name']").Change("Painter");
@@ -69,7 +69,7 @@ public class UserProfileTests : TestContext
             })
         });
 
-        var cut = RenderComponent<UserProfile>();
+        var cut = Render<UserProfile>();
 
         cut.WaitForAssertion(() =>
         {
@@ -102,7 +102,7 @@ public class UserProfileTests : TestContext
             }
         });
 
-        var cut = RenderComponent<UserProfile>();
+        var cut = Render<UserProfile>();
         cut.WaitForElement("[data-testid='profile-edit']");
 
         cut.Find("[data-testid='profile-edit']").Click();
@@ -127,7 +127,7 @@ public class UserProfileTests : TestContext
             GetMineHandler = () => Task.FromException<UserProfileDto?>(new InvalidOperationException("Boom"))
         });
 
-        var cut = RenderComponent<UserProfile>();
+        var cut = Render<UserProfile>();
 
         cut.WaitForAssertion(() =>
             cut.Find("[data-testid='profile-create-submit']").Should().NotBeNull());

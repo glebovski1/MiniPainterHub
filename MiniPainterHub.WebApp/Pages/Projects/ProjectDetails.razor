@@ -5,7 +5,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Nav
 
-<PageTitle>@(_project?.Title ?? "Hobby project")</PageTitle>
+<PageTitle>@($"{_project?.Title ?? "Miniature painting project"} | Roll & Paint")</PageTitle>
 
 <div class="page-shell content-stack project-details-page">
     @if (_loading)

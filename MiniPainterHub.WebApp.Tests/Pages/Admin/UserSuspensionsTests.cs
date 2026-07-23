@@ -12,14 +12,14 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Admin;
 
-public class UserSuspensionsTests : TestContext
+public class UserSuspensionsTests : BunitContext
 {
     [Fact]
     public void RendersSuspensionAndUnsuspensionInputs()
     {
         this.AddModerationStub();
 
-        var cut = RenderComponent<UserSuspensions>();
+        var cut = Render<UserSuspensions>();
 
         cut.Find("[data-testid='suspend-user-id']").Should().NotBeNull();
         cut.Find("[data-testid='suspend-until']").Should().NotBeNull();
@@ -45,7 +45,7 @@ public class UserSuspensionsTests : TestContext
             }
         });
 
-        var cut = RenderComponent<UserSuspensions>();
+        var cut = Render<UserSuspensions>();
         cut.Find("[data-testid='suspend-user-id']").Change("target-17");
         cut.Find("[data-testid='suspend-until']").Change("2030-04-10T12:30");
         cut.Find("[data-testid='suspend-reason']").Change("abuse");
@@ -73,7 +73,7 @@ public class UserSuspensionsTests : TestContext
             }
         });
 
-        var cut = RenderComponent<UserSuspensions>();
+        var cut = Render<UserSuspensions>();
         await cut.Find("[data-testid='unsuspend-submit']").ClickAsync(new());
 
         cut.WaitForAssertion(() =>
@@ -101,7 +101,7 @@ public class UserSuspensionsTests : TestContext
                 }))
         });
 
-        var cut = RenderComponent<UserSuspensions>();
+        var cut = Render<UserSuspensions>();
         cut.Find("[data-testid='lookup-user-query']").Change("target");
         await cut.Find("[data-testid='lookup-user-submit']").ClickAsync(new());
 
@@ -133,7 +133,7 @@ public class UserSuspensionsTests : TestContext
             }
         });
 
-        var cut = RenderComponent<UserSuspensions>();
+        var cut = Render<UserSuspensions>();
         await cut.Find("[data-testid='lookup-user-submit']").ClickAsync(new());
 
         cut.WaitForAssertion(() =>

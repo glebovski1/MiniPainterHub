@@ -12,7 +12,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Posts;
 
-public class TopPostsTests : TestContext
+public class TopPostsTests : BunitContext
 {
     [Fact]
     public void WhenTopPostHasTags_ImageCaptionIncludesTags()
@@ -38,7 +38,7 @@ public class TopPostsTests : TestContext
 
         Services.AddSingleton<IPostService>(postService);
 
-        var cut = RenderComponent<TopPosts>();
+        var cut = Render<TopPosts>();
 
         cut.WaitForAssertion(() =>
         {

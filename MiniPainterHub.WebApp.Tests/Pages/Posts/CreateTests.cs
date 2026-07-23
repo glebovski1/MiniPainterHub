@@ -19,7 +19,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Posts;
 
-public class CreateTests : TestContext
+public class CreateTests : BunitContext
 {
     private const string DraftStorageKey = "minipainterhub.createPostDraft.v1";
 
@@ -28,7 +28,7 @@ public class CreateTests : TestContext
     {
         AddComposerStubs();
 
-        var cut = RenderComponent<Create>();
+        var cut = Render<Create>();
 
         cut.Find("[data-testid='create-post-form']").Should().NotBeNull();
         cut.Find("[data-testid='create-post-title']").Should().NotBeNull();
@@ -61,7 +61,7 @@ public class CreateTests : TestContext
             }
         });
 
-        var cut = RenderComponent<Create>();
+        var cut = Render<Create>();
         var nav = Services.GetRequiredService<NavigationManager>();
 
         cut.Find("[data-testid='create-post-title']").Change("New title");
@@ -99,7 +99,7 @@ public class CreateTests : TestContext
             }
         });
 
-        var cut = RenderComponent<Create>();
+        var cut = Render<Create>();
 
         cut.Find("[data-testid='create-post-title']").Change("Tagged title");
         cut.Find("[data-testid='create-post-content']").Change("Tagged content");
@@ -141,7 +141,7 @@ public class CreateTests : TestContext
             }
         });
 
-        var cut = RenderComponent<Create>();
+        var cut = Render<Create>();
 
         cut.Find("[data-testid='create-post-title']").Change("Recipe title");
         cut.Find("[data-testid='create-post-content']").Change("Recipe content");
@@ -179,7 +179,7 @@ public class CreateTests : TestContext
             tags = "glazing, nmm"
         }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
-        var cut = RenderComponent<Create>();
+        var cut = Render<Create>();
 
         cut.WaitForAssertion(() =>
         {
@@ -202,7 +202,7 @@ public class CreateTests : TestContext
     public void Draft_SavesTextAndTagsButDoesNotPersistFiles()
     {
         var js = AddComposerStubs();
-        var cut = RenderComponent<Create>();
+        var cut = Render<Create>();
 
         cut.Find("[data-testid='create-post-title']").Change("Autosaved title");
         cut.Find("[data-testid='create-post-tags']").Input("weathering");
@@ -237,7 +237,7 @@ public class CreateTests : TestContext
                 }))
         });
 
-        var cut = RenderComponent<Create>();
+        var cut = Render<Create>();
 
         cut.Find("[data-testid='create-post-tags']").Input("gl");
 
@@ -272,7 +272,7 @@ public class CreateTests : TestContext
                     Task.FromResult(new ApiResult<PagedResult<SearchTagResultDto>?>(false, HttpStatusCode.InternalServerError, null))
             });
 
-        var cut = RenderComponent<Create>();
+        var cut = Render<Create>();
 
         cut.Find("[data-testid='create-post-title']").Change("Manual tag title");
         cut.Find("[data-testid='create-post-content']").Change("Manual tag content");
@@ -294,7 +294,7 @@ public class CreateTests : TestContext
     public void UploadValidation_BlocksUnsupportedOversizedAndExtraImages()
     {
         AddComposerStubs();
-        var cut = RenderComponent<Create>();
+        var cut = Render<Create>();
         var files = Enumerable.Range(1, PostImageUploadRules.MaxImagesPerPost - 2)
             .Select(index => CreateImage($"valid-{index}.png", "image/png"))
             .Append(InputFileContent.CreateFromBinary(new byte[1], "bad.gif", null, "image/gif"))
@@ -319,7 +319,7 @@ public class CreateTests : TestContext
     public void UploadValidation_RemovingInvalidImageAllowsSubmit()
     {
         AddComposerStubs();
-        var cut = RenderComponent<Create>();
+        var cut = Render<Create>();
 
         cut.FindComponent<InputFile>().UploadFiles(
             CreateImage("valid.png", "image/png"),
@@ -363,7 +363,7 @@ public class CreateTests : TestContext
             }
         });
 
-        var cut = RenderComponent<Create>();
+        var cut = Render<Create>();
         var nav = Services.GetRequiredService<NavigationManager>();
 
         cut.Find("[data-testid='create-post-title']").Change("Image title");
@@ -393,7 +393,7 @@ public class CreateTests : TestContext
             CreateHandler = _ => Task.FromException<PostDto>(new InvalidOperationException("Create failed"))
         });
 
-        var cut = RenderComponent<Create>();
+        var cut = Render<Create>();
 
         cut.Find("[data-testid='create-post-title']").Change("New title");
         cut.Find("[data-testid='create-post-content']").Change("New content");
@@ -430,7 +430,7 @@ public class CreateTests : TestContext
             }
         });
 
-        var cut = RenderComponent<Create>();
+        var cut = Render<Create>();
 
         cut.Find("[data-testid='create-post-title']").Change("New title");
         cut.Find("[data-testid='create-post-content']").Change("New content");
@@ -456,7 +456,7 @@ public class CreateTests : TestContext
     public void CancelButton_NavigatesToHome()
     {
         AddComposerStubs();
-        var cut = RenderComponent<Create>();
+        var cut = Render<Create>();
         var nav = Services.GetRequiredService<NavigationManager>();
 
         cut.Find("[data-testid='create-post-cancel']").Click();
@@ -483,7 +483,7 @@ public class CreateTests : TestContext
         var nav = Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo("/posts/new?projectId=999");
 
-        var cut = RenderComponent<Create>();
+        var cut = Render<Create>();
         cut.WaitForElement("[data-testid='create-post-without-project']");
         cut.Find("[data-testid='create-post-project-message']").TextContent.Should().Contain("requested project is unavailable");
         cut.Find("[data-testid='create-post-project']").GetAttribute("value").Should().BeNullOrEmpty();
@@ -528,7 +528,7 @@ public class CreateTests : TestContext
         var nav = Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo("/posts/new?projectId=7");
 
-        var cut = RenderComponent<Create>();
+        var cut = Render<Create>();
         cut.WaitForElement("[data-testid='create-post-milestone']");
         cut.Find("[data-testid='create-post-project']").GetAttribute("value").Should().Be("7");
         cut.Find("[data-testid='create-post-project-message']").TextContent.Should().Contain("Winter army");

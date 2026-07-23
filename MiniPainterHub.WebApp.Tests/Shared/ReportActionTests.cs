@@ -8,7 +8,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Shared;
 
-public class ReportActionTests : TestContext
+public class ReportActionTests : BunitContext
 {
     [Fact]
     public void Submit_WithOtherReasonAndNoDetails_ShowsValidationError()
@@ -25,7 +25,7 @@ public class ReportActionTests : TestContext
             }
         });
 
-        var cut = RenderComponent<ReportAction>(parameters => parameters
+        var cut = Render<ReportAction>(parameters => parameters
             .Add(p => p.TargetType, ReportTargetTypes.Post)
             .Add(p => p.TargetId, "12")
             .Add(p => p.OwnerUserId, "author-user")
@@ -59,7 +59,7 @@ public class ReportActionTests : TestContext
             }
         });
 
-        var cut = RenderComponent<ReportAction>(parameters => parameters
+        var cut = Render<ReportAction>(parameters => parameters
             .Add(p => p.TargetType, ReportTargetTypes.Post)
             .Add(p => p.TargetId, "42")
             .Add(p => p.OwnerUserId, "author-user")
@@ -87,7 +87,7 @@ public class ReportActionTests : TestContext
             ReportPostHandler = (_, _) => throw new System.InvalidOperationException("boom")
         });
 
-        var cut = RenderComponent<ReportAction>(parameters => parameters
+        var cut = Render<ReportAction>(parameters => parameters
             .Add(p => p.TargetType, ReportTargetTypes.Post)
             .Add(p => p.TargetId, "42")
             .Add(p => p.OwnerUserId, "author-user")
@@ -115,7 +115,7 @@ public class ReportActionTests : TestContext
             }
         });
 
-        var cut = RenderComponent<ReportAction>(parameters => parameters
+        var cut = Render<ReportAction>(parameters => parameters
             .Add(p => p.TargetType, ReportTargetTypes.HobbyProject)
             .Add(p => p.TargetId, "73")
             .Add(p => p.OwnerUserId, "author-user")

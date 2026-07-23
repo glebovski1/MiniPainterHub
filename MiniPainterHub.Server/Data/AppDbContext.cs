@@ -64,8 +64,8 @@ namespace MiniPainterHub.Server.Data
                 b.Property(p => p.Techniques).HasMaxLength(1000);
                 b.Property(p => p.Difficulty).HasMaxLength(40);
                 b.Property(p => p.TimeSpent).HasMaxLength(80);
-                b.HasIndex(p => new { p.IsDeleted, p.CreatedUtc });
-                b.HasIndex(p => new { p.CreatedById, p.IsDeleted, p.CreatedUtc });
+                b.HasIndex(p => new { p.IsDeleted, p.CreatedUtc, p.Id });
+                b.HasIndex(p => new { p.CreatedById, p.IsDeleted, p.CreatedUtc, p.Id });
 
                 b.HasOne(p => p.CreatedBy)
                     .WithMany()
@@ -213,6 +213,9 @@ namespace MiniPainterHub.Server.Data
                 .WithMany()
                 .HasForeignKey(c => c.ModeratedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Comment>()
+                .HasIndex(c => new { c.PostId, c.IsDeleted, c.CreatedUtc, c.Id });
 
             builder.Entity<Post>()
                 .HasOne(p => p.ModeratedByUser)
@@ -407,6 +410,9 @@ namespace MiniPainterHub.Server.Data
             builder.Entity<DirectMessage>(b =>
             {
                 b.Property(m => m.Body).HasMaxLength(2000);
+
+                b.HasIndex(m => new { m.ConversationId, m.Id });
+                b.HasIndex(m => new { m.ConversationId, m.SentUtc, m.Id });
 
                 b.HasOne(m => m.Conversation)
                     .WithMany(c => c.Messages)

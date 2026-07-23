@@ -11,12 +11,12 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Shared;
 
-public class MiscComponentTests : TestContext
+public class MiscComponentTests : BunitContext
 {
     [Fact]
     public void PageHero_RendersStudioPrimitiveSlotsAndClasses()
     {
-        var cut = RenderComponent<PageHero>(parameters => parameters
+        var cut = Render<PageHero>(parameters => parameters
             .Add(component => component.Eyebrow, "Studio")
             .Add(component => component.Title, "Workbench")
             .Add(component => component.Description, "A focused workspace.")
@@ -38,7 +38,7 @@ public class MiscComponentTests : TestContext
     [Fact]
     public void SectionHeader_RendersContentAndActionRegions()
     {
-        var cut = RenderComponent<SectionHeader>(parameters => parameters
+        var cut = Render<SectionHeader>(parameters => parameters
             .Add(component => component.Eyebrow, "Queue")
             .Add(component => component.Title, "Latest work")
             .Add(component => component.Description, "Fresh from the studio.")
@@ -54,7 +54,7 @@ public class MiscComponentTests : TestContext
     [Fact]
     public void EmptyState_RendersConfiguredStructureAndTestId()
     {
-        var cut = RenderComponent<EmptyState>(parameters => parameters
+        var cut = Render<EmptyState>(parameters => parameters
             .Add(component => component.IconClass, "bi bi-brush")
             .Add(component => component.Title, "No work yet")
             .Add(component => component.Description, "Start with a first post.")
@@ -68,7 +68,7 @@ public class MiscComponentTests : TestContext
     [Fact]
     public void ImageCarousel_WhenSlidesAreMissing_RendersEmptyState()
     {
-        var cut = RenderComponent<ImageCarousel>();
+        var cut = Render<ImageCarousel>();
 
         cut.Markup.Should().Contain("No slides.");
     }
@@ -76,7 +76,7 @@ public class MiscComponentTests : TestContext
     [Fact]
     public void ImageCarousel_WhenSingleSlide_RendersCaptionAndLinkTarget()
     {
-        var cut = RenderComponent<ImageCarousel>(parameters => parameters
+        var cut = Render<ImageCarousel>(parameters => parameters
             .Add(component => component.Slides, new List<ImageCarousel.Slide>
             {
                 new("/images/post.webp", "/posts/42", "Spotlight")
@@ -92,7 +92,7 @@ public class MiscComponentTests : TestContext
     [Fact]
     public void TagBadgeList_WhenTagClicked_NavigatesToEncodedSearchRoute()
     {
-        var cut = RenderComponent<TagBadgeList>(parameters => parameters
+        var cut = Render<TagBadgeList>(parameters => parameters
             .Add(component => component.Tags, new[]
             {
                 new TagDto { Name = "Glazing Basics", Slug = "glazing-basics" }
@@ -110,7 +110,7 @@ public class MiscComponentTests : TestContext
         this.SetAuthenticatedUser("viewer-user", "viewer");
         this.AddConversationStub();
 
-        var cut = RenderComponent<UserPanelOverlay>();
+        var cut = Render<UserPanelOverlay>();
 
         cut.Markup.Should().Contain("userPanelOffcanvas");
         cut.Markup.Should().Contain("My panel");
@@ -119,9 +119,9 @@ public class MiscComponentTests : TestContext
     [Fact]
     public void UserPanelOverlay_WhenAnonymous_DoesNotRenderOffcanvasPanel()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
 
-        var cut = RenderComponent<UserPanelOverlay>();
+        var cut = Render<UserPanelOverlay>();
 
         cut.Markup.Should().NotContain("userPanelOffcanvas");
     }

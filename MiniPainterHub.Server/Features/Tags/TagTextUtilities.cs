@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -54,5 +55,18 @@ internal static class TagTextUtilities
         }
 
         return candidate;
+    }
+
+    public static string CreateDisambiguatedSlug(string baseSlug, string normalizedName, int hashLength = 8)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(baseSlug);
+        ArgumentException.ThrowIfNullOrWhiteSpace(normalizedName);
+        ArgumentOutOfRangeException.ThrowIfLessThan(hashLength, 8);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(hashLength, 32);
+
+        var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(normalizedName)));
+        var suffix = hash[..hashLength];
+        var trimmedBase = baseSlug[..Math.Min(baseSlug.Length, 64 - suffix.Length - 1)];
+        return $"{trimmedBase}-{suffix}";
     }
 }

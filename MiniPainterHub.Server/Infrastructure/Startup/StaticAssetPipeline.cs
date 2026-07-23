@@ -168,7 +168,6 @@ public partial class Program
         || string.Equals(fileName, "blazor.boot.json", StringComparison.OrdinalIgnoreCase)
         || string.Equals(fileName, "service-worker.js", StringComparison.OrdinalIgnoreCase)
         || string.Equals(fileName, "service-worker-assets.js", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(fileName, "MiniPainterHub.WebApp.styles.css", StringComparison.OrdinalIgnoreCase)
         || string.Equals(fileName, "manifest.webmanifest", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsPortableDebugSymbol(PathString path) =>

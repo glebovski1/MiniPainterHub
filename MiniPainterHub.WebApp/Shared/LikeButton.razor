@@ -26,14 +26,29 @@
 @code {
     [Parameter] public int PostId { get; set; }
     [Parameter] public string? TestId { get; set; }
+    [Parameter] public LikeDto? InitialState { get; set; }
 
     private LikeDto _state = new();
     private bool _isLoading;
     private string? _error;
+    private int? _initializedPostId;
     private string ResolvedTestId => string.IsNullOrWhiteSpace(TestId) ? "like-toggle" : TestId;
 
     protected override async Task OnParametersSetAsync()
     {
+        if (_initializedPostId == PostId)
+        {
+            return;
+        }
+
+        _initializedPostId = PostId;
+        if (InitialState?.PostId == PostId)
+        {
+            _state = InitialState;
+            _error = null;
+            return;
+        }
+
         try
         {
             _state = await LikeService.GetLikesAsync(PostId);

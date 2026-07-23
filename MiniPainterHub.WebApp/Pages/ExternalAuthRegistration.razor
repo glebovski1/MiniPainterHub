@@ -8,7 +8,7 @@
 <div class="page-shell external-registration-page">
     <section class="surface-card external-registration-card" data-testid="external-registration-card">
         <p class="section-label mb-2">One last studio detail</p>
-        <h1 class="h2">Choose your MiniPainterHub username</h1>
+        <h1 class="h2">Choose your Roll &amp; Paint username</h1>
 
         @if (!FlowState.RegistrationPending)
         {
@@ -38,7 +38,7 @@
                            data-testid="external-registration-username"
                            @bind-Value="_registration.UserName" />
                 <ValidationMessage For="@(() => _registration.UserName)" class="text-danger small" />
-                <div class="form-text">Use the same username rules as standard MiniPainterHub registration.</div>
+                <div class="form-text">Use the same username rules as standard Roll &amp; Paint registration.</div>
 
                 <button class="btn btn-primary w-100 mt-4"
                         type="submit"

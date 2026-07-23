@@ -20,7 +20,7 @@ public sealed class EmailConfirmationOptions
     public string? PublicOrigin { get; set; }
     public string? Endpoint { get; set; }
     public string? SenderAddress { get; set; }
-    public string SenderDisplayName { get; set; } = "MiniPainterHub";
+    public string SenderDisplayName { get; set; } = "Roll & Paint";
 }
 
 internal sealed class EmailConfirmationOptionsValidator : IValidateOptions<EmailConfirmationOptions>

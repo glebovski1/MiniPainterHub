@@ -8,7 +8,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Shared;
 
-public class LikeButtonTests : TestContext
+public class LikeButtonTests : BunitContext
 {
     [Fact]
     public void InitialRender_LoadsLikeStateFromService()
@@ -22,7 +22,7 @@ public class LikeButtonTests : TestContext
             })
         });
 
-        var cut = RenderComponent<LikeButton>(parameters => parameters
+        var cut = Render<LikeButton>(parameters => parameters
             .Add(p => p.PostId, 101)
             .Add(p => p.TestId, "post-like-toggle"));
 
@@ -52,7 +52,7 @@ public class LikeButtonTests : TestContext
             }
         });
 
-        var cut = RenderComponent<LikeButton>(parameters => parameters
+        var cut = Render<LikeButton>(parameters => parameters
             .Add(p => p.PostId, 101)
             .Add(p => p.TestId, "post-like-toggle"));
 
@@ -73,7 +73,7 @@ public class LikeButtonTests : TestContext
             GetLikesHandler = _ => throw new System.InvalidOperationException("boom")
         });
 
-        var cut = RenderComponent<LikeButton>(parameters => parameters
+        var cut = Render<LikeButton>(parameters => parameters
             .Add(p => p.PostId, 101)
             .Add(p => p.TestId, "post-like-toggle"));
 

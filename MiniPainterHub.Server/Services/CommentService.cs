@@ -147,7 +147,9 @@ namespace MiniPainterHub.Server.Services
                 query = query.Where(c => !c.IsDeleted);
             }
 
-            query = query.OrderBy(c => c.CreatedUtc);
+            query = query
+                .OrderBy(c => c.CreatedUtc)
+                .ThenBy(c => c.Id);
 
             var totalCount = await query.CountAsync();
             var items = await query

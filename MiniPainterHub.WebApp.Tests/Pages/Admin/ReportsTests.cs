@@ -11,7 +11,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Admin;
 
-public class ReportsTests : TestContext
+public class ReportsTests : BunitContext
 {
     [Fact]
     public void LoadsQueueAndResolveActionCallsService()
@@ -52,7 +52,7 @@ public class ReportsTests : TestContext
         });
         this.AddModerationStub();
 
-        var cut = RenderComponent<Reports>();
+        var cut = Render<Reports>();
 
         cut.WaitForAssertion(() =>
         {
@@ -101,7 +101,7 @@ public class ReportsTests : TestContext
             }
         });
 
-        var cut = RenderComponent<Reports>();
+        var cut = Render<Reports>();
         cut.WaitForElement("[data-testid='report-project-inspect']").Click();
 
         cut.WaitForAssertion(() =>
@@ -171,7 +171,7 @@ public class ReportsTests : TestContext
             }
         });
 
-        var cut = RenderComponent<Reports>();
+        var cut = Render<Reports>();
         cut.WaitForElement("[data-testid='report-project-inspect']").Click();
         cut.WaitForElement("[data-testid='report-project-hide']").Click();
 

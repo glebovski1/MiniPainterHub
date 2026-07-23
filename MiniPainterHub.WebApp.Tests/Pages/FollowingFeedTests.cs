@@ -10,7 +10,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages;
 
-public class FollowingFeedTests : TestContext
+public class FollowingFeedTests : BunitContext
 {
     [Fact]
     public void RendersPostsFromFollowingFeed()
@@ -42,7 +42,7 @@ public class FollowingFeedTests : TestContext
                     }))
         });
 
-        var cut = RenderComponent<FollowingFeed>();
+        var cut = Render<FollowingFeed>();
 
         cut.WaitForAssertion(() =>
         {
@@ -71,7 +71,7 @@ public class FollowingFeedTests : TestContext
                     }))
         });
 
-        var cut = RenderComponent<FollowingFeed>();
+        var cut = Render<FollowingFeed>();
 
         cut.WaitForAssertion(() =>
         {

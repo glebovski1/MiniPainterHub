@@ -3,7 +3,7 @@
 @inject INewsAnnouncementService NewsService
 @inject NavigationManager Nav
 
-<PageTitle>@(_announcement?.Title ?? "Announcement")</PageTitle>
+<PageTitle>@($"{_announcement?.Title ?? "Announcement"} | Roll & Paint")</PageTitle>
 
 <div class="page-shell content-stack">
     @if (_isLoading)

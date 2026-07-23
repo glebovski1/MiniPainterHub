@@ -16,7 +16,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Shared;
 
-public class CommentListInfiniteScrollTests : TestContext
+public class CommentListInfiniteScrollTests : BunitContext
 {
     [Fact]
     public async Task ViewerPanel_LoadMoreAppendsCommentsAndOmitsPagination()
@@ -88,7 +88,7 @@ public class CommentListInfiniteScrollTests : TestContext
 
     private void AddCommentScenario(Func<int, int, ApiResult<PagedResult<CommentDto>>> loadPage)
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("viewer");
         auth.SetRoles("User");
         this.AddModerationStub();
@@ -99,7 +99,7 @@ public class CommentListInfiniteScrollTests : TestContext
         });
     }
 
-    private IRenderedFragment RenderWithAuth(int postId, bool isViewerPanel)
+    private IRenderedComponent<IComponent> RenderWithAuth(int postId, bool isViewerPanel)
     {
         return Render(builder =>
         {

@@ -9,6 +9,7 @@ using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MiniPainterHub.Server.Services
@@ -27,24 +28,25 @@ namespace MiniPainterHub.Server.Services
             _cache = cache;
         }
 
-        public async Task<SearchOverviewDto> GetOverviewAsync(string? query)
+        public async Task<SearchOverviewDto> GetOverviewAsync(string? query, CancellationToken cancellationToken = default)
         {
             if (!HasSearchTerm(query))
             {
                 return new SearchOverviewDto();
             }
 
-            var posts = await SearchPostsAsync(query, null, 1, OverviewTake);
-            var projects = await SearchProjectsAsync(query, 1, OverviewTake);
-            var users = await SearchUsersAsync(query, 1, OverviewTake);
-            var tags = await SearchTagsAsync(query, 1, OverviewTake);
+            var normalizedQuery = TagTextUtilities.NormalizeText(query!);
+            var posts = await GetOverviewPostsAsync(normalizedQuery, cancellationToken);
+            var projects = await GetOverviewProjectsAsync(normalizedQuery, cancellationToken);
+            var users = await GetOverviewUsersAsync(normalizedQuery, cancellationToken);
+            var tags = await GetOverviewTagsAsync(normalizedQuery, cancellationToken);
 
             var result = new SearchOverviewDto
             {
-                Posts = posts.Items.ToList(),
-                Projects = projects.Items.ToList(),
-                Users = users.Items.ToList(),
-                Tags = tags.Items.ToList()
+                Posts = posts,
+                Projects = projects,
+                Users = users,
+                Tags = tags
             };
             return result;
         }
@@ -52,7 +54,8 @@ namespace MiniPainterHub.Server.Services
         public async Task<PagedResult<HobbyProjectSummaryDto>> SearchProjectsAsync(
             string? query,
             int page,
-            int pageSize)
+            int pageSize,
+            CancellationToken cancellationToken = default)
         {
             ValidatePaging(page, pageSize);
             if (!HasSearchTerm(query))
@@ -93,7 +96,7 @@ namespace MiniPainterHub.Server.Services
                     || project.MetadataContainsMatch
                     || project.OwnerContainsMatch);
 
-            var totalCount = await candidates.CountAsync();
+            var totalCount = await candidates.CountAsync(cancellationToken);
             var pageIds = await candidates
                 .OrderByDescending(project => project.TitleStartsMatch)
                 .ThenByDescending(project => project.TitleContainsMatch)
@@ -105,37 +108,24 @@ namespace MiniPainterHub.Server.Services
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(project => project.Id)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             if (pageIds.Count == 0)
             {
                 return CreatePage(Array.Empty<HobbyProjectSummaryDto>(), totalCount, page, pageSize);
             }
 
-            var projects = await _appDbContext.HobbyProjects
-                .AsNoTracking()
-                .AsSplitQuery()
-                .Include(project => project.OwnerUser)
-                    .ThenInclude(owner => owner.Profile)
-                .Include(project => project.Entries)
-                    .ThenInclude(entry => entry.Post)
-                    .ThenInclude(post => post.Images)
-                .Where(project =>
-                    pageIds.Contains(project.Id)
-                    && !project.IsHidden
-                    && project.ArchivedUtc == null
-                    && project.Entries.Any(entry => !entry.Post.IsDeleted))
-                .ToDictionaryAsync(project => project.Id);
+            var projects = await LoadProjectSummariesAsync(pageIds, cancellationToken);
 
             var items = pageIds
                 .Where(projects.ContainsKey)
-                .Select(projectId => HobbyProjectService.MapSummary(projects[projectId], ownerView: false))
+                .Select(projectId => projects[projectId])
                 .ToList();
             var result = CreatePage(items, totalCount, page, pageSize);
             return result;
         }
 
-        public async Task<PagedResult<PostSummaryDto>> SearchPostsAsync(string? query, string? tagSlug, int page, int pageSize)
+        public async Task<PagedResult<PostSummaryDto>> SearchPostsAsync(string? query, string? tagSlug, int page, int pageSize, CancellationToken cancellationToken = default)
         {
             ValidatePaging(page, pageSize);
 
@@ -219,7 +209,7 @@ namespace MiniPainterHub.Server.Services
                 }
             });
 
-            var totalCount = await rankedPosts.CountAsync();
+            var totalCount = await rankedPosts.CountAsync(cancellationToken);
             var items = await rankedPosts
                 .OrderByDescending(p => p.ExactTagMatch)
                 .ThenByDescending(p => p.TitleStartsMatch)
@@ -227,10 +217,11 @@ namespace MiniPainterHub.Server.Services
                 .ThenByDescending(p => p.ContentContainsMatch)
                 .ThenByDescending(p => p.TagContainsMatch)
                 .ThenByDescending(p => p.Summary.CreatedAt)
+                .ThenByDescending(p => p.Summary.Id)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(p => p.Summary)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             foreach (var item in items)
             {
@@ -241,7 +232,7 @@ namespace MiniPainterHub.Server.Services
             return result;
         }
 
-        public async Task<PagedResult<UserListItemDto>> SearchUsersAsync(string? query, int page, int pageSize)
+        public async Task<PagedResult<UserListItemDto>> SearchUsersAsync(string? query, int page, int pageSize, CancellationToken cancellationToken = default)
         {
             ValidatePaging(page, pageSize);
             if (!HasSearchTerm(query))
@@ -277,7 +268,7 @@ namespace MiniPainterHub.Server.Services
                     || EF.Functions.Like(u.SearchUserName, containsPattern, LikeEscape)
                     || EF.Functions.Like(u.SearchBio, containsPattern, LikeEscape));
 
-            var totalCount = await usersQuery.CountAsync();
+            var totalCount = await usersQuery.CountAsync(cancellationToken);
             var items = await usersQuery
                 .OrderByDescending(u => EF.Functions.Like(u.SearchDisplayName, startsPattern, LikeEscape))
                 .ThenByDescending(u => EF.Functions.Like(u.SearchDisplayName, containsPattern, LikeEscape))
@@ -289,12 +280,12 @@ namespace MiniPainterHub.Server.Services
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(u => u.User)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             return CreatePage(items, totalCount, page, pageSize);
         }
 
-        public async Task<PagedResult<SearchTagResultDto>> SearchTagsAsync(string? query, int page, int pageSize)
+        public async Task<PagedResult<SearchTagResultDto>> SearchTagsAsync(string? query, int page, int pageSize, CancellationToken cancellationToken = default)
         {
             ValidatePaging(page, pageSize);
             if (!HasSearchTerm(query))
@@ -329,7 +320,7 @@ namespace MiniPainterHub.Server.Services
                     EF.Functions.Like(t.NormalizedName, containsPattern, LikeEscape)
                     || EF.Functions.Like(t.Slug, containsPattern, LikeEscape));
 
-            var totalCount = await tagsQuery.CountAsync();
+            var totalCount = await tagsQuery.CountAsync(cancellationToken);
             var items = await tagsQuery
                 .OrderByDescending(t => t.NormalizedName == normalizedQuery)
                 .ThenByDescending(t => EF.Functions.Like(t.NormalizedName, startsPattern, LikeEscape))
@@ -339,11 +330,223 @@ namespace MiniPainterHub.Server.Services
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(t => t.Tag)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             var result = CreatePage(items, totalCount, page, pageSize);
             SetCache(cacheKey, result);
             return result;
+        }
+
+        private async Task<List<PostSummaryDto>> GetOverviewPostsAsync(string normalizedQuery, CancellationToken cancellationToken)
+        {
+            var containsPattern = CreateContainsPattern(normalizedQuery);
+            var startsPattern = CreateStartsPattern(normalizedQuery);
+            var items = await _appDbContext.Posts
+                .AsNoTracking()
+                .Where(post => !post.IsDeleted
+                    && (EF.Functions.Like(post.Title.ToLower(), containsPattern, LikeEscape)
+                        || EF.Functions.Like(post.Content.ToLower(), containsPattern, LikeEscape)
+                        || post.PostTags.Any(postTag => EF.Functions.Like(postTag.Tag.NormalizedName, containsPattern, LikeEscape))))
+                .Select(post => new SearchPostCandidate
+                {
+                    ExactTagMatch = post.PostTags.Any(postTag => postTag.Tag.NormalizedName == normalizedQuery),
+                    TitleStartsMatch = EF.Functions.Like(post.Title.ToLower(), startsPattern, LikeEscape),
+                    TitleContainsMatch = EF.Functions.Like(post.Title.ToLower(), containsPattern, LikeEscape),
+                    ContentContainsMatch = EF.Functions.Like(post.Content.ToLower(), containsPattern, LikeEscape),
+                    TagContainsMatch = post.PostTags.Any(postTag => EF.Functions.Like(postTag.Tag.NormalizedName, containsPattern, LikeEscape)),
+                    Summary = new PostSummaryDto
+                    {
+                        Id = post.Id,
+                        Title = post.Title,
+                        Snippet = post.Content.Length > 100 ? post.Content.Substring(0, 100) + "..." : post.Content,
+                        MiniatureName = post.MiniatureName,
+                        Techniques = post.Techniques,
+                        Difficulty = post.Difficulty,
+                        ImageUrl = post.Images.OrderBy(image => image.Id).Select(image => image.ImageUrl).FirstOrDefault(),
+                        ThumbnailUrl = post.Images
+                            .OrderBy(image => image.Id)
+                            .Select(image => image.ThumbnailUrl != null && image.ThumbnailUrl != string.Empty
+                                ? image.ThumbnailUrl
+                                : image.PreviewUrl ?? image.ImageUrl)
+                            .FirstOrDefault(),
+                        AuthorName = post.CreatedBy.Profile != null && post.CreatedBy.Profile.DisplayName != null
+                            ? post.CreatedBy.Profile.DisplayName
+                            : post.CreatedBy.UserName ?? string.Empty,
+                        AuthorId = post.CreatedById,
+                        CreatedAt = post.CreatedUtc,
+                        CommentCount = post.Comments.Count,
+                        LikeCount = post.Likes.Count,
+                        IsDeleted = post.IsDeleted,
+                        Project = post.HobbyProjectEntry != null
+                            && !post.HobbyProjectEntry.Project.IsHidden
+                            && post.HobbyProjectEntry.Project.ArchivedUtc == null
+                            && post.HobbyProjectEntry.Project.Entries.Any(entry => !entry.Post.IsDeleted)
+                                ? new HobbyProjectReferenceDto
+                                {
+                                    Id = post.HobbyProjectEntry.Project.Id,
+                                    Title = post.HobbyProjectEntry.Project.Title,
+                                    Status = post.HobbyProjectEntry.Project.Status,
+                                    IsPublic = true
+                                }
+                                : null,
+                        Tags = post.PostTags
+                            .OrderBy(postTag => postTag.Tag.DisplayName)
+                            .Select(postTag => new TagDto
+                            {
+                                Name = postTag.Tag.DisplayName,
+                                Slug = postTag.Tag.Slug
+                            })
+                            .ToList()
+                    }
+                })
+                .OrderByDescending(post => post.ExactTagMatch)
+                .ThenByDescending(post => post.TitleStartsMatch)
+                .ThenByDescending(post => post.TitleContainsMatch)
+                .ThenByDescending(post => post.ContentContainsMatch)
+                .ThenByDescending(post => post.TagContainsMatch)
+                .ThenByDescending(post => post.Summary.CreatedAt)
+                .ThenByDescending(post => post.Summary.Id)
+                .Take(OverviewTake)
+                .Select(post => post.Summary)
+                .ToListAsync(cancellationToken);
+
+            foreach (var item in items)
+            {
+                item.ThumbnailUrl = ResolveSummaryThumbnailUrl(item.ImageUrl, item.ThumbnailUrl);
+            }
+
+            return items;
+        }
+
+        private async Task<List<HobbyProjectSummaryDto>> GetOverviewProjectsAsync(string normalizedQuery, CancellationToken cancellationToken)
+        {
+            var containsPattern = CreateContainsPattern(normalizedQuery);
+            var startsPattern = CreateStartsPattern(normalizedQuery);
+            var ids = await _appDbContext.HobbyProjects
+                .AsNoTracking()
+                .Where(project => !project.IsHidden
+                    && project.ArchivedUtc == null
+                    && project.Entries.Any(entry => !entry.Post.IsDeleted))
+                .Select(project => new SearchProjectCandidate
+                {
+                    Id = project.Id,
+                    TitleStartsMatch = EF.Functions.Like(project.Title.ToLower(), startsPattern, LikeEscape),
+                    TitleContainsMatch = EF.Functions.Like(project.Title.ToLower(), containsPattern, LikeEscape),
+                    DescriptionContainsMatch = EF.Functions.Like(project.Description.ToLower(), containsPattern, LikeEscape),
+                    MetadataContainsMatch = EF.Functions.Like((project.GameSystem ?? string.Empty).ToLower(), containsPattern, LikeEscape)
+                        || EF.Functions.Like((project.FactionTheme ?? string.Empty).ToLower(), containsPattern, LikeEscape)
+                        || EF.Functions.Like((project.Goal ?? string.Empty).ToLower(), containsPattern, LikeEscape),
+                    OwnerContainsMatch = EF.Functions.Like(
+                        ((project.OwnerUser.Profile != null ? project.OwnerUser.Profile.DisplayName : null)
+                            ?? project.OwnerUser.DisplayName
+                            ?? project.OwnerUser.UserName
+                            ?? string.Empty).ToLower(),
+                        containsPattern,
+                        LikeEscape),
+                    UpdatedUtc = project.UpdatedUtc
+                })
+                .Where(project => project.TitleContainsMatch
+                    || project.DescriptionContainsMatch
+                    || project.MetadataContainsMatch
+                    || project.OwnerContainsMatch)
+                .OrderByDescending(project => project.TitleStartsMatch)
+                .ThenByDescending(project => project.TitleContainsMatch)
+                .ThenByDescending(project => project.DescriptionContainsMatch)
+                .ThenByDescending(project => project.MetadataContainsMatch)
+                .ThenByDescending(project => project.OwnerContainsMatch)
+                .ThenByDescending(project => project.UpdatedUtc)
+                .ThenByDescending(project => project.Id)
+                .Take(OverviewTake)
+                .Select(project => project.Id)
+                .ToListAsync(cancellationToken);
+
+            if (ids.Count == 0)
+            {
+                return new List<HobbyProjectSummaryDto>();
+            }
+
+            var projects = await LoadProjectSummariesAsync(ids, cancellationToken);
+            return ids.Where(projects.ContainsKey).Select(id => projects[id]).ToList();
+        }
+
+        private async Task<List<UserListItemDto>> GetOverviewUsersAsync(string normalizedQuery, CancellationToken cancellationToken)
+        {
+            var containsPattern = CreateContainsPattern(normalizedQuery);
+            var startsPattern = CreateStartsPattern(normalizedQuery);
+            return await _appDbContext.Users
+                .AsNoTracking()
+                .Select(user => new SearchUserCandidate
+                {
+                    SearchDisplayName = ((user.Profile != null ? user.Profile.DisplayName : null) ?? user.DisplayName ?? user.UserName ?? string.Empty).ToLower(),
+                    SearchUserName = (user.UserName ?? string.Empty).ToLower(),
+                    SearchBio = ((user.Profile != null ? user.Profile.Bio : null) ?? string.Empty).ToLower(),
+                    User = new UserListItemDto
+                    {
+                        UserId = user.Id,
+                        UserName = user.UserName ?? string.Empty,
+                        DisplayName = user.Profile != null && user.Profile.DisplayName != null
+                            ? user.Profile.DisplayName
+                            : user.DisplayName ?? user.UserName ?? string.Empty,
+                        AvatarUrl = user.Profile != null && user.Profile.AvatarUrl != null
+                            ? user.Profile.AvatarUrl
+                            : user.AvatarUrl
+                    }
+                })
+                .Where(user => EF.Functions.Like(user.SearchDisplayName, containsPattern, LikeEscape)
+                    || EF.Functions.Like(user.SearchUserName, containsPattern, LikeEscape)
+                    || EF.Functions.Like(user.SearchBio, containsPattern, LikeEscape))
+                .OrderByDescending(user => EF.Functions.Like(user.SearchDisplayName, startsPattern, LikeEscape))
+                .ThenByDescending(user => EF.Functions.Like(user.SearchDisplayName, containsPattern, LikeEscape))
+                .ThenByDescending(user => EF.Functions.Like(user.SearchUserName, startsPattern, LikeEscape))
+                .ThenByDescending(user => EF.Functions.Like(user.SearchUserName, containsPattern, LikeEscape))
+                .ThenByDescending(user => EF.Functions.Like(user.SearchBio, containsPattern, LikeEscape))
+                .ThenBy(user => user.User.DisplayName)
+                .ThenBy(user => user.User.UserName)
+                .Take(OverviewTake)
+                .Select(user => user.User)
+                .ToListAsync(cancellationToken);
+        }
+
+        private Task<List<SearchTagResultDto>> GetOverviewTagsAsync(string normalizedQuery, CancellationToken cancellationToken)
+        {
+            var containsPattern = CreateContainsPattern(normalizedQuery);
+            var startsPattern = CreateStartsPattern(normalizedQuery);
+            return _appDbContext.Tags
+                .AsNoTracking()
+                .Select(tag => new SearchTagCandidate
+                {
+                    NormalizedName = tag.NormalizedName,
+                    Slug = tag.Slug,
+                    Tag = new SearchTagResultDto
+                    {
+                        Name = tag.DisplayName,
+                        Slug = tag.Slug,
+                        PostCount = tag.PostTags.Count(postTag => !postTag.Post.IsDeleted)
+                    }
+                })
+                .Where(tag => EF.Functions.Like(tag.NormalizedName, containsPattern, LikeEscape)
+                    || EF.Functions.Like(tag.Slug, containsPattern, LikeEscape))
+                .OrderByDescending(tag => tag.NormalizedName == normalizedQuery)
+                .ThenByDescending(tag => EF.Functions.Like(tag.NormalizedName, startsPattern, LikeEscape))
+                .ThenByDescending(tag => EF.Functions.Like(tag.NormalizedName, containsPattern, LikeEscape))
+                .ThenByDescending(tag => tag.Tag.PostCount)
+                .ThenBy(tag => tag.Tag.Name)
+                .Take(OverviewTake)
+                .Select(tag => tag.Tag)
+                .ToListAsync(cancellationToken);
+        }
+
+        private async Task<Dictionary<int, HobbyProjectSummaryDto>> LoadProjectSummariesAsync(
+            IReadOnlyCollection<int> projectIds,
+            CancellationToken cancellationToken)
+        {
+            var rows = await HobbyProjectService.ProjectSummaryRows(
+                    _appDbContext.HobbyProjects.AsNoTracking().Where(project => projectIds.Contains(project.Id)))
+                .ToListAsync(cancellationToken);
+            var covers = await HobbyProjectService.LoadCoverCandidatesAsync(_appDbContext, projectIds, cancellationToken);
+            return rows.ToDictionary(
+                project => project.Id,
+                project => HobbyProjectService.MapSummary(project, covers, ownerView: false));
         }
 
         private static bool HasSearchTerm(string? query) =>

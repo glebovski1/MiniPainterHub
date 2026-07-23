@@ -11,14 +11,14 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages;
 
-public class RegistrationTests : TestContext
+public class RegistrationTests : BunitContext
 {
     [Fact]
     public void RendersRegistrationForm()
     {
         this.AddAuthStub();
 
-        var cut = RenderComponent<Registration>();
+        var cut = Render<Registration>();
 
         cut.Find("#reg-username").Should().NotBeNull();
         cut.Find("#reg-email").Should().NotBeNull();
@@ -37,7 +37,7 @@ public class RegistrationTests : TestContext
             })
         });
 
-        var cut = RenderComponent<Registration>();
+        var cut = Render<Registration>();
 
         cut.WaitForAssertion(() => cut.Find("[data-testid='google-signin-link']").Should().NotBeNull());
     }
@@ -54,7 +54,7 @@ public class RegistrationTests : TestContext
             })
         });
 
-        var cut = RenderComponent<Registration>();
+        var cut = Render<Registration>();
 
         cut.WaitForAssertion(() =>
         {
@@ -79,7 +79,7 @@ public class RegistrationTests : TestContext
 
         var nav = Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo(nav.GetUriWithQueryParameter("returnUrl", "/support"));
-        var cut = RenderComponent<Registration>();
+        var cut = Render<Registration>();
 
         cut.Find("#reg-username").Change("new-user");
         cut.Find("#reg-email").Change("new-user@example.com");
@@ -102,7 +102,7 @@ public class RegistrationTests : TestContext
             RegisterHandler = _ => Task.FromResult(RegistrationOutcome.ValidationFailure)
         });
 
-        var cut = RenderComponent<Registration>();
+        var cut = Render<Registration>();
 
         cut.Find("#reg-username").Change("new-user");
         cut.Find("#reg-email").Change("new-user@example.com");
@@ -126,7 +126,7 @@ public class RegistrationTests : TestContext
             }
         });
 
-        var cut = RenderComponent<Registration>();
+        var cut = Render<Registration>();
 
         cut.Find("#reg-username").Change("new-user");
         cut.Find("#reg-password").Change("ValidPass123!");
@@ -148,7 +148,7 @@ public class RegistrationTests : TestContext
             RegisterHandler = _ => Task.FromResult(RegistrationOutcome.ConfirmationPendingDelivery)
         });
 
-        var cut = RenderComponent<Registration>();
+        var cut = Render<Registration>();
         cut.Find("#reg-username").Change("new-user");
         cut.Find("#reg-email").Change("new-user@example.com");
         cut.Find("#reg-password").Change("ValidPass123!");
@@ -176,7 +176,7 @@ public class RegistrationTests : TestContext
 
         var nav = Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo(nav.GetUriWithQueryParameter("returnUrl", "https://evil.example/steal"));
-        var cut = RenderComponent<Registration>();
+        var cut = Render<Registration>();
         cut.Find("#reg-username").Change("new-user");
         cut.Find("#reg-email").Change("new-user@example.com");
         cut.Find("#reg-password").Change("ValidPass123!");

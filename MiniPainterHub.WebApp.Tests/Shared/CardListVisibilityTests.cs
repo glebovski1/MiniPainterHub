@@ -16,12 +16,12 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Shared;
 
-public class CardListVisibilityTests : TestContext
+public class CardListVisibilityTests : BunitContext
 {
     [Fact]
     public void WhenAdminChangesVisibilityFilter_CallsPostServiceWithHiddenFlags()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("admin");
         auth.SetRoles("Admin");
         this.AddModerationStub();
@@ -70,7 +70,7 @@ public class CardListVisibilityTests : TestContext
     [Fact]
     public void WhenRegularUser_DoesNotSeeVisibilityFilter()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("user");
         auth.SetRoles("User");
         this.AddModerationStub();
@@ -113,7 +113,7 @@ public class CardListVisibilityTests : TestContext
     [Fact]
     public void FirstRenderedPostCardRow_GetsImagePriorityOnlyForLcpCandidates()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("user");
         auth.SetRoles("User");
         this.AddModerationStub();
@@ -179,7 +179,7 @@ public class CardListVisibilityTests : TestContext
         });
     }
 
-    private IRenderedFragment RenderWithAuth()
+    private IRenderedComponent<IComponent> RenderWithAuth()
     {
         return Render(builder =>
         {

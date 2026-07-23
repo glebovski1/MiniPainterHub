@@ -26,6 +26,11 @@ internal static class HostedStartupConfigurationValidator
         var jwtKey = GetRequiredConfigurationValue(configuration, "Jwt:Key", "Jwt__Key", missingSettings);
         var jwtIssuer = GetRequiredConfigurationValue(configuration, "Jwt:Issuer", "Jwt__Issuer", missingSettings);
         var jwtAudience = GetRequiredConfigurationValue(configuration, "Jwt:Audience", "Jwt__Audience", missingSettings);
+        var publicOrigin = GetRequiredConfigurationValue(configuration, "Site:PublicOrigin", "Site__PublicOrigin", missingSettings);
+        if (!IsHttpsOrigin(publicOrigin))
+        {
+            missingSettings.Add("Site__PublicOrigin must be an HTTPS origin without a path");
+        }
         var imageStorageConnectionString = GetRequiredConfigurationValue(
             configuration,
             "ImageStorage:AzureConnectionString",
@@ -46,11 +51,12 @@ internal static class HostedStartupConfigurationValidator
                 "EmailConfirmation:Provider",
                 "EmailConfirmation__Provider",
                 missingSettings);
-            GetRequiredConfigurationValue(
+            var emailOrigin = GetRequiredConfigurationValue(
                 configuration,
                 "EmailConfirmation:PublicOrigin",
                 "EmailConfirmation__PublicOrigin",
                 missingSettings);
+            ValidateMatchingOrigin(publicOrigin, emailOrigin, "EmailConfirmation__PublicOrigin", missingSettings);
             GetRequiredConfigurationValue(
                 configuration,
                 "EmailConfirmation:Endpoint",
@@ -79,7 +85,8 @@ internal static class HostedStartupConfigurationValidator
             GetRequiredConfigurationValue(configuration, "Authentication:Google:ClientId", "Authentication__Google__ClientId", missingSettings);
             GetRequiredConfigurationValue(configuration, "Authentication:Google:ClientSecret", "Authentication__Google__ClientSecret", missingSettings);
             GetRequiredConfigurationValue(configuration, "Authentication:Google:CallbackPath", "Authentication__Google__CallbackPath", missingSettings);
-            GetRequiredConfigurationValue(configuration, "Authentication:Google:PublicOrigin", "Authentication__Google__PublicOrigin", missingSettings);
+            var googleOrigin = GetRequiredConfigurationValue(configuration, "Authentication:Google:PublicOrigin", "Authentication__Google__PublicOrigin", missingSettings);
+            ValidateMatchingOrigin(publicOrigin, googleOrigin, "Authentication__Google__PublicOrigin", missingSettings);
             GetRequiredConfigurationValue(configuration, "Site:SupportEmail", "Site__SupportEmail", missingSettings);
 
             if (configuration.GetValue<bool>("Authentication:Google:UseFakeProvider"))
@@ -98,7 +105,8 @@ internal static class HostedStartupConfigurationValidator
             GetRequiredConfigurationValue(configuration, "Authentication:Discord:ClientId", "Authentication__Discord__ClientId", missingSettings);
             GetRequiredConfigurationValue(configuration, "Authentication:Discord:ClientSecret", "Authentication__Discord__ClientSecret", missingSettings);
             GetRequiredConfigurationValue(configuration, "Authentication:Discord:CallbackPath", "Authentication__Discord__CallbackPath", missingSettings);
-            GetRequiredConfigurationValue(configuration, "Authentication:Discord:PublicOrigin", "Authentication__Discord__PublicOrigin", missingSettings);
+            var discordOrigin = GetRequiredConfigurationValue(configuration, "Authentication:Discord:PublicOrigin", "Authentication__Discord__PublicOrigin", missingSettings);
+            ValidateMatchingOrigin(publicOrigin, discordOrigin, "Authentication__Discord__PublicOrigin", missingSettings);
             GetRequiredConfigurationValue(configuration, "Site:SupportEmail", "Site__SupportEmail", missingSettings);
 
             if (configuration.GetValue<bool>("Authentication:Discord:UseFakeProvider"))
@@ -203,6 +211,32 @@ internal static class HostedStartupConfigurationValidator
         catch (ArgumentException)
         {
             return "configured";
+        }
+    }
+
+    private static bool IsHttpsOrigin(string? value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var uri)
+        && string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+        && uri.PathAndQuery == "/"
+        && string.IsNullOrEmpty(uri.Fragment)
+        && string.IsNullOrEmpty(uri.UserInfo);
+
+    private static void ValidateMatchingOrigin(
+        string? expected,
+        string? actual,
+        string displayKey,
+        ICollection<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(expected) || string.IsNullOrWhiteSpace(actual))
+        {
+            return;
+        }
+
+        var normalizedExpected = expected.TrimEnd('/');
+        var normalizedActual = actual.TrimEnd('/');
+        if (!string.Equals(normalizedExpected, normalizedActual, StringComparison.OrdinalIgnoreCase))
+        {
+            errors.Add($"{displayKey} must match Site__PublicOrigin");
         }
     }
 }

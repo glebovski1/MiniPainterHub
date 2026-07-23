@@ -7,14 +7,14 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Admin;
 
-public class ModerationDashboardTests : TestContext
+public class ModerationDashboardTests : BunitContext
 {
     [Fact]
     public void RendersModerationDashboardInputs()
     {
         this.AddModerationStub();
 
-        var cut = RenderComponent<ModerationDashboard>();
+        var cut = Render<ModerationDashboard>();
 
         cut.Find("[data-testid='mod-post-id']").Should().NotBeNull();
         cut.Find("[data-testid='mod-post-action']").Should().NotBeNull();
@@ -40,7 +40,7 @@ public class ModerationDashboardTests : TestContext
             }
         });
 
-        var cut = RenderComponent<ModerationDashboard>();
+        var cut = Render<ModerationDashboard>();
         cut.Find("[data-testid='mod-post-id']").Change("301");
         cut.Find("[data-testid='mod-post-action']").Change("hide");
         cut.Find("[data-testid='mod-post-reason']").Change("policy violation");
@@ -68,7 +68,7 @@ public class ModerationDashboardTests : TestContext
             }
         });
 
-        var cut = RenderComponent<ModerationDashboard>();
+        var cut = Render<ModerationDashboard>();
         cut.Find("[data-testid='mod-comment-id']").Change("0");
         cut.Find("[data-testid='mod-comment-action']").Change("restore");
         await cut.Find("[data-testid='mod-comment-submit']").ClickAsync(new());

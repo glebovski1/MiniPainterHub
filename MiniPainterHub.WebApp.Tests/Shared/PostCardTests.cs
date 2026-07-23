@@ -11,12 +11,12 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Shared;
 
-public class PostCardTests : TestContext
+public class PostCardTests : BunitContext
 {
     [Fact]
     public void RendersAsOwnedArticleWithoutBootstrapCardShell()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         this.AddModerationStub();
 
         var post = new PostSummaryDto
@@ -40,7 +40,7 @@ public class PostCardTests : TestContext
     [Fact]
     public void Image_WhenThumbnailUrlIsProvided_UsesThumbnailUrl()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         this.AddModerationStub();
 
         var post = new PostSummaryDto
@@ -65,7 +65,7 @@ public class PostCardTests : TestContext
     [Fact]
     public void WithoutImage_RendersCompactTextLedCard()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         this.AddModerationStub();
 
         var post = new PostSummaryDto
@@ -89,7 +89,7 @@ public class PostCardTests : TestContext
     [Fact]
     public void Image_WhenPriorityImage_UsesEagerHighPriorityLoading()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         this.AddModerationStub();
 
         var post = new PostSummaryDto
@@ -114,7 +114,7 @@ public class PostCardTests : TestContext
     [Fact]
     public void Image_WhenNotPriorityImage_UsesLazyAutoPriorityLoading()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         this.AddModerationStub();
 
         var post = new PostSummaryDto
@@ -139,7 +139,7 @@ public class PostCardTests : TestContext
     [Fact]
     public void Image_WhenThumbnailFails_FallsBackToFullImageUrl()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         this.AddModerationStub();
 
         var post = new PostSummaryDto
@@ -166,7 +166,7 @@ public class PostCardTests : TestContext
     [Fact]
     public void WhenAdminRole_RendersPostIdBadge()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("admin");
         auth.SetRoles("Admin");
         this.AddModerationStub();
@@ -190,7 +190,7 @@ public class PostCardTests : TestContext
     [Fact]
     public void WhenPostHasTags_RendersTagBadges()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("reader");
         this.AddModerationStub();
 
@@ -218,7 +218,7 @@ public class PostCardTests : TestContext
     [Fact]
     public void WhenPostHasRecipeFields_RendersRecipeSummary()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("reader");
         this.AddModerationStub();
 
@@ -246,7 +246,7 @@ public class PostCardTests : TestContext
     [Fact]
     public void WhenPostBelongsToPublicProject_RendersProjectLink()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         this.AddModerationStub();
 
         var post = new PostSummaryDto
@@ -275,7 +275,7 @@ public class PostCardTests : TestContext
     [Fact]
     public void WhenProjectIsNotPublic_DoesNotRenderProjectLink()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         this.AddModerationStub();
 
         var post = new PostSummaryDto
@@ -297,7 +297,7 @@ public class PostCardTests : TestContext
     [Fact]
     public void WhenHiddenPost_RendersHiddenBadge()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("admin");
         auth.SetRoles("Admin");
         this.AddModerationStub();
@@ -319,7 +319,7 @@ public class PostCardTests : TestContext
         cut.FindAll("[data-testid='post-card-restore']").Should().HaveCount(1);
     }
 
-    private IRenderedFragment RenderWithAuth(PostSummaryDto post, bool isPriorityImage = false)
+    private IRenderedComponent<IComponent> RenderWithAuth(PostSummaryDto post, bool isPriorityImage = false)
     {
         return Render(builder =>
         {

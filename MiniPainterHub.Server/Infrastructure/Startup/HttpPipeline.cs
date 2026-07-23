@@ -33,7 +33,7 @@ public partial class Program
             app.UseSwagger();
             app.UseSwaggerUI(c =>
             {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "MiniPainterHub API v1");
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Roll & Paint API v1");
             });
         }
         else
@@ -43,9 +43,11 @@ public partial class Program
 
         app.UseExceptionHandler();
         app.UseHttpsRedirection();
+        UseCanonicalHostRedirect(app);
         app.UseResponseCompression();
         UseStaticAssetHeaderPolicy(app);
         app.UseRouting();
+        app.UseMiddleware<DatabaseMetricsMiddleware>();
         app.UseAuthentication();
         app.UseRateLimiter();
         app.UseMiddleware<SiteActivityMiddleware>();
@@ -64,13 +66,14 @@ public partial class Program
 
         app.UseStaticFiles(CreateStaticFileOptions());
         app.UseAuthorization();
+        app.UseOutputCache();
 
         app.MapControllers();
         app.MapHub<ChatHub>("/hubs/chat").RequireRateLimiting(RateLimitingPolicies.Realtime);
-        app.MapFallbackToFile("index.html");
         MapHealthEndpoints(app);
 
         MapTestSupportResetEndpoint(app);
+        MapPublicSeoEndpoints(app);
     }
 
     private static void MapTestSupportResetEndpoint(WebApplication app)

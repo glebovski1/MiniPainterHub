@@ -9,7 +9,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Shared;
 
-public class UserPanelContentTests : TestContext
+public class UserPanelContentTests : BunitContext
 {
     [Fact]
     public void RendersSocialLinksAndUnreadBadge()
@@ -32,7 +32,7 @@ public class UserPanelContentTests : TestContext
             })
         });
 
-        var cut = RenderComponent<UserPanelContent>();
+        var cut = Render<UserPanelContent>();
 
         cut.WaitForAssertion(() =>
         {

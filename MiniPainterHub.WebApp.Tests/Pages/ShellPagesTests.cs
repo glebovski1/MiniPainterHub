@@ -14,12 +14,12 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages;
 
-public class ShellPagesTests : TestContext
+public class ShellPagesTests : BunitContext
 {
     [Fact]
     public void About_RendersPrimaryCallsToAction()
     {
-        var cut = RenderComponent<About>();
+        var cut = Render<About>();
 
         cut.Markup.Should().Contain("A shared workbench.");
         cut.Markup.Should().Contain("Miniature painting is better when the process is shared.");
@@ -51,7 +51,7 @@ public class ShellPagesTests : TestContext
                     })
             });
 
-        var cut = RenderComponent<Home>();
+        var cut = Render<Home>();
 
         cut.WaitForAssertion(() =>
         {
@@ -83,7 +83,7 @@ public class ShellPagesTests : TestContext
                     })
             });
 
-        var cut = RenderComponent<TopPosts>();
+        var cut = Render<TopPosts>();
 
         cut.WaitForAssertion(() =>
         {
@@ -98,7 +98,7 @@ public class ShellPagesTests : TestContext
     [Fact]
     public void Index_RendersLatestPostsHeadingAndCards()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         this.AddModerationStub();
         this.AddPostStub(new StubPostService
         {
@@ -125,7 +125,7 @@ public class ShellPagesTests : TestContext
                 }))
         });
 
-        var cut = RenderComponent<MiniPainterHub.WebApp.Pages.Index>();
+        var cut = Render<MiniPainterHub.WebApp.Pages.Index>();
 
         cut.WaitForAssertion(() =>
         {
@@ -138,7 +138,7 @@ public class ShellPagesTests : TestContext
     [Fact]
     public void AllPosts_AppliesDescendingCreatedAtOrdering()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         this.AddModerationStub();
         this.AddPostStub(new StubPostService
         {
@@ -174,7 +174,7 @@ public class ShellPagesTests : TestContext
                 }))
         });
 
-        var cut = RenderComponent<AllPosts>();
+        var cut = Render<AllPosts>();
 
         cut.WaitForAssertion(() =>
         {

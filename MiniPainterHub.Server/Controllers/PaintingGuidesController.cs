@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Infrastructure.Caching;
 using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
@@ -17,6 +19,7 @@ namespace MiniPainterHub.Server.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/guides")]
+[OutputCache(PolicyName = OutputCachePolicies.PublicDatabaseShort)]
 public sealed class PaintingGuidesController : ControllerBase
 {
     private readonly IPaintingGuideService _paintingGuideService;

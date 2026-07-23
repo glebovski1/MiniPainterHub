@@ -12,12 +12,12 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages;
 
-public class PublicProfileTests : TestContext
+public class PublicProfileTests : BunitContext
 {
     [Fact]
     public void PublicProfile_ShowsUpToThreeRecentProjectsBeforeGallery()
     {
-        this.AddTestAuthorization().SetNotAuthorized();
+        this.AddAuthorization().SetNotAuthorized();
         this.AddProfileStub(new StubProfileService
         {
             GetPublicByIdHandler = id => Task.FromResult(new PublicUserProfileDto
@@ -58,7 +58,7 @@ public class PublicProfileTests : TestContext
         this.AddConversationStub();
         this.AddPostStub();
 
-        var cut = RenderComponent<PublicProfile>(parameters => parameters.Add(p => p.UserId, "target-user"));
+        var cut = Render<PublicProfile>(parameters => parameters.Add(p => p.UserId, "target-user"));
 
         cut.WaitForAssertion(() =>
         {
@@ -88,7 +88,7 @@ public class PublicProfileTests : TestContext
         this.AddConversationStub();
         this.AddPostStub();
 
-        var cut = RenderComponent<PublicProfile>(parameters => parameters.Add(p => p.UserId, "target-user"));
+        var cut = Render<PublicProfile>(parameters => parameters.Add(p => p.UserId, "target-user"));
 
         cut.WaitForAssertion(() =>
         {
@@ -123,7 +123,7 @@ public class PublicProfileTests : TestContext
             })
         });
 
-        var cut = RenderComponent<PublicProfile>(parameters => parameters.Add(p => p.UserId, "target-user"));
+        var cut = Render<PublicProfile>(parameters => parameters.Add(p => p.UserId, "target-user"));
         cut.WaitForElement("[data-testid='profile-message']");
 
         cut.Find("[data-testid='profile-message']").Click();
@@ -162,7 +162,7 @@ public class PublicProfileTests : TestContext
         this.AddConversationStub();
         this.AddPostStub();
 
-        var cut = RenderComponent<PublicProfile>(parameters => parameters.Add(p => p.UserId, "target-user"));
+        var cut = Render<PublicProfile>(parameters => parameters.Add(p => p.UserId, "target-user"));
         cut.WaitForElement("[data-testid='profile-follow-toggle']");
 
         cut.Find("[data-testid='profile-follow-toggle']").Click();
@@ -191,7 +191,7 @@ public class PublicProfileTests : TestContext
         this.AddConversationStub();
         this.AddPostStub();
 
-        var cut = RenderComponent<PublicProfile>(parameters => parameters.Add(p => p.UserId, "viewer-user"));
+        var cut = Render<PublicProfile>(parameters => parameters.Add(p => p.UserId, "viewer-user"));
 
         cut.WaitForAssertion(() =>
         {

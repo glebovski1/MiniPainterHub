@@ -23,11 +23,14 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.ErrorHandling;
+using MiniPainterHub.Server.Infrastructure.Caching;
+using MiniPainterHub.Server.Infrastructure.Database;
 using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Realtime;
 using MiniPainterHub.Server.Features.Posts;
+using MiniPainterHub.Server.Features.Seo;
 using MiniPainterHub.Server.Services;
 using MiniPainterHub.Server.Services.Images;
 using MiniPainterHub.Server.Services.Interfaces;
@@ -64,9 +67,12 @@ public partial class Program
             && OperatingSystem.IsLinux()
             && defaultConnection?.Contains("(localdb)", StringComparison.OrdinalIgnoreCase) == true;
 
-        builder.Services.AddDbContext<AppDbContext>(options =>
+        builder.Services.AddScoped<RequestDatabaseMetrics>();
+        builder.Services.AddScoped<DatabaseCommandMetricsInterceptor>();
+        builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
         {
             ConfigureRelationalWarnings(options);
+            options.AddInterceptors(serviceProvider.GetRequiredService<DatabaseCommandMetricsInterceptor>());
 
             if (useInMemoryDatabase)
             {
@@ -287,6 +293,17 @@ public partial class Program
         ConfigureForwardedHeaders(builder);
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddMemoryCache();
+        var publicCacheSeconds = Math.Clamp(
+            builder.Configuration.GetValue<int?>("DatabasePerformance:PublicCacheSeconds") ?? 10,
+            1,
+            60);
+        builder.Services.AddOutputCache(options =>
+        {
+            options.AddPolicy(OutputCachePolicies.PublicDatabaseShort, policy => policy
+                .Expire(TimeSpan.FromSeconds(publicCacheSeconds))
+                .SetVaryByQuery("*")
+                .Tag("public-database"));
+        });
         builder.Services.AddControllers();
         builder.Services.AddSignalR();
         builder.Services.AddResponseCompression(options =>
@@ -316,7 +333,7 @@ public partial class Program
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(c =>
         {
-            c.SwaggerDoc("v1", new OpenApiInfo { Title = "MiniPainterHub API", Version = "v1" });
+            c.SwaggerDoc("v1", new OpenApiInfo { Title = "Roll & Paint API", Version = "v1" });
 
             c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
             {
@@ -353,6 +370,12 @@ public partial class Program
 
     private static void AddOptions(WebApplicationBuilder builder)
     {
+        builder.Services.AddOptions<DatabasePerformanceOptions>()
+            .Bind(builder.Configuration.GetSection(DatabasePerformanceOptions.SectionName));
+        builder.Services.AddSingleton<IValidateOptions<SiteBrandOptions>, SiteBrandOptionsValidator>();
+        builder.Services.AddOptions<SiteBrandOptions>()
+            .Bind(builder.Configuration.GetSection(SiteBrandOptions.SectionName))
+            .ValidateOnStart();
         builder.Services.AddOptions<ImagesOptions>()
             .Bind(builder.Configuration.GetSection("Images"))
             .ValidateDataAnnotations()
@@ -427,7 +450,7 @@ public partial class Program
                 var problemDetails = new ProblemDetails
                 {
                     Title = "Too many requests",
-                    Detail = "MiniPainterHub is receiving too many requests from this client. Please wait a moment and try again.",
+                    Detail = "Roll & Paint is receiving too many requests from this client. Please wait a moment and try again.",
                     Status = StatusCodes.Status429TooManyRequests,
                     Instance = httpContext.Request.Path
                 };
@@ -544,6 +567,8 @@ public partial class Program
 
     private static void AddDomainServices(IServiceCollection services)
     {
+        services.AddScoped<PublicSeoDocumentService>();
+        services.AddSingleton<PublicSeoShellRenderer>();
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IPostImageAttachmentService, PostImageAttachmentService>();
         services.AddScoped<HobbyProjectService>();

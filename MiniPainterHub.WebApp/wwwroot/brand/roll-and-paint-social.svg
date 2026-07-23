@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-labelledby="title description">
+  <title id="title">Roll &amp; Paint</title>
+  <description id="description">A miniature painting community</description>
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F7F3EA"/>
+      <stop offset="1" stop-color="#EDE4D3"/>
+    </linearGradient>
+    <radialGradient id="wash" cx="0" cy="0" r="1" gradientTransform="translate(970 105) rotate(135) scale(430 350)">
+      <stop stop-color="#D6B66A" stop-opacity=".42"/>
+      <stop offset="1" stop-color="#D6B66A" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#paper)"/>
+  <rect width="1200" height="630" fill="url(#wash)"/>
+  <path d="M0 516c193-75 365-90 542-34 194 62 383 45 658-83v231H0Z" fill="#1F5B52"/>
+  <path d="M0 549c227-66 399-60 574-4 180 57 362 43 626-53v138H0Z" fill="#173E39" opacity=".74"/>
+  <g transform="translate(845 138) scale(2.45)">
+    <circle cx="32" cy="32" r="28" fill="#F3EFE6" stroke="#1F5B52" stroke-width="3.5"/>
+    <path d="M36.5 55c1.3-10.9 5-17.2 11.1-17.2 6.5 0 10.6 4.4 10.6 9.8 0 6.5-6.2 10.3-15.6 10.3-2.6 0-4.5-.8-6.1-2.9Z" fill="#1F5B52"/>
+    <circle cx="45.1" cy="44.8" r="3.1" fill="#E4C27D"/>
+    <circle cx="52.4" cy="49.5" r="3" fill="#C49B48"/>
+    <circle cx="43.5" cy="53.1" r="2.8" fill="#B86A43"/>
+    <path d="M27.6 26.3h8.8l1.1 10.2h-11l1.1-10.2Z" fill="#E4B654" stroke="#172127" stroke-width="2.2" stroke-linejoin="round"/>
+    <rect x="26.6" y="23.5" width="10.8" height="4.2" rx="1.3" fill="#C49B48" stroke="#172127" stroke-width="2.1"/>
+    <rect x="25.6" y="34.7" width="12.8" height="4.1" rx="1.3" fill="#C49B48" stroke="#172127" stroke-width="2.1"/>
+    <path d="M27.2 37.5h9.6c-.4 7.1-.9 12.9-2.1 18.6-.5 2.3-1.4 3.7-2.7 3.7-1.3 0-2.2-1.4-2.7-3.7-1.2-5.7-1.7-11.5-2.1-18.6Z" fill="#1F5B52" stroke="#172127" stroke-width="2.1"/>
+    <path d="M32 23.8c-4.3-3.7-4.4-7.2-1.4-10.8 2.4-2.8 4.6-4.8 5.4-8.2 1 4.1 3.2 7.3 2.8 11.2-.3 3.6-2.3 6.4-5.4 8.6L32 23.8Z" fill="#805B2B" stroke="#172127" stroke-width="2.1" stroke-linejoin="round"/>
+    <path d="M33.5 22.8c-.8-3.5.2-6.4 1.8-9.3.7-1.4 1.2-2.7 1.4-4 .9 4.8 1.2 9.2-3.2 13.3Z" fill="#C49B48"/>
+  </g>
+  <text x="92" y="207" fill="#1B3833" font-family="Georgia, 'Times New Roman', serif" font-size="80" font-weight="700" letter-spacing="-2">Roll &amp; Paint</text>
+  <text x="96" y="273" fill="#667168" font-family="Arial, Helvetica, sans-serif" font-size="29" font-weight="600" letter-spacing="3.5">MINIATURE PAINTING COMMUNITY</text>
+  <path d="M97 318h515" stroke="#C49B48" stroke-width="5" stroke-linecap="round"/>
+  <text x="96" y="374" fill="#344D47" font-family="Arial, Helvetica, sans-serif" font-size="26">Share the process. Learn the craft.</text>
+  <text x="96" y="412" fill="#344D47" font-family="Arial, Helvetica, sans-serif" font-size="26">Celebrate every painted miniature.</text>
+  <text x="95" y="574" fill="#F7F3EA" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="600" letter-spacing="1.5">ROLLANDPAINT.COM</text>
+</svg>

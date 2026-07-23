@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Infrastructure.Caching;
 using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services.Interfaces;
@@ -13,6 +15,7 @@ namespace MiniPainterHub.Server.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/news")]
+[OutputCache(PolicyName = OutputCachePolicies.PublicDatabaseShort)]
 public sealed class NewsAnnouncementsController : ControllerBase
 {
     private readonly INewsAnnouncementService _newsAnnouncementService;

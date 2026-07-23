@@ -791,7 +791,7 @@ const scenarioGroups = {
     await setViewport(page, VIEWPORTS.desktop);
 
     await page.goto("/privacy");
-    await expect(page.getByRole("heading", { name: "Privacy at MiniPainterHub" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Privacy at Roll & Paint" })).toBeVisible();
     await capture(page, manifest, {
       name: "legal-privacy-desktop",
       group: "legal",
@@ -801,7 +801,7 @@ const scenarioGroups = {
     });
 
     await page.goto("/terms");
-    await expect(page.getByRole("heading", { name: "MiniPainterHub Terms" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Roll & Paint Terms" })).toBeVisible();
     await capture(page, manifest, {
       name: "legal-terms-desktop",
       group: "legal",

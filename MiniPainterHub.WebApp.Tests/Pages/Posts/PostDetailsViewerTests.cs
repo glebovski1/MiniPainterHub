@@ -23,7 +23,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Posts;
 
-public class PostDetailsViewerTests : TestContext
+public class PostDetailsViewerTests : BunitContext
 {
     [Fact]
     public void ViewerIsClosedByDefaultAndPostDetailsLayoutRemainsVisible()
@@ -338,14 +338,14 @@ public class PostDetailsViewerTests : TestContext
         });
     }
 
-    private IRenderedFragment RenderWithAuth(
+    private IRenderedComponent<IComponent> RenderWithAuth(
         ViewerScenario scenario,
         StubCommentMarkService? commentMarkStub = null,
         StubCommentService? commentStub = null)
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
 
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("viewer");
         auth.SetClaims(
             new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "viewer-user"),
@@ -389,7 +389,7 @@ public class PostDetailsViewerTests : TestContext
         });
     }
 
-    private static IElement FindPageCommentCard(IRenderedFragment cut, string contentSnippet)
+    private static IElement FindPageCommentCard(IRenderedComponent<IComponent> cut, string contentSnippet)
     {
         var pageCommentList = cut.FindAll("[data-testid='comment-list-container']").First();
         return pageCommentList

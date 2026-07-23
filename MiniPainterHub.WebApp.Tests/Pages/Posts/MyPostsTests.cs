@@ -13,12 +13,12 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Posts;
 
-public class MyPostsTests : TestContext
+public class MyPostsTests : BunitContext
 {
     [Fact]
     public void WhenAuthenticatedAndProfileIsMissing_DoesNotRedirectToLogin()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("claims-user");
         auth.SetClaims(new Claim(ClaimTypes.NameIdentifier, "user-1"));
         this.AddProfileStub(new StubProfileService
@@ -40,7 +40,7 @@ public class MyPostsTests : TestContext
                     }))
         });
 
-        var cut = RenderComponent<MyPosts>();
+        var cut = Render<MyPosts>();
 
         cut.WaitForAssertion(() =>
         {
@@ -52,12 +52,12 @@ public class MyPostsTests : TestContext
     [Fact]
     public void WhenUnauthenticated_RedirectsToLogin()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetNotAuthorized();
         this.AddProfileStub();
         this.AddPostStub();
 
-        var cut = RenderComponent<MyPosts>();
+        var cut = Render<MyPosts>();
 
         cut.WaitForAssertion(() =>
         {

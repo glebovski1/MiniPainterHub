@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Infrastructure.Caching;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Services.Interfaces;
@@ -21,6 +23,7 @@ public sealed class HobbyProjectsController : ControllerBase
 
     [HttpGet]
     [AllowAnonymous]
+    [OutputCache(PolicyName = OutputCachePolicies.PublicDatabaseShort)]
     public async Task<ActionResult<PagedResult<HobbyProjectSummaryDto>>> GetAll([FromQuery] HobbyProjectQueryDto query) =>
         Ok(await _projectService.GetAllAsync(query));
 

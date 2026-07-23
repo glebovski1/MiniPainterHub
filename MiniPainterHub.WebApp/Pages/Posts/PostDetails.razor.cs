@@ -25,6 +25,7 @@ public partial class PostDetails
     private CommentList? _viewerCommentList;
     private PostDto? post;
     private PostViewerDto? viewer;
+    private LikeDto? likes;
     private bool isLoading;
     private string? loadError;
     private HttpStatusCode? loadStatus;
@@ -153,7 +154,7 @@ public partial class PostDetails
     }
 
     /// <summary>
-    /// Loads the post details and viewer payload in parallel so the page and rich viewer stay synchronized.
+    /// Loads the post, viewer, and initial like state in one server request.
     /// </summary>
     private async Task LoadPostAsync()
     {
@@ -161,41 +162,36 @@ public partial class PostDetails
         loadError = null;
         loadStatus = null;
 
-        var postRequest = new HttpRequestMessage(HttpMethod.Get, $"api/posts/{PostId}");
-        var viewerRequest = new HttpRequestMessage(HttpMethod.Get, $"api/posts/{PostId}/viewer");
-
         try
         {
-            var postTask = Api.SendForResultAsync<PostDto>(postRequest, new ApiRequestOptions { SuppressErrorNotifications = true });
-            var viewerTask = Api.SendForResultAsync<PostViewerDto>(viewerRequest, new ApiRequestOptions { SuppressErrorNotifications = true });
+            var experienceResponse = await Api.SendForResultAsync<PostExperienceDto>(
+                new HttpRequestMessage(HttpMethod.Get, $"api/posts/{PostId}/experience"),
+                new ApiRequestOptions { SuppressErrorNotifications = true });
 
-            await Task.WhenAll(postTask, viewerTask);
-
-            var postResponse = await postTask;
-            var viewerResponse = await viewerTask;
-
-            if (postResponse.Success && postResponse.Value is not null && viewerResponse.Success && viewerResponse.Value is not null)
+            if (experienceResponse.Success
+                && experienceResponse.Value?.Post is not null
+                && experienceResponse.Value.Viewer is not null
+                && experienceResponse.Value.Likes is not null
+                && experienceResponse.Value.Post.Id == PostId
+                && experienceResponse.Value.Viewer.PostId == PostId)
             {
-                post = postResponse.Value;
-                viewer = viewerResponse.Value;
+                post = experienceResponse.Value.Post;
+                viewer = experienceResponse.Value.Viewer;
+                likes = experienceResponse.Value.Likes;
                 _activeImageId = viewer.Images.FirstOrDefault()?.Id ?? 0;
                 _isViewerOpen = false;
                 ResetCommentViewerState();
             }
             else
             {
-                post = null;
-                viewer = null;
-                loadStatus = viewerResponse.StatusCode ?? postResponse.StatusCode;
-                loadError = loadStatus == HttpStatusCode.NotFound
-                    ? "This post could not be found."
-                    : "We couldn't load this post. Please check your connection and try again.";
+                await LoadLegacyPostPayloadAsync(experienceResponse.StatusCode);
             }
         }
         catch
         {
             post = null;
             viewer = null;
+            likes = null;
             loadStatus = null;
             loadError = "We couldn't load this post. Please try again in a moment.";
         }
@@ -203,6 +199,38 @@ public partial class PostDetails
         {
             isLoading = false;
         }
+    }
+
+    private async Task LoadLegacyPostPayloadAsync(HttpStatusCode? experienceStatus)
+    {
+        var postTask = Api.SendForResultAsync<PostDto>(
+            new HttpRequestMessage(HttpMethod.Get, $"api/posts/{PostId}"),
+            new ApiRequestOptions { SuppressErrorNotifications = true });
+        var viewerTask = Api.SendForResultAsync<PostViewerDto>(
+            new HttpRequestMessage(HttpMethod.Get, $"api/posts/{PostId}/viewer"),
+            new ApiRequestOptions { SuppressErrorNotifications = true });
+        await Task.WhenAll(postTask, viewerTask);
+
+        var postResponse = await postTask;
+        var viewerResponse = await viewerTask;
+        if (postResponse.Success && postResponse.Value is not null && viewerResponse.Success && viewerResponse.Value is not null)
+        {
+            post = postResponse.Value;
+            viewer = viewerResponse.Value;
+            likes = null;
+            _activeImageId = viewer.Images.FirstOrDefault()?.Id ?? 0;
+            _isViewerOpen = false;
+            ResetCommentViewerState();
+            return;
+        }
+
+        post = null;
+        viewer = null;
+        likes = null;
+        loadStatus = viewerResponse.StatusCode ?? postResponse.StatusCode ?? experienceStatus;
+        loadError = loadStatus == HttpStatusCode.NotFound
+            ? "This post could not be found."
+            : "We couldn't load this post. Please check your connection and try again.";
     }
 
     /// <summary>

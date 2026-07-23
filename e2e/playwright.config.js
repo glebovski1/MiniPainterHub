@@ -53,7 +53,7 @@ module.exports = defineConfig({
       Authentication__Discord__Enabled: "true",
       Authentication__Discord__UseFakeProvider: "true",
       Authentication__Discord__PublicOrigin: "https://localhost:7295",
-      Site__SupportEmail: "support@minipainterhub.example",
+      Site__SupportEmail: "support@rollandpaint.com",
     },
   },
 });

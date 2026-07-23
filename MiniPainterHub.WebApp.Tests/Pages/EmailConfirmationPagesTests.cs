@@ -10,7 +10,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages;
 
-public class EmailConfirmationPagesTests : TestContext
+public class EmailConfirmationPagesTests : BunitContext
 {
     [Fact]
     public void ConfirmEmail_WhenTokenSucceeds_ShowsLoginAction()
@@ -22,7 +22,7 @@ public class EmailConfirmationPagesTests : TestContext
 
         Services.GetRequiredService<NavigationManager>()
             .NavigateTo("/confirm-email?userId=user-1&code=token&returnUrl=%2Fsupport");
-        var cut = RenderComponent<ConfirmEmail>();
+        var cut = Render<ConfirmEmail>();
 
         cut.WaitForAssertion(() =>
         {
@@ -41,7 +41,7 @@ public class EmailConfirmationPagesTests : TestContext
 
         Services.GetRequiredService<NavigationManager>()
             .NavigateTo("/confirm-email?userId=user-1&code=bad-token");
-        var cut = RenderComponent<ConfirmEmail>();
+        var cut = Render<ConfirmEmail>();
 
         cut.WaitForAssertion(() =>
         {
@@ -54,7 +54,7 @@ public class EmailConfirmationPagesTests : TestContext
     public async Task ResendConfirmation_WhenAccepted_ShowsEnumerationSafeMessage()
     {
         this.AddAuthStub();
-        var cut = RenderComponent<ResendEmailConfirmation>();
+        var cut = Render<ResendEmailConfirmation>();
 
         cut.Find("#resend-email").Change("unknown@example.test");
         await cut.Find("form").SubmitAsync();

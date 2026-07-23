@@ -47,15 +47,17 @@ Configured middleware (in order):
 1. Exception handling (`UseExceptionHandler`)
 2. HTTPS redirection
 3. Routing (`UseRouting`)
-4. Authentication (`UseAuthentication`)
-5. Rate limiting (`UseRateLimiter`)
-6. Maintenance gate (`UseMiddleware<MaintenanceModeMiddleware>`)
-7. Static file and Blazor framework files
-8. Authorization (`UseAuthorization`)
-9. API controller mapping (`MapControllers`)
-10. SignalR hub mapping (`MapHub<ChatHub>("/hubs/chat")`)
-11. SPA fallback (`MapFallbackToFile("index.html")`)
-12. Health endpoints (`/healthz`, `/healthz/live`, `/healthz/ready`)
+4. Per-request EF command count and database-duration telemetry (`DatabaseMetricsMiddleware`)
+5. Authentication (`UseAuthentication`)
+6. Rate limiting (`UseRateLimiter`)
+7. Maintenance gate (`UseMiddleware<MaintenanceModeMiddleware>`)
+8. Static file and Blazor framework files
+9. Authorization (`UseAuthorization`)
+10. Output caching for explicitly selected anonymous database reads (`UseOutputCache`)
+11. API controller mapping (`MapControllers`)
+12. SignalR hub mapping (`MapHub<ChatHub>("/hubs/chat")`)
+13. SPA fallback (`MapFallbackToFile("index.html")`)
+14. Health endpoints (`/healthz`, `/healthz/live`, `/healthz/ready`)
 
 Development-only:
 - Swagger UI
@@ -80,7 +82,7 @@ Business logic is being modularized as a monolith. Legacy service entry points r
 feature-owned helpers live under `MiniPainterHub.Server/Features`.
 
 Current extracted backend feature modules:
-- `Features/Tags`: shared tag text normalization, slug creation, and unique slug resolution for posts, search, and seeders.
+- `Features/Tags`: shared tag text normalization, slug creation, and bounded deterministic collision resolution for posts, search, and seeders. New-tag writes query only candidate slugs instead of loading the complete slug table.
 - `Features/Media`: post image upload limits and validation.
 - `Features/Pagination`: shared page/page-size validation for public list endpoints (`MaxPageSize = 100`).
 - `Features/Posts`: post DTO/projection mapping.
@@ -116,6 +118,12 @@ Traffic shaping:
 - `TrafficShapingOptions` configures fixed-window rate limits for auth, email registration/resend, search, write, upload, and realtime handshake traffic.
 - Rate-limited endpoints return HTTP `429` with `ProblemDetails` and `Retry-After` when the runtime exposes a retry value.
 - Auth uses both the auth rate-limit policy and Identity lockout (`5` failed attempts for `15` minutes by default).
+
+Database load controls:
+- `DatabasePerformanceOptions` owns the excessive-command warning threshold, accumulated database-time threshold, and the public cache duration (10 seconds by default).
+- The EF command interceptor records counts and elapsed database time without logging SQL text or parameters; request middleware emits histograms and a structured warning only when configured thresholds are crossed.
+- Explicit public search, post, project-list, guide, and news reads use a query-varying output-cache policy. The default ASP.NET output-cache policy excludes authenticated, non-GET/HEAD, non-200, and cookie-setting responses.
+- Project and search reads page and project scalar projections in SQL, then load only bounded cover candidates. Search overview uses bounded result queries without pagination counts.
 
 ### 2.3 Authentication and Authorization
 
@@ -187,6 +195,8 @@ Entity relationships (configured in `OnModelCreating`):
 - Normalized non-null user email is uniquely indexed. Migration fails on existing duplicates rather than merging or deleting accounts.
 - `Like` has a database-level unique index on `(PostId, UserId)`; service code treats duplicate insert races as an already-liked outcome.
 - Direct one-to-one conversations store a deterministic `DirectConversationKey` with a filtered unique index. The key is generated from the sorted participant IDs so reverse-order conversation creation resolves to the same thread.
+- Stable pagination and lookup indexes cover post activity `(IsDeleted, CreatedUtc, Id)`, owner post activity, visible post comments, direct-message ID cursors, and direct-message timestamps. Ordering includes the row ID as a deterministic tie-breaker.
+- Direct-message sends load only the tracked sender membership, conversation row, participant count, peer ID, and sender presentation fields; they never materialize message history and return the inserted DTO without a read-back query.
 
 ### 3.1 Hobby Project Invariants
 
@@ -231,6 +241,7 @@ Main controllers under `MiniPainterHub.Server/Controllers`:
   - `GET /`
     - Supports visibility query options for moderation roles: `includeDeleted` and `deletedOnly`.
   - `GET /{id}`
+  - `GET /{id}/experience` returns the post details, rich-viewer payload, and viewer-specific initial like state as one bootstrap contract.
   - `POST /` (JSON post create; accepts optional `ProjectId` and `MilestoneLabel`)
   - `POST /with-image` (multipart upload; accepts the same optional project fields)
   - `PUT /{id}`
@@ -403,6 +414,8 @@ Admin UX composition:
 
 Search and reporting UX composition:
 - Global nav search routes into `Pages/Search.razor`.
+- Post details prefer the consolidated experience endpoint and retain the legacy post/viewer calls only as a compatibility fallback. The initial like state is passed into `LikeButton`, avoiding its former third bootstrap request.
+- Composer tag suggestions wait 300 ms and cancel superseded HTTP/EF work, so fast typing does not leave obsolete searches running on the server.
 - Post cards/details render technique tags through `Shared/TagBadgeList.razor`.
 - Posts, comments, public profiles, and hobby projects expose inline reporting through `Shared/ReportAction.razor`.
 
@@ -416,5 +429,7 @@ Preferred validation commands:
 - `dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj`
 - `dotnet test MiniPainterHub.WebApp.Tests/MiniPainterHub.WebApp.Tests.csproj`
 - `dotnet run --project MiniPainterHub.LoadTests/MiniPainterHub.LoadTests.csproj -- --profile smoke --base-url <ready server URL>`
+
+The NBomber profile covers the public feed, consolidated and legacy post reads, search overview/posts/projects, public projects, and authenticated conversation/message reads when seeded conversation data is available, in addition to existing write/upload scenarios.
 
 When adding tests with EF InMemory, seed realistic relational data (for example all referenced users for likes/comments) to avoid impossible production states.

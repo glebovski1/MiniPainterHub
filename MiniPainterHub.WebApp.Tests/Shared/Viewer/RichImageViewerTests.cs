@@ -12,7 +12,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Shared.Viewer;
 
-public class RichImageViewerTests : TestContext
+public class RichImageViewerTests : BunitContext
 {
     [Fact]
     public void LeftSwipeRequestsTheNextImage()
@@ -144,7 +144,7 @@ public class RichImageViewerTests : TestContext
             Tag = "Right-side note"
         });
 
-        var cut = RenderComponent<RichImageViewer>(parameters => parameters
+        var cut = Render<RichImageViewer>(parameters => parameters
             .Add(component => component.IsOpen, true)
             .Add(component => component.Viewer, viewer)
             .Add(component => component.ActiveImageId, 101)
@@ -182,7 +182,7 @@ public class RichImageViewerTests : TestContext
             Tag = "Left-side note"
         });
 
-        var cut = RenderComponent<RichImageViewer>(parameters => parameters
+        var cut = Render<RichImageViewer>(parameters => parameters
             .Add(component => component.IsOpen, true)
             .Add(component => component.Viewer, viewer)
             .Add(component => component.ActiveImageId, 101)
@@ -217,7 +217,7 @@ public class RichImageViewerTests : TestContext
         var viewer = CreateViewer();
         viewer.CanManageAuthorMarks = true;
 
-        var cut = RenderComponent<RichImageViewer>(parameters => parameters
+        var cut = Render<RichImageViewer>(parameters => parameters
             .Add(component => component.IsOpen, true)
             .Add(component => component.Viewer, viewer)
             .Add(component => component.ActiveImageId, 101)
@@ -243,7 +243,7 @@ public class RichImageViewerTests : TestContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         this.AddAuthorMarkStub();
 
-        var cut = RenderComponent<RichImageViewer>(parameters => parameters
+        var cut = Render<RichImageViewer>(parameters => parameters
             .Add(component => component.IsOpen, true)
             .Add(component => component.Viewer, CreateViewer(imageCount: 1))
             .Add(component => component.ActiveImageId, 101)
@@ -326,7 +326,7 @@ public class RichImageViewerTests : TestContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         this.AddAuthorMarkStub();
 
-        var cut = RenderComponent<RichImageViewer>(parameters => parameters
+        var cut = Render<RichImageViewer>(parameters => parameters
             .Add(component => component.IsOpen, true)
             .Add(component => component.Viewer, CreateViewer(imageCount: 1, width: 900, height: 1600))
             .Add(component => component.ActiveImageId, 101)
@@ -422,7 +422,7 @@ public class RichImageViewerTests : TestContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         this.AddAuthorMarkStub();
 
-        var cut = RenderComponent<RichImageViewer>(parameters => parameters
+        var cut = Render<RichImageViewer>(parameters => parameters
             .Add(component => component.IsOpen, true)
             .Add(component => component.Viewer, CreateViewer(imageCount: 1))
             .Add(component => component.ActiveImageId, 101)
@@ -448,8 +448,8 @@ public class RichImageViewerTests : TestContext
         cut.Find("[data-testid='viewer-zoom-in']").Click();
         cut.Find("[data-testid='viewer-rail-zoom']").TextContent.Should().Contain("125%");
 
-        cut.SetParametersAndRender(parameters => ConfigureViewerParameters(parameters, false));
-        cut.SetParametersAndRender(parameters => ConfigureViewerParameters(parameters, true));
+        cut.Render(parameters => ConfigureViewerParameters(parameters, false));
+        cut.Render(parameters => ConfigureViewerParameters(parameters, true));
 
         cut.Find("[data-testid='viewer-rail-zoom']").TextContent.Should().Contain("60%");
         cut.Find("[data-testid='viewer-reset']").ClassList.Should().Contain("is-active");
@@ -475,7 +475,7 @@ public class RichImageViewerTests : TestContext
 
     private IRenderedComponent<RichImageViewer> RenderViewer(Action<ComponentParameterCollectionBuilder<RichImageViewer>>? configure = null)
     {
-        return RenderComponent<RichImageViewer>(parameters =>
+        return Render<RichImageViewer>(parameters =>
         {
             ConfigureViewerParameters(parameters, true);
             configure?.Invoke(parameters);

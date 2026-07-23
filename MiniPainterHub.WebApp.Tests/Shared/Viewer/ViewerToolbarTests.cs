@@ -5,12 +5,12 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Shared.Viewer;
 
-public class ViewerToolbarTests : TestContext
+public class ViewerToolbarTests : BunitContext
 {
     [Fact]
     public void RendersGroupedNavigationZoomAndUtilityControls()
     {
-        var cut = RenderComponent<ViewerToolbar>(parameters => parameters
+        var cut = Render<ViewerToolbar>(parameters => parameters
             .Add(component => component.Eyebrow, "Rich viewer")
             .Add(component => component.Title, "Moonlit skin experiment")
             .Add(component => component.TitleId, "viewer-title")
@@ -42,7 +42,7 @@ public class ViewerToolbarTests : TestContext
     [Fact]
     public void SingleFrameToolbarDropsBrowseSectionAndShowsFooterHints()
     {
-        var cut = RenderComponent<ViewerToolbar>(parameters => parameters
+        var cut = Render<ViewerToolbar>(parameters => parameters
             .Add(component => component.Eyebrow, "Rich viewer")
             .Add(component => component.Title, "Moonlit skin experiment")
             .Add(component => component.TitleId, "viewer-title")

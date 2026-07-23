@@ -15,7 +15,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Admin;
 
-public class InboxTests : TestContext
+public class InboxTests : BunitContext
 {
     [Fact]
     public async Task KeepsInspectorOnNewestSelectionWhenOlderDetailFinishesLast()
@@ -220,9 +220,9 @@ public class InboxTests : TestContext
         Reports = Array.Empty<AdminInboxReportDto>()
     };
 
-    private IRenderedFragment RenderWithAuth<TComponent>() where TComponent : IComponent
+    private IRenderedComponent<IComponent> RenderWithAuth<TComponent>() where TComponent : IComponent
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("admin");
         auth.SetRoles("Admin");
 

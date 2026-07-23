@@ -15,12 +15,12 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Users;
 
-public class PublicProfileTests : TestContext
+public class PublicProfileTests : BunitContext
 {
     [Fact]
     public void WhenUnauthenticated_RendersPublicProfile_WithoutAdminActions()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetNotAuthorized();
 
         this.AddProfileStub(new StubProfileService
@@ -46,7 +46,7 @@ public class PublicProfileTests : TestContext
     [Fact]
     public async Task WhenAdmin_CanSuspendUser()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("admin");
         auth.SetRoles("Admin");
 
@@ -89,7 +89,7 @@ public class PublicProfileTests : TestContext
         });
     }
 
-    private IRenderedFragment RenderWithAuth(string userId)
+    private IRenderedComponent<IComponent> RenderWithAuth(string userId)
     {
         return Render(builder =>
         {

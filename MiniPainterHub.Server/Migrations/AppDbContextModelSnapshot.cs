@@ -236,7 +236,7 @@ namespace MiniPainterHub.Server.Migrations
 
                     b.HasIndex("ModeratedByUserId");
 
-                    b.HasIndex("PostId");
+                    b.HasIndex("PostId", "IsDeleted", "CreatedUtc", "Id");
 
                     b.ToTable("Comments");
                 });
@@ -409,9 +409,11 @@ namespace MiniPainterHub.Server.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ConversationId");
-
                     b.HasIndex("SenderUserId");
+
+                    b.HasIndex("ConversationId", "Id");
+
+                    b.HasIndex("ConversationId", "SentUtc", "Id");
 
                     b.ToTable("DirectMessages");
                 });
@@ -968,9 +970,9 @@ namespace MiniPainterHub.Server.Migrations
 
                     b.HasIndex("ModeratedByUserId");
 
-                    b.HasIndex("IsDeleted", "CreatedUtc");
+                    b.HasIndex("IsDeleted", "CreatedUtc", "Id");
 
-                    b.HasIndex("CreatedById", "IsDeleted", "CreatedUtc");
+                    b.HasIndex("CreatedById", "IsDeleted", "CreatedUtc", "Id");
 
                     b.ToTable("Posts");
                 });

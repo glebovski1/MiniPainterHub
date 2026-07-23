@@ -12,7 +12,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Admin;
 
-public class DashboardTests : TestContext
+public class DashboardTests : BunitContext
 {
     [Fact]
     public async Task KeepsNewestWindowStatsWhenOlderLoadFinishesLast()
@@ -28,7 +28,7 @@ public class DashboardTests : TestContext
             }
         });
 
-        var cut = RenderComponent<Dashboard>();
+        var cut = Render<Dashboard>();
 
         cut.WaitForAssertion(() =>
             cut.Find("[data-testid='admin-dashboard-metrics']").TextContent.Should().Contain("Initial stats"));
@@ -87,7 +87,7 @@ public class DashboardTests : TestContext
             }
         });
 
-        var cut = RenderComponent<Dashboard>();
+        var cut = Render<Dashboard>();
 
         cut.WaitForAssertion(() =>
             cut.Find("[data-testid='admin-dashboard-metrics']").TextContent.Should().Contain("First"));
@@ -121,7 +121,7 @@ public class DashboardTests : TestContext
             }))
         });
 
-        var cut = RenderComponent<Dashboard>();
+        var cut = Render<Dashboard>();
 
         cut.WaitForAssertion(() =>
         {
@@ -152,7 +152,7 @@ public class DashboardTests : TestContext
             }))
         });
 
-        var cut = RenderComponent<Dashboard>();
+        var cut = Render<Dashboard>();
 
         cut.WaitForAssertion(() =>
         {

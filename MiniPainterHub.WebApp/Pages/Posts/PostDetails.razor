@@ -10,6 +10,8 @@
 @inject MiniPainterHub.WebApp.Services.Interfaces.IModerationService ModerationService
 @inject MiniPainterHub.WebApp.Services.Interfaces.ICommentMarkService CommentMarkService
 
+<PageTitle>@($"{post?.Title ?? "Miniature painting post"} | Roll & Paint")</PageTitle>
+
 <div class="page-shell content-stack">
     @if (isLoading)
     {
@@ -95,7 +97,7 @@
                         <div class="post-details-gallery__actions"
                              data-testid="post-details-artwork-actions"
                              aria-label="Artwork actions">
-                            <LikeButton PostId="@PostId" TestId="post-like-toggle" />
+                            <LikeButton PostId="@PostId" InitialState="@likes" TestId="post-like-toggle" />
                             <button type="button"
                                     class="btn btn-dark post-details-gallery__launch"
                                     data-testid="post-details-open-viewer"

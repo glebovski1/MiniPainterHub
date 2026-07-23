@@ -66,5 +66,42 @@ public class PostViewerServiceTests
         result.Images[0].ThumbnailUrl.Should().Be("/uploads/images/thumb.webp");
     }
 
+    [Fact]
+    public async Task GetExperienceAsync_ReturnsPostViewerAndViewerSpecificLikeState()
+    {
+        await using var context = AppDbContextFactory.Create();
+        var user = TestData.CreateUser("author-1");
+        var post = TestData.CreatePost(21, user.Id);
+        post.Images.Add(new PostImage
+        {
+            Id = 103,
+            PostId = post.Id,
+            ImageUrl = "/uploads/images/experience.webp"
+        });
+        context.Users.Add(user);
+        context.Posts.Add(post);
+        context.Likes.Add(new Like
+        {
+            PostId = post.Id,
+            UserId = user.Id,
+            CreatedAt = System.DateTime.UtcNow
+        });
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var result = await service.GetExperienceAsync(post.Id, user.Id);
+
+        result.Post.Id.Should().Be(post.Id);
+        result.Post.Images.Should().ContainSingle();
+        result.Viewer.PostId.Should().Be(post.Id);
+        result.Viewer.CanManageAuthorMarks.Should().BeTrue();
+        result.Likes.Should().BeEquivalentTo(new MiniPainterHub.Common.DTOs.LikeDto
+        {
+            PostId = post.Id,
+            Count = 1,
+            UserHasLiked = true
+        });
+    }
+
     private static PostViewerService CreateService(AppDbContext context) => new(context);
 }

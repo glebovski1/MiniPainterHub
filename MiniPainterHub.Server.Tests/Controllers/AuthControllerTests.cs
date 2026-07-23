@@ -134,7 +134,7 @@ public class AuthControllerTests
             limited!,
             HttpStatusCode.TooManyRequests,
             "Too many requests",
-            "MiniPainterHub is receiving too many requests from this client. Please wait a moment and try again.");
+            "Roll & Paint is receiving too many requests from this client. Please wait a moment and try again.");
     }
 
     [Fact]
