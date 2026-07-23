@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components.Forms;
 using MiniPainterHub.Common.Auth;
@@ -530,11 +531,11 @@ internal sealed class StubSearchService : ISearchService
             TotalCount = 0
         }));
 
-    public Task<ApiResult<SearchOverviewDto?>> GetOverviewAsync(string? query) => GetOverviewHandler(query);
-    public Task<ApiResult<PagedResult<PostSummaryDto>?>> SearchPostsAsync(string? query, string? tag, int page, int pageSize) => SearchPostsHandler(query, tag, page, pageSize);
-    public Task<ApiResult<PagedResult<HobbyProjectSummaryDto>?>> SearchProjectsAsync(string? query, int page, int pageSize) => SearchProjectsHandler(query, page, pageSize);
-    public Task<ApiResult<PagedResult<UserListItemDto>?>> SearchUsersAsync(string? query, int page, int pageSize) => SearchUsersHandler(query, page, pageSize);
-    public Task<ApiResult<PagedResult<SearchTagResultDto>?>> SearchTagsAsync(string? query, int page, int pageSize) => SearchTagsHandler(query, page, pageSize);
+    public Task<ApiResult<SearchOverviewDto?>> GetOverviewAsync(string? query, CancellationToken cancellationToken = default) => GetOverviewHandler(query);
+    public Task<ApiResult<PagedResult<PostSummaryDto>?>> SearchPostsAsync(string? query, string? tag, int page, int pageSize, CancellationToken cancellationToken = default) => SearchPostsHandler(query, tag, page, pageSize);
+    public Task<ApiResult<PagedResult<HobbyProjectSummaryDto>?>> SearchProjectsAsync(string? query, int page, int pageSize, CancellationToken cancellationToken = default) => SearchProjectsHandler(query, page, pageSize);
+    public Task<ApiResult<PagedResult<UserListItemDto>?>> SearchUsersAsync(string? query, int page, int pageSize, CancellationToken cancellationToken = default) => SearchUsersHandler(query, page, pageSize);
+    public Task<ApiResult<PagedResult<SearchTagResultDto>?>> SearchTagsAsync(string? query, int page, int pageSize, CancellationToken cancellationToken = default) => SearchTagsHandler(query, page, pageSize);
 }
 
 internal sealed class StubHobbyProjectService : IHobbyProjectService

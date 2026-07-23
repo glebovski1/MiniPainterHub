@@ -4,10 +4,34 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="A shared workbench for miniature painters to show their process, exchange useful critique, and discover paint recipes and techniques." />
     <meta name="theme-color" content="#1F5B52" />
-    <title>MiniPainterHub</title>
     <base href="/" />
+    <!--RP:SEO-START-->
+    <title data-rp-seo="title">Roll &amp; Paint | Miniature Painting Community</title>
+    <meta name="description" content="A miniature painting community for sharing painted miniatures, works in progress, paint recipes, techniques, and thoughtful critique." data-rp-seo="description" />
+    <meta name="application-name" content="Roll &amp; Paint" />
+    <meta name="robots" content="index,follow,max-image-preview:large" data-rp-seo="robots" />
+    <link rel="canonical" href="https://rollandpaint.com/" data-rp-seo="canonical" />
+    <meta property="og:site_name" content="Roll &amp; Paint" />
+    <meta property="og:type" content="website" data-rp-seo="og:type" />
+    <meta property="og:url" content="https://rollandpaint.com/" data-rp-seo="og:url" />
+    <meta property="og:title" content="Roll &amp; Paint | Miniature Painting Community" data-rp-seo="og:title" />
+    <meta property="og:description" content="Share painted miniatures, works in progress, paint recipes, techniques, and thoughtful critique." data-rp-seo="og:description" />
+    <meta property="og:image" content="https://rollandpaint.com/brand/roll-and-paint-social.png" data-rp-seo="og:image" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Roll &amp; Paint | Miniature Painting Community" data-rp-seo="twitter:title" />
+    <meta name="twitter:description" content="Share painted miniatures, works in progress, paint recipes, techniques, and thoughtful critique." data-rp-seo="twitter:description" />
+    <meta name="twitter:image" content="https://rollandpaint.com/brand/roll-and-paint-social.png" data-rp-seo="twitter:image" />
+    <script type="application/ld+json" id="rp-structured-data" data-rp-seo="structured-data">
+        {
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "Roll & Paint",
+          "url": "https://rollandpaint.com/",
+          "description": "A miniature painting community for sharing finished models, works in progress, paint recipes, techniques, and thoughtful critique."
+        }
+    </script>
+    <!--RP:SEO-END-->
     <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
     <link rel="preload"
           href="css/fonts.css"
@@ -19,15 +43,16 @@
     <link rel="stylesheet" href="css/bootstrap-icons-subset.css" />
     <link rel="stylesheet" href="css/app.css" />
     <link rel="stylesheet" href="css/app-polish.css" />
-    <link rel="icon" type="image/svg+xml" href="brand/minipainterhub-favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="brand/roll-and-paint-favicon.svg" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <link rel="apple-touch-icon" sizes="192x192" href="brand/minipainterhub-icon-192.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="brand/roll-and-paint-icon-192.png" />
     <link href="MiniPainterHub.WebApp.styles.css?v=20260711-viewer-controls-fade" rel="stylesheet" />
 </head>
 
 <body>
     <div id="app">
-        <div class="loading-progress-shell boot-shell" aria-busy="true" aria-label="Loading MiniPainterHub">
+        <!--RP:APP-FALLBACK-START-->
+        <div class="loading-progress-shell boot-shell" aria-busy="true" aria-label="Loading Roll &amp; Paint">
             <div class="boot-shell__page">
                 <header class="boot-shell__hero">
                     <div class="boot-shell__eyebrow"></div>
@@ -59,6 +84,7 @@
                 </section>
             </div>
         </div>
+        <!--RP:APP-FALLBACK-END-->
     </div>
 
     <div id="toast-container" class="toast-container app-toast-container position-fixed end-0 p-3"></div>
@@ -73,6 +99,7 @@
     </script>
     <script src="js/bootstrap.bundle.min.js"></script>
     <script src="JSHelpers/navigationInterop.js"></script>
+    <script src="JSHelpers/seoInterop.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
     <script src="JSHelpers/domHelpers.js" defer></script>
     <script>

@@ -12,7 +12,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Admin;
 
-public class ControlsTests : TestContext
+public class ControlsTests : BunitContext
 {
     [Fact]
     public void SavingExpiredPauseAsPausedDoesNotReusePastUntil()
@@ -50,7 +50,7 @@ public class ControlsTests : TestContext
             }
         });
 
-        var cut = RenderComponent<Controls>();
+        var cut = Render<Controls>();
 
         cut.WaitForAssertion(() => cut.Find("[data-testid='admin-control-enabled']").HasAttribute("checked").Should().BeTrue());
         cut.Find("[data-testid='admin-control-enabled']").Change(false);
@@ -88,7 +88,7 @@ public class ControlsTests : TestContext
             }))
         });
 
-        var cut = RenderComponent<Controls>();
+        var cut = Render<Controls>();
 
         cut.WaitForAssertion(() =>
         {
@@ -130,7 +130,7 @@ public class ControlsTests : TestContext
             }
         });
 
-        var cut = RenderComponent<Controls>();
+        var cut = Render<Controls>();
 
         cut.WaitForAssertion(() => cut.FindAll("[data-testid='admin-control-row']").Should().HaveCount(4));
         cut.FindAll("[data-testid='admin-control-enabled']")[0].Change(false);

@@ -97,6 +97,7 @@ jobs:
             AZURE_WEBAPP_NAME
             AZURE_WEBAPP_HOSTNAME
             AZURE_WEBAPP_PUBLISH_PROFILE
+            PRODUCTION_SQL_CONNECTION_STRING
           )
 
           missing=false

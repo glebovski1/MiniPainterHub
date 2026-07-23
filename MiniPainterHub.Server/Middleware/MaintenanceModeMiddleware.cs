@@ -14,7 +14,7 @@ namespace MiniPainterHub.Server.Middleware
 {
     public sealed class MaintenanceModeMiddleware
     {
-        private const string DefaultMessage = "MiniPainterHub is temporarily unavailable while maintenance is in progress.";
+        private const string DefaultMessage = "Roll & Paint is temporarily unavailable while maintenance is in progress.";
         private readonly RequestDelegate _next;
         private readonly IOptionsMonitor<MaintenanceOptions> _options;
         private readonly IMaintenanceBypassService _bypassService;

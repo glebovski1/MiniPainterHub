@@ -444,6 +444,30 @@ test.beforeEach(async ({ page, request }) => {
   await clearAuth(page);
 });
 
+test("public shell exposes canonical SEO metadata, robots, sitemap, and real 404s", async ({ request }) => {
+  const home = await request.get("/");
+  expect(home.ok()).toBeTruthy();
+  const homeHtml = await home.text();
+  expect(homeHtml).toContain("Roll &amp; Paint | Miniature Painting Community</title>");
+  expect(homeHtml).toContain('<link rel="canonical" href="https://rollandpaint.com/"');
+  expect(homeHtml).toContain('<meta property="og:site_name" content="Roll &amp; Paint"');
+  expect(homeHtml).toContain("data-rp-seo-snapshot");
+
+  const robots = await request.get("/robots.txt");
+  expect(robots.ok()).toBeTruthy();
+  expect(await robots.text()).toContain("Sitemap: https://rollandpaint.com/sitemap.xml");
+
+  const sitemap = await request.get("/sitemap.xml");
+  expect(sitemap.ok()).toBeTruthy();
+  const sitemapXml = await sitemap.text();
+  expect(sitemapXml).toContain("<loc>https://rollandpaint.com/</loc>");
+  expect(sitemapXml).toContain("<loc>https://rollandpaint.com/posts/");
+
+  const missing = await request.get("/this-page-does-not-exist");
+  expect(missing.status()).toBe(404);
+  expect(await missing.text()).toContain('<meta name="robots" content="noindex,nofollow"');
+});
+
 test("login with seeded user succeeds", async ({ page }) => {
   await loginAsSeedUser(page);
   await expect(page).toHaveURL(/\/$/);

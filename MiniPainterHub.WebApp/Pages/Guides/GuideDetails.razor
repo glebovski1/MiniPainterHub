@@ -3,7 +3,7 @@
 @inject IPaintingGuideService GuideService
 @inject NavigationManager Nav
 
-<PageTitle>@(_guide?.Title ?? "Guide")</PageTitle>
+<PageTitle>@($"{_guide?.Title ?? "Painting guide"} | Roll & Paint")</PageTitle>
 
 <div class="page-shell content-stack">
     @if (_isLoading)

@@ -9,7 +9,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages;
 
-public class MessagesTests : TestContext
+public class MessagesTests : BunitContext
 {
     [Fact]
     public void RendersConversationAndSendsMessage()
@@ -63,7 +63,7 @@ public class MessagesTests : TestContext
             })
         });
 
-        var cut = RenderComponent<Messages>(parameters => parameters.Add(p => p.ConversationId, 5));
+        var cut = Render<Messages>(parameters => parameters.Add(p => p.ConversationId, 5));
         cut.WaitForAssertion(() =>
         {
             cut.Markup.Should().Contain("Other Painter");
@@ -101,7 +101,7 @@ public class MessagesTests : TestContext
             })
         });
 
-        var cut = RenderComponent<Messages>();
+        var cut = Render<Messages>();
 
         cut.WaitForAssertion(() =>
         {
@@ -145,7 +145,7 @@ public class MessagesTests : TestContext
             }
         });
 
-        var cut = RenderComponent<Messages>(parameters => parameters.Add(p => p.ConversationId, 5));
+        var cut = Render<Messages>(parameters => parameters.Add(p => p.ConversationId, 5));
 
         cut.WaitForAssertion(() =>
         {
@@ -196,7 +196,7 @@ public class MessagesTests : TestContext
             })
         });
 
-        var cut = RenderComponent<Messages>(parameters => parameters.Add(p => p.ConversationId, 5));
+        var cut = Render<Messages>(parameters => parameters.Add(p => p.ConversationId, 5));
 
         cut.WaitForAssertion(() =>
         {
@@ -252,7 +252,7 @@ public class MessagesTests : TestContext
             }
         });
 
-        var cut = RenderComponent<Messages>(parameters => parameters.Add(p => p.ConversationId, 5));
+        var cut = Render<Messages>(parameters => parameters.Add(p => p.ConversationId, 5));
         cut.WaitForAssertion(() => cut.Markup.Should().Contain("Existing message"));
 
         stub.RaiseMessageReceived(new DirectMessageDto
@@ -295,7 +295,7 @@ public class MessagesTests : TestContext
             GetMessagesHandler = (_, _, _) => throw new System.InvalidOperationException("boom")
         });
 
-        var cut = RenderComponent<Messages>(parameters => parameters.Add(p => p.ConversationId, 5));
+        var cut = Render<Messages>(parameters => parameters.Add(p => p.ConversationId, 5));
 
         cut.WaitForAssertion(() =>
         {

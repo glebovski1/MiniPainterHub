@@ -39,6 +39,24 @@ public class UiStructureTests
     }
 
     [Fact]
+    public void PublicShell_UsesRollAndPaintSeoMetadata()
+    {
+        var root = FindRepositoryRoot();
+        var webRoot = Path.Combine(root, "MiniPainterHub.WebApp/wwwroot");
+        var indexHtml = File.ReadAllText(Path.Combine(webRoot, "index.html"));
+
+        indexHtml.Should().Contain("Roll &amp; Paint | Miniature Painting Community");
+        indexHtml.Should().Contain("https://rollandpaint.com/");
+        indexHtml.Should().Contain("application/ld+json");
+        indexHtml.Should().Contain("<!--RP:SEO-START-->");
+        indexHtml.Should().Contain("<!--RP:APP-FALLBACK-START-->");
+        indexHtml.Should().Contain("brand/roll-and-paint-social.png");
+        File.Exists(Path.Combine(webRoot, "brand/roll-and-paint-mark.svg")).Should().BeTrue();
+        File.Exists(Path.Combine(webRoot, "brand/roll-and-paint-icon-192.png")).Should().BeTrue();
+        File.Exists(Path.Combine(webRoot, "brand/roll-and-paint-social.png")).Should().BeTrue();
+    }
+
+    [Fact]
     public void PolishCss_DoesNotRedefineCoreDesignTokens()
     {
         var root = FindRepositoryRoot();

@@ -12,7 +12,7 @@ using AdminSupportPage = MiniPainterHub.WebApp.Pages.Admin.Support;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Admin;
 
-public class SupportTests : TestContext
+public class SupportTests : BunitContext
 {
     [Fact]
     public void Queue_LoadsInspectorAndAppliesSearchFilters()
@@ -37,7 +37,7 @@ public class SupportTests : TestContext
             GetAdminTicketHandler = _ => Task.FromResult(new ApiResult<SupportTicketDto?>(true, HttpStatusCode.OK, ticket))
         });
 
-        var cut = RenderComponent<AdminSupportPage>();
+        var cut = Render<AdminSupportPage>();
         cut.WaitForAssertion(() =>
         {
             cut.FindAll("[data-testid='admin-support-row']").Should().HaveCount(1);
@@ -84,7 +84,7 @@ public class SupportTests : TestContext
             }
         });
 
-        var cut = RenderComponent<AdminSupportPage>();
+        var cut = Render<AdminSupportPage>();
         cut.WaitForAssertion(() => cut.Find("[data-testid='admin-support-inspector']").TextContent.Should().Contain("The image is stuck."));
 
         cut.Find("[data-testid='admin-support-reply-input']").Change("Please retry with a smaller image.");
@@ -108,7 +108,7 @@ public class SupportTests : TestContext
             GetAdminQueueHandler = _ => Task.FromResult(new ApiResult<PagedResult<SupportTicketSummaryDto>?>(false, HttpStatusCode.InternalServerError, null))
         });
 
-        var cut = RenderComponent<AdminSupportPage>();
+        var cut = Render<AdminSupportPage>();
 
         cut.WaitForAssertion(() =>
         {
@@ -141,7 +141,7 @@ public class SupportTests : TestContext
             }
         });
 
-        var cut = RenderComponent<AdminSupportPage>();
+        var cut = Render<AdminSupportPage>();
         cut.WaitForAssertion(() => cut.Find("[data-testid='admin-support-inspector']").TextContent.Should().Contain("First user's message"));
 
         cut.Find("[data-testid='admin-support-reply-input']").Change("Private draft intended only for the first requester.");

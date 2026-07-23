@@ -9,7 +9,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Layout;
 
-public class NavMenuTests : TestContext
+public class NavMenuTests : BunitContext
 {
     [Fact]
     public void WhenAuthenticated_RendersGlobalNavigationAndLogout()
@@ -18,7 +18,7 @@ public class NavMenuTests : TestContext
         this.AddAuthStub();
         Services.AddSingleton(new UserPanelState());
 
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
 
         cut.WaitForAssertion(() =>
         {
@@ -45,12 +45,12 @@ public class NavMenuTests : TestContext
     [Fact]
     public void WhenAnonymous_RendersGlobalNavigationAndAnonymousSessionLinks()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetNotAuthorized();
         this.AddAuthStub();
         Services.AddSingleton(new UserPanelState());
 
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
 
         cut.WaitForAssertion(() =>
         {
@@ -74,10 +74,10 @@ public class NavMenuTests : TestContext
         this.SetAuthenticatedUser("viewer-user", "viewer");
         this.AddAuthStub();
         Services.AddSingleton(new UserPanelState());
-        var nav = Services.GetRequiredService<FakeNavigationManager>();
+        var nav = Services.GetRequiredService<BunitNavigationManager>();
         nav.NavigateTo("https://localhost/posts/all");
 
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
         var latest = cut.FindAll("a").Single(link => link.TextContent.Contains("Latest"));
         var explore = cut.FindAll("a").Single(link => link.TextContent.Contains("Explore"));
 

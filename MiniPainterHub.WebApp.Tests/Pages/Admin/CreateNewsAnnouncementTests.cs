@@ -10,7 +10,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Admin;
 
-public class CreateNewsAnnouncementTests : TestContext
+public class CreateNewsAnnouncementTests : BunitContext
 {
     [Fact]
     public async Task Submit_CreatesAnnouncementAndNavigatesToDetails()
@@ -32,7 +32,7 @@ public class CreateNewsAnnouncementTests : TestContext
             }
         });
 
-        var cut = RenderComponent<CreateNewsAnnouncement>();
+        var cut = Render<CreateNewsAnnouncement>();
         var nav = Services.GetRequiredService<NavigationManager>();
 
         cut.Find("[data-testid='news-title']").Change("Challenge week");

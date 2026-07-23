@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Exceptions;
+using MiniPainterHub.Server.Features.Posts;
 using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Linq;
@@ -34,7 +35,50 @@ namespace MiniPainterHub.Server.Services
                 throw new NotFoundException("Post not found.");
             }
 
-            return new PostViewerDto
+            return MapViewer(post, currentUserId);
+        }
+
+        public async Task<PostExperienceDto> GetExperienceAsync(int postId, string? currentUserId)
+        {
+            var post = await _appDbContext.Posts
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(item => item.CreatedBy)
+                    .ThenInclude(user => user.Profile)
+                .Include(item => item.Images)
+                    .ThenInclude(image => image.AuthorMarks)
+                .Include(item => item.PostTags)
+                    .ThenInclude(postTag => postTag.Tag)
+                .Include(item => item.HobbyProjectEntry!)
+                    .ThenInclude(entry => entry.Project)
+                .FirstOrDefaultAsync(item => item.Id == postId && !item.IsDeleted);
+
+            if (post is null)
+            {
+                throw new NotFoundException("Post not found.");
+            }
+
+            var likes = await _appDbContext.Posts
+                .AsNoTracking()
+                .Where(item => item.Id == postId && !item.IsDeleted)
+                .Select(item => new LikeDto
+                {
+                    PostId = item.Id,
+                    Count = item.Likes.Count,
+                    UserHasLiked = currentUserId != null && item.Likes.Any(like => like.UserId == currentUserId)
+                })
+                .FirstAsync();
+
+            return new PostExperienceDto
+            {
+                Post = PostDtoMapper.ToPostDto(post),
+                Viewer = MapViewer(post, currentUserId),
+                Likes = likes
+            };
+        }
+
+        private static PostViewerDto MapViewer(Entities.Post post, string? currentUserId) =>
+            new()
             {
                 PostId = post.Id,
                 Title = post.Title,
@@ -69,7 +113,6 @@ namespace MiniPainterHub.Server.Services
                     })
                     .ToList()
             };
-        }
 
         private static string ResolveDisplayName(string? userName, string? profileDisplayName) =>
             string.IsNullOrWhiteSpace(profileDisplayName) ? (userName ?? string.Empty) : profileDisplayName;

@@ -9,7 +9,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages;
 
-public class ConnectionsTests : TestContext
+public class ConnectionsTests : BunitContext
 {
     [Fact]
     public void RendersFollowersAndFollowingLists()
@@ -37,7 +37,7 @@ public class ConnectionsTests : TestContext
             })
         });
 
-        var cut = RenderComponent<Connections>();
+        var cut = Render<Connections>();
 
         cut.WaitForAssertion(() =>
         {
@@ -54,7 +54,7 @@ public class ConnectionsTests : TestContext
         this.SetAuthenticatedUser("viewer-user", "viewer");
         this.AddFollowStub();
 
-        var cut = RenderComponent<Connections>();
+        var cut = Render<Connections>();
 
         cut.WaitForAssertion(() =>
         {

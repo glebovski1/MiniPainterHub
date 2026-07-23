@@ -8,18 +8,18 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Layout;
 
-public class MainLayoutTests : TestContext
+public class MainLayoutTests : BunitContext
 {
     [Fact]
     public void RendersSharedLegalFooter()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetNotAuthorized();
         this.AddAuthStub();
         Services.AddSingleton(new UserPanelState());
         JSInterop.Mode = JSRuntimeMode.Loose;
 
-        var cut = RenderComponent<MainLayout>(parameters => parameters
+        var cut = Render<MainLayout>(parameters => parameters
             .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<p>Body</p>")));
 
         cut.Find("[data-testid='site-footer']").TextContent.Should().Contain("Privacy").And.Contain("Terms");
@@ -35,7 +35,7 @@ public class MainLayoutTests : TestContext
         JSInterop.Mode = JSRuntimeMode.Loose;
 
         var state = Services.GetRequiredService<UserPanelState>();
-        var cut = RenderComponent<MainLayout>(parameters => parameters
+        var cut = Render<MainLayout>(parameters => parameters
             .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<p>Body</p>")));
 
         state.ToggleDesktopCollapsed();
@@ -53,7 +53,7 @@ public class MainLayoutTests : TestContext
     [Fact]
     public void WhenAdminCollapsesDesktopPanel_KeepsAdminLinksInCollapsedSidebarMarkup()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("admin");
         auth.SetRoles("Admin");
         this.AddAuthStub();
@@ -62,7 +62,7 @@ public class MainLayoutTests : TestContext
         JSInterop.Mode = JSRuntimeMode.Loose;
 
         var state = Services.GetRequiredService<UserPanelState>();
-        var cut = RenderComponent<MainLayout>(parameters => parameters
+        var cut = Render<MainLayout>(parameters => parameters
             .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<p>Admin body</p>")));
 
         cut.Find("aside.dashboard-sidebar-column [data-testid='admin-nav-inbox']").Should().NotBeNull();

@@ -15,12 +15,12 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Shared;
 
-public class CommentListVisibilityTests : TestContext
+public class CommentListVisibilityTests : BunitContext
 {
     [Fact]
     public void WhenModeratorChangesVisibilityFilter_CallsCommentServiceWithHiddenFlags()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("moderator");
         auth.SetRoles("Moderator");
         this.AddModerationStub();
@@ -69,7 +69,7 @@ public class CommentListVisibilityTests : TestContext
     [Fact]
     public void WhenRegularUser_DoesNotSeeCommentVisibilityFilter()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("user");
         auth.SetRoles("User");
         this.AddModerationStub();
@@ -92,7 +92,7 @@ public class CommentListVisibilityTests : TestContext
         });
     }
 
-    private IRenderedFragment RenderWithAuth(int postId)
+    private IRenderedComponent<IComponent> RenderWithAuth(int postId)
     {
         return Render(builder =>
         {

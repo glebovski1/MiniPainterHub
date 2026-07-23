@@ -254,7 +254,7 @@ public sealed class ExternalAuthenticationService : IExternalAuthenticationServi
             || !string.Equals(user.NormalizedEmail, normalizedExternalEmail, StringComparison.Ordinal))
         {
             await ConsumeAsync(exchange);
-            throw new ForbiddenException($"The {exchange.Provider} account email must match your MiniPainterHub email.");
+            throw new ForbiddenException($"The {exchange.Provider} account email must match your Roll & Paint email.");
         }
 
         var owner = await _userManager.FindByLoginAsync(exchange.Provider, exchange.ProviderSubject);

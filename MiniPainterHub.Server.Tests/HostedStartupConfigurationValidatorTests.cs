@@ -55,6 +55,7 @@ public class HostedStartupConfigurationValidatorTests
                 ["Jwt:Key"] = "12345678901234567890123456789012",
                 ["Jwt:Issuer"] = "MiniPainterHubApi",
                 ["Jwt:Audience"] = "MiniPainterHubClient",
+                ["Site:PublicOrigin"] = "https://rollandpaint.com",
                 ["ImageStorage:AzureConnectionString"] = "UseDevelopmentStorage=true",
                 ["ImageStorage:AzureContainer"] = "images",
                 ["SeedAdmin:Enabled"] = "true"
@@ -77,6 +78,7 @@ public class HostedStartupConfigurationValidatorTests
                 ["Jwt:Key"] = "12345678901234567890123456789012",
                 ["Jwt:Issuer"] = "MiniPainterHubApi",
                 ["Jwt:Audience"] = "MiniPainterHubClient",
+                ["Site:PublicOrigin"] = "https://rollandpaint.com",
                 ["ImageStorage:AzureConnectionString"] = "UseDevelopmentStorage=true",
                 ["ImageStorage:AzureContainer"] = "images",
                 ["SeedAdmin:Enabled"] = "true",
@@ -170,12 +172,31 @@ public class HostedStartupConfigurationValidatorTests
             .WithMessage("*Authentication__Discord__ClientId*Authentication__Discord__ClientSecret*Authentication__Discord__CallbackPath*Authentication__Discord__PublicOrigin*Site__SupportEmail*");
     }
 
+    [Fact]
+    public void Validate_WhenProviderOriginDiffersFromCanonicalOrigin_RejectsConfiguration()
+    {
+        var values = RequiredHostedValues();
+        values["Authentication:Google:Enabled"] = "true";
+        values["Authentication:Google:ClientId"] = "client";
+        values["Authentication:Google:ClientSecret"] = "secret";
+        values["Authentication:Google:CallbackPath"] = "/signin-google";
+        values["Authentication:Google:PublicOrigin"] = "https://www.rollandpaint.com";
+        values["Site:SupportEmail"] = "support@rollandpaint.com";
+        values["AllowedHosts"] = "rollandpaint.com;www.rollandpaint.com";
+
+        Action act = () => HostedStartupConfigurationValidator.Validate(CreateConfiguration(values), Environments.Production);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Authentication__Google__PublicOrigin must match Site__PublicOrigin*");
+    }
+
     private static Dictionary<string, string?> RequiredHostedValues() => new(StringComparer.OrdinalIgnoreCase)
     {
         ["ConnectionStrings:DefaultConnection"] = "Server=tcp:test.database.windows.net;Initial Catalog=MiniPainterHub;",
         ["Jwt:Key"] = "12345678901234567890123456789012",
         ["Jwt:Issuer"] = "MiniPainterHubApi",
         ["Jwt:Audience"] = "MiniPainterHubClient",
+        ["Site:PublicOrigin"] = "https://rollandpaint.com",
         ["ImageStorage:AzureConnectionString"] = "UseDevelopmentStorage=true",
         ["ImageStorage:AzureContainer"] = "images"
     };

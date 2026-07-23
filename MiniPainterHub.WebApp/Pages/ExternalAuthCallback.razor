@@ -14,7 +14,7 @@
             </div>
             <p class="section-label mb-2">Secure handoff</p>
             <h1 class="h3">Finishing your @_provider sign-in</h1>
-            <p class="text-muted mb-0">MiniPainterHub is verifying the completed sign-in and preparing your studio session.</p>
+            <p class="text-muted mb-0">Roll &amp; Paint is verifying the completed sign-in and preparing your studio session.</p>
         }
         else
         {
@@ -131,7 +131,7 @@
         _loading = false;
         _eyebrow = "Sign-in cancelled";
         _title = "No changes were made";
-        _message = $"{_provider} sign-in was cancelled before MiniPainterHub received an account confirmation.";
+        _message = $"{_provider} sign-in was cancelled before Roll & Paint received an account confirmation.";
         _icon = "bi-x-circle";
         _primaryHref = "/login";
         _primaryLabel = "Return to sign in";
@@ -142,7 +142,7 @@
         _loading = false;
         _eyebrow = "Account already exists";
         _title = $"Sign in before connecting {_provider}";
-        _message = $"That verified {_provider} email matches an existing MiniPainterHub account. Sign in with its username and password, then connect {_provider} from Sign-in methods. Accounts are never merged automatically.";
+        _message = $"That verified {_provider} email matches an existing Roll & Paint account. Sign in with its username and password, then connect {_provider} from Sign-in methods. Accounts are never merged automatically.";
         _icon = "bi-person-lock";
         _primaryHref = "/login?returnUrl=%2Faccount%2Fsign-in-methods";
         _primaryLabel = "Sign in to connect";
@@ -164,7 +164,7 @@
         _loading = false;
         _eyebrow = "Verified email required";
         _title = $"{_provider} could not verify this account";
-        _message = $"MiniPainterHub requires a verified email from {_provider}. Verify the email on that account, then try again.";
+        _message = $"Roll & Paint requires a verified email from {_provider}. Verify the email on that account, then try again.";
         _icon = "bi-envelope-exclamation";
         _primaryHref = "/login";
         _primaryLabel = "Return to sign in";
@@ -186,7 +186,7 @@
         _loading = false;
         _eyebrow = $"{_provider} sign-in";
         _title = "Sign-in could not be completed";
-        _message = "The provider or MiniPainterHub is temporarily unavailable. Try again or use your username and password.";
+        _message = "The provider or Roll & Paint is temporarily unavailable. Try again or use your username and password.";
         _icon = "bi-exclamation-circle";
         _primaryHref = "/login";
         _primaryLabel = "Try again";

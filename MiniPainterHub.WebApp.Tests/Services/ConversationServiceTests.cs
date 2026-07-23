@@ -24,7 +24,7 @@ public class ConversationServiceTests
     [Fact]
     public async Task GetConversationsAsync_WhenConcurrentRefreshesOverlap_SendsSingleRequest()
     {
-        using var context = new TestContext();
+        using var context = new BunitContext();
         var handler = new BlockingHttpMessageHandler();
         var httpClient = new HttpClient(handler)
         {
@@ -53,7 +53,7 @@ public class ConversationServiceTests
     [Fact]
     public async Task JoinConversationAsync_WhenConnectionReconnects_RejoinsPreviouslyJoinedConversationsOnce()
     {
-        using var context = new TestContext();
+        using var context = new BunitContext();
         var httpClient = new HttpClient(new BlockingHttpMessageHandler())
         {
             BaseAddress = new Uri("https://example.test/")
@@ -80,7 +80,7 @@ public class ConversationServiceTests
     [Fact]
     public async Task SignalRConversationRealtimeConnectionFactory_WhenTokenMissing_ReturnsNull()
     {
-        using var context = new TestContext();
+        using var context = new BunitContext();
         var tokenStore = new RecordingTokenStore();
         var factory = new SignalRConversationRealtimeConnectionFactory(
             context.Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>(),
@@ -95,7 +95,7 @@ public class ConversationServiceTests
     [Fact]
     public async Task SignalRConversationRealtimeConnectionFactory_WhenTokenExists_CreatesConnectionThroughTokenStore()
     {
-        using var context = new TestContext();
+        using var context = new BunitContext();
         var tokenStore = new RecordingTokenStore { Token = "stored-token" };
         var factory = new SignalRConversationRealtimeConnectionFactory(
             context.Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>(),

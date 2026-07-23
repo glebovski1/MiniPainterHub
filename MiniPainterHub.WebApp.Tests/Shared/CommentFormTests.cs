@@ -10,7 +10,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Shared;
 
-public class CommentFormTests : TestContext
+public class CommentFormTests : BunitContext
 {
     [Fact]
     public async Task Submit_WhenCreateSucceeds_ClearsInputAndInvokesCallback()
@@ -31,7 +31,7 @@ public class CommentFormTests : TestContext
                 }))
         });
 
-        var cut = RenderComponent<CommentForm>(parameters => parameters
+        var cut = Render<CommentForm>(parameters => parameters
             .Add(p => p.PostId, 88)
             .Add(p => p.OnCommentAdded, () =>
             {
@@ -60,7 +60,7 @@ public class CommentFormTests : TestContext
                 null))
         });
 
-        var cut = RenderComponent<CommentForm>(parameters => parameters.Add(p => p.PostId, 88));
+        var cut = Render<CommentForm>(parameters => parameters.Add(p => p.PostId, 88));
 
         cut.Find("[data-testid='comment-input']").Change("A comment");
         await cut.Find("form").SubmitAsync();
@@ -80,7 +80,7 @@ public class CommentFormTests : TestContext
                 null))
         });
 
-        var cut = RenderComponent<CommentForm>(parameters => parameters.Add(p => p.PostId, 88));
+        var cut = Render<CommentForm>(parameters => parameters.Add(p => p.PostId, 88));
 
         cut.Find("[data-testid='comment-input']").Change("A comment");
         await cut.Find("form").SubmitAsync();

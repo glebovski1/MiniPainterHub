@@ -19,7 +19,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages;
 
-public sealed class HobbyProjectPagesTests : TestContext
+public sealed class HobbyProjectPagesTests : BunitContext
 {
     private const string OwnerId = "owner-1";
     private const string DraftStorageKey = "minipainterhub.hobbyProjectDraft.v1";
@@ -27,7 +27,7 @@ public sealed class HobbyProjectPagesTests : TestContext
     [Fact]
     public void ProjectList_CoversLoadingPopulatedFiltersAndPagination()
     {
-        this.AddTestAuthorization().SetNotAuthorized();
+        this.AddAuthorization().SetNotAuthorized();
         var firstPage = new TaskCompletionSource<ApiResult<PagedResult<HobbyProjectSummaryDto>?>>(TaskCreationOptions.RunContinuationsAsynchronously);
         var queries = new List<HobbyProjectQueryDto>();
         this.AddHobbyProjectStub(new StubHobbyProjectService
@@ -41,7 +41,7 @@ public sealed class HobbyProjectPagesTests : TestContext
             }
         });
 
-        var cut = RenderComponent<ProjectList>();
+        var cut = Render<ProjectList>();
         cut.Find("[data-testid='projects-loading']").Should().NotBeNull();
 
         firstPage.SetResult(ProjectPage(new[] { Project() }, page: 1, pageSize: 12, totalCount: 25));
@@ -74,7 +74,7 @@ public sealed class HobbyProjectPagesTests : TestContext
     [InlineData(true, "projects-error")]
     public void ProjectList_CoversEmptyAndErrorStates(bool fail, string expectedTestId)
     {
-        this.AddTestAuthorization().SetNotAuthorized();
+        this.AddAuthorization().SetNotAuthorized();
         this.AddHobbyProjectStub(new StubHobbyProjectService
         {
             GetAllHandler = query => Task.FromResult(fail
@@ -82,7 +82,7 @@ public sealed class HobbyProjectPagesTests : TestContext
                 : ProjectPage(Array.Empty<HobbyProjectSummaryDto>(), query.PageNumber, query.PageSize))
         });
 
-        var cut = RenderComponent<ProjectList>();
+        var cut = Render<ProjectList>();
 
         cut.WaitForElement($"[data-testid='{expectedTestId}']");
     }
@@ -104,7 +104,7 @@ public sealed class HobbyProjectPagesTests : TestContext
             }
         });
 
-        var cut = RenderComponent<MyProjects>();
+        var cut = Render<MyProjects>();
         cut.Find("[data-testid='my-projects-loading']").Should().NotBeNull();
 
         firstPage.SetResult(ProjectPage(new[] { Project() }, page: 1, pageSize: 12, totalCount: 25));
@@ -145,7 +145,7 @@ public sealed class HobbyProjectPagesTests : TestContext
                 : ProjectPage(Array.Empty<HobbyProjectSummaryDto>(), query.PageNumber, query.PageSize))
         });
 
-        var cut = RenderComponent<MyProjects>();
+        var cut = Render<MyProjects>();
 
         cut.WaitForElement($"[data-testid='{expectedTestId}']");
     }
@@ -167,7 +167,7 @@ public sealed class HobbyProjectPagesTests : TestContext
             CreateHandler = _ => Task.FromResult(new ApiResult<HobbyProjectDto?>(false, HttpStatusCode.ServiceUnavailable, null))
         });
 
-        var cut = RenderComponent<CreateProject>();
+        var cut = Render<CreateProject>();
 
         cut.WaitForElement("[data-testid='project-create-draft-restored']");
         cut.Find("[data-testid='project-create-title']").GetAttribute("value").Should().Be("Restored winter force");
@@ -185,7 +185,7 @@ public sealed class HobbyProjectPagesTests : TestContext
     [Fact]
     public void ProjectDetails_UsesQueryBackedAccessibleTabsAndDiaryAnchors()
     {
-        this.AddTestAuthorization().SetNotAuthorized();
+        this.AddAuthorization().SetNotAuthorized();
         var project = Project(status: HobbyProjectStatuses.Completed);
         var diaryEntry = Entry(11, "Assembly", imageUrl: "/images/assembly.jpg");
         var showcaseEntry = Entry(12, "Finished", imageUrl: "/images/finished.jpg", showcaseOrder: 0);
@@ -198,7 +198,7 @@ public sealed class HobbyProjectPagesTests : TestContext
         this.AddModerationStub();
         Services.GetRequiredService<NavigationManager>().NavigateTo($"/projects/{project.Id}?view=diary");
 
-        var cut = RenderComponent<ProjectDetails>(parameters => parameters.Add(component => component.Id, project.Id));
+        var cut = Render<ProjectDetails>(parameters => parameters.Add(component => component.Id, project.Id));
 
         cut.WaitForElement("#post-11");
         cut.Find("#project-diary-tab").GetAttribute("aria-selected").Should().Be("true");
@@ -218,7 +218,7 @@ public sealed class HobbyProjectPagesTests : TestContext
     [Fact]
     public void ProjectDetails_ShowcaseFallsBackToOriginalWhenThumbnailFails()
     {
-        this.AddTestAuthorization().SetNotAuthorized();
+        this.AddAuthorization().SetNotAuthorized();
         var project = Project(status: HobbyProjectStatuses.Completed);
         project.ShowcaseCount = 1;
         var entry = Entry(13, "Finished standard", imageUrl: "/images/finished-full.jpg", showcaseOrder: 0);
@@ -231,7 +231,7 @@ public sealed class HobbyProjectPagesTests : TestContext
         this.AddModerationStub();
         Services.GetRequiredService<NavigationManager>().NavigateTo($"/projects/{project.Id}?view=showcase");
 
-        var cut = RenderComponent<ProjectDetails>(parameters => parameters.Add(component => component.Id, project.Id));
+        var cut = Render<ProjectDetails>(parameters => parameters.Add(component => component.Id, project.Id));
         var image = cut.WaitForElement("[data-testid='project-showcase'] img");
         image.GetAttribute("src").Should().Be(entry.Post.ThumbnailUrl);
 
@@ -254,7 +254,7 @@ public sealed class HobbyProjectPagesTests : TestContext
         });
         this.AddModerationStub();
 
-        var cut = RenderComponent<ProjectDetails>(parameters => parameters.Add(component => component.Id, project.Id));
+        var cut = Render<ProjectDetails>(parameters => parameters.Add(component => component.Id, project.Id));
 
         cut.WaitForElement($"[data-testid='{stateTestId}']");
         cut.FindAll("[data-testid='project-add-update-link']").Should().BeEmpty();
@@ -283,7 +283,7 @@ public sealed class HobbyProjectPagesTests : TestContext
             }
         });
 
-        var cut = RenderComponent<EditProject>(parameters => parameters.Add(component => component.Id, project.Id));
+        var cut = Render<EditProject>(parameters => parameters.Add(component => component.Id, project.Id));
         cut.WaitForElement("[data-testid='project-link-post']").Click();
 
         captured.Should().BeNull("the source project must not be changed before confirmation");
@@ -312,7 +312,7 @@ public sealed class HobbyProjectPagesTests : TestContext
             GetDiaryHandler = (_, page, pageSize) => Task.FromResult(EntryPage(new[] { entry }, page, pageSize))
         });
 
-        var cut = RenderComponent<EditProject>(parameters => parameters.Add(component => component.Id, project.Id));
+        var cut = Render<EditProject>(parameters => parameters.Add(component => component.Id, project.Id));
         var image = cut.WaitForElement("[data-testid='project-entry-row'] img");
         image.GetAttribute("src").Should().Be(entry.Post.ThumbnailUrl);
 
@@ -350,7 +350,7 @@ public sealed class HobbyProjectPagesTests : TestContext
             }
         });
 
-        var cut = RenderComponent<EditProject>(parameters => parameters.Add(component => component.Id, project.Id));
+        var cut = Render<EditProject>(parameters => parameters.Add(component => component.Id, project.Id));
         cut.WaitForElement("[data-testid='project-status-select']").Change(HobbyProjectStatuses.Completed);
 
         cut.Find("[data-testid='project-completion-requirement']").TextContent.Should().Contain("Select and save");
@@ -388,7 +388,7 @@ public sealed class HobbyProjectPagesTests : TestContext
             GetAvailablePostsHandler = (_, _, page, pageSize) => Task.FromResult(PostPage(new[] { availablePost }, page, pageSize))
         });
 
-        var cut = RenderComponent<EditProject>(parameters => parameters.Add(component => component.Id, project.Id));
+        var cut = Render<EditProject>(parameters => parameters.Add(component => component.Id, project.Id));
 
         cut.WaitForElement("[data-testid='project-additions-hidden']");
         cut.FindAll($"a[href='/posts/new?projectId={project.Id}']").Should().BeEmpty();
@@ -403,7 +403,7 @@ public sealed class HobbyProjectPagesTests : TestContext
     {
         var project = Project(hidden: true, archived: true);
 
-        var cut = RenderComponent<HobbyProjectCard>(parameters => parameters
+        var cut = Render<HobbyProjectCard>(parameters => parameters
             .Add(component => component.Project, project)
             .Add(component => component.ShowOwner, false)
             .Add(component => component.ShowManage, true));

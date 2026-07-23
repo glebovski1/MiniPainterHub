@@ -13,12 +13,12 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.News;
 
-public class NewsListTests : TestContext
+public class NewsListTests : BunitContext
 {
     [Fact]
     public void WhenAnnouncementsLoad_RendersNewsCards()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         this.AddNewsStub(new StubNewsAnnouncementService
         {
             GetAllHandler = (_, _) => Task.FromResult(new ApiResult<PagedResult<NewsAnnouncementSummaryDto>>(
@@ -44,7 +44,7 @@ public class NewsListTests : TestContext
                 }))
         });
 
-        var cut = RenderComponent<NewsList>();
+        var cut = Render<NewsList>();
 
         cut.WaitForAssertion(() =>
         {

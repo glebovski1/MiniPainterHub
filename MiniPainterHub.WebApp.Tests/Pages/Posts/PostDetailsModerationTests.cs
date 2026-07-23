@@ -21,12 +21,12 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Posts;
 
-public class PostDetailsModerationTests : TestContext
+public class PostDetailsModerationTests : BunitContext
 {
     [Fact]
     public void WhenPostHasTags_RendersVisibleTagSection()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("reader");
 
         this.AddCommentStub(new StubCommentService
@@ -61,7 +61,7 @@ public class PostDetailsModerationTests : TestContext
     [Fact]
     public async Task WhenModeratorClicksHide_CallsModerationServiceAndShowsSuccess()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("moderator");
         auth.SetRoles("Moderator");
 
@@ -114,7 +114,7 @@ public class PostDetailsModerationTests : TestContext
     [Fact]
     public void WhenPostIdParameterChanges_ReloadsTheRequestedPost()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("reader");
 
         this.AddCommentStub(new StubCommentService
@@ -141,7 +141,7 @@ public class PostDetailsModerationTests : TestContext
             cut.Find("[data-testid='post-title']").TextContent.Should().Be("Post 10"));
 
         cut.FindComponent<PostDetails>()
-            .SetParametersAndRender(parameters => parameters.Add(p => p.PostId, 11));
+            .Render(parameters => parameters.Add(p => p.PostId, 11));
 
         cut.WaitForAssertion(() =>
             cut.Find("[data-testid='post-title']").TextContent.Should().Be("Post 11"));
@@ -150,7 +150,7 @@ public class PostDetailsModerationTests : TestContext
     [Fact]
     public void WhenPostProvidesTypedImages_RendersGalleryAndFallbackThumbnail()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("reader");
 
         this.AddCommentStub(new StubCommentService
@@ -190,7 +190,7 @@ public class PostDetailsModerationTests : TestContext
         });
     }
 
-    private IRenderedFragment RenderWithAuth(int postId)
+    private IRenderedComponent<IComponent> RenderWithAuth(int postId)
     {
         return Render(builder =>
         {

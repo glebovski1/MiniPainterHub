@@ -261,20 +261,37 @@ namespace MiniPainterHub.Server.Services
                 });
             }
 
-            var conversation = await _dbContext.Conversations
-                .Include(c => c.Participants)
-                .ThenInclude(p => p.User)
-                .ThenInclude(u => u.Profile)
-                .Include(c => c.Messages)
-                .ThenInclude(m => m.SenderUser)
-                .ThenInclude(u => u.Profile)
-                .FirstOrDefaultAsync(c => c.Id == conversationId)
-                ?? throw new NotFoundException("Conversation not found.");
+            var sendContext = await _dbContext.ConversationParticipants
+                .Where(participant => participant.ConversationId == conversationId && participant.UserId == userId)
+                .Select(participant => new MessageSendContext
+                {
+                    Participant = participant,
+                    Conversation = participant.Conversation,
+                    ParticipantCount = participant.Conversation.Participants.Count,
+                    OtherUserId = participant.Conversation.Participants
+                        .Where(other => other.UserId != userId)
+                        .Select(other => other.UserId)
+                        .FirstOrDefault(),
+                    SenderDisplayName = participant.User.Profile != null && participant.User.Profile.DisplayName != null
+                        ? participant.User.Profile.DisplayName
+                        : participant.User.UserName ?? string.Empty,
+                    SenderAvatarUrl = participant.User.Profile != null
+                        ? participant.User.Profile.AvatarUrl
+                        : participant.User.AvatarUrl
+                })
+                .FirstOrDefaultAsync();
 
-            var senderMembership = conversation.Participants.FirstOrDefault(p => p.UserId == userId)
-                ?? throw new ForbiddenException("You do not have access to this conversation.");
+            if (sendContext is null)
+            {
+                if (!await _dbContext.Conversations.AsNoTracking().AnyAsync(conversation => conversation.Id == conversationId))
+                {
+                    throw new NotFoundException("Conversation not found.");
+                }
 
-            if (conversation.Participants.Count != 2)
+                throw new ForbiddenException("You do not have access to this conversation.");
+            }
+
+            if (sendContext.ParticipantCount != 2 || string.IsNullOrWhiteSpace(sendContext.OtherUserId))
             {
                 throw new ConflictException("Only 1-to-1 conversations are supported.");
             }
@@ -288,31 +305,28 @@ namespace MiniPainterHub.Server.Services
                 SentUtc = utcNow
             };
 
-            conversation.Messages.Add(message);
-            conversation.UpdatedUtc = utcNow;
-            senderMembership.LastReadMessageUtc = utcNow;
+            _dbContext.DirectMessages.Add(message);
+            sendContext.Conversation.UpdatedUtc = utcNow;
+            sendContext.Participant.LastReadMessageUtc = utcNow;
 
             await _dbContext.SaveChangesAsync();
 
-            var storedMessage = await _dbContext.DirectMessages
-                .AsNoTracking()
-                .Where(m => m.Id == message.Id)
-                .Select(m => new DirectMessageDto
-                {
-                    Id = m.Id,
-                    ConversationId = m.ConversationId,
-                    SenderUserId = m.SenderUserId,
-                    SenderDisplayName = m.SenderUser.Profile != null && m.SenderUser.Profile.DisplayName != null
-                        ? m.SenderUser.Profile.DisplayName
-                        : (m.SenderUser.UserName ?? string.Empty),
-                    SenderAvatarUrl = m.SenderUser.Profile != null ? m.SenderUser.Profile.AvatarUrl : m.SenderUser.AvatarUrl,
-                    Body = m.Body,
-                    SentUtc = m.SentUtc,
-                    IsMine = m.SenderUserId == userId
-                })
-                .FirstAsync();
+            var storedMessage = new DirectMessageDto
+            {
+                Id = message.Id,
+                ConversationId = message.ConversationId,
+                SenderUserId = message.SenderUserId,
+                SenderDisplayName = sendContext.SenderDisplayName,
+                SenderAvatarUrl = sendContext.SenderAvatarUrl,
+                Body = message.Body,
+                SentUtc = message.SentUtc,
+                IsMine = true
+            };
 
-            await _chatNotifier.NotifyMessageSentAsync(conversationId, storedMessage, conversation.Participants.Select(p => p.UserId));
+            await _chatNotifier.NotifyMessageSentAsync(
+                conversationId,
+                storedMessage,
+                new[] { userId, sendContext.OtherUserId });
 
             return storedMessage;
         }
@@ -427,5 +441,15 @@ namespace MiniPainterHub.Server.Services
             string? LatestMessageSenderUserId,
             DateTime? LatestMessageSentUtc,
             int UnreadCount);
+
+        private sealed class MessageSendContext
+        {
+            public ConversationParticipant Participant { get; init; } = default!;
+            public Conversation Conversation { get; init; } = default!;
+            public int ParticipantCount { get; init; }
+            public string? OtherUserId { get; init; }
+            public string SenderDisplayName { get; init; } = string.Empty;
+            public string? SenderAvatarUrl { get; init; }
+        }
     }
 }

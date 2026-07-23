@@ -12,12 +12,12 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Shared;
 
-public class CommentItemTests : TestContext
+public class CommentItemTests : BunitContext
 {
     [Fact]
     public void WhenModeratorRole_RendersCommentIdBadge()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("moderator");
         auth.SetRoles("Moderator");
         this.AddModerationStub();
@@ -50,7 +50,7 @@ public class CommentItemTests : TestContext
     [Fact]
     public async Task WhenModeratorClicksHide_CallsModerationServiceAndInvokesCallback()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("moderator");
         auth.SetRoles("Moderator");
 
@@ -101,7 +101,7 @@ public class CommentItemTests : TestContext
     [Fact]
     public void WhenRegularUser_DoesNotRenderInlineModerationButtons()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("user");
         auth.SetRoles("User");
         this.AddModerationStub();
@@ -135,7 +135,7 @@ public class CommentItemTests : TestContext
     [Fact]
     public void WhenHiddenComment_RendersHiddenBadgeAndRestoreButton()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("moderator");
         auth.SetRoles("Moderator");
         this.AddModerationStub();

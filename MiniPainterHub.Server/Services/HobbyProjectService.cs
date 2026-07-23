@@ -11,6 +11,7 @@ using MiniPainterHub.Server.Services.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MiniPainterHub.Server.Services;
@@ -62,8 +63,9 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
 
     public async Task<HobbyProjectDto> GetByIdAsync(int projectId, string? currentUserId = null)
     {
-        var project = await ProjectGraph(asTracking: false)
-            .FirstOrDefaultAsync(item => item.Id == projectId)
+        var project = await ProjectSummaryRows(
+                _dbContext.HobbyProjects.AsNoTracking().Where(item => item.Id == projectId))
+            .FirstOrDefaultAsync()
             ?? throw new NotFoundException("Hobby project not found.");
         var ownerView = string.Equals(project.OwnerUserId, currentUserId, StringComparison.Ordinal);
         if (!ownerView && !IsPublic(project))
@@ -71,7 +73,8 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
             throw new NotFoundException("Hobby project not found.");
         }
 
-        return MapDetails(project, ownerView);
+        var covers = await LoadCoverCandidatesAsync(new[] { project.Id });
+        return MapDetails(project, covers, ownerView);
     }
 
     public Task<PagedResult<HobbyProjectEntryDto>> GetDiaryAsync(
@@ -98,7 +101,7 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
         EnsureUserId(userId);
         PaginationGuard.Validate(page, pageSize);
         var normalizedSearch = NormalizeOptional(search, "search", HobbyProjectRules.MaxSearchLength);
-        _ = await LoadOwnedProjectAsync(projectId, userId, asTracking: false);
+        await EnsureOwnedProjectExistsAsync(projectId, userId);
 
         IQueryable<Post> posts = _dbContext.Posts
             .AsNoTracking()
@@ -119,15 +122,17 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
             .Take(pageSize)
             .Select(post => post.Id)
             .ToListAsync();
-        var graph = await PostGraph()
-            .Where(post => pageIds.Contains(post.Id))
-            .ToDictionaryAsync(post => post.Id);
+        var summaries = await ProjectPostSummaries(
+                _dbContext.Posts.AsNoTracking().Where(post => pageIds.Contains(post.Id)))
+            .ToListAsync();
+        ResolveSummaryThumbnailUrls(summaries);
+        var graph = summaries.ToDictionary(post => post.Id);
 
         return new PagedResult<PostSummaryDto>
         {
             Items = pageIds
                 .Where(graph.ContainsKey)
-                .Select(id => MapPostSummary(graph[id]))
+                .Select(id => graph[id])
                 .ToList(),
             TotalCount = totalCount,
             PageNumber = page,
@@ -194,7 +199,7 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
     public async Task<HobbyProjectDto> UpdateStatusAsync(string userId, int projectId, UpdateHobbyProjectStatusDto request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var project = await LoadOwnedProjectAsync(projectId, userId);
+        var project = await LoadOwnedProjectAsync(projectId, userId, includeEntries: true);
         await EnsureOwnerNotSuspendedAsync(userId);
         EnsureActive(project);
         var status = NormalizeChoice(request.Status, HobbyProjectStatuses.All, "status", "Provide a valid hobby project status.");
@@ -252,7 +257,7 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
     public async Task<HobbyProjectDto> LinkPostAsync(string userId, int projectId, LinkHobbyProjectPostDto request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var project = await LoadOwnedProjectAsync(projectId, userId);
+        var project = await LoadOwnedProjectAsync(projectId, userId, includeEntries: true);
         await EnsureProjectPublishingAllowedAsync(userId);
         EnsureCanAddEntry(project);
         var milestone = NormalizeOptional(request.MilestoneLabel, "milestoneLabel", HobbyProjectRules.MaxMilestoneLabelLength);
@@ -265,7 +270,7 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
 
         if (post.HobbyProjectEntry is not null)
         {
-            var source = await LoadOwnedProjectAsync(post.HobbyProjectEntry.ProjectId, userId);
+            var source = await LoadOwnedProjectAsync(post.HobbyProjectEntry.ProjectId, userId, includeEntries: true);
             if (source.Id == projectId)
             {
                 throw LinkConflict("That post is already linked to this project.", source, post);
@@ -346,7 +351,7 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
         UpdateHobbyProjectEntryDto request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var project = await LoadOwnedProjectAsync(projectId, userId);
+        var project = await LoadOwnedProjectAsync(projectId, userId, includeEntries: true);
         await EnsureOwnerNotSuspendedAsync(userId);
         EnsureActive(project);
         var entry = project.Entries.FirstOrDefault(item => item.PostId == postId)
@@ -359,7 +364,7 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
 
     public async Task<HobbyProjectDto> UnlinkPostAsync(string userId, int projectId, int postId)
     {
-        var project = await LoadOwnedProjectAsync(projectId, userId);
+        var project = await LoadOwnedProjectAsync(projectId, userId, includeEntries: true);
         var entry = project.Entries.FirstOrDefault(item => item.PostId == postId)
             ?? throw new NotFoundException("Project post not found.");
         var removesFinalCompletedShowcase = project.Status == HobbyProjectStatuses.Completed
@@ -388,7 +393,7 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
     public async Task<HobbyProjectDto> UpdateShowcaseAsync(string userId, int projectId, UpdateHobbyProjectShowcaseDto request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var project = await LoadOwnedProjectAsync(projectId, userId);
+        var project = await LoadOwnedProjectAsync(projectId, userId, includeEntries: true);
         await EnsureOwnerNotSuspendedAsync(userId);
         EnsureActive(project);
         var postIds = request.PostIds ?? new List<int>();
@@ -426,7 +431,7 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
     public async Task<HobbyProjectDto> UpdateCoverAsync(string userId, int projectId, UpdateHobbyProjectCoverDto request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var project = await LoadOwnedProjectAsync(projectId, userId);
+        var project = await LoadOwnedProjectAsync(projectId, userId, includeEntries: true);
         await EnsureOwnerNotSuspendedAsync(userId);
         EnsureActive(project);
         if (request.PostId.HasValue)
@@ -449,7 +454,7 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
     {
         EnsureUserId(userId);
         ArgumentNullException.ThrowIfNull(post);
-        var project = await LoadOwnedProjectAsync(projectId, userId);
+        var project = await LoadOwnedProjectAsync(projectId, userId, includeEntries: true);
         EnsureCanAddEntry(project);
         if (project.Entries.Count >= HobbyProjectRules.MaxEntriesPerProject)
         {
@@ -505,18 +510,15 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
             HobbyProjectSorts.Title => query.OrderBy(project => project.Title).ThenBy(project => project.Id),
             _ => query.OrderByDescending(project => project.UpdatedUtc).ThenByDescending(project => project.Id)
         };
-        var ids = await ordered
+        var rows = await ProjectSummaryRows(ordered)
             .Skip((filter.PageNumber - 1) * filter.PageSize)
             .Take(filter.PageSize)
-            .Select(project => project.Id)
             .ToListAsync();
-        var graph = await ProjectGraph(asTracking: false)
-            .Where(project => ids.Contains(project.Id))
-            .ToDictionaryAsync(project => project.Id);
+        var covers = await LoadCoverCandidatesAsync(rows.Select(project => project.Id).ToArray());
 
         return new PagedResult<HobbyProjectSummaryDto>
         {
-            Items = ids.Where(graph.ContainsKey).Select(id => MapSummary(graph[id], ownerView)).ToList(),
+            Items = rows.Select(project => MapSummary(project, covers, ownerView)).ToList(),
             TotalCount = totalCount,
             PageNumber = filter.PageNumber,
             PageSize = filter.PageSize
@@ -531,8 +533,18 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
         bool showcaseOnly)
     {
         PaginationGuard.Validate(page, pageSize);
-        var project = await ProjectGraph(asTracking: false)
-            .FirstOrDefaultAsync(item => item.Id == projectId)
+        var project = await _dbContext.HobbyProjects
+            .AsNoTracking()
+            .Where(item => item.Id == projectId)
+            .Select(item => new ProjectAccessRow
+            {
+                Id = item.Id,
+                OwnerUserId = item.OwnerUserId,
+                IsHidden = item.IsHidden,
+                ArchivedUtc = item.ArchivedUtc,
+                HasVisibleEntries = item.Entries.Any(entry => !entry.Post.IsDeleted)
+            })
+            .FirstOrDefaultAsync()
             ?? throw new NotFoundException("Hobby project not found.");
         var ownerView = string.Equals(project.OwnerUserId, currentUserId, StringComparison.Ordinal);
         if (!ownerView && !IsPublic(project))
@@ -540,56 +552,245 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
             throw new NotFoundException("Hobby project not found.");
         }
 
-        IEnumerable<HobbyProjectEntry> entries = project.Entries.Where(entry => !entry.Post.IsDeleted);
+        IQueryable<HobbyProjectEntry> entries = _dbContext.HobbyProjectEntries
+            .AsNoTracking()
+            .Where(entry => entry.ProjectId == projectId && !entry.Post.IsDeleted);
+        if (showcaseOnly)
+        {
+            entries = entries.Where(entry => entry.ShowcaseOrder.HasValue);
+        }
 
-        entries = showcaseOnly
-            ? entries.Where(entry => entry.ShowcaseOrder.HasValue).OrderBy(entry => entry.ShowcaseOrder).ThenBy(entry => entry.PostId)
+        var totalCount = await entries.CountAsync();
+        var ordered = showcaseOnly
+            ? entries.OrderBy(entry => entry.ShowcaseOrder).ThenBy(entry => entry.PostId)
             : entries.OrderByDescending(entry => entry.Post.CreatedUtc).ThenByDescending(entry => entry.PostId);
-        var all = entries.ToList();
+        var items = await ordered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(entry => new HobbyProjectEntryDto
+            {
+                Id = entry.Id,
+                ProjectId = entry.ProjectId,
+                PostId = entry.PostId,
+                LinkedUtc = entry.LinkedUtc,
+                MilestoneLabel = entry.MilestoneLabel,
+                ShowcaseOrder = entry.ShowcaseOrder,
+                Post = new PostSummaryDto
+                {
+                    Id = entry.Post.Id,
+                    Title = entry.Post.Title,
+                    Snippet = entry.Post.Content.Length > 100 ? entry.Post.Content.Substring(0, 100) + "..." : entry.Post.Content,
+                    MiniatureName = entry.Post.MiniatureName,
+                    Techniques = entry.Post.Techniques,
+                    Difficulty = entry.Post.Difficulty,
+                    ImageUrl = entry.Post.Images.OrderBy(image => image.Id).Select(image => image.ImageUrl).FirstOrDefault(),
+                    ThumbnailUrl = entry.Post.Images
+                        .OrderBy(image => image.Id)
+                        .Select(image => image.ThumbnailUrl != null && image.ThumbnailUrl != string.Empty
+                            ? image.ThumbnailUrl
+                            : image.PreviewUrl ?? image.ImageUrl)
+                        .FirstOrDefault(),
+                    AuthorName = entry.Post.CreatedBy.Profile != null && entry.Post.CreatedBy.Profile.DisplayName != null
+                        ? entry.Post.CreatedBy.Profile.DisplayName
+                        : entry.Post.CreatedBy.UserName ?? string.Empty,
+                    AuthorId = entry.Post.CreatedById,
+                    CreatedAt = entry.Post.CreatedUtc,
+                    CommentCount = entry.Post.Comments.Count(comment => !comment.IsDeleted),
+                    LikeCount = entry.Post.Likes.Count,
+                    IsDeleted = entry.Post.IsDeleted,
+                    Tags = entry.Post.PostTags
+                        .OrderBy(postTag => postTag.Tag.DisplayName)
+                        .Select(postTag => new TagDto
+                        {
+                            Name = postTag.Tag.DisplayName,
+                            Slug = postTag.Tag.Slug
+                        })
+                        .ToList(),
+                    Project = new HobbyProjectReferenceDto
+                    {
+                        Id = entry.Project.Id,
+                        Title = entry.Project.Title,
+                        Status = entry.Project.Status,
+                        IsPublic = !entry.Project.IsHidden && entry.Project.ArchivedUtc == null
+                    }
+                }
+            })
+            .ToListAsync();
+        ResolveSummaryThumbnailUrls(items.Select(item => item.Post));
+
         return new PagedResult<HobbyProjectEntryDto>
         {
-            Items = all.Skip((page - 1) * pageSize).Take(pageSize).Select(MapEntry).ToList(),
-            TotalCount = all.Count,
+            Items = items,
+            TotalCount = totalCount,
             PageNumber = page,
             PageSize = pageSize
         };
     }
 
-    private IQueryable<HobbyProject> ProjectGraph(bool asTracking)
-    {
-        IQueryable<HobbyProject> query = _dbContext.HobbyProjects;
-        if (!asTracking)
+    internal static IQueryable<ProjectSummaryRow> ProjectSummaryRows(IQueryable<HobbyProject> projects) =>
+        projects.Select(project => new ProjectSummaryRow
         {
-            query = query.AsNoTracking();
+            Id = project.Id,
+            OwnerUserId = project.OwnerUserId,
+            OwnerUserName = project.OwnerUser.UserName ?? string.Empty,
+            OwnerDisplayName = project.OwnerUser.Profile != null && project.OwnerUser.Profile.DisplayName != null
+                ? project.OwnerUser.Profile.DisplayName
+                : project.OwnerUser.DisplayName ?? project.OwnerUser.UserName ?? project.OwnerUserId,
+            OwnerAvatarUrl = project.OwnerUser.Profile != null && project.OwnerUser.Profile.AvatarUrl != null
+                ? project.OwnerUser.Profile.AvatarUrl
+                : project.OwnerUser.AvatarUrl,
+            Title = project.Title,
+            Description = project.Description,
+            Kind = project.Kind,
+            GameSystem = project.GameSystem,
+            FactionTheme = project.FactionTheme,
+            Goal = project.Goal,
+            StartDate = project.StartDate,
+            Status = project.Status,
+            CoverPostId = project.CoverPostId,
+            EntryCount = project.Entries.Count(entry => !entry.Post.IsDeleted),
+            ShowcaseCount = project.Entries.Count(entry => !entry.Post.IsDeleted && entry.ShowcaseOrder.HasValue),
+            CreatedUtc = project.CreatedUtc,
+            UpdatedUtc = project.UpdatedUtc,
+            CompletedUtc = project.CompletedUtc,
+            ArchivedUtc = project.ArchivedUtc,
+            IsHidden = project.IsHidden,
+            ModeratedUtc = project.ModeratedUtc,
+            ModerationReason = project.ModerationReason,
+            HasImageBearingShowcase = project.Entries.Any(entry =>
+                !entry.Post.IsDeleted
+                && entry.ShowcaseOrder.HasValue
+                && entry.Post.Images.Any())
+        });
+
+    private Task<IReadOnlyList<ProjectCoverCandidate>> LoadCoverCandidatesAsync(IReadOnlyCollection<int> projectIds) =>
+        LoadCoverCandidatesAsync(_dbContext, projectIds);
+
+    internal static async Task<IReadOnlyList<ProjectCoverCandidate>> LoadCoverCandidatesAsync(
+        AppDbContext dbContext,
+        IReadOnlyCollection<int> projectIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (projectIds.Count == 0)
+        {
+            return Array.Empty<ProjectCoverCandidate>();
         }
 
-        return query
-            .Include(project => project.OwnerUser).ThenInclude(user => user.Profile)
-            .Include(project => project.Entries).ThenInclude(entry => entry.Post).ThenInclude(post => post.CreatedBy).ThenInclude(user => user.Profile)
-            .Include(project => project.Entries).ThenInclude(entry => entry.Post).ThenInclude(post => post.Images)
-            .Include(project => project.Entries).ThenInclude(entry => entry.Post).ThenInclude(post => post.PostTags).ThenInclude(postTag => postTag.Tag)
-            .Include(project => project.Entries).ThenInclude(entry => entry.Post).ThenInclude(post => post.Comments)
-            .Include(project => project.Entries).ThenInclude(entry => entry.Post).ThenInclude(post => post.Likes)
-            .AsSplitQuery();
+        return await dbContext.HobbyProjectEntries
+            .AsNoTracking()
+            .Where(entry =>
+                projectIds.Contains(entry.ProjectId)
+                && !entry.Post.IsDeleted
+                && entry.Post.Images.Any())
+            .Select(entry => new ProjectCoverCandidate
+            {
+                ProjectId = entry.ProjectId,
+                PostId = entry.PostId,
+                ShowcaseOrder = entry.ShowcaseOrder,
+                PostCreatedUtc = entry.Post.CreatedUtc,
+                ImageUrl = entry.Post.Images.OrderBy(image => image.Id).Select(image => image.ImageUrl).First(),
+                PreviewUrl = entry.Post.Images.OrderBy(image => image.Id).Select(image => image.PreviewUrl).FirstOrDefault(),
+                ThumbnailUrl = entry.Post.Images.OrderBy(image => image.Id).Select(image => image.ThumbnailUrl).FirstOrDefault()
+            })
+            .ToListAsync(cancellationToken);
     }
 
-    private IQueryable<Post> PostGraph() =>
-        _dbContext.Posts
-            .AsNoTracking()
-            .Include(post => post.CreatedBy).ThenInclude(user => user.Profile)
-            .Include(post => post.Images)
-            .Include(post => post.PostTags).ThenInclude(postTag => postTag.Tag)
-            .Include(post => post.Comments)
-            .Include(post => post.Likes)
-            .Include(post => post.HobbyProjectEntry!).ThenInclude(entry => entry.Project)
-            .AsSplitQuery();
+    private static IQueryable<PostSummaryDto> ProjectPostSummaries(IQueryable<Post> posts) =>
+        posts.Select(post => new PostSummaryDto
+        {
+            Id = post.Id,
+            Title = post.Title,
+            Snippet = post.Content.Length > 100 ? post.Content.Substring(0, 100) + "..." : post.Content,
+            MiniatureName = post.MiniatureName,
+            Techniques = post.Techniques,
+            Difficulty = post.Difficulty,
+            ImageUrl = post.Images.OrderBy(image => image.Id).Select(image => image.ImageUrl).FirstOrDefault(),
+            ThumbnailUrl = post.Images
+                .OrderBy(image => image.Id)
+                .Select(image => image.ThumbnailUrl != null && image.ThumbnailUrl != string.Empty
+                    ? image.ThumbnailUrl
+                    : image.PreviewUrl ?? image.ImageUrl)
+                .FirstOrDefault(),
+            AuthorName = post.CreatedBy.Profile != null && post.CreatedBy.Profile.DisplayName != null
+                ? post.CreatedBy.Profile.DisplayName
+                : post.CreatedBy.UserName ?? string.Empty,
+            AuthorId = post.CreatedById,
+            CreatedAt = post.CreatedUtc,
+            CommentCount = post.Comments.Count(comment => !comment.IsDeleted),
+            LikeCount = post.Likes.Count,
+            IsDeleted = post.IsDeleted,
+            Tags = post.PostTags
+                .OrderBy(postTag => postTag.Tag.DisplayName)
+                .Select(postTag => new TagDto
+                {
+                    Name = postTag.Tag.DisplayName,
+                    Slug = postTag.Tag.Slug
+                })
+                .ToList(),
+            Project = post.HobbyProjectEntry == null
+                ? null
+                : new HobbyProjectReferenceDto
+                {
+                    Id = post.HobbyProjectEntry.Project.Id,
+                    Title = post.HobbyProjectEntry.Project.Title,
+                    Status = post.HobbyProjectEntry.Project.Status,
+                    IsPublic = !post.HobbyProjectEntry.Project.IsHidden
+                        && post.HobbyProjectEntry.Project.ArchivedUtc == null
+                        && !post.IsDeleted
+                }
+        });
 
-    private async Task<HobbyProject> LoadOwnedProjectAsync(int projectId, string userId, bool asTracking = true)
+    private static void ResolveSummaryThumbnailUrls(IEnumerable<PostSummaryDto> posts)
+    {
+        foreach (var post in posts)
+        {
+            if (!string.IsNullOrWhiteSpace(post.ThumbnailUrl)
+                && !string.Equals(post.ThumbnailUrl, post.ImageUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(post.ImageUrl))
+            {
+                continue;
+            }
+
+            var path = post.ImageUrl;
+            if (Uri.TryCreate(post.ImageUrl, UriKind.Absolute, out var uri))
+            {
+                path = uri.AbsolutePath;
+            }
+
+            post.ThumbnailUrl = path.StartsWith("/uploads/images/", StringComparison.OrdinalIgnoreCase)
+                ? "/api/images/thumbnail?url=" + Uri.EscapeDataString(path)
+                : post.ThumbnailUrl;
+        }
+    }
+
+    private async Task<HobbyProject> LoadOwnedProjectAsync(int projectId, string userId, bool includeEntries = false)
     {
         EnsureUserId(userId);
-        var project = await ProjectGraph(asTracking)
-            .FirstOrDefaultAsync(item => item.Id == projectId && item.OwnerUserId == userId);
+        IQueryable<HobbyProject> query = _dbContext.HobbyProjects;
+        if (includeEntries)
+        {
+            query = query
+                .Include(project => project.Entries)
+                .ThenInclude(entry => entry.Post)
+                .ThenInclude(post => post.Images)
+                .AsSplitQuery();
+        }
+
+        var project = await query.FirstOrDefaultAsync(item => item.Id == projectId && item.OwnerUserId == userId);
         return project ?? throw new NotFoundException("Hobby project not found.");
+    }
+
+    private async Task EnsureOwnedProjectExistsAsync(int projectId, string userId)
+    {
+        EnsureUserId(userId);
+        if (!await _dbContext.HobbyProjects.AsNoTracking().AnyAsync(project => project.Id == projectId && project.OwnerUserId == userId))
+        {
+            throw new NotFoundException("Hobby project not found.");
+        }
     }
 
     private async Task ReplaceShowcaseOrderAsync(int projectId, IReadOnlyDictionary<int, int> selectedOrders, DateTime updatedUtc)
@@ -688,9 +889,12 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
             || message.Contains("duplicate", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static HobbyProjectDto MapDetails(HobbyProject project, bool ownerView)
+    private static HobbyProjectDto MapDetails(
+        ProjectSummaryRow project,
+        IReadOnlyCollection<ProjectCoverCandidate> covers,
+        bool ownerView)
     {
-        var summary = MapSummary(project, ownerView);
+        var summary = MapSummary(project, covers, ownerView);
         return new HobbyProjectDto
         {
             Id = summary.Id,
@@ -722,6 +926,59 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
             HasCurationWarning = summary.HasCurationWarning,
             ModeratedUtc = ownerView ? project.ModeratedUtc : null,
             ModerationReason = ownerView ? project.ModerationReason : null
+        };
+    }
+
+    internal static HobbyProjectSummaryDto MapSummary(
+        ProjectSummaryRow project,
+        IReadOnlyCollection<ProjectCoverCandidate> covers,
+        bool ownerView)
+    {
+        var projectCovers = covers.Where(candidate => candidate.ProjectId == project.Id).ToList();
+        var cover = project.CoverPostId.HasValue
+            ? projectCovers.FirstOrDefault(candidate => candidate.PostId == project.CoverPostId.Value)
+            : null;
+        cover ??= projectCovers
+            .Where(candidate => candidate.ShowcaseOrder.HasValue)
+            .OrderBy(candidate => candidate.ShowcaseOrder)
+            .ThenBy(candidate => candidate.PostId)
+            .FirstOrDefault();
+        cover ??= projectCovers
+            .OrderByDescending(candidate => candidate.PostCreatedUtc)
+            .ThenByDescending(candidate => candidate.PostId)
+            .FirstOrDefault();
+
+        return new HobbyProjectSummaryDto
+        {
+            Id = project.Id,
+            OwnerUserId = project.OwnerUserId,
+            OwnerUserName = project.OwnerUserName,
+            OwnerDisplayName = project.OwnerDisplayName,
+            OwnerAvatarUrl = project.OwnerAvatarUrl,
+            Title = project.Title,
+            Description = project.Description,
+            Kind = project.Kind,
+            GameSystem = project.GameSystem,
+            FactionTheme = project.FactionTheme,
+            Goal = project.Goal,
+            StartDate = project.StartDate,
+            Status = project.Status,
+            SelectedCoverPostId = ownerView ? project.CoverPostId : null,
+            CoverPostId = cover?.PostId,
+            CoverImageUrl = cover?.ImageUrl,
+            CoverThumbnailUrl = cover?.ThumbnailUrl ?? cover?.PreviewUrl ?? cover?.ImageUrl,
+            EntryCount = project.EntryCount,
+            ShowcaseCount = project.ShowcaseCount,
+            CreatedUtc = project.CreatedUtc,
+            UpdatedUtc = project.UpdatedUtc,
+            CompletedUtc = project.CompletedUtc,
+            ArchivedUtc = project.ArchivedUtc,
+            IsArchived = project.ArchivedUtc.HasValue,
+            IsHidden = project.IsHidden,
+            IsPublic = IsPublic(project),
+            HasCurationWarning = ownerView
+                && project.Status == HobbyProjectStatuses.Completed
+                && !project.HasImageBearingShowcase
         };
     }
 
@@ -807,6 +1064,16 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
         !project.IsHidden
         && project.ArchivedUtc is null
         && project.Entries.Any(entry => !entry.Post.IsDeleted);
+
+    private static bool IsPublic(ProjectSummaryRow project) =>
+        !project.IsHidden
+        && project.ArchivedUtc is null
+        && project.EntryCount > 0;
+
+    private static bool IsPublic(ProjectAccessRow project) =>
+        !project.IsHidden
+        && project.ArchivedUtc is null
+        && project.HasVisibleEntries;
 
     private static bool IsVisibleShowcaseEntry(HobbyProjectEntry entry) =>
         entry.ShowcaseOrder.HasValue && !entry.Post.IsDeleted && entry.Post.Images.Count > 0;
@@ -1061,6 +1328,54 @@ public sealed class HobbyProjectService : IHobbyProjectService, IHobbyProjectPos
         bool IncludeArchived,
         int PageNumber,
         int PageSize);
+
+    internal sealed class ProjectSummaryRow
+    {
+        public int Id { get; init; }
+        public string OwnerUserId { get; init; } = string.Empty;
+        public string OwnerUserName { get; init; } = string.Empty;
+        public string OwnerDisplayName { get; init; } = string.Empty;
+        public string? OwnerAvatarUrl { get; init; }
+        public string Title { get; init; } = string.Empty;
+        public string Description { get; init; } = string.Empty;
+        public string Kind { get; init; } = string.Empty;
+        public string? GameSystem { get; init; }
+        public string? FactionTheme { get; init; }
+        public string? Goal { get; init; }
+        public DateOnly? StartDate { get; init; }
+        public string Status { get; init; } = string.Empty;
+        public int? CoverPostId { get; init; }
+        public int EntryCount { get; init; }
+        public int ShowcaseCount { get; init; }
+        public DateTime CreatedUtc { get; init; }
+        public DateTime UpdatedUtc { get; init; }
+        public DateTime? CompletedUtc { get; init; }
+        public DateTime? ArchivedUtc { get; init; }
+        public bool IsHidden { get; init; }
+        public DateTime? ModeratedUtc { get; init; }
+        public string? ModerationReason { get; init; }
+        public bool HasImageBearingShowcase { get; init; }
+    }
+
+    internal sealed class ProjectCoverCandidate
+    {
+        public int ProjectId { get; init; }
+        public int PostId { get; init; }
+        public int? ShowcaseOrder { get; init; }
+        public DateTime PostCreatedUtc { get; init; }
+        public string ImageUrl { get; init; } = string.Empty;
+        public string? PreviewUrl { get; init; }
+        public string? ThumbnailUrl { get; init; }
+    }
+
+    private sealed class ProjectAccessRow
+    {
+        public int Id { get; init; }
+        public string OwnerUserId { get; init; } = string.Empty;
+        public bool IsHidden { get; init; }
+        public DateTime? ArchivedUtc { get; init; }
+        public bool HasVisibleEntries { get; init; }
+    }
 
     private sealed class ProjectRollbackState
     {

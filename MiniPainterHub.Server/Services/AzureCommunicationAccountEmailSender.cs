@@ -27,10 +27,10 @@ public sealed class AzureCommunicationAccountEmailSender : IAccountEmailSender
     {
         var encodedLink = WebUtility.HtmlEncode(confirmationLink);
         var encodedSenderName = WebUtility.HtmlEncode(_options.SenderDisplayName);
-        var content = new EmailContent("Confirm your MiniPainterHub email")
+        var content = new EmailContent("Confirm your Roll & Paint email")
         {
-            PlainText = $"Confirm your MiniPainterHub account by opening this link within 24 hours:\n\n{confirmationLink}\n\nIf you did not create this account, you can ignore this email.\n\n{_options.SenderDisplayName}",
-            Html = $"<p>Confirm your MiniPainterHub account by opening the link below within 24 hours.</p><p><a href=\"{encodedLink}\">Confirm my email</a></p><p>If you did not create this account, you can ignore this email.</p><p>{encodedSenderName}</p>"
+            PlainText = $"Confirm your Roll & Paint account by opening this link within 24 hours:\n\n{confirmationLink}\n\nIf you did not create this account, you can ignore this email.\n\n{_options.SenderDisplayName}",
+            Html = $"<p>Confirm your Roll &amp; Paint account by opening the link below within 24 hours.</p><p><a href=\"{encodedLink}\">Confirm my email</a></p><p>If you did not create this account, you can ignore this email.</p><p>{encodedSenderName}</p>"
         };
         var message = new EmailMessage(
             _options.SenderAddress!,

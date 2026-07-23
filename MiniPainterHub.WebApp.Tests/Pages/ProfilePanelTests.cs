@@ -6,12 +6,12 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages;
 
-public class ProfilePanelTests : TestContext
+public class ProfilePanelTests : BunitContext
 {
     [Fact]
     public void RendersEditButton_WhenOwnerAndNotEditing()
     {
-        var cut = RenderComponent<ProfilePanel>(parameters => parameters
+        var cut = Render<ProfilePanel>(parameters => parameters
             .Add(p => p.Profile, new UserProfileDto { UserId = "user-1", DisplayName = "User One" })
             .Add(p => p.IsOwner, true)
             .Add(p => p.EditEnabled, false));
@@ -25,7 +25,7 @@ public class ProfilePanelTests : TestContext
     public void Save_WhenEditing_InvokesOnSaveWithCurrentValues()
     {
         UpdateUserProfileDto? captured = null;
-        var cut = RenderComponent<ProfilePanel>(parameters => parameters
+        var cut = Render<ProfilePanel>(parameters => parameters
             .Add(p => p.Profile, new UserProfileDto { UserId = "user-1", DisplayName = "Old", Bio = "Old bio" })
             .Add(p => p.IsOwner, true)
             .Add(p => p.EditEnabled, true)
@@ -43,7 +43,7 @@ public class ProfilePanelTests : TestContext
     [Fact]
     public void RemoveAvatar_WhenNoAvatar_DisablesButton()
     {
-        var cut = RenderComponent<ProfilePanel>(parameters => parameters
+        var cut = Render<ProfilePanel>(parameters => parameters
             .Add(p => p.Profile, new UserProfileDto { UserId = "user-1", DisplayName = "User One", AvatarUrl = null })
             .Add(p => p.IsOwner, true)
             .Add(p => p.EditEnabled, true));
@@ -55,7 +55,7 @@ public class ProfilePanelTests : TestContext
     public void EditButton_Click_InvokesOnBeginEdit()
     {
         var invoked = false;
-        var cut = RenderComponent<ProfilePanel>(parameters => parameters
+        var cut = Render<ProfilePanel>(parameters => parameters
             .Add(p => p.Profile, new UserProfileDto { UserId = "user-1", DisplayName = "User One" })
             .Add(p => p.IsOwner, true)
             .Add(p => p.EditEnabled, false)

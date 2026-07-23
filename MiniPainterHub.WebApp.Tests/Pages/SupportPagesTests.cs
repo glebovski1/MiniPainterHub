@@ -14,7 +14,7 @@ using SupportCreatePage = MiniPainterHub.WebApp.Pages.SupportCreate;
 
 namespace MiniPainterHub.WebApp.Tests.Pages;
 
-public class SupportPagesTests : TestContext
+public class SupportPagesTests : BunitContext
 {
     [Fact]
     public void List_RendersUnreadTicketsAndNavigatesToSelectedRequest()
@@ -36,7 +36,7 @@ public class SupportPagesTests : TestContext
             }))
         });
 
-        var cut = RenderComponent<SupportListPage>();
+        var cut = Render<SupportListPage>();
 
         cut.WaitForAssertion(() =>
         {
@@ -63,7 +63,7 @@ public class SupportPagesTests : TestContext
             }
         });
 
-        var cut = RenderComponent<SupportCreatePage>();
+        var cut = Render<SupportCreatePage>();
         cut.Find("[data-testid='support-category']").Change(SupportTicketCategories.Bug);
         cut.Find("[data-testid='support-subject']").Change("Upload keeps failing");
         cut.Find("[data-testid='support-message-input']").Change("I tried twice and both uploads stopped.");
@@ -91,7 +91,7 @@ public class SupportPagesTests : TestContext
                 StubSupportTicketService.Ticket(42, request.Subject, request.Category, request.Message)))
         });
 
-        var cut = RenderComponent<SupportCreatePage>();
+        var cut = Render<SupportCreatePage>();
         cut.Find("[data-testid='support-category']").Change(SupportTicketCategories.Suggestion);
         cut.Find("[data-testid='support-subject']").Change("Add paint inventory");
         cut.Find("[data-testid='support-message-input']").Change("It would help track paints.");
@@ -143,7 +143,7 @@ public class SupportPagesTests : TestContext
             }
         });
 
-        var cut = RenderComponent<SupportDetailsPage>(parameters => parameters.Add(page => page.Id, 12));
+        var cut = Render<SupportDetailsPage>(parameters => parameters.Add(page => page.Id, 12));
         cut.WaitForAssertion(() =>
         {
             markedRead.Should().Contain(12);
@@ -172,7 +172,7 @@ public class SupportPagesTests : TestContext
             GetMineHandler = _ => Task.FromResult(new ApiResult<PagedResult<SupportTicketSummaryDto>?>(false, HttpStatusCode.InternalServerError, null))
         });
 
-        var cut = RenderComponent<SupportListPage>();
+        var cut = Render<SupportListPage>();
 
         cut.WaitForAssertion(() => cut.Find("[data-testid='support-error']").TextContent.Should().Contain("support history"));
     }

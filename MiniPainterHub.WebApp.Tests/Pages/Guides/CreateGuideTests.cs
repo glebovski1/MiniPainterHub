@@ -11,14 +11,14 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Guides;
 
-public class CreateGuideTests : TestContext
+public class CreateGuideTests : BunitContext
 {
     [Fact]
     public void RendersGuideFormWithStepFields()
     {
         this.AddGuideStub();
 
-        var cut = RenderComponent<CreateGuide>();
+        var cut = Render<CreateGuide>();
 
         cut.Find("[data-testid='guide-create-form']").Should().NotBeNull();
         cut.Find("[data-testid='guide-title']").Should().NotBeNull();
@@ -47,7 +47,7 @@ public class CreateGuideTests : TestContext
             }
         });
 
-        var cut = RenderComponent<CreateGuide>();
+        var cut = Render<CreateGuide>();
         var nav = Services.GetRequiredService<NavigationManager>();
 
         cut.Find("[data-testid='guide-title']").Change("Red cloak guide");

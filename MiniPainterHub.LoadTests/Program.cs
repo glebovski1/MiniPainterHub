@@ -12,11 +12,18 @@ using var setupClient = new HttpClient { BaseAddress = settings.BaseUri };
 await WaitForReadinessAsync(setupClient, settings);
 
 var token = await LoginAsync(setupClient, settings.UserName, settings.Password);
+if (!string.IsNullOrWhiteSpace(token))
+{
+    setupClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+}
+
 var postId = await ResolvePostIdAsync(setupClient);
+var conversationId = await ResolveConversationIdAsync(setupClient, token);
 
 Console.WriteLine($"MiniPainterHub load profile: {settings.Profile}");
 Console.WriteLine($"Base URL: {settings.BaseUri}");
 Console.WriteLine($"Seed post ID: {postId}");
+Console.WriteLine($"Conversation ID: {conversationId?.ToString() ?? "none; messaging scenarios skipped"}");
 
 var sharedClient = new HttpClient { BaseAddress = settings.BaseUri };
 if (!string.IsNullOrWhiteSpace(token))
@@ -38,8 +45,20 @@ var scenarios = new[]
     Scenario.Create("viewer_payload", async _ =>
         await SendAsync(sharedClient, () => new HttpRequestMessage(HttpMethod.Get, $"/api/posts/{postId}/viewer"))),
 
+    Scenario.Create("post_experience", async _ =>
+        await SendAsync(sharedClient, () => new HttpRequestMessage(HttpMethod.Get, $"/api/posts/{postId}/experience"))),
+
+    Scenario.Create("search_overview", async _ =>
+        await SendAsync(sharedClient, () => new HttpRequestMessage(HttpMethod.Get, "/api/search/overview?q=glazing"))),
+
     Scenario.Create("search_posts", async _ =>
         await SendAsync(sharedClient, () => new HttpRequestMessage(HttpMethod.Get, "/api/search/posts?q=glazing&page=1&pageSize=10"))),
+
+    Scenario.Create("search_projects", async _ =>
+        await SendAsync(sharedClient, () => new HttpRequestMessage(HttpMethod.Get, "/api/search/projects?q=paint&page=1&pageSize=10"))),
+
+    Scenario.Create("public_projects", async _ =>
+        await SendAsync(sharedClient, () => new HttpRequestMessage(HttpMethod.Get, "/api/projects?pageNumber=1&pageSize=12"))),
 
     Scenario.Create("login", async _ =>
         await SendAsync(sharedClient, () => JsonRequest(HttpMethod.Post, "/api/auth/login", new
@@ -71,7 +90,17 @@ var scenarios = new[]
 
     Scenario.Create("guide_photo_upload", async context =>
         await SendAsync(sharedClient, () => BuildGuideUploadRequest(uploadImage, context.InvocationNumber), HttpStatusCode.TooManyRequests))
-};
+}.ToList();
+
+if (conversationId.HasValue)
+{
+    scenarios.Add(Scenario.Create("conversation_list", async _ =>
+        await SendAsync(sharedClient, () => new HttpRequestMessage(HttpMethod.Get, "/api/conversations"))));
+    scenarios.Add(Scenario.Create("message_history", async _ =>
+        await SendAsync(sharedClient, () => new HttpRequestMessage(
+            HttpMethod.Get,
+            $"/api/conversations/{conversationId.Value}/messages?pageSize=50"))));
+}
 
 var load = settings.Profile.Equals("event", StringComparison.OrdinalIgnoreCase)
     ? LoadProfiles.EventSpike
@@ -202,6 +231,26 @@ static async Task<int> ResolvePostIdAsync(HttpClient client)
     }
 
     return items[0].GetProperty("id").GetInt32();
+}
+
+static async Task<int?> ResolveConversationIdAsync(HttpClient client, string? token)
+{
+    if (string.IsNullOrWhiteSpace(token))
+    {
+        return null;
+    }
+
+    using var response = await client.GetAsync("/api/conversations");
+    if (!response.IsSuccessStatusCode)
+    {
+        return null;
+    }
+
+    using var stream = await response.Content.ReadAsStreamAsync();
+    using var json = await JsonDocument.ParseAsync(stream);
+    return json.RootElement.ValueKind == JsonValueKind.Array && json.RootElement.GetArrayLength() > 0
+        ? json.RootElement[0].GetProperty("id").GetInt32()
+        : null;
 }
 
 internal sealed record LoadSettings(

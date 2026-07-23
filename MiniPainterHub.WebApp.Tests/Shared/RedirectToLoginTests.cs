@@ -8,17 +8,17 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Shared;
 
-public class RedirectToLoginTests : TestContext
+public class RedirectToLoginTests : BunitContext
 {
     [Fact]
     public void WhenUnauthenticated_ShowsLoginPromptWithReturnUrl()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetNotAuthorized();
         var nav = Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo("/posts/new");
 
-        var cut = RenderComponent<RedirectToLogin>();
+        var cut = Render<RedirectToLogin>();
 
         nav.Uri.Should().Be("http://localhost/posts/new");
         cut.Find("[data-testid='access-login-required']").TextContent.Should().Contain("sign in");
@@ -29,12 +29,12 @@ public class RedirectToLoginTests : TestContext
     [Fact]
     public void WhenAuthenticated_DoesNotRedirectAndShowsAccessDenied()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("viewer");
         var nav = Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo("/admin/suspensions");
 
-        var cut = RenderComponent<RedirectToLogin>();
+        var cut = Render<RedirectToLogin>();
 
         cut.WaitForAssertion(() =>
         {

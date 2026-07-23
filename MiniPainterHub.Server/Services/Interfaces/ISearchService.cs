@@ -1,14 +1,15 @@
 using System.Threading.Tasks;
+using System.Threading;
 using MiniPainterHub.Common.DTOs;
 
 namespace MiniPainterHub.Server.Services.Interfaces
 {
     public interface ISearchService
     {
-        Task<SearchOverviewDto> GetOverviewAsync(string? query);
-        Task<PagedResult<PostSummaryDto>> SearchPostsAsync(string? query, string? tagSlug, int page, int pageSize);
-        Task<PagedResult<HobbyProjectSummaryDto>> SearchProjectsAsync(string? query, int page, int pageSize);
-        Task<PagedResult<UserListItemDto>> SearchUsersAsync(string? query, int page, int pageSize);
-        Task<PagedResult<SearchTagResultDto>> SearchTagsAsync(string? query, int page, int pageSize);
+        Task<SearchOverviewDto> GetOverviewAsync(string? query, CancellationToken cancellationToken = default);
+        Task<PagedResult<PostSummaryDto>> SearchPostsAsync(string? query, string? tagSlug, int page, int pageSize, CancellationToken cancellationToken = default);
+        Task<PagedResult<HobbyProjectSummaryDto>> SearchProjectsAsync(string? query, int page, int pageSize, CancellationToken cancellationToken = default);
+        Task<PagedResult<UserListItemDto>> SearchUsersAsync(string? query, int page, int pageSize, CancellationToken cancellationToken = default);
+        Task<PagedResult<SearchTagResultDto>> SearchTagsAsync(string? query, int page, int pageSize, CancellationToken cancellationToken = default);
     }
 }

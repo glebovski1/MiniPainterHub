@@ -5,6 +5,12 @@ MiniPainterHub deploys as the existing `MiniPainterHub.Server` ASP.NET Core App 
 Production URL:
 
 ```text
+https://rollandpaint.com
+```
+
+The Azure App Service hostname remains the operational deployment and health-check endpoint:
+
+```text
 https://minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net
 ```
 
@@ -46,13 +52,30 @@ Environment secrets:
 
 ```text
 AZURE_WEBAPP_PUBLISH_PROFILE=<full App Service publish profile XML>
-PRODUCTION_SQL_CONNECTION_STRING=<optional SQL connection string override for EF migrations>
+PRODUCTION_SQL_CONNECTION_STRING=<required SQL connection string for EF migrations>
 ```
 
 Use a freshly downloaded publish profile from the target App Service when rotating credentials. Do not commit publish profiles or publish settings files.
-When `PRODUCTION_SQL_CONNECTION_STRING` is configured, it should target the same database used by `ConnectionStrings__DefaultConnection` in App Service configuration and should be rotated with the database credentials.
+`PRODUCTION_SQL_CONNECTION_STRING` is required. It must target the same database used by `ConnectionStrings__DefaultConnection` in App Service configuration and must be rotated with the database credentials. Requiring the explicit GitHub environment secret avoids making migrations depend on Kudu/SCM configuration discovery.
 
-When the SQL secret is omitted, the deploy job uses the publish profile's SCM credentials to read `DefaultConnection` from the existing App Service environment. The value is masked immediately and exists only in the deployment job environment. This fallback keeps the existing App Service configuration as the source of truth without committing or printing the connection string.
+## Custom domain and canonical-host configuration
+
+Keep `rollandpaint.com` as the only public canonical origin. In Azure App Service, bind both `rollandpaint.com` and `www.rollandpaint.com` with managed TLS certificates. Keep the current `asuid` TXT validation record alongside the Cloudflare DNS records Azure provides.
+
+Configure these App Service settings:
+
+```text
+Site__BrandName=Roll & Paint
+Site__PublicOrigin=https://rollandpaint.com
+Site__DefaultTitle=Roll & Paint | Miniature Painting Community
+Site__DefaultDescription=A miniature painting community for sharing painted miniatures, works in progress, paint recipes, techniques, and thoughtful critique.
+Site__DefaultSocialImagePath=/brand/roll-and-paint-social.png
+Site__CanonicalRedirectsEnabled=true
+```
+
+The application permanently redirects page requests on `www.rollandpaint.com` and the Azure hostname to the apex domain. Health, API, SignalR, framework, and static-asset paths remain available on the Azure hostname for deployment checks and platform operation.
+
+Verify the domain-property in Google Search Console using a DNS TXT record. Submit `https://rollandpaint.com/sitemap.xml` only after the production deployment returns `200`, and keep `https://rollandpaint.com/robots.txt` crawlable.
 
 ## Google authentication pilot activation
 
@@ -62,7 +85,7 @@ Before enabling the provider, create a Google OAuth web application in Testing m
 
 ```text
 https://localhost:7295/signin-google
-https://minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net/signin-google
+https://rollandpaint.com/signin-google
 ```
 
 Configure these Azure App Service application settings directly (the deploy workflow does not create or rotate App Service settings):
@@ -72,7 +95,7 @@ Authentication__Google__Enabled=true
 Authentication__Google__ClientId=<Google web client id>
 Authentication__Google__ClientSecret=<Google web client secret or Key Vault reference>
 Authentication__Google__CallbackPath=/signin-google
-Authentication__Google__PublicOrigin=https://minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net
+Authentication__Google__PublicOrigin=https://rollandpaint.com
 Authentication__Google__UseFakeProvider=false
 Site__SupportEmail=<monitored public support address>
 ```
@@ -85,7 +108,7 @@ ForwardedHeaders__TrustAllProxies=true
 DataProtection__KeysPath=D:\home\data-protection-keys
 ```
 
-The forwarding configuration is limited to one hop in code, and production `AllowedHosts` is restricted to the App Service hostname. `TrustAllProxies` is an Azure App Service deployment choice because inbound traffic terminates at the platform proxy; do not copy it to a deployment that accepts direct untrusted traffic. Persistent Data Protection keys keep OAuth correlation and link-intent cookies valid across application restarts.
+The forwarding configuration is limited to one hop in code, and production `AllowedHosts` is restricted to the apex, `www`, and App Service hostnames. `TrustAllProxies` is an Azure App Service deployment choice because inbound traffic terminates at the platform proxy; do not copy it to a deployment that accepts direct untrusted traffic. Persistent Data Protection keys keep OAuth correlation and link-intent cookies valid across application restarts.
 
 `Authentication__Google__UseFakeProvider=true` is reserved for Development/Test automation. Startup rejects it in other environments. Real provider tokens, exchange handles, application JWTs, and client secrets must never be written to logs or committed settings.
 
@@ -102,7 +125,7 @@ To roll back provider access without reverting code or schema, set `Authenticati
 
 To rotate the Google client secret, create a second secret for the existing OAuth client, update `Authentication__Google__ClientSecret` (or its Key Vault reference), restart the App Service, and complete the returning-user smoke check. Revoke the old Google secret only after the new value is confirmed. If the smoke check fails, restore the prior App Service value while it is still valid; client ID and callback registrations do not change during ordinary secret rotation.
 
-The current Azure hostname is acceptable for a test-user pilot. General availability and branded consent require a verified custom domain plus owner-reviewed public Privacy and Terms content.
+Use only the `rollandpaint.com` callback for the hosted pilot. Keep the public Privacy and Terms content owner-reviewed before expanding the consent-screen audience.
 
 ## Discord authentication pilot activation
 
@@ -110,7 +133,7 @@ Discord authentication ships disabled and requires no database migration or Disc
 
 ```text
 https://localhost:7295/signin-discord
-https://minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net/signin-discord
+https://rollandpaint.com/signin-discord
 ```
 
 Store the Discord application credentials in Azure App Service settings:
@@ -120,7 +143,7 @@ Authentication__Discord__Enabled=true
 Authentication__Discord__ClientId=<Discord Application ID>
 Authentication__Discord__ClientSecret=<Discord client secret or Key Vault reference>
 Authentication__Discord__CallbackPath=/signin-discord
-Authentication__Discord__PublicOrigin=https://minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net
+Authentication__Discord__PublicOrigin=https://rollandpaint.com
 Authentication__Discord__UseFakeProvider=false
 Site__SupportEmail=<monitored public support address>
 ```
@@ -154,10 +177,10 @@ Provision the Azure resources before deploying the confirmation code:
 ```text
 EmailConfirmation__Enabled=true
 EmailConfirmation__Provider=AzureCommunicationServices
-EmailConfirmation__PublicOrigin=https://minipainterhub-dqandpbghpgbfgf3.canadacentral-01.azurewebsites.net
+EmailConfirmation__PublicOrigin=https://rollandpaint.com
 EmailConfirmation__Endpoint=https://<resource-name>.communication.azure.com
 EmailConfirmation__SenderAddress=donotreply@<resource-id>.azurecomm.net
-EmailConfirmation__SenderDisplayName=MiniPainterHub
+EmailConfirmation__SenderDisplayName=Roll & Paint
 ```
 
 The application uses `DefaultAzureCredential`, so there is no ACS connection string or API key to store. Hosted startup rejects missing settings and rejects the local `DevelopmentLog` provider. Local Development/Lighthouse runs log confirmation links for manual testing; production must never log those links.
@@ -175,7 +198,7 @@ Activation sequence:
 
 ## First deployment
 
-1. Confirm the GitHub `production` environment has the variables and `AZURE_WEBAPP_PUBLISH_PROFILE` secret above. Add `PRODUCTION_SQL_CONNECTION_STRING` only when an explicit migration credential override is required.
+1. Confirm the GitHub `production` environment has the variables plus both `AZURE_WEBAPP_PUBLISH_PROFILE` and `PRODUCTION_SQL_CONNECTION_STRING` secrets above.
 2. Open GitHub Actions and run `CI` or push through a PR into `master`.
 3. Wait for `CI` to pass.
 4. Open the `Deploy` workflow run.
@@ -224,7 +247,7 @@ Invoke-WebRequest `
 
 After deployment:
 
-1. Open the site root and confirm the Blazor app loads.
+1. Open `https://rollandpaint.com` and confirm the Blazor app loads.
 2. Confirm `/healthz` returns `200 OK`.
 3. Confirm `/healthz/ready` returns `200 OK`.
 4. Confirm a new password registration receives email, remains blocked before confirmation, and can log in after following the link.
@@ -234,6 +257,9 @@ After deployment:
 8. Confirm image upload works.
 9. Confirm the database migrated successfully from GitHub Actions logs.
 10. Confirm SignalR chat endpoints connect if chat is enabled.
+11. Confirm `www.rollandpaint.com` and the Azure-hosted root permanently redirect to `https://rollandpaint.com/`, while the Azure `/healthz/ready` endpoint still returns `200`.
+12. Confirm `/robots.txt` references the apex sitemap and `/sitemap.xml` includes only apex-domain public URLs.
+13. View the raw HTML source for the home page and a public detail page; confirm the title, description, canonical, Open Graph tags, JSON-LD, and semantic snapshot are present before Blazor runs.
 
 Production startup does not run EF migrations by default. If the deployment migration step is unavailable during a single-instance emergency rollout, temporarily set `Database__AutoMigrateOnStartup=true`, deploy once, then remove it after the app starts cleanly.
 

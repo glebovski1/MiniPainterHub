@@ -12,7 +12,7 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages;
 
-public class LoginTests : TestContext
+public class LoginTests : BunitContext
 {
     public LoginTests()
     {
@@ -24,7 +24,7 @@ public class LoginTests : TestContext
     {
         this.AddAuthStub(new StubAuthService { LoginHandler = _ => Task.FromResult(LoginOutcome.Unavailable) });
 
-        var cut = RenderComponent<Login>();
+        var cut = Render<Login>();
 
         cut.Find("[data-testid='login-form']").Should().NotBeNull();
         cut.Find("[data-testid='login-username']").Should().NotBeNull();
@@ -45,7 +45,7 @@ public class LoginTests : TestContext
         var nav = Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo(nav.GetUriWithQueryParameter("returnUrl", "/support"));
 
-        var cut = RenderComponent<Login>();
+        var cut = Render<Login>();
 
         cut.WaitForAssertion(() =>
             cut.Find("[data-testid='google-signin-link']").GetAttribute("href")
@@ -65,7 +65,7 @@ public class LoginTests : TestContext
         var nav = Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo(nav.GetUriWithQueryParameter("returnUrl", "/support"));
 
-        var cut = RenderComponent<Login>();
+        var cut = Render<Login>();
 
         cut.WaitForAssertion(() =>
             cut.Find("[data-testid='discord-signin-link']").GetAttribute("href")
@@ -84,7 +84,7 @@ public class LoginTests : TestContext
                 return Task.FromResult(LoginOutcome.Success);
             }
         });
-        var cut = RenderComponent<Login>();
+        var cut = Render<Login>();
 
         await cut.Find("[data-testid='login-form']").SubmitAsync();
 
@@ -112,7 +112,7 @@ public class LoginTests : TestContext
                 return Task.FromResult(LoginOutcome.Success);
             }
         });
-        var cut = RenderComponent<Login>();
+        var cut = Render<Login>();
         var nav = Services.GetRequiredService<NavigationManager>();
 
         cut.Find("[data-testid='login-username']").Input("artist");
@@ -134,7 +134,7 @@ public class LoginTests : TestContext
         this.AddAuthStub(new StubAuthService { LoginHandler = _ => Task.FromResult(LoginOutcome.Success) });
         var nav = Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo(nav.GetUriWithQueryParameter("returnUrl", "https://evil.example/path"));
-        var cut = RenderComponent<Login>();
+        var cut = Render<Login>();
 
         cut.Find("[data-testid='login-username']").Input("artist");
         cut.Find("[data-testid='login-password']").Input("User123!");
@@ -154,7 +154,7 @@ public class LoginTests : TestContext
         string expectedMessage)
     {
         this.AddAuthStub(new StubAuthService { LoginHandler = _ => Task.FromResult(outcome) });
-        var cut = RenderComponent<Login>();
+        var cut = Render<Login>();
 
         cut.Find("[data-testid='login-username']").Input("artist");
         cut.Find("[data-testid='login-password']").Input("User123!");
@@ -172,7 +172,7 @@ public class LoginTests : TestContext
     {
         var completion = new TaskCompletionSource<LoginOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
         this.AddAuthStub(new StubAuthService { LoginHandler = _ => completion.Task });
-        var cut = RenderComponent<Login>();
+        var cut = Render<Login>();
 
         cut.Find("[data-testid='login-username']").Input("artist");
         cut.Find("[data-testid='login-password']").Input("User123!");
@@ -199,7 +199,7 @@ public class LoginTests : TestContext
     public async Task InputAfterFailure_ClearsTheStaleAlert()
     {
         this.AddAuthStub(new StubAuthService { LoginHandler = _ => Task.FromResult(LoginOutcome.InvalidCredentials) });
-        var cut = RenderComponent<Login>();
+        var cut = Render<Login>();
 
         cut.Find("[data-testid='login-username']").Input("artist");
         cut.Find("[data-testid='login-password']").Input("wrong-password");

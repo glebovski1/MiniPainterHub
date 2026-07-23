@@ -13,12 +13,12 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages.Guides;
 
-public class GuideListTests : TestContext
+public class GuideListTests : BunitContext
 {
     [Fact]
     public void WhenGuidesLoad_RendersGuideCards()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         this.AddGuideStub(new StubPaintingGuideService
         {
             GetAllHandler = (_, _) => Task.FromResult(new ApiResult<PagedResult<PaintingGuideSummaryDto>>(
@@ -45,7 +45,7 @@ public class GuideListTests : TestContext
                 }))
         });
 
-        var cut = RenderComponent<GuideList>();
+        var cut = Render<GuideList>();
 
         cut.WaitForAssertion(() =>
         {

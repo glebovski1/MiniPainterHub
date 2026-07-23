@@ -14,12 +14,12 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Pages;
 
-public class SearchTests : TestContext
+public class SearchTests : BunitContext
 {
     [Fact]
     public void AllTab_RendersOverviewResults()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         this.AddModerationStub();
         this.AddSearchStub(new StubSearchService
         {
@@ -78,7 +78,7 @@ public class SearchTests : TestContext
         var nav = Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo("/search?q=nmm");
 
-        var cut = RenderComponent<Search>();
+        var cut = Render<Search>();
 
         cut.WaitForAssertion(() =>
         {
@@ -94,7 +94,7 @@ public class SearchTests : TestContext
     [Fact]
     public void ProjectsTab_RendersDedicatedProjectResults()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         this.AddModerationStub();
         this.AddSearchStub(new StubSearchService
         {
@@ -128,7 +128,7 @@ public class SearchTests : TestContext
         var nav = Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo("/search?q=desert&tab=projects");
 
-        var cut = RenderComponent<Search>();
+        var cut = Render<Search>();
 
         cut.WaitForAssertion(() =>
         {
@@ -140,7 +140,7 @@ public class SearchTests : TestContext
     [Fact]
     public void TagResult_ClickNavigatesToPostsTabWithTagFilter()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         this.AddModerationStub();
         this.AddSearchStub(new StubSearchService
         {
@@ -164,7 +164,7 @@ public class SearchTests : TestContext
         var nav = Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo("/search?q=gl&tab=tags");
 
-        var cut = RenderComponent<Search>();
+        var cut = Render<Search>();
 
         cut.WaitForElement("[data-testid='search-tag-result']");
         cut.Find("[data-testid='search-tag-result']").Click();
@@ -178,7 +178,7 @@ public class SearchTests : TestContext
     [Fact]
     public void FailedSearch_RendersOneFocusTargetAlert()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         this.AddModerationStub();
         this.AddSearchStub(new StubSearchService
         {
@@ -190,7 +190,7 @@ public class SearchTests : TestContext
         var nav = Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo("/search?q=weathering");
 
-        var cut = RenderComponent<Search>();
+        var cut = Render<Search>();
 
         cut.WaitForAssertion(() =>
         {

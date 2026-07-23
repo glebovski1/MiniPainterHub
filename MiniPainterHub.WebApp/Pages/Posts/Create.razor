@@ -1,5 +1,6 @@
 @page "/posts/new"
 @attribute [Authorize]
+@implements IDisposable
 @using System.Globalization
 @using System.Net.Http.Headers
 @using System.Text.Json
@@ -509,6 +510,7 @@
     private bool _requestedProjectUnavailable;
     private string? _projectSelectionMessage;
     private int _tagSearchVersion;
+    private CancellationTokenSource? _tagSuggestionCts;
 
     [SupplyParameterFromQuery(Name = "projectId")]
     public int? RequestedProjectId { get; set; }
@@ -667,6 +669,10 @@
     {
         var token = GetActiveTagToken();
         var searchVersion = ++_tagSearchVersion;
+        _tagSuggestionCts?.Cancel();
+        _tagSuggestionCts?.Dispose();
+        _tagSuggestionCts = new CancellationTokenSource();
+        var cancellationToken = _tagSuggestionCts.Token;
         _tagSuggestionMessage = null;
 
         if (token.Length < 2)
@@ -681,7 +687,8 @@
 
         try
         {
-            var result = await SearchService.SearchTagsAsync(token, 1, TagSuggestionPageSize);
+            await Task.Delay(300, cancellationToken);
+            var result = await SearchService.SearchTagsAsync(token, 1, TagSuggestionPageSize, cancellationToken);
             if (searchVersion != _tagSearchVersion)
             {
                 return;
@@ -694,6 +701,9 @@
                     .ToList()
                 : Array.Empty<SearchTagResultDto>();
             _tagSuggestionMessage = result.Success ? null : "Suggestions are unavailable. You can still type tags manually.";
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
         catch
         {
@@ -1000,6 +1010,12 @@
         Nav.NavigateTo(projectId.HasValue
             ? $"/projects/{projectId.Value}?view=diary#post-{postId}"
             : $"/posts/{postId}");
+    }
+
+    public void Dispose()
+    {
+        _tagSuggestionCts?.Cancel();
+        _tagSuggestionCts?.Dispose();
     }
 
     private static string FormatProjectStatus(string status) => status switch

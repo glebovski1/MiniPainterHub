@@ -2,6 +2,7 @@
 @implements IDisposable
 @using Microsoft.AspNetCore.Components.Authorization
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 @inject UserPanelState UserPanel
 
 <div class="app-layout">
@@ -39,7 +40,7 @@
 
     <footer class="app-footer" data-testid="site-footer">
         <div class="page-shell page-shell--wide app-footer__content">
-            <p class="app-footer__copy mb-0">A shared workbench for miniature painters.</p>
+            <p class="app-footer__copy mb-0">Roll &amp; Paint — a shared workbench for miniature painters.</p>
             <nav class="app-footer__links" aria-label="Legal information">
                 <NavLink href="/privacy">Privacy</NavLink>
                 <NavLink href="/terms">Terms</NavLink>
@@ -50,19 +51,50 @@
 
 @code {
     private const string DesktopPanelPreferenceKey = "userPanelDesktopCollapsed";
+    private const string CanonicalHost = "https://rollandpaint.com";
     private bool _isRestoringPreference;
+    private bool _seoUpdatePending = true;
     private string DesktopPanelAriaHidden => UserPanel.IsDesktopCollapsed ? "true" : "false";
     private string? DesktopPanelInert => UserPanel.IsDesktopCollapsed ? string.Empty : null;
 
     protected override void OnInitialized()
     {
         UserPanel.OnChange += OnPanelStateChanged;
+        Nav.LocationChanged += OnLocationChanged;
     }
 
     public void Dispose()
     {
         UserPanel.OnChange -= OnPanelStateChanged;
+        Nav.LocationChanged -= OnLocationChanged;
     }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        _seoUpdatePending = true;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private static bool IsPrivateOrUtilityRoute(string path) =>
+        path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/account", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/auth/", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/connections", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/feed/", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/messages", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/register", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/resend-confirmation", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/search", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/support", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/confirm-email", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/profile", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/posts/mine", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/posts/new", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/projects/mine", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/projects/new", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith("/edit", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith("/admin", StringComparison.OrdinalIgnoreCase);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -70,7 +102,63 @@
         {
             await RestoreCollapsedPreferenceAsync();
         }
+
+        if (_seoUpdatePending)
+        {
+            _seoUpdatePending = false;
+            await ApplySeoMetadataAsync();
+        }
     }
+
+    private async Task ApplySeoMetadataAsync()
+    {
+        try
+        {
+            var uri = new Uri(Nav.Uri);
+            var path = string.IsNullOrWhiteSpace(uri.AbsolutePath) ? "/" : uri.AbsolutePath;
+            await JS.InvokeVoidAsync("rollAndPaintSeo.apply", new
+            {
+                canonical = $"{CanonicalHost}{path}",
+                robots = IsPrivateOrUtilityRoute(path) ? "noindex,nofollow" : "index,follow,max-image-preview:large",
+                description = GetRouteDescription(path),
+                openGraphType = IsArticleRoute(path) ? "article" : "website"
+            });
+        }
+        catch
+        {
+            // Metadata enhancement is non-critical; the server-rendered tags remain valid.
+        }
+    }
+
+    private static string GetRouteDescription(string path)
+    {
+        if (path.StartsWith("/projects", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Follow miniature painting projects from planning and base coats through finished models, armies, terrain, and dioramas.";
+        }
+
+        if (path.StartsWith("/guides", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Read practical miniature painting guides covering paints, techniques, materials, and step-by-step workflows.";
+        }
+
+        if (path.StartsWith("/news", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Read Roll & Paint community updates and source-linked miniature painting hobby news.";
+        }
+
+        if (path.StartsWith("/posts", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Browse painted miniatures, works in progress, paint recipes, techniques, and painting notes shared by the Roll & Paint community.";
+        }
+
+        return "Share painted miniatures, works in progress, paint recipes, techniques, and thoughtful critique with the Roll & Paint community.";
+    }
+
+    private static bool IsArticleRoute(string path) =>
+        path.StartsWith("/posts/", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/guides/", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/news/", StringComparison.OrdinalIgnoreCase);
 
     private void OnPanelStateChanged()
     {

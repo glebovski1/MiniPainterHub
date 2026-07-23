@@ -31,4 +31,17 @@ public class TagTextUtilitiesTests
 
         TagTextUtilities.ResolveUniqueSlug("glazing", used).Should().Be("glazing-3");
     }
+
+    [Fact]
+    public void CreateDisambiguatedSlug_IsStableBoundedAndNameSpecific()
+    {
+        var first = TagTextUtilities.CreateDisambiguatedSlug("object-source-lighting", "object source lighting");
+        var repeated = TagTextUtilities.CreateDisambiguatedSlug("object-source-lighting", "object source lighting");
+        var different = TagTextUtilities.CreateDisambiguatedSlug("object-source-lighting", "object-source-lighting!");
+
+        first.Should().Be(repeated);
+        first.Should().NotBe(different);
+        first.Should().HaveLength("object-source-lighting".Length + 9);
+        first.Length.Should().BeLessThanOrEqualTo(64);
+    }
 }

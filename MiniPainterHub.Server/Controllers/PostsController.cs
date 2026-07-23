@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
 using MiniPainterHub.Common.DTOs;
+using MiniPainterHub.Server.Infrastructure.Caching;
 using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
@@ -31,6 +33,7 @@ namespace MiniPainterHub.Server.Controllers
         // GET: api/posts?page=1&pageSize=10
         [HttpGet]
         [AllowAnonymous]
+        [OutputCache(PolicyName = OutputCachePolicies.PublicDatabaseShort)]
         public async Task<ActionResult<PagedResult<PostSummaryDto>>> GetAll(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
@@ -54,6 +57,7 @@ namespace MiniPainterHub.Server.Controllers
         // GET: api/posts/5
         [HttpGet("{id}")]
         [AllowAnonymous]
+        [OutputCache(PolicyName = OutputCachePolicies.PublicDatabaseShort)]
         public async Task<ActionResult<PostDto>> GetById(int id)
         {
             var dto = await _postService.GetByIdAsync(id);
@@ -69,8 +73,18 @@ namespace MiniPainterHub.Server.Controllers
             return Ok(dto);
         }
 
+        [HttpGet("{id}/experience")]
+        [AllowAnonymous]
+        public async Task<ActionResult<PostExperienceDto>> GetExperience(int id)
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var dto = await _postViewerService.GetExperienceAsync(id, currentUserId);
+            return Ok(dto);
+        }
+
         [HttpGet("by-user/{userId}")]
         [AllowAnonymous]
+        [OutputCache(PolicyName = OutputCachePolicies.PublicDatabaseShort)]
         public async Task<ActionResult<PagedResult<PostSummaryDto>>> GetByAuthor(
             string userId,
             [FromQuery] int page = 1,
@@ -82,6 +96,7 @@ namespace MiniPainterHub.Server.Controllers
 
         [HttpGet("top")]
         [AllowAnonymous]
+        [OutputCache(PolicyName = OutputCachePolicies.PublicDatabaseShort)]
         public async Task<ActionResult<IReadOnlyList<PostSummaryDto>>> GetTop(
             [FromQuery] int count = 5,
             [FromQuery] int lookbackDays = 60)

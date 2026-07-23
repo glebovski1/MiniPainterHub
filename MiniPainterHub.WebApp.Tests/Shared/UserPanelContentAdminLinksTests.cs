@@ -9,12 +9,12 @@ using Xunit;
 
 namespace MiniPainterHub.WebApp.Tests.Shared;
 
-public class UserPanelContentAdminLinksTests : TestContext
+public class UserPanelContentAdminLinksTests : BunitContext
 {
     [Fact]
     public void WhenUserRole_IsNotAdminOrModerator_DoesNotRenderAdminLinks()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("user");
         auth.SetRoles("User");
 
@@ -30,7 +30,7 @@ public class UserPanelContentAdminLinksTests : TestContext
     [Fact]
     public void WhenModeratorRole_RendersInboxDashboardAndAuditOnly()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("moderator");
         auth.SetRoles("Moderator");
 
@@ -46,7 +46,7 @@ public class UserPanelContentAdminLinksTests : TestContext
     [Fact]
     public void WhenAdminRole_RendersPrimaryAdminLinks()
     {
-        var auth = this.AddTestAuthorization();
+        var auth = this.AddAuthorization();
         auth.SetAuthorized("admin");
         auth.SetRoles("Admin");
 
@@ -59,7 +59,7 @@ public class UserPanelContentAdminLinksTests : TestContext
         cut.FindAll("[data-testid='admin-nav-support']").Should().HaveCount(1);
     }
 
-    private IRenderedFragment RenderPanel()
+    private IRenderedComponent<IComponent> RenderPanel()
     {
         this.AddConversationStub();
 
