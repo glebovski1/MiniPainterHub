@@ -265,9 +265,10 @@ internal sealed partial class PublicSeoDocumentService
             definition.Title,
             definition.Description,
             path,
-            schemaType,
+            "website",
             _site.DefaultSocialImagePath,
-            snapshot);
+            snapshot,
+            schemaType);
     }
 
     private async Task<SeoRouteResolution> ResolvePostAsync(int postId, CancellationToken cancellationToken)
@@ -316,9 +317,10 @@ internal sealed partial class PublicSeoDocumentService
             $"{post.Title} | Roll & Paint",
             description,
             path,
-            "SocialMediaPosting",
+            "article",
             post.ImageUrl,
             snapshot,
+            "SocialMediaPosting",
             post.UpdatedUtc,
             extra));
     }
@@ -364,9 +366,10 @@ internal sealed partial class PublicSeoDocumentService
             $"{project.Title} | Roll & Paint",
             description,
             path,
-            "CreativeWork",
+            "article",
             imageUrl,
             snapshot,
+            "CreativeWork",
             project.UpdatedUtc,
             new Dictionary<string, object?>
             {
@@ -403,9 +406,10 @@ internal sealed partial class PublicSeoDocumentService
             $"{guide.Title} | Roll & Paint",
             description,
             path,
-            "Article",
+            "article",
             imageUrl,
             snapshot,
+            "Article",
             guide.UpdatedUtc,
             new Dictionary<string, object?>
             {
@@ -440,9 +444,10 @@ internal sealed partial class PublicSeoDocumentService
             $"{news.Title} | Roll & Paint",
             description,
             path,
-            "Article",
+            "article",
             _site.DefaultSocialImagePath,
             snapshot,
+            "Article",
             news.UpdatedUtc,
             new Dictionary<string, object?>
             {
@@ -494,12 +499,12 @@ internal sealed partial class PublicSeoDocumentService
             "profile",
             user.Profile?.AvatarUrl ?? user.AvatarUrl,
             snapshot,
+            "ProfilePage",
             user.DateJoined,
             new Dictionary<string, object?>
             {
                 ["mainEntity"] = new Dictionary<string, object?> { ["@type"] = "Person", ["name"] = name }
-            },
-            structuredDataType: "ProfilePage"));
+            }));
     }
 
     private async Task<IReadOnlyList<SnapshotLink>> GetPostLinksAsync(bool top, CancellationToken cancellationToken)
@@ -547,16 +552,16 @@ internal sealed partial class PublicSeoDocumentService
         string openGraphType,
         string? imageUrl,
         string snapshotHtml,
+        string structuredDataType,
         DateTime? lastModifiedUtc = null,
-        IReadOnlyDictionary<string, object?>? structuredDataExtra = null,
-        string? structuredDataType = null)
+        IReadOnlyDictionary<string, object?>? structuredDataExtra = null)
     {
         var canonicalUrl = BuildAbsoluteUrl(canonicalPath);
         var resolvedImage = ResolveImageUrl(imageUrl ?? _site.DefaultSocialImagePath);
         var structuredData = new Dictionary<string, object?>
         {
             ["@context"] = "https://schema.org",
-            ["@type"] = structuredDataType ?? openGraphType,
+            ["@type"] = structuredDataType,
             ["name"] = title,
             ["headline"] = title,
             ["description"] = description,

@@ -35,7 +35,23 @@ public class PublicSeoEndpointsTests
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         html.Should().Contain("<title data-rp-seo=\"title\">Roll &amp; Paint | Miniature Painting Community</title>");
         html.Should().Contain("<link rel=\"canonical\" href=\"https://rollandpaint.com/\"");
+        html.Should().Contain("<meta property=\"og:type\" content=\"website\"");
+        html.Should().Contain("\"@type\":\"WebSite\"");
         html.Should().Contain("data-rp-seo-snapshot");
+    }
+
+    [Fact]
+    public async Task CollectionPage_UsesOpenGraphWebsiteTypeAndCollectionSchemaType()
+    {
+        using var factory = new IntegrationTestApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/posts/all");
+        var html = await response.Content.ReadAsStringAsync();
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        html.Should().Contain("<meta property=\"og:type\" content=\"website\"");
+        html.Should().Contain("\"@type\":\"CollectionPage\"");
     }
 
     [Fact]
