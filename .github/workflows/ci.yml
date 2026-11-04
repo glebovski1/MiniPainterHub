@@ -12,7 +12,7 @@ on:
 
 jobs:
   build-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -115,7 +115,7 @@ jobs:
 
   relational-tests:
     name: Linux SQL Server migration and constraint tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build-test
     timeout-minutes: 20
     services:
@@ -156,9 +156,25 @@ jobs:
 
   browser-smoke:
     name: ui-smoke
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build-test
     if: github.event_name == 'pull_request'
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2025-latest@sha256:245f6b1c8903edae52cb20fa31419cefcde1a49938bb8c3447099011fc871ca3
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_PID: Developer
+          MSSQL_COLLATION: SQL_Latin1_General_CP1_CI_AS
+          # Disposable loopback-only CI service; never a production credential.
+          MSSQL_SA_PASSWORD: LinuxCi_TestOnly_2026!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'LinuxCi_TestOnly_2026!' -C -Q 'SELECT 1' -b"
+          --health-interval 10s --health-timeout 5s --health-retries 12 --health-start-period 30s
+    env:
+      E2E_CONNECTION_STRING: Server=tcp:127.0.0.1,1433;Database=MiniPainterHub_E2E_CI;User ID=sa;Password=LinuxCi_TestOnly_2026!;Encrypt=True;TrustServerCertificate=True
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -254,7 +270,7 @@ jobs:
 
   hard-tests:
     name: Hard Tests (master/main push + release publish)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: |
       github.event_name == 'release' ||
       (github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'))
@@ -354,7 +370,7 @@ jobs:
 
   migration-artifacts:
     name: Seal migration package (${{ matrix.runtime }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build-test, relational-tests, browser-smoke, hard-tests]
     if: >-
       always() && !cancelled() &&
