@@ -57,7 +57,7 @@ The following were recorded in the earlier read-only inventory in this planning 
 - Public DNS used Cloudflare and public TLS was valid. ARM reported disabled custom-domain SSL bindings on Windows. This does **not** establish a broken public site or a valid Azure origin TLS arrangement: Cloudflare mode, origin Host/SNI and origin certificate remain unknown.
 - SQL reported seven-day point-in-time retention. Blob/container soft-delete retention was seven days; versioning was not confirmed enabled. No restore was executed.
 - Successful deployment records were found on both hosts, but deployment IDs were not established as Git commits or recoverable immutable packages.
-- The guard was enabled at $50, not dry-run, with three named app targets. The pre-existing local guard source (`infra/cost-guard/Set-AzureCostGuard.ps1`, outside this change set) still targets `MiniPainterHub`, `rollandpaint-prod-ca` and `tastebudz-prod-23df46c9`. A differently named app is not automatically covered.
+- The guard was enabled at $50, not dry-run, with three named app targets. The pre-existing local guard source (outside this change set) still targets `MiniPainterHub`, `rollandpaint-prod-ca` and `tastebudz-prod-23df46c9`. A differently named app is not automatically covered.
 
 Outstanding facts: current costs/forecast and guard execution, actual B1 capacity, effective published configuration, SQL migration history/collation/compatibility and firewalls, Blob recovery, immutable rollback artifacts, key unprotection, identity inheritance, and Cloudflare/DNS/TLS routing. Record dated evidence and a named operator for each gate; leave unexecuted checks marked **not run**.
 
