@@ -347,7 +347,7 @@ responses share thumbnail fallback and tag ordering behavior.
 Profile avatar uploads:
 - Entry: `ProfilesController.UploadAvatar`
 - Service: `ProfileService.UploadAvatarAsync`
-- Validates size/content type and raster dimensions, auto-orients, resizes within 512×512, removes metadata and stores quality-85 JPEG via `IImageService`.
+- Validates size/content type and raster dimensions, auto-orients, resizes within 512Ã—512, removes metadata and stores quality-85 JPEG via `IImageService`.
 
 ## 6) Error Handling
 
@@ -443,7 +443,7 @@ When adding tests with EF InMemory, seed realistic relational data (for example 
 
 The three SQL migration/constraint cases have the `Category=SqlServer` trait and share `SqlServerTestDatabase`. Windows defaults to LocalDB; other operating systems require `MPH_TEST_SQL_CONNECTION_STRING`. The fixture accepts only loopback SQL or Windows LocalDB, rejects failover partners and always creates a unique disposable catalog. Ubuntu CI uses a pinned SQL Server 2025 container, production collation `SQL_Latin1_General_CP1_CI_AS` and compatibility 170. Its TRX gate requires all three named cases to pass and include actual provider/OS/SQL metadata. InMemory unit tests remain separate.
 
-Local Playwright startup uses the actual OS and SQL data source. PowerShell/sqllocaldb starts only for Windows LocalDB; TCP SQL uses dotnet directly. Linux's default development browser smoke still uses the existing InMemory fallback, so it is not relational evidence. Reset-enabled relational tooling validates the effective connection before initialization and again before reset: only loopback/LocalDB and disposable `MiniPainterHub_E2E`, `MiniPainterHub_RuntimeUx` or `MiniPainterHub_Lighthouse` catalogs are accepted. Local JSON precedence is unchanged; unsafe overrides fail this check. The harness owns its server instead of reusing an unrelated process.
+Local Playwright startup uses the actual OS and SQL data source. PowerShell/sqllocaldb starts only for Windows LocalDB; TCP SQL uses dotnet directly. Linux's default local development browser smoke still uses the existing InMemory fallback, so it is not relational evidence. The PR `ui-smoke` job explicitly supplies a disposable loopback SQL Server 2025 connection and therefore exercises real SQL. CI runners are pinned to Ubuntu 24.04 because the pinned Playwright release does not support the newer Ubuntu 26.04 selected by `ubuntu-latest`. Reset-enabled relational tooling validates the effective connection before initialization and again before reset: only loopback/LocalDB and disposable `MiniPainterHub_E2E`, `MiniPainterHub_RuntimeUx` or `MiniPainterHub_Lighthouse` catalogs are accepted. Local JSON precedence is unchanged; unsafe overrides fail this check. The harness owns its server instead of reusing an unrelated process.
 
 The separate hosted Playwright configuration has no local server or reset/fake-provider setup. It performs HTTPS readiness/API/browser reads, with optional controlled-account token validation. It does not prove OAuth, uploads, email or bidirectional Data Protection continuity.
 
