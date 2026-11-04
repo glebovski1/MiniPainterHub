@@ -275,3 +275,18 @@ If the app fails after a successful upload, treat it as a deployed-app startup p
 4. Run the deployed app directly from Kudu.
 
 The most common runtime failure causes for this repo are missing `Jwt__...`, `ImageStorage__...`, or `EmailConfirmation__...` settings, failed database connectivity, missing ACS managed-identity authorization, or production dependencies that are unreachable from the App Service.
+
+
+## Linux migration preparation
+
+Use [Linux Migration Preplan](<Linux Migration Preplan.md>) for current execution status and approval gates. Production remains the Windows app until the approved transition; ordinary `Deploy` still applies production migrations. It is not the schema-neutral OS cutover mechanism. Its SQL secret is mandatory; the unreachable Windows Kudu fallback has been removed.
+
+`infra/linux-migration.bicep` references existing SQL/media resources and changes only the existing candidate's `config/web`. It requires the full current configuration snapshot as a secure input to preserve unrelated fields. Compile and inspect an incremental what-if before an approved application; do not deploy the greenfield `infra/main.bicep` for migration. Compilation is not a live what-if or approval. Scaling, settings, identity, permissions and rehearsal dependencies remain separate operations.
+
+CI prepares `linux-x64` and `win-x64` framework-dependent .NET 10 packages from the same tested checkout only after build/security, real SQL and applicable browser/hard-test jobs succeed. Artifacts are named `migration-<commit>-<runtime>` and contain a ZIP and manifest with commit, CI run, runtime, file/ZIP hashes and migration inventory. Download and pin the exact artifact/hash for rehearsal and recovery; do not rebuild an older commit during rollback. Local dirty packages are validation artifacts, not approved releases. The Windows shared-key-compatible rollback release is still a later implementation gate.
+
+Image processing uses Magick.NET 15.0.0 with its packaged native library. Publish the matching RID, retain `Imaging/policy.xml`, both managed Magick assemblies, the platform native library and `Licenses/Magick.NET-{LICENSE,NOTICE}.txt`. The migration packager rejects a payload missing these files. Startup needs a writable system temporary directory for generated ImageMagick configuration and bounded pixel-cache spill; it must load the bundled restrictive policy. No host ImageMagick installation or Six Labors license key is required. A cross-publish alone does not prove native Linux execution: the image tests and hosted upload flows must also pass on Linux before cutover.
+
+Local browser checks: `npm --prefix e2e run test:harness` and `npm --prefix e2e run test:smoke`. CI uses Node 24; Lighthouse 13.5.0 requires Node 22.19 or newer. The hosted read-only suite uses `MPH_HOSTED_ORIGIN=https://<exact-host>` and `npm --prefix e2e run test:hosted`. It requires valid TLS, no cross-host navigation, real SQL migrations and hosted configuration readiness. For a controlled account, also set `MPH_HOSTED_AUTH=true`, `MPH_HOSTED_ACCOUNT_TOKEN` and `MPH_HOSTED_ACCOUNT_ID` privately. Tokens are never placed in command arguments or recorded traces. Hosted reports live under `artifacts/hosted-smoke`.
+
+A separate `linux-rehearsal` environment, its target-specific publish profile and SQL secret, isolated dependencies and bounded deployment operation are not yet created. Candidate SCM basic publishing remains disabled after the probe. Prepare and verify the exact rehearsal destination/configuration before requesting its separate resource/spend approval. Rehearsal must never invoke the ordinary production deployment workflow or update `production-last-good`.

@@ -117,6 +117,7 @@ public partial class Program
                 return Results.Unauthorized();
             }
 
+            MiniPainterHub.Server.Infrastructure.Database.DisposableTestDatabase.Validate(db);
             await db.Database.EnsureDeletedAsync();
             if (db.Database.IsRelational())
             {

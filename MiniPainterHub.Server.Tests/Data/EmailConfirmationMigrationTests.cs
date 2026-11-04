@@ -4,27 +4,31 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Identity;
+using MiniPainterHub.Server.Tests.Infrastructure;
 using System;
 using System.Threading.Tasks;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace MiniPainterHub.Server.Tests.Data;
 
 public sealed class EmailConfirmationMigrationTests
 {
+    private readonly ITestOutputHelper _output;
+
+    public EmailConfirmationMigrationTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
     private const string PreviousMigration = "20260713194528_AddHobbyProjects";
     private const string EmailConfirmationMigration = "20260716192734_GrandfatherExistingEmailConfirmations";
 
     [Fact]
+    [Trait("Category", "SqlServer")]
     public async Task GrandfatherExistingEmailConfirmations_ConfirmsExistingUsersAndDoesNotUndoConfirmation()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
-        var databaseName = $"MiniPainterHub_EmailConfirmationMigration_{Guid.NewGuid():N}";
-        var connectionString = $"Server=(localdb)\\MSSQLLocalDB;Database={databaseName};Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True";
+        var connectionString = SqlServerTestDatabase.CreateConnectionString("EmailConfirmationMigration");
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlServer(connectionString)
             .Options;
@@ -34,6 +38,7 @@ public sealed class EmailConfirmationMigrationTests
         {
             var migrator = context.Database.GetService<IMigrator>();
             await migrator.MigrateAsync(PreviousMigration);
+            await SqlServerTestDatabase.VerifyAsync(context, _output);
             context.Users.Add(new ApplicationUser
             {
                 Id = "legacy-user",

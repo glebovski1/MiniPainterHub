@@ -30,8 +30,7 @@ using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Tests.Infrastructure;
 using MiniPainterHub.Server.Services.Interfaces;
 using MiniPainterHub.Server.Services.Models;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using ImageMagick;
 using Xunit;
 
 namespace MiniPainterHub.Server.Tests.Controllers;
@@ -335,9 +334,9 @@ public class PostsUploadTests : IClassFixture<PostsUploadTests.TestApplicationFa
 
     private static async Task<Stream> CreateImageAsync(int width, int height)
     {
-        var image = new Image<Rgba32>(width, height);
+        using var image = new MagickImage(MagickColors.Transparent, (uint)width, (uint)height);
         var ms = new MemoryStream();
-        await image.SaveAsJpegAsync(ms);
+        await image.WriteAsync(ms, MagickFormat.Jpeg);
         ms.Position = 0;
         return ms;
     }

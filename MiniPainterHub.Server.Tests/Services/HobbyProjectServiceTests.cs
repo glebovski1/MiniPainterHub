@@ -22,11 +22,19 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace MiniPainterHub.Server.Tests.Services;
 
 public sealed class HobbyProjectServiceTests
 {
+    private readonly ITestOutputHelper _output;
+
+    public HobbyProjectServiceTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
     [Fact]
     public async Task CreateAsync_TrimsValues_AndKeepsEmptyProjectOwnerOnly()
     {
@@ -164,15 +172,10 @@ public sealed class HobbyProjectServiceTests
     }
 
     [Fact]
+    [Trait("Category", "SqlServer")]
     public async Task LinkPostAsync_WhenRelationalRaceLoses_ReturnsWinningProjectReferenceAndReusableContext()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
-        var databaseName = $"MiniPainterHub_HobbyProjectLinkRace_{Guid.NewGuid():N}";
-        var connectionString = $"Server=(localdb)\\MSSQLLocalDB;Database={databaseName};Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True";
+        var connectionString = SqlServerTestDatabase.CreateConnectionString("HobbyProjectLinkRace");
         var baseOptions = new DbContextOptionsBuilder<MiniPainterHub.Server.Data.AppDbContext>()
             .UseSqlServer(connectionString)
             .Options;
@@ -180,6 +183,7 @@ public sealed class HobbyProjectServiceTests
         try
         {
             await setup.Database.MigrateAsync();
+            await SqlServerTestDatabase.VerifyAsync(setup, _output);
             var owner = new ApplicationUser
             {
                 Id = "race-owner",

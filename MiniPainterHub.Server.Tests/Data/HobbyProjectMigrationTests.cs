@@ -6,29 +6,33 @@ using MiniPainterHub.Common.DTOs;
 using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Identity;
+using MiniPainterHub.Server.Tests.Infrastructure;
 using System;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace MiniPainterHub.Server.Tests.Data;
 
 public sealed class HobbyProjectMigrationTests
 {
+    private readonly ITestOutputHelper _output;
+
+    public HobbyProjectMigrationTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
     private const string PreviousMigration = "20260713025842_AddGoogleAuthentication";
     private const string HobbyProjectMigration = "20260713194528_AddHobbyProjects";
 
     [Fact]
+    [Trait("Category", "SqlServer")]
     public async Task AddHobbyProjects_UpgradesWithoutBackfill_EnforcesRelationalIndexes_AndRoundTrips()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
-        var databaseName = $"MiniPainterHub_HobbyProjectMigration_{Guid.NewGuid():N}";
-        var connectionString = $"Server=(localdb)\\MSSQLLocalDB;Database={databaseName};Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True";
+        var connectionString = SqlServerTestDatabase.CreateConnectionString("HobbyProjectMigration");
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlServer(connectionString)
             .Options;
@@ -38,6 +42,7 @@ public sealed class HobbyProjectMigrationTests
         {
             var migrator = context.Database.GetService<IMigrator>();
             await migrator.MigrateAsync(PreviousMigration);
+            await SqlServerTestDatabase.VerifyAsync(context, _output);
             (await TableExistsAsync(context, "HobbyProjects")).Should().BeFalse();
 
             var owner = new ApplicationUser

@@ -332,6 +332,10 @@ Two storage paths:
 
 All post upload paths validate supported image MIME types before storage. The legacy direct upload path uses server-generated storage keys and rejects client filenames that contain path separators, rooted paths, or parent-directory segments.
 
+Variant generation uses `Magick.NET-Q8-AnyCPU` 15.0.0. `Imaging/RasterImageDecoder` pins decoding to JPEG, PNG, WebP, GIF, BMP or TIFF byte signatures, then checks source dimensions and the aggregate pixel count across frames before full decoding. The default budget is 8000 pixels per side and 50 megapixels across the sequence. The native policy caps sequences at 128 frames, memory/map at 256 MiB each and disk cache at 512 MiB; delegates, external filters and other decoders are denied. The internal `XC` solid-color generator is allowed for seed data. Startup loads the shipped policy before image use and fails if it is missing.
+
+Post variants retain their existing size, quality and format configuration. Images are auto-oriented and stripped of profiles/comments, including an optional re-encoded original. GIF/WebP animation is retained in WebP output; JPEG uses the first displayed frame. Windows and Linux native libraries come from the NuGet package. Apache 2.0 and bundled dependency notices ship under `MiniPainterHub.Server/Licenses`; no Six Labors application or key is required for this implementation.
+
 Posts can also carry optional paint recipe metadata. JSON and multipart create flows share the same recipe fields, and post detail/summary DTOs expose the data so the client can render recipe context without a second request.
 
 Painting guides are long-form user-authored walkthroughs. Each guide has ordered steps with descriptions, optional paint/color notes, optional technique notes, and optional step photos. Multipart guide creation sends photo-index pairs so a photo can attach to a specific step without requiring every step to have an image.
@@ -343,7 +347,7 @@ responses share thumbnail fallback and tag ordering behavior.
 Profile avatar uploads:
 - Entry: `ProfilesController.UploadAvatar`
 - Service: `ProfileService.UploadAvatarAsync`
-- Validates size/content type, resizes to bounded dimensions, stores via `IImageService`.
+- Validates size/content type and raster dimensions, auto-orients, resizes within 512×512, removes metadata and stores quality-85 JPEG via `IImageService`.
 
 ## 6) Error Handling
 
@@ -433,3 +437,14 @@ Preferred validation commands:
 The NBomber profile covers the public feed, consolidated and legacy post reads, search overview/posts/projects, public projects, and authenticated conversation/message reads when seeded conversation data is available, in addition to existing write/upload scenarios.
 
 When adding tests with EF InMemory, seed realistic relational data (for example all referenced users for likes/comments) to avoid impossible production states.
+
+
+### Linux migration test and package boundaries
+
+The three SQL migration/constraint cases have the `Category=SqlServer` trait and share `SqlServerTestDatabase`. Windows defaults to LocalDB; other operating systems require `MPH_TEST_SQL_CONNECTION_STRING`. The fixture accepts only loopback SQL or Windows LocalDB, rejects failover partners and always creates a unique disposable catalog. Ubuntu CI uses a pinned SQL Server 2025 container, production collation `SQL_Latin1_General_CP1_CI_AS` and compatibility 170. Its TRX gate requires all three named cases to pass and include actual provider/OS/SQL metadata. InMemory unit tests remain separate.
+
+Local Playwright startup uses the actual OS and SQL data source. PowerShell/sqllocaldb starts only for Windows LocalDB; TCP SQL uses dotnet directly. Linux's default development browser smoke still uses the existing InMemory fallback, so it is not relational evidence. Reset-enabled relational tooling validates the effective connection before initialization and again before reset: only loopback/LocalDB and disposable `MiniPainterHub_E2E`, `MiniPainterHub_RuntimeUx` or `MiniPainterHub_Lighthouse` catalogs are accepted. Local JSON precedence is unchanged; unsafe overrides fail this check. The harness owns its server instead of reusing an unrelated process.
+
+The separate hosted Playwright configuration has no local server or reset/fake-provider setup. It performs HTTPS readiness/API/browser reads, with optional controlled-account token validation. It does not prove OAuth, uploads, email or bidirectional Data Protection continuity.
+
+Publishing excludes `appsettings.Local*.json` (including examples) while native development output and override precedence remain unchanged. The migration packager checks exact required casing, local/private-file exclusion, runtime identity and per-file/ZIP hashes; local dirty packages are explicitly not release eligible. See [Deployment](DEPLOYMENT.md) and [Linux migration execution](<Linux Migration Preplan.md>).

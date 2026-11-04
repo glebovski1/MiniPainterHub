@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MiniPainterHub.Server.Data;
+using MiniPainterHub.Server.Infrastructure.Database;
 using MiniPainterHub.Server.Options;
 using System;
 using System.Linq;
@@ -22,6 +23,11 @@ public partial class Program
         {
             await using var scope = app.Services.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            if (app.Configuration.GetValue<bool>("TestSupport:ResetEnabled"))
+            {
+                DisposableTestDatabase.Validate(db);
+            }
+
             var startupLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
             LogDatabaseTarget(db, startupLogger);
             if (db.Database.IsRelational())

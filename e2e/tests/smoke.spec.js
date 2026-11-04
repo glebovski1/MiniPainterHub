@@ -1608,14 +1608,18 @@ test("admin can hide and restore comment using comment visibility filter", async
   const moderationControls = adminComment.getByTestId("comment-inline-moderation-controls");
   await expect(adminActions).toBeVisible();
   await expect(moderationControls).toBeVisible();
-  const [adminActionsBox, moderationControlsBox] = await Promise.all([
-    adminActions.boundingBox(),
-    moderationControls.boundingBox(),
-  ]);
-  expect(adminActionsBox).toBeTruthy();
-  expect(moderationControlsBox).toBeTruthy();
-  expect(moderationControlsBox.y).toBeGreaterThanOrEqual(adminActionsBox.y - 1);
-  expect(moderationControlsBox.y + moderationControlsBox.height).toBeLessThanOrEqual(adminActionsBox.y + adminActionsBox.height + 1);
+  // Read both rectangles in one frame while the inserted comment settles.
+  await expect(async () => {
+    const bounds = await adminActions.evaluate(actions => {
+      const controls = actions.querySelector('[data-testid="comment-inline-moderation-controls"]');
+      if (!controls) throw new Error("Comment moderation controls are missing.");
+      const parent = actions.getBoundingClientRect();
+      const child = controls.getBoundingClientRect();
+      return { parentTop: parent.top, parentBottom: parent.bottom, childTop: child.top, childBottom: child.bottom };
+    });
+    expect(bounds.childTop).toBeGreaterThanOrEqual(bounds.parentTop - 1);
+    expect(bounds.childBottom).toBeLessThanOrEqual(bounds.parentBottom + 1);
+  }).toPass({ timeout: 3_000 });
 
   await page.getByTestId("comment-inline-hide").first().click();
   await page.getByTestId("comment-visibility-select").selectOption("hidden");
