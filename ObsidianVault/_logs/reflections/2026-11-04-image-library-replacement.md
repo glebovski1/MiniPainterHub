@@ -7,3 +7,5 @@ Date: 2026-11-04
 - Focused output tests cover actual encoded bytes, orientation, transparency, animation and metadata. Full server and browser checks cover integration.
 - Windows tests and cross-publish do not establish Linux execution. Docker startup was rejected by automatic approval review, and no bypass was attempted. Keep the Ubuntu native/SQL gate explicit.
 - The preplan remains the single migration status owner. Preserve the old snapshot as history, clearly mark its licensing blocker/artifacts superseded, and retain the 13 unrelated user changes.
+
+Continuation: isolated and pushed the migration-only draft PR, verified clean Windows coverage/tests and initial Linux native/SQL execution, fixed the Ubuntu runner incompatibility without weakening tests, and made PR browser smoke use real SQL. Recorded the read-only runtime preview, separate media resource group and placeholder-only rehearsal packet. Live deployment and spending remain unapproved. See the migration preplan and PR for run-specific evidence.

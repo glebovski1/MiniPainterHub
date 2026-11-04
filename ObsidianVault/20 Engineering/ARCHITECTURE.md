@@ -347,7 +347,7 @@ responses share thumbnail fallback and tag ordering behavior.
 Profile avatar uploads:
 - Entry: `ProfilesController.UploadAvatar`
 - Service: `ProfileService.UploadAvatarAsync`
-- Validates size/content type and raster dimensions, auto-orients, resizes within 512Ã—512, removes metadata and stores quality-85 JPEG via `IImageService`.
+- Validates size/content type and raster dimensions, auto-orients, resizes within 512×512, removes metadata and stores quality-85 JPEG via `IImageService`.
 
 ## 6) Error Handling
 

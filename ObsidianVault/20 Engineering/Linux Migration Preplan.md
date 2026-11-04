@@ -1,6 +1,6 @@
 # Linux Migration Preplan
 
-Status: Phase 1 capacity, runtime/restart and F1 cleanup verified after the user's bounded approval. Phase 2 compatibility work is in progress. Rehearsal spending and production cutover remain separately gated.
+Status: Phase 1 capacity, runtime/restart and F1 cleanup verified after the user's bounded approval. Phase 2 compatibility work is in draft PR #85 with Linux CI verification in progress. Rehearsal spending and production cutover remain separately gated.
 
 Prepared: 2026-10-28. Revised: 2026-11-02 after three-reviewer migration rounds.
 
@@ -390,3 +390,17 @@ Both framework-dependent RID publishes passed with warnings treated as errors. T
 - `win-x64` ZIP SHA-256: `2fe20b837b66f1e16b211bc9aab77e827fe4527ae758597dc9508f2f7ecb6bcb`.
 
 Documentation reference check: 64 documents, zero issues. `git diff --check` passed.
+
+
+### Linux CI and rehearsal preparation - November 4, 2026
+
+Migration changes were committed and pushed to [draft PR #85](https://github.com/glebovski1/MiniPainterHub/pull/85), with all 13 pre-existing unrelated files excluded and byte-for-byte preserved. No merge or production deployment occurred. This supersedes the earlier local-only checkpoint. The PR checks and description own the latest run/commit/artifact links; the evidence below records this note's checkpoint.
+
+- A clean Windows checkout passed a zero-warning build, whole-solution formatting, **513 server tests**, **345 client tests** and the **82.5% server coverage** gate (80% required). The one-test difference from 514 is the unrelated local header test excluded from the PR.
+- [Initial Linux run](https://github.com/glebovski1/MiniPainterHub/actions/runs/41922362408) passed build/security, native image processing and repeated unit suites. All three SQL migration/constraint cases passed on Linux SQL Server 2025, compatibility 170 and production collation, with downloaded TRX metadata independently checked. The browser job failed before running tests because `ubuntu-latest` selected Ubuntu 26.04, unsupported by Playwright 1.59.1.
+- CI now pins Ubuntu 24.04. The PR browser job supplies disposable SQL Server instead of using the Linux local InMemory fallback. The [corrected run](https://github.com/glebovski1/MiniPainterHub/actions/runs/41923211662) was running at this checkpoint; later outcomes and sealed artifact hashes are recorded on the PR. The initial browser failure was not suppressed or treated as success.
+- Live ARM what-if was performed without deployment. The original secure-object union remained unresolved in the direct preview. Materializing that exact compiled union in memory produced only one non-null value difference: candidate `appCommandLine`, from `dotnet LinuxCapacityProbe.dll` to `dotnet MiniPainterHub.Server.dll`. No SQL/media, Windows host, plan or other resource would change. Null/default-field deltas remain provider noise to review at apply time. Sanitized evidence: `tmp/linux-migration-2026-11-02/runtime-whatif-materialized.json`.
+- Live reads confirmed candidate **Stopped/F1**, guard **Enabled**, Google and email enabled on production, and Discord not enabled. Retained media lives in **DefaultResourceGroup-EUS**, separately from the app/SQL resource group; preserve that distinction in parameters.
+- Placeholder-only settings and a review packet are prepared under `artifacts/linux-migration/rehearsal.settings.template.json` and `rehearsal-readiness.md`. They use the candidate origin, new rehearsal-only secrets and disabled reset/seeding/automatic migrations. They were not applied and are not resource/spend approval.
+
+Remaining gates include native Windows debugger attachment, Production-mode hosted startup/provider flows with isolated dependencies, shared Blob/Key Vault Data Protection implementation and cross-host continuity, recovery proof, and TLS/routing rehearsal. The original November 4 17:00 Eastern spending deadline does not authorize a new rehearsal window. No paid resource operation, candidate start, key transition, production data change or cutover occurred in this continuation.
