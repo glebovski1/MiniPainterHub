@@ -57,7 +57,7 @@ The following were recorded in the earlier read-only inventory in this planning 
 - Public DNS used Cloudflare and public TLS was valid. ARM reported disabled custom-domain SSL bindings on Windows. This does **not** establish a broken public site or a valid Azure origin TLS arrangement: Cloudflare mode, origin Host/SNI and origin certificate remain unknown.
 - SQL reported seven-day point-in-time retention. Blob/container soft-delete retention was seven days; versioning was not confirmed enabled. No restore was executed.
 - Successful deployment records were found on both hosts, but deployment IDs were not established as Git commits or recoverable immutable packages.
-- The guard was enabled at $50, not dry-run, with three named app targets. The [guard source](../../infra/cost-guard/Set-AzureCostGuard.ps1) still targets `MiniPainterHub`, `rollandpaint-prod-ca` and `tastebudz-prod-23df46c9`. A differently named app is not automatically covered.
+- The guard was enabled at $50, not dry-run, with three named app targets. The pre-existing local guard source (`infra/cost-guard/Set-AzureCostGuard.ps1`, outside this change set) still targets `MiniPainterHub`, `rollandpaint-prod-ca` and `tastebudz-prod-23df46c9`. A differently named app is not automatically covered.
 
 Outstanding facts: current costs/forecast and guard execution, actual B1 capacity, effective published configuration, SQL migration history/collation/compatibility and firewalls, Blob recovery, immutable rollback artifacts, key unprotection, identity inheritance, and Cloudflare/DNS/TLS routing. Record dated evidence and a named operator for each gate; leave unexecuted checks marked **not run**.
 
@@ -225,7 +225,7 @@ This revision changes documentation only. No application tests, builds, Azure se
 - `python tools/docs/check-doc-references.py --repo .`: 60 documents checked, zero issues.
 - `git diff --check`: no whitespace errors; existing LF/CRLF notices concern pre-existing edits.
 - SHA-256 comparisons: all 11 unrelated modified/untracked files present at the start remained unchanged.
-- Updated this preplan and added the vault [change log](<../_logs/vault-changes/2026-11-01-linux-migration-brainstorm.md>) and [reflection](<../_logs/reflections/2026-11-01-linux-migration-brainstorm.md>); existing routing links were retained.
+- Updated this preplan and added the local vault change log and reflection (`2026-11-01-linux-migration-brainstorm.md`, pre-existing untracked notes outside this change set); existing routing links were retained.
 
 **Smallest useful next step:** finish Phase 0's capacity-specific read-only refresh and prepare the exact isolation/probe/F1 cleanup operation for separate approval. Prove allocation before substantial engineering; proceed to migration only through the listed evidence gates.
 
