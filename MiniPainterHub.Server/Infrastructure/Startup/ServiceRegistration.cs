@@ -25,6 +25,7 @@ using MiniPainterHub.Server.Data;
 using MiniPainterHub.Server.ErrorHandling;
 using MiniPainterHub.Server.Infrastructure.Caching;
 using MiniPainterHub.Server.Infrastructure.Database;
+using MiniPainterHub.Server.Infrastructure.Security;
 using MiniPainterHub.Server.Infrastructure.RateLimiting;
 using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Options;
@@ -281,14 +282,8 @@ public partial class Program
 
     private static void AddFrameworkServices(WebApplicationBuilder builder)
     {
-        var dataProtection = builder.Services.AddDataProtection()
-            .SetApplicationName("MiniPainterHub");
-        if (!IsLocalToolingEnvironment(builder.Environment))
-        {
-            var keyPath = builder.Configuration["DataProtection:KeysPath"]
-                ?? Path.Combine(Environment.GetEnvironmentVariable("HOME") ?? builder.Environment.ContentRootPath, "data-protection-keys");
-            dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyPath));
-        }
+        DataProtectionConfiguration.Configure(builder.Services, builder.Configuration,
+            builder.Environment.ContentRootPath, IsLocalToolingEnvironment(builder.Environment));
 
         ConfigureForwardedHeaders(builder);
         builder.Services.AddHttpContextAccessor();

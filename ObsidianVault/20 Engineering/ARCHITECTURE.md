@@ -144,6 +144,8 @@ Authorization model:
 - Controllers are typically `[Authorize]` with `[AllowAnonymous]` on selected read endpoints.
 - User identity is read from claims (`ClaimTypes.NameIdentifier` or helper methods in `Server/Identity`).
 
+Data Protection configuration is centralized in `Infrastructure/Security/DataProtectionConfiguration`. The application discriminator remains `MiniPainterHub`. The default `FileSystem` provider preserves hosted `KeysPath` and native local-tooling behavior. Explicit `DataProtection:Provider=AzureBlob` requires both a full private `BlobUri` and a versionless `KeyVaultKeyIdentifier`; persistence and encryption are registered together. Hosted environments use managed identity (system-assigned by default, optional `ManagedIdentityClientId`); Development/Test uses developer credentials. Partial settings, unsupported providers, SAS/query credentials and invalid Azure resource URIs fail configuration without echoing values. Shared-provider failures do not fall back to a new local ring. This configuration does not import existing keys or retroactively wrap legacy XML; migration continuity still requires the rehearsed key-union and cross-host checks.
+
 ## 3) Data Model and Persistence
 
 DbContext:

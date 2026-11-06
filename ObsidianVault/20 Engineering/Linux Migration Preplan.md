@@ -404,3 +404,16 @@ Migration changes were committed and pushed to [draft PR #85](https://github.com
 - Placeholder-only settings and a review packet are prepared under `artifacts/linux-migration/rehearsal.settings.template.json` and `rehearsal-readiness.md`. They use the candidate origin, new rehearsal-only secrets and disabled reset/seeding/automatic migrations. They were not applied and are not resource/spend approval.
 
 Remaining gates include native Windows debugger attachment, Production-mode hosted startup/provider flows with isolated dependencies, shared Blob/Key Vault Data Protection implementation and cross-host continuity, recovery proof, and TLS/routing rehearsal. The original November 4 17:00 Eastern spending deadline does not authorize a new rehearsal window. No paid resource operation, candidate start, key transition, production data change or cutover occurred in this continuation.
+
+
+### Verified CI baseline and shared-provider preparation - November 6, 2026
+
+[CI run 41924053094](https://github.com/glebovski1/MiniPainterHub/actions/runs/41924053094) succeeded for PR head `6c8606c` and tested merge commit `4f1016fcb4f962f59785d5078a925b713177233a`. It passed 510 server unit tests and 345 client tests twice, all three real SQL cases, and **38 SQL-backed browser cases**. Both platform package jobs passed. Downloaded ZIPs and every manifest file hash were verified; both packages declare CI release eligibility. This supersedes the earlier pending Linux checkpoint, but is not deployment approval.
+
+- Linux ZIP SHA-256: `30d72d2b9fcd85d04bb2a5f9f5e58e20cd84579aad833dbee88b45b5f598f4f3`.
+- Windows ZIP SHA-256: `a34c6de076b94edc4fb552945b2ba4870eea7d9f23c4ca7108e7eae80e6a3eb3`.
+- Verified evidence: `artifacts/linux-migration/ci-6c8606c-verified.json`; downloaded packages/results under `artifacts/linux-migration/ci-6c8606c`.
+
+The next revision adds opt-in shared Blob/Key Vault Data Protection using supported Azure extensions, managed identity for hosted environments and the unchanged `MiniPainterHub` discriminator. Invalid or partial shared settings fail closed. Filesystem behavior remains the default; no live setting or key ring changed. Azure.Storage.Blobs was raised to 12.26.0 to meet the new provider's dependency floor. Local validation passed: 19 focused provider checks, **533 server tests**, **345 client tests**, zero-warning Release build, **82.58% coverage** against 80%, and no known NuGet vulnerabilities. The server count includes the unrelated local header test, which remains outside the PR.
+
+The provider revision requires fresh CI artifacts. It does not yet prove live Azure key wrapping, imported historical keys or bidirectional Windows/Linux continuity. The user requested the quickest and cheapest solution: defer Google test-client setup while completing local/CI preparation. A core-only hosted rehearsal may be considered separately; Google/email parity and continuity still must pass before any cutover. No new paid Azure resource or spending-window extension has been authorized by this continuation.
