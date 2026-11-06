@@ -19,7 +19,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using SixLabors.ImageSharp;
 
 namespace MiniPainterHub.Server.Services;
 
@@ -329,28 +328,8 @@ public class PaintingGuideService : IPaintingGuideService
     private async Task ValidateSourceDimensionsAsync(IFormFile photo, CancellationToken cancellationToken)
     {
         await using var stream = photo.OpenReadStream();
-        var info = await Image.IdentifyAsync(stream, cancellationToken);
-        if (info is null)
-        {
-            throw new UnsupportedImageContentTypeException(photo.FileName, PostImageUploadValidator.ResolveContentType(photo));
-        }
-
-        var megapixels = info.Width * (long)info.Height;
-        var maxPixels = _imageOptions.MaxSourceMegapixels * 1_000_000L;
-        if (info.Width <= _imageOptions.MaxSourceWidth
-            && info.Height <= _imageOptions.MaxSourceHeight
-            && megapixels <= maxPixels)
-        {
-            return;
-        }
-
-        throw new UnsupportedImageDimensionsException(
-            photo.FileName,
-            info.Width,
-            info.Height,
-            _imageOptions.MaxSourceWidth,
-            _imageOptions.MaxSourceHeight,
-            _imageOptions.MaxSourceMegapixels);
+        await RasterImageDecoder.ValidateAsync(stream, _imageOptions, photo.FileName,
+            PostImageUploadValidator.ResolveContentType(photo), cancellationToken);
     }
 
     private static void ValidateSafeFileName(IFormFile file, Dictionary<string, string[]> errors)

@@ -12,7 +12,7 @@ on:
 
 jobs:
   build-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,6 +21,9 @@ jobs:
 
       - name: Check documentation references
         run: python tools/docs/check-doc-references.py --repo .
+
+      - name: Verify migration packaging guards
+        run: python tools/cloud/test_package_migration.py
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -75,8 +78,8 @@ jobs:
       - name: Build
         run: dotnet build MiniPainterHub.sln --configuration Release --no-restore /warnaserror
 
-      - name: Test
-        run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=server-tests.trx" --collect:"XPlat Code Coverage" --results-directory artifacts/test-results
+      - name: Test server (SQL cases have a separate required job)
+        run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-build --filter 'Category!=SqlServer' --logger "trx;LogFileName=server-tests.trx" --collect:"XPlat Code Coverage" --results-directory artifacts/test-results
 
       - name: Test WebApp components
         run: dotnet test MiniPainterHub.WebApp.Tests/MiniPainterHub.WebApp.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=webapp-tests.trx" --collect:"XPlat Code Coverage" --results-directory artifacts/test-results
@@ -96,7 +99,7 @@ jobs:
 
       - name: Anti-flake rerun server tests
         if: github.event_name == 'pull_request' && steps.test_changes.outputs.tests_changed == 'true'
-        run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=server-tests-rerun.trx" --results-directory artifacts/test-results
+        run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-build --filter 'Category!=SqlServer' --logger "trx;LogFileName=server-tests-rerun.trx" --results-directory artifacts/test-results
 
       - name: Anti-flake rerun WebApp tests
         if: github.event_name == 'pull_request' && steps.test_changes.outputs.tests_changed == 'true'
@@ -110,11 +113,68 @@ jobs:
           path: artifacts/test-results
           retention-days: 7
 
+  relational-tests:
+    name: Linux SQL Server migration and constraint tests
+    runs-on: ubuntu-24.04
+    needs: build-test
+    timeout-minutes: 20
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2025-latest@sha256:245f6b1c8903edae52cb20fa31419cefcde1a49938bb8c3447099011fc871ca3
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_PID: Developer
+          MSSQL_COLLATION: SQL_Latin1_General_CP1_CI_AS
+          # Disposable loopback-only CI service; never a production credential.
+          MSSQL_SA_PASSWORD: LinuxCi_TestOnly_2026!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'LinuxCi_TestOnly_2026!' -C -Q 'SELECT 1' -b"
+          --health-interval 10s --health-timeout 5s --health-retries 12 --health-start-period 30s
+    env:
+      MPH_TEST_SQL_CONNECTION_STRING: Server=tcp:127.0.0.1,1433;User ID=sa;Password=LinuxCi_TestOnly_2026!;Encrypt=True;TrustServerCertificate=True
+      MPH_TEST_SQL_EXPECTED_COMPATIBILITY_LEVEL: '170'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore and build
+        run: dotnet build MiniPainterHub.sln --configuration Release /warnaserror
+      - name: Execute real SQL tests
+        run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-build --filter 'Category=SqlServer' --logger "trx;LogFileName=sql-tests.trx" --results-directory artifacts/sql-tests
+      - name: Verify actual SQL execution (no skipped success)
+        run: python tools/cloud/check_sql_test_results.py artifacts/sql-tests/sql-tests.trx
+      - name: Upload SQL evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-sql-test-results
+          path: artifacts/sql-tests
+          retention-days: 7
+
   browser-smoke:
     name: ui-smoke
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build-test
     if: github.event_name == 'pull_request'
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2025-latest@sha256:245f6b1c8903edae52cb20fa31419cefcde1a49938bb8c3447099011fc871ca3
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_PID: Developer
+          MSSQL_COLLATION: SQL_Latin1_General_CP1_CI_AS
+          # Disposable loopback-only CI service; never a production credential.
+          MSSQL_SA_PASSWORD: LinuxCi_TestOnly_2026!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'LinuxCi_TestOnly_2026!' -C -Q 'SELECT 1' -b"
+          --health-interval 10s --health-timeout 5s --health-retries 12 --health-start-period 30s
+    env:
+      E2E_CONNECTION_STRING: Server=tcp:127.0.0.1,1433;Database=MiniPainterHub_E2E_CI;User ID=sa;Password=LinuxCi_TestOnly_2026!;Encrypt=True;TrustServerCertificate=True
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -127,7 +187,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: e2e/package-lock.json
 
@@ -137,6 +197,10 @@ jobs:
       - name: Install npm dependencies
         working-directory: e2e
         run: npm ci
+
+      - name: Check browser harness platform selection
+        working-directory: e2e
+        run: npm run test:harness
 
       - name: Audit npm dependencies
         working-directory: e2e
@@ -206,7 +270,7 @@ jobs:
 
   hard-tests:
     name: Hard Tests (master/main push + release publish)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: |
       github.event_name == 'release' ||
       (github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'))
@@ -222,7 +286,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: e2e/package-lock.json
 
@@ -233,11 +297,15 @@ jobs:
         run: dotnet build MiniPainterHub.sln --configuration Release --no-restore /warnaserror
 
       - name: Run server tests with coverage (hard gate)
-        run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=server-tests-hard.trx" --collect:"XPlat Code Coverage" --results-directory artifacts/test-results
+        run: dotnet test MiniPainterHub.Server.Tests/MiniPainterHub.Server.Tests.csproj --configuration Release --no-build --filter 'Category!=SqlServer' --logger "trx;LogFileName=server-tests-hard.trx" --collect:"XPlat Code Coverage" --results-directory artifacts/test-results
 
       - name: Install npm dependencies
         working-directory: e2e
         run: npm ci
+
+      - name: Check browser harness platform selection
+        working-directory: e2e
+        run: npm run test:harness
 
       - name: Audit npm dependencies
         working-directory: e2e
@@ -299,3 +367,32 @@ jobs:
             e2e/test-results
             artifacts/load-tests
           retention-days: 7
+
+  migration-artifacts:
+    name: Seal migration package (${{ matrix.runtime }})
+    runs-on: ubuntu-24.04
+    needs: [build-test, relational-tests, browser-smoke, hard-tests]
+    if: >-
+      always() && !cancelled() &&
+      needs.build-test.result == 'success' &&
+      needs.relational-tests.result == 'success' &&
+      !contains(needs.*.result, 'failure') &&
+      (needs.browser-smoke.result == 'success' || needs.hard-tests.result == 'success')
+    strategy:
+      matrix:
+        runtime: [linux-x64, win-x64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Publish the tested revision
+        run: dotnet publish MiniPainterHub.Server/MiniPainterHub.Server.csproj --configuration Release --runtime ${{ matrix.runtime }} --self-contained false -p:UseAppHost=false --output artifacts/migration/publish /warnaserror
+      - name: Seal package, file hashes and migration inventory
+        run: python tools/cloud/package_migration.py --publish artifacts/migration/publish --output artifacts/migration/sealed --runtime ${{ matrix.runtime }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: migration-${{ github.sha }}-${{ matrix.runtime }}
+          path: artifacts/migration/sealed
+          if-no-files-found: error
+          retention-days: 30

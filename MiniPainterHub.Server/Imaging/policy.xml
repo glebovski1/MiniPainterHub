@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<policymap>
+  <policy domain="delegate" rights="none" pattern="*" />
+  <policy domain="filter" rights="none" pattern="*" />
+  <policy domain="coder" rights="none" pattern="*" />
+  <policy domain="coder" rights="read|write" pattern="{JPEG,PNG,PNG8,PNG24,PNG32,PNG48,PNG64,WEBP,GIF,BMP,BMP2,BMP3,TIFF}" />
+  <!-- Internal solid-color seed images; uploads still require a raster signature. -->
+  <policy domain="coder" rights="read" pattern="XC" />
+  <policy domain="path" rights="none" pattern="@*" />
+  <policy domain="resource" name="thread" value="2" />
+  <policy domain="resource" name="memory" value="256MiB" />
+  <policy domain="resource" name="map" value="256MiB" />
+  <policy domain="resource" name="disk" value="512MiB" />
+  <policy domain="resource" name="list-length" value="128" />
+</policymap>

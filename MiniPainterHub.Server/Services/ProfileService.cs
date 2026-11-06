@@ -7,9 +7,9 @@ using MiniPainterHub.Server.Entities;
 using MiniPainterHub.Server.Exceptions;
 using MiniPainterHub.Server.Imaging;
 using MiniPainterHub.Server.Services.Interfaces;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Processing;
+using ImageMagick;
+using MiniPainterHub.Server.Options;
+using System.Threading;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -163,16 +163,15 @@ public class ProfileService : IProfileService
         }
 
         await using var inStream = file.OpenReadStream();
-        using var image = await Image.LoadAsync(inStream);
-
-        image.Mutate(x => x.Resize(new ResizeOptions
-        {
-            Mode = ResizeMode.Max,
-            Size = new Size(MaxAvatarPixels, MaxAvatarPixels)
-        }));
+        using var frames = await RasterImageDecoder.ReadAsync(inStream, new ImagesOptions(), file.FileName, contentType, CancellationToken.None);
+        var image = frames[0];
+        image.AutoOrient();
+        image.Resize(MaxAvatarPixels, MaxAvatarPixels);
+        image.Strip();
+        image.Quality = 85;
 
         await using var output = new MemoryStream();
-        await image.SaveAsJpegAsync(output, new JpegEncoder { Quality = 85 });
+        await image.WriteAsync(output, MagickFormat.Jpeg);
         output.Position = 0;
 
         var fileName = $"avatar_{userId}.jpg";

@@ -1,29 +1,19 @@
+using ImageMagick;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using MiniPainterHub.Server.Imaging;
+using MiniPainterHub.Server.Options;
+using MiniPainterHub.Server.Services.Interfaces;
+using MiniPainterHub.Server.Services.Models;
 using System;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using MiniPainterHub.Server.Exceptions;
-using MiniPainterHub.Server.Options;
-using MiniPainterHub.Server.Services.Interfaces;
-using MiniPainterHub.Server.Services.Models;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Advanced;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Formats.Webp;
-using SixLabors.ImageSharp.Metadata;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 
 namespace MiniPainterHub.Server.Services.Images;
 
-/// <summary>
-/// ImageSharp-based implementation that generates application-specific variants.
-/// </summary>
+/// <summary>Generates application-specific raster variants with Magick.NET.</summary>
 public sealed class ImageProcessor : IImageProcessor
 {
     private readonly ImagesOptions _options;
@@ -35,143 +25,83 @@ public sealed class ImageProcessor : IImageProcessor
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    /// <inheritdoc />
     public async Task<ImageVariants> ProcessAsync(Stream input, string? contentType, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(input);
-
         var start = DateTimeOffset.UtcNow;
-        await using var buffer = new MemoryStream();
-        await input.CopyToAsync(buffer, ct);
-        buffer.Position = 0;
-
-        try
+        using var images = await RasterImageDecoder.ReadAsync(input, _options, "uploaded image", contentType, ct);
+        var originalFormat = images[0].Format;
+        foreach (var frame in images)
         {
-            using var image = await Image.LoadAsync<Rgba32>(buffer, ct);
-            EnsureSourceDimensionsSupported(image);
-            ApplyOrientation(image);
-            NormalizeMetadata(image.Metadata);
-
-            var hasTransparency = ContainsTransparency(image);
-            var encoderInfo = SelectEncoder(hasTransparency);
-
-            var maxVariant = await CreateVariantAsync(image, _options.Max, encoderInfo, ct);
-            var previewVariant = await CreateVariantAsync(image, _options.Preview, encoderInfo, ct);
-            var thumbVariant = await CreateVariantAsync(image, _options.Thumb, encoderInfo, ct);
-
-            ImageVariant? originalVariant = null;
-            if (_options.KeepOriginal)
-            {
-                var decodedFormat = image.Metadata.DecodedImageFormat;
-                if (decodedFormat is not null)
-                {
-                    using var originalStream = new MemoryStream();
-                    await image.SaveAsync(originalStream, decodedFormat, ct);
-                    var extension = decodedFormat.FileExtensions.FirstOrDefault() ?? encoderInfo.Extension;
-                    var mime = decodedFormat.DefaultMimeType ?? encoderInfo.ContentType;
-                    originalVariant = new ImageVariant(originalStream.ToArray(), mime, extension, image.Width, image.Height);
-                }
-            }
-
-            _logger.LogInformation("Processed image in {Elapsed} ms ({Width}x{Height})", (DateTimeOffset.UtcNow - start).TotalMilliseconds, image.Width, image.Height);
-
-            return new ImageVariants(maxVariant, previewVariant, thumbVariant, originalVariant);
-        }
-        catch (UnknownImageFormatException ex)
-        {
-            _logger.LogWarning(ex, "Unsupported image format declared as {ContentType}", contentType);
-            throw;
-        }
-    }
-
-    private static void ApplyOrientation(Image image)
-    {
-        if (image.Metadata.ExifProfile is null)
-        {
-            return;
+            frame.AutoOrient();
+            frame.Strip();
         }
 
-        image.Mutate(x => x.AutoOrient());
-    }
-
-    private static void NormalizeMetadata(ImageMetadata metadata)
-    {
-        metadata.ExifProfile = null;
-        metadata.IptcProfile = null;
-        metadata.XmpProfile = null;
-        metadata.IccProfile = null;
-    }
-
-    private void EnsureSourceDimensionsSupported(Image image)
-    {
-        var megapixels = image.Width * (long)image.Height;
-        var maxPixels = _options.MaxSourceMegapixels * 1_000_000L;
-        if (image.Width <= _options.MaxSourceWidth
-            && image.Height <= _options.MaxSourceHeight
-            && megapixels <= maxPixels)
+        var encoder = SelectEncoder(images.Any(frame => !frame.IsOpaque));
+        var max = await CreateVariantAsync(images, _options.Max, encoder, ct);
+        var preview = await CreateVariantAsync(images, _options.Preview, encoder, ct);
+        var thumb = await CreateVariantAsync(images, _options.Thumb, encoder, ct);
+        ImageVariant? original = null;
+        if (_options.KeepOriginal)
         {
-            return;
+            var originalEncoder = DescribeFormat(originalFormat);
+            using var output = new MemoryStream();
+            await images.WriteAsync(output, originalEncoder.Format, ct);
+            original = new ImageVariant(output.ToArray(), originalEncoder.ContentType, originalEncoder.Extension,
+                checked((int)images[0].Width), checked((int)images[0].Height));
         }
 
-        throw new UnsupportedImageDimensionsException(
-            "uploaded image",
-            image.Width,
-            image.Height,
-            _options.MaxSourceWidth,
-            _options.MaxSourceHeight,
-            _options.MaxSourceMegapixels);
+        _logger.LogInformation("Processed image in {Elapsed} ms ({Width}x{Height})",
+            (DateTimeOffset.UtcNow - start).TotalMilliseconds, images[0].Width, images[0].Height);
+        return new ImageVariants(max, preview, thumb, original);
     }
 
-    private async Task<ImageVariant> CreateVariantAsync(Image<Rgba32> source, ImageSizeOptions target, EncoderInfo encoderInfo, CancellationToken ct)
+    private async Task<ImageVariant> CreateVariantAsync(MagickImageCollection source, ImageSizeOptions target,
+        EncoderInfo encoder, CancellationToken ct)
     {
-        using var clone = source.Clone(ctx => ctx.Resize(new ResizeOptions
+        using var clone = source.Clone();
+        foreach (var frame in clone)
         {
-            Mode = ResizeMode.Max,
-            Size = new Size(target.Width, target.Height),
-            Sampler = KnownResamplers.Lanczos3
-        }));
-
-        NormalizeMetadata(clone.Metadata);
-
-        using var ms = new MemoryStream();
-        await clone.SaveAsync(ms, encoderInfo.Encoder, ct);
-
-        return new ImageVariant(ms.ToArray(), encoderInfo.ContentType, encoderInfo.Extension, clone.Width, clone.Height);
-    }
-
-    private EncoderInfo SelectEncoder(bool hasTransparency)
-    {
-        var preferred = _options.PreferredFormat?.Trim().ToLowerInvariant();
-        return preferred switch
-        {
-            "webp" => new EncoderInfo(new WebpEncoder { Quality = _options.Quality }, "webp", "image/webp"),
-            "png" when hasTransparency => new EncoderInfo(new PngEncoder { ColorType = PngColorType.RgbWithAlpha }, "png", "image/png"),
-            "jpeg" or "jpg" => new EncoderInfo(new JpegEncoder { Quality = _options.Quality }, "jpg", "image/jpeg"),
-            "png" => new EncoderInfo(new JpegEncoder { Quality = _options.Quality }, "jpg", "image/jpeg"),
-            _ when hasTransparency => new EncoderInfo(new PngEncoder { ColorType = PngColorType.RgbWithAlpha }, "png", "image/png"),
-            _ => new EncoderInfo(new JpegEncoder { Quality = _options.Quality }, "jpg", "image/jpeg")
-        };
-    }
-
-    private static bool ContainsTransparency(Image<Rgba32> image)
-    {
-        var frame = image.Frames.RootFrame;
-
-        for (var y = 0; y < frame.Height; y++)
-        {
-            var span = frame.DangerousGetPixelRowMemory(y).Span;
-
-            foreach (var pixel in span)
-            {
-                if (pixel.A < 255)
-                {
-                    return true;
-                }
-            }
+            ct.ThrowIfCancellationRequested();
+            frame.Resize((uint)target.Width, (uint)target.Height, FilterType.Lanczos);
+            frame.ResetPage();
+            frame.Strip();
+            frame.Quality = (uint)_options.Quality;
         }
 
-        return false;
+        using var output = new MemoryStream();
+        // JPEG has no animation; retain the first displayed frame as before.
+        if (encoder.Format == MagickFormat.Jpeg)
+        {
+            await clone[0].WriteAsync(output, encoder.Format, ct);
+        }
+        else
+        {
+            await clone.WriteAsync(output, encoder.Format, ct);
+        }
+
+        return new ImageVariant(output.ToArray(), encoder.ContentType, encoder.Extension,
+            checked((int)clone[0].Width), checked((int)clone[0].Height));
     }
 
-    private sealed record EncoderInfo(IImageEncoder Encoder, string Extension, string ContentType);
+    private EncoderInfo SelectEncoder(bool transparent) => (_options.PreferredFormat?.Trim().ToLowerInvariant()) switch
+    {
+        "webp" => DescribeFormat(MagickFormat.WebP),
+        "png" when transparent => DescribeFormat(MagickFormat.Png),
+        "png" or "jpeg" or "jpg" => DescribeFormat(MagickFormat.Jpeg),
+        _ when transparent => DescribeFormat(MagickFormat.Png),
+        _ => DescribeFormat(MagickFormat.Jpeg)
+    };
+
+    private static EncoderInfo DescribeFormat(MagickFormat format) => format switch
+    {
+        MagickFormat.WebP => new(format, "webp", "image/webp"),
+        MagickFormat.Gif => new(format, "gif", "image/gif"),
+        MagickFormat.Tiff => new(format, "tiff", "image/tiff"),
+        MagickFormat.Bmp or MagickFormat.Bmp2 or MagickFormat.Bmp3 => new(MagickFormat.Bmp, "bmp", "image/bmp"),
+        MagickFormat.Jpeg => new(format, "jpg", "image/jpeg"),
+        _ => new(MagickFormat.Png, "png", "image/png")
+    };
+
+    private sealed record EncoderInfo(MagickFormat Format, string Extension, string ContentType);
 }

@@ -15,8 +15,7 @@ using MiniPainterHub.Server.Options;
 using MiniPainterHub.Server.Services;
 using MiniPainterHub.Server.Services.Interfaces;
 using MiniPainterHub.Server.Tests.Infrastructure;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using ImageMagick;
 using Xunit;
 
 namespace MiniPainterHub.Server.Tests.Services;
@@ -186,9 +185,9 @@ public class PaintingGuideServiceTests
 
     private static byte[] CreateJpegBytes()
     {
-        using var image = new Image<Rgba32>(16, 16);
+        using var image = new MagickImage(MagickColors.Transparent, 16, 16);
         using var stream = new MemoryStream();
-        image.SaveAsJpeg(stream);
+        image.Write(stream, MagickFormat.Jpeg);
         return stream.ToArray();
     }
 
