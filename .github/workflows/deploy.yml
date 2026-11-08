@@ -2,22 +2,20 @@ name: Deploy
 
 on:
   workflow_run:
-    workflows:
-      - CI
-    types:
-      - completed
-    branches:
-      - master
+    workflows: [CI]
+    types: [completed]
+    branches: [master]
   workflow_dispatch:
     inputs:
-      ref:
-        description: 'Git ref to deploy (branch, tag, or SHA)'
+      ci_run_id:
+        description: Successful master-push CI run containing the sealed Linux package
         required: true
-        default: master
         type: string
 
 permissions:
   contents: write
+  actions: read
+  id-token: write
 
 concurrency:
   group: deploy-production
@@ -25,233 +23,99 @@ concurrency:
 
 jobs:
   deploy-production:
-    name: Deploy production
-    runs-on: ubuntu-latest
+    if: >-
+      github.ref == 'refs/heads/master' && vars.LINUX_PRODUCTION_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-24.04
     environment: production
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push' &&
-        github.event.workflow_run.head_branch == 'master'
-      )
     env:
-      AZURE_WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
-      AZURE_WEBAPP_HOSTNAME: ${{ vars.AZURE_WEBAPP_HOSTNAME }}
-      AZURE_WEBAPP_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-      PRODUCTION_SQL_CONNECTION_STRING: ${{ secrets.PRODUCTION_SQL_CONNECTION_STRING }}
+      GH_TOKEN: ${{ github.token }}
+      AZURE_WEBAPP_NAME: rollandpaint-prod-ca
+      PRODUCTION_HEALTH_URL: https://rollandpaint.com/healthz/ready
     steps:
-      - name: Checkout deploy ref
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.workflow_run.head_sha }}
+          ref: master
           fetch-depth: 0
-
-      - name: Resolve deployment refs
-        id: deployment_refs
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          deploy_sha="$(git rev-parse HEAD)"
-          echo "deploy_sha=$deploy_sha" >> "$GITHUB_OUTPUT"
-          echo "Deploying $deploy_sha"
-
-          git fetch --force origin 'refs/tags/production-last-good:refs/tags/production-last-good' || true
-          rollback_sha=""
-          if git rev-parse --verify --quiet refs/tags/production-last-good^{commit} >/dev/null; then
-            rollback_sha="$(git rev-parse refs/tags/production-last-good^{commit})"
-          elif git rev-parse --verify --quiet HEAD^ >/dev/null; then
-            rollback_sha="$(git rev-parse HEAD^)"
-            echo "::warning title=No last-known-good tag::Falling back to the parent commit for rollback."
-          fi
-
-          if [ -n "$rollback_sha" ] && [ "$rollback_sha" = "$deploy_sha" ]; then
-            if git rev-parse --verify --quiet HEAD^ >/dev/null; then
-              rollback_sha="$(git rev-parse HEAD^)"
-              echo "::warning title=Last-known-good equals current deploy::Using the parent commit for rollback."
-            else
-              rollback_sha=""
-            fi
-          fi
-
-          if [ -n "$rollback_sha" ]; then
-            echo "Rollback target: $rollback_sha"
-          else
-            echo "::warning title=Rollback target unavailable::No production-last-good tag or parent commit is available."
-          fi
-
-          echo "rollback_sha=$rollback_sha" >> "$GITHUB_OUTPUT"
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - name: Resolve successful release and pinned rollback
+        id: release
+        env:
+          SELECTED_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.ci_run_id || github.event.workflow_run.id }}
+        run: python tools/cloud/resolve_release_run.py
+      - name: Download sealed release
+        uses: actions/download-artifact@v4
         with:
-          dotnet-version: 10.0.x
-
-      - name: Validate deployment configuration
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          required_names=(
-            AZURE_WEBAPP_NAME
-            AZURE_WEBAPP_HOSTNAME
-            AZURE_WEBAPP_PUBLISH_PROFILE
-            PRODUCTION_SQL_CONNECTION_STRING
-          )
-
-          missing=false
-          for name in "${required_names[@]}"; do
-            if [ -z "${!name:-}" ]; then
-              echo "::error title=Missing deployment configuration::$name is not configured in the production GitHub environment."
-              missing=true
-            fi
-          done
-
-          if [ "$missing" = true ]; then
-            exit 1
-          fi
-
-      - name: Restore
-        run: dotnet restore MiniPainterHub.sln
-
-      - name: Publish server artifact
-        run: dotnet publish MiniPainterHub.Server/MiniPainterHub.Server.csproj --configuration Release --no-restore --output artifacts/publish/server
-
-      - name: Install EF migration tool
-        run: dotnet tool install --global dotnet-ef --version 10.0.14
-
-      - name: Apply production database migrations
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          max_attempts=4
-          transient_pattern='Error Number:(40613|40197|40501|4060|10928|10929|49918|49919|49920)|likely due to a transient failure'
-
-          for attempt in $(seq 1 "$max_attempts"); do
-            migration_log="$(mktemp)"
-            set +e
-            dotnet ef database update \
-              --project MiniPainterHub.Server/MiniPainterHub.Server.csproj \
-              --startup-project MiniPainterHub.Server/MiniPainterHub.Server.csproj \
-              --configuration Release \
-              --connection "$PRODUCTION_SQL_CONNECTION_STRING" 2>&1 | tee "$migration_log"
-            exit_code=${PIPESTATUS[0]}
-            set -e
-
-            if [ "$exit_code" -eq 0 ]; then
-              rm -f "$migration_log"
-              exit 0
-            fi
-
-            if ! grep --extended-regexp --ignore-case --quiet "$transient_pattern" "$migration_log"; then
-              rm -f "$migration_log"
-              exit "$exit_code"
-            fi
-
-            if [ "$attempt" -eq "$max_attempts" ]; then
-              rm -f "$migration_log"
-              echo "::error title=Production database unavailable::EF migrations still failed after $max_attempts transient retries."
-              exit "$exit_code"
-            fi
-
-            retry_delay=$((attempt * 20))
-            rm -f "$migration_log"
-            echo "::warning title=Transient Azure SQL failure::Migration attempt $attempt failed transiently; retrying in ${retry_delay}s."
-            sleep "$retry_delay"
-          done
-
-      - name: Deploy to existing Azure Web App
-        uses: azure/webapps-deploy@v3
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.release.outputs.run_id }}
+          name: migration-${{ steps.release.outputs.commit }}-linux-x64
+          path: artifacts/release
+      - name: Download sealed rollback before changing production
+        uses: actions/download-artifact@v4
         with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ env.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: artifacts/publish/server
-
-      - name: Verify health endpoint
-        id: verify_current
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.release.outputs.rollback_run }}
+          name: migration-${{ steps.release.outputs.rollback_commit }}-linux-x64
+          path: artifacts/rollback
+      - name: Verify both immutable packages
+        id: packages
+        env:
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+          RELEASE_RUN: ${{ steps.release.outputs.run_id }}
+          ROLLBACK_COMMIT: ${{ steps.release.outputs.rollback_commit }}
+          ROLLBACK_RUN: ${{ steps.release.outputs.rollback_run }}
+          ROLLBACK_SHA: ${{ steps.release.outputs.rollback_sha }}
+        run: |
+          set -euo pipefail
+          digest=$(python tools/cloud/verify_release_package.py artifacts/release --commit "$RELEASE_COMMIT" --run-id "$RELEASE_RUN")
+          python tools/cloud/verify_release_package.py artifacts/rollback --commit "$ROLLBACK_COMMIT" --run-id "$ROLLBACK_RUN" --sha256 "$ROLLBACK_SHA"
+          echo "sha256=$digest" >> "$GITHUB_OUTPUT"
+      - uses: azure/login@8c334a195cbb38e46038007b304988d888bf676a # v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      # Schema changes require their own reviewed release. This hosting pipeline
+      # never applies EF migrations and never rebuilds rollback code.
+      - name: Deploy verified Linux package
+        id: deploy
         continue-on-error: true
-        shell: bash
+        run: az webapp deploy --resource-group mphp-rg --name "$AZURE_WEBAPP_NAME" --src-path artifacts/release/minipainterhub-linux-x64.zip --type zip --clean true --only-show-errors
+      - name: Verify production readiness
+        id: healthy
+        if: steps.deploy.outcome == 'success'
+        continue-on-error: true
         run: |
-          set -euo pipefail
-
-          health_url="https://${AZURE_WEBAPP_HOSTNAME}/healthz/ready"
-          for attempt in {1..12}; do
-            status="$(curl --silent --show-error --location --output /dev/null --write-out '%{http_code}' "$health_url" || true)"
-            if [ "$status" = "200" ]; then
-              echo "Health check passed at $health_url"
-              exit 0
-            fi
-
-            echo "Health check attempt $attempt returned HTTP $status; retrying in 10 seconds."
+          for attempt in {1..18}; do
+            if curl --fail --silent --show-error --max-time 20 "$PRODUCTION_HEALTH_URL"; then exit 0; fi
             sleep 10
           done
-
-          echo "::error title=Production health check failed::$health_url did not return HTTP 200 after deployment."
           exit 1
-
-      - name: Prepare rollback artifact
-        if: steps.verify_current.outcome == 'failure' && steps.deployment_refs.outputs.rollback_sha != ''
-        shell: bash
+      - name: Restore the pinned Linux package on deployment or health failure
+        if: steps.deploy.outcome != 'success' || steps.healthy.outcome != 'success'
         run: |
-          set -euo pipefail
-
-          rollback_sha="${{ steps.deployment_refs.outputs.rollback_sha }}"
-          echo "::warning title=Rolling back deployment::Current deployment failed health checks. Preparing rollback artifact from $rollback_sha."
-          git checkout --force "$rollback_sha"
-          dotnet restore MiniPainterHub.sln
-          dotnet publish MiniPainterHub.Server/MiniPainterHub.Server.csproj --configuration Release --no-restore --output artifacts/publish/rollback-server
-
-      - name: Roll back Azure Web App
-        if: steps.verify_current.outcome == 'failure' && steps.deployment_refs.outputs.rollback_sha != ''
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ env.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: artifacts/publish/rollback-server
-
-      - name: Verify rollback health endpoint
-        if: steps.verify_current.outcome == 'failure' && steps.deployment_refs.outputs.rollback_sha != ''
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          health_url="https://${AZURE_WEBAPP_HOSTNAME}/healthz/ready"
-          for attempt in {1..12}; do
-            status="$(curl --silent --show-error --location --output /dev/null --write-out '%{http_code}' "$health_url" || true)"
-            if [ "$status" = "200" ]; then
-              echo "Rollback health check passed at $health_url"
-              exit 0
+          az webapp deploy --resource-group mphp-rg --name "$AZURE_WEBAPP_NAME" --src-path artifacts/rollback/minipainterhub-linux-x64.zip --type zip --clean true --only-show-errors
+          for attempt in {1..18}; do
+            if curl --fail --silent --show-error --max-time 20 "$PRODUCTION_HEALTH_URL"; then
+              echo "::error::Deployment failed; restored the pinned previous Linux release."
+              exit 1
             fi
-
-            echo "Rollback health check attempt $attempt returned HTTP $status; retrying in 10 seconds."
             sleep 10
           done
-
-          echo "::error title=Rollback health check failed::$health_url did not return HTTP 200 after rollback."
+          echo "::error::Deployment and rollback readiness failed; operator intervention is required."
           exit 1
-
-      - name: Mark deployment as last known good
-        if: steps.verify_current.outcome == 'success'
-        shell: bash
+      - name: Record the successful immutable release
+        if: steps.healthy.outcome == 'success'
+        env:
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+          RELEASE_RUN: ${{ steps.release.outputs.run_id }}
+          RELEASE_SHA: ${{ steps.packages.outputs.sha256 }}
         run: |
-          set -euo pipefail
-
-          deploy_sha="${{ steps.deployment_refs.outputs.deploy_sha }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag --force production-last-good "$deploy_sha"
+          python - <<'PY'
+          import json, os, pathlib
+          pathlib.Path('release-record.json').write_text(json.dumps({'commit':os.environ['RELEASE_COMMIT'],'ciRunId':os.environ['RELEASE_RUN'],'sha256':os.environ['RELEASE_SHA']}))
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git tag --force --annotate production-last-good "$RELEASE_COMMIT" --file release-record.json
           git push --force origin refs/tags/production-last-good
-          echo "Marked $deploy_sha as production-last-good."
-
-      - name: Fail after rollback
-        if: steps.verify_current.outcome == 'failure'
-        shell: bash
-        run: |
-          if [ -z "${{ steps.deployment_refs.outputs.rollback_sha }}" ]; then
-            echo "::error title=Production deployment failed::Health check failed and no rollback target was available."
-          else
-            echo "::error title=Production deployment rolled back::Health check failed for ${{ steps.deployment_refs.outputs.deploy_sha }}. Rolled back to ${{ steps.deployment_refs.outputs.rollback_sha }}."
-          fi
-          exit 1

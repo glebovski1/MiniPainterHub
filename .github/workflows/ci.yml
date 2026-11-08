@@ -25,6 +25,11 @@ jobs:
       - name: Verify migration packaging guards
         run: python tools/cloud/test_package_migration.py
 
+      - name: Verify rehearsal cleanup and restart guards
+        run: |
+          python -m unittest discover -s tools/cloud -p 'test_rehearsal_*.py' -v
+          python -m unittest discover -s tools/cloud -p 'test_production_candidate_cleanup.py' -v
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
