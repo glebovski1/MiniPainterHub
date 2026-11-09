@@ -13,8 +13,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using ImageMagick;
 
 namespace MiniPainterHub.Server.Data
 {
@@ -433,7 +432,8 @@ namespace MiniPainterHub.Server.Data
             const int width = 480;
             const int height = 320;
 
-            using var image = new Image<Rgba32>(width, height);
+            using var image = new MagickImage(MagickColors.Transparent, width, height);
+            using var pixels = image.GetPixels();
 
             for (var y = 0; y < height; y++)
             {
@@ -444,18 +444,18 @@ namespace MiniPainterHub.Server.Data
                         && y >= height / 5 && y <= height * 4 / 5;
                     var checker = ((x / 24) + (y / 24)) % 2 == 0;
 
-                    image[x, y] = inCenterPanel
+                    pixels.SetPixel(x, y, (inCenterPanel
                         ? checker
-                            ? new Rgba32(230, 179, 82)
-                            : new Rgba32(194, 120, 47)
+                            ? new MagickColor(230, 179, 82)
+                            : new MagickColor(194, 120, 47)
                         : checker
-                            ? new Rgba32(46, 84, 158)
-                            : new Rgba32(75, 120, 204);
+                            ? new MagickColor(46, 84, 158)
+                            : new MagickColor(75, 120, 204)).ToByteArray());
                 }
             }
 
             var stream = new MemoryStream();
-            image.SaveAsPng(stream);
+            image.Write(stream, MagickFormat.Png);
             stream.Position = 0;
             return stream;
         }

@@ -17,6 +17,7 @@ public partial class Program
 
     public static async Task Main(string[] args)
     {
+        MiniPainterHub.Server.Imaging.RasterImageDecoder.Initialize();
         var builder = WebApplication.CreateBuilder(args);
         var developmentCommand = TryParseDevelopmentCommand(args);
         builder.Configuration

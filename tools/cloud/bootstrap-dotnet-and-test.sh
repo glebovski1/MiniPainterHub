@@ -13,15 +13,15 @@ has_supported_dotnet() {
     return 1
   fi
 
-  dotnet --list-sdks | grep -Eq '^(8|9|[1-9][0-9])\.'
+  dotnet --list-sdks | grep -Eq '^10\.'
 }
 
 if ! has_supported_dotnet; then
-  echo "Installing .NET SDK (channel 8.0) into ${DOTNET_ROOT}..."
+  echo "Installing .NET SDK (channel 10.0) into ${DOTNET_ROOT}..."
   install_script="${DOTNET_ROOT}/dotnet-install.sh"
   mkdir -p "${DOTNET_ROOT}"
   curl -fsSL "https://dot.net/v1/dotnet-install.sh" -o "${install_script}"
-  bash "${install_script}" --channel "8.0" --quality "ga" --install-dir "${DOTNET_ROOT}"
+  bash "${install_script}" --channel "10.0" --quality "ga" --install-dir "${DOTNET_ROOT}"
 fi
 
 echo "Using dotnet: $(dotnet --version)"

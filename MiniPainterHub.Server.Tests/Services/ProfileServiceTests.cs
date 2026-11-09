@@ -12,8 +12,7 @@ using MiniPainterHub.Server.Identity;
 using MiniPainterHub.Server.Services;
 using MiniPainterHub.Server.Services.Interfaces;
 using MiniPainterHub.Server.Tests.Infrastructure;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using ImageMagick;
 using Xunit;
 
 namespace MiniPainterHub.Server.Tests.Services;
@@ -245,6 +244,12 @@ public class ProfileServiceTests
         var updated = await service.UploadAvatarAsync(user.Id, file);
 
         imageService.UploadedFileName.Should().Be($"avatar_{user.Id}.jpg");
+        using var stored = new MagickImage(imageService.UploadedContent!);
+        stored.Format.Should().Be(MagickFormat.Jpeg);
+        stored.Width.Should().BeLessOrEqualTo(512);
+        stored.Height.Should().BeLessOrEqualTo(512);
+        stored.GetExifProfile().Should().BeNull();
+        stored.Comment.Should().BeNullOrEmpty();
         updated.AvatarUrl.Should().MatchRegex(@"^https://images\.test/avatar_user-1\.jpg\?v=[a-f0-9]{32}$");
         (await context.Profiles.SingleAsync()).AvatarUrl.Should().Be(updated.AvatarUrl);
     }
@@ -403,19 +408,27 @@ public class ProfileServiceTests
 
     private static byte[] GetTinyPng()
     {
-        using var image = new Image<Rgba32>(4, 4);
+        using var image = new MagickImage(MagickColors.Transparent, 4, 4);
+        var profile = new ExifProfile();
+        profile.SetValue(ExifTag.Artist, "Private artist information");
+        image.SetProfile(profile);
+        image.Comment = "Private comment";
         using var stream = new MemoryStream();
-        image.SaveAsPng(stream);
+        image.Write(stream, MagickFormat.Png);
         return stream.ToArray();
     }
 
     private sealed class StubImageService : IImageService
     {
         public string? UploadedFileName { get; private set; }
+        public byte[]? UploadedContent { get; private set; }
 
         public Task<string> UploadAsync(Stream fileStream, string fileName)
         {
             UploadedFileName = fileName;
+            using var buffer = new MemoryStream();
+            fileStream.CopyTo(buffer);
+            UploadedContent = buffer.ToArray();
             return Task.FromResult($"https://images.test/{fileName}");
         }
 

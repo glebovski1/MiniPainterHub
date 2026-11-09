@@ -12,8 +12,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using ImageMagick;
 using Xunit;
 
 namespace MiniPainterHub.Server.Tests.Data;
@@ -525,7 +524,7 @@ public class DevelopmentContentSeederTests
 
     private static async Task WriteValidImageAsync(string path)
     {
-        using var image = new Image<Rgba32>(4, 4, new Rgba32(128, 64, 32, 255));
-        await image.SaveAsPngAsync(path);
+        using var image = new MagickImage(new MagickColor(128, 64, 32, 255), 4, 4);
+        await image.WriteAsync(path, MagickFormat.Png);
     }
 }
